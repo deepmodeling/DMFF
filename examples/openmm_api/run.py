@@ -1,11 +1,8 @@
 #!/usr/bin/env python
-<<<<<<< HEAD:examples/openmm_api/run.py
 import sys
 from pathlib import Path
 admp_path = Path(__file__).parent.parent.parent
 sys.path.append(str(admp_path))
-=======
->>>>>>> c27371dc91dc85e85e1c8a71e447333dcf64b888:examples/openmm_api/run.py
 import openmm.app as app
 import openmm.unit as unit
 import numpy as np
