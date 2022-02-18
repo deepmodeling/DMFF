@@ -1,12 +1,14 @@
 #!/usr/bin/env python
-import sys 
-import openmm
+import sys
+from pathlib import Path
+admp_path = Path(__file__).parent.parent.parent
+sys.path.append(str(admp_path))
 import openmm.app as app
 import openmm.unit as unit
 import numpy as np
 import jax.numpy as jnp
 from collections import defaultdict
-from admp.api import Hamiltonian
+from dmff.api import Hamiltonian
 from jax_md import space, partition
 from jax import grad
 

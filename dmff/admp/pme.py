@@ -5,18 +5,17 @@ import jax
 import jax.numpy as jnp
 from jax import grad, value_and_grad, vmap, jit
 from jax.scipy.special import erf
-import admp.settings
-from admp.settings import DO_JIT, jit_condition, POL_CONV, MAX_N_POL
-from admp.multipole import C1_c2h, convert_cart2harm
-from admp.multipole import rot_ind_global2local, rot_global2local, rot_local2global
-from admp.spatial import v_pbc_shift, generate_construct_local_frames, build_quasi_internal
-from admp.pairwise import distribute_scalar, distribute_v3, distribute_multipoles
+from dmff.admp.settings import DO_JIT, jit_condition, POL_CONV, MAX_N_POL
+from dmff.admp.multipole import C1_c2h, convert_cart2harm
+from dmff.admp.multipole import rot_ind_global2local, rot_global2local, rot_local2global
+from dmff.admp.spatial import v_pbc_shift, generate_construct_local_frames, build_quasi_internal
+from dmff.admp.pairwise import distribute_scalar, distribute_v3, distribute_multipoles
 from functools import partial
 
 DIELECTRIC = 1389.35455846
 DEFAULT_THOLE_WIDTH = 0.3
 
-from admp.recip import generate_pme_recip, Ck_1
+from dmff.admp.recip import generate_pme_recip, Ck_1
 
 # for debugging use only
 # from jax_md import partition, space

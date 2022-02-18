@@ -2,12 +2,11 @@
 import jax
 import jax.numpy as jnp
 from jax import vmap, value_and_grad
-import admp.settings
-from admp.settings import DO_JIT, jit_condition
-from admp.spatial import pbc_shift, v_pbc_shift
-from admp.pme import setup_ewald_parameters
-from admp.recip import generate_pme_recip, Ck_6, Ck_8, Ck_10
-from admp.pairwise import distribute_scalar, distribute_v3, distribute_dispcoeff
+from dmff.admp.settings import DO_JIT, jit_condition
+from dmff.admp.spatial import pbc_shift, v_pbc_shift
+from dmff.admp.pme import setup_ewald_parameters
+from dmff.admp.recip import generate_pme_recip, Ck_6, Ck_8, Ck_10
+from dmff.admp.pairwise import distribute_scalar, distribute_v3, distribute_dispcoeff
 from functools import partial
 
 # debug

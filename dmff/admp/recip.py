@@ -4,9 +4,8 @@ import numpy as np
 import jax.numpy as jnp
 import jax.scipy as jsp
 from jax import jit, grad, value_and_grad
-import admp.settings
-from admp.settings import DO_JIT, jit_condition
-from admp.pme import DIELECTRIC
+from dmff.admp.settings import DO_JIT, jit_condition
+from dmff.admp.pme import DIELECTRIC
 
 # for debug
 # from admp.parser import *
