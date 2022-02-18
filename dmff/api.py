@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-import sys
-import openmm
 import openmm.app as app
 import openmm.unit as unit
 import numpy as np
@@ -15,6 +13,7 @@ from admp.recip import Ck_1, generate_pme_recip
 from jax_md import space, partition
 from jax import grad
 import linecache
+
 
 
 def get_line_context(file_path, line_number):
