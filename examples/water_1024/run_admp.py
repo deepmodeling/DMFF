@@ -1,21 +1,17 @@
 #!/usr/bin/env python
 import sys
+from pathlib import Path
+admp_path = Path(__file__).parent.parent.parent
+sys.path.append(str(admp_path))
 import numpy as np
 import jax.numpy as jnp
 from jax import grad, value_and_grad
 from jax_md import partition, space
-# from admp.settings import *
-# from admp.multipole import *
-# from admp.parser import *
-# from admp.pme import *
-# from admp.disp_pme import *
-# from admp.pairwise import *
-import admp.settings
-from admp.multipole import convert_cart2harm
-from admp.pme import ADMPPmeForce
-from admp.disp_pme import ADMPDispPmeForce
-from admp.pairwise import generate_pairwise_interaction, TT_damping_qq_c6_kernel
-from admp.parser import *
+from dmff.admp.multipole import convert_cart2harm
+from dmff.admp.pme import ADMPPmeForce
+from dmff.admp.disp_pme import ADMPDispPmeForce
+from dmff.admp.pairwise import generate_pairwise_interaction, TT_damping_qq_c6_kernel
+from dmff.admp.parser import *
 
 
 # below is the validation code

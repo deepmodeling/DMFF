@@ -1,20 +1,11 @@
-#!/usr/bin/env python
-import jax
 import jax.numpy as jnp
 from jax import vmap, value_and_grad
-from dmff.admp.settings import DO_JIT, jit_condition
-from dmff.admp.spatial import pbc_shift, v_pbc_shift
+from dmff.utils import jit_condition
+from dmff.admp.spatial import pbc_shift
 from dmff.admp.pme import setup_ewald_parameters
 from dmff.admp.recip import generate_pme_recip, Ck_6, Ck_8, Ck_10
 from dmff.admp.pairwise import distribute_scalar, distribute_v3, distribute_dispcoeff
 from functools import partial
-
-# debug
-# from jax_md import partition, space
-# from admp.parser import *
-# from admp.multipole import *
-# from jax import grad, value_and_grad
-# from admp.pme import *
 
 class ADMPDispPmeForce:
     '''
@@ -278,85 +269,85 @@ def disp_pme_self(c_list, kappa, pmax):
     return E
 
 
-def validation(pdb):
-    xml = 'mpidwater.xml'
-    pdbinfo = read_pdb(pdb)
-    serials = pdbinfo['serials']
-    names = pdbinfo['names']
-    resNames = pdbinfo['resNames']
-    resSeqs = pdbinfo['resSeqs']
-    positions = pdbinfo['positions']
-    box = pdbinfo['box'] # a, b, c, α, β, γ
-    charges = pdbinfo['charges']
-    positions = jnp.asarray(positions)
-    lx, ly, lz, _, _, _ = box
-    box = jnp.eye(3)*jnp.array([lx, ly, lz])
+# def validation(pdb):
+#     xml = 'mpidwater.xml'
+#     pdbinfo = read_pdb(pdb)
+#     serials = pdbinfo['serials']
+#     names = pdbinfo['names']
+#     resNames = pdbinfo['resNames']
+#     resSeqs = pdbinfo['resSeqs']
+#     positions = pdbinfo['positions']
+#     box = pdbinfo['box'] # a, b, c, α, β, γ
+#     charges = pdbinfo['charges']
+#     positions = jnp.asarray(positions)
+#     lx, ly, lz, _, _, _ = box
+#     box = jnp.eye(3)*jnp.array([lx, ly, lz])
 
-    mScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    pScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    dScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
+#     mScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
+#     pScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
+#     dScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
 
-    rc = 4  # in Angstrom
-    ethresh = 1e-4
+#     rc = 4  # in Angstrom
+#     ethresh = 1e-4
 
-    n_atoms = len(serials)
+#     n_atoms = len(serials)
 
-    atomTemplate, residueTemplate = read_xml(xml)
-    atomDicts, residueDicts = init_residues(serials, names, resNames, resSeqs, positions, charges, atomTemplate, residueTemplate)
+#     atomTemplate, residueTemplate = read_xml(xml)
+#     atomDicts, residueDicts = init_residues(serials, names, resNames, resSeqs, positions, charges, atomTemplate, residueTemplate)
 
-    covalent_map = assemble_covalent(residueDicts, n_atoms)
-    displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
-    neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T
+#     covalent_map = assemble_covalent(residueDicts, n_atoms)
+#     displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
+#     neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
+#     nbr = neighbor_list_fn.allocate(positions)
+#     pairs = nbr.idx.T
 
-    pmax = 10
-    kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
-    kappa = 0.657065221219616
+#     pmax = 10
+#     kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
+#     kappa = 0.657065221219616
 
-    # construct the C list
-    c_list = np.zeros((3,n_atoms))
-    nmol=int(n_atoms/3)
-    for i in range(nmol):
-        a = i*3
-        b = i*3+1
-        c = i*3+2
-        c_list[0][a]=37.19677405
-        c_list[0][b]=7.6111103
-        c_list[0][c]=7.6111103
-        c_list[1][a]=85.26810658
-        c_list[1][b]=11.90220148
-        c_list[1][c]=11.90220148
-        c_list[2][a]=134.44874488
-        c_list[2][b]=15.05074749
-        c_list[2][c]=15.05074749
-    c_list = jnp.array(c_list.T)
-
-
-    # Finish data preparation
-    # -------------------------------------------------------------------------------------
-    # pme_order = 6
-    # d6_recip = generate_pme_recip(Ck_6, kappa, True, pme_order, K1, K2, K3, 0)
-    # d8_recip = generate_pme_recip(Ck_8, kappa, True, pme_order, K1, K2, K3, 0)
-    # d10_recip = generate_pme_recip(Ck_10, kappa, True, pme_order, K1, K2, K3, 0)
-    # disp_pme_recip_fns = [d6_recip, d8_recip, d10_recip]
-    # energy_force_disp_pme = value_and_grad(energy_disp_pme)
-    # e, f = energy_force_disp_pme(positions, box, pairs, c_list, mScales, covalent_map, kappa, K1, K2, K3, pmax, *disp_pme_recip_fns)
-    # print('ok')
-    # e, f = energy_force_disp_pme(positions, box, pairs, c_list, mScales, covalent_map, kappa, K1, K2, K3, pmax, *disp_pme_recip_fns)
-    # print(e)
-
-    disp_pme_force = ADMPDispPmeForce(box, covalent_map, rc, ethresh, pmax)
-    disp_pme_force.update_env('kappa', 0.657065221219616)
-
-    print(c_list[:4])
-    E, F = disp_pme_force.get_forces(positions, box, pairs, c_list, mScales)
-    print('ok')
-    E, F = disp_pme_force.get_forces(positions, box, pairs, c_list, mScales)
-    print(E)
-    return
+#     # construct the C list
+#     c_list = np.zeros((3,n_atoms))
+#     nmol=int(n_atoms/3)
+#     for i in range(nmol):
+#         a = i*3
+#         b = i*3+1
+#         c = i*3+2
+#         c_list[0][a]=37.19677405
+#         c_list[0][b]=7.6111103
+#         c_list[0][c]=7.6111103
+#         c_list[1][a]=85.26810658
+#         c_list[1][b]=11.90220148
+#         c_list[1][c]=11.90220148
+#         c_list[2][a]=134.44874488
+#         c_list[2][b]=15.05074749
+#         c_list[2][c]=15.05074749
+#     c_list = jnp.array(c_list.T)
 
 
-# below is the validation code
-if __name__ == '__main__':
-    validation(sys.argv[1])
+#     # Finish data preparation
+#     # -------------------------------------------------------------------------------------
+#     # pme_order = 6
+#     # d6_recip = generate_pme_recip(Ck_6, kappa, True, pme_order, K1, K2, K3, 0)
+#     # d8_recip = generate_pme_recip(Ck_8, kappa, True, pme_order, K1, K2, K3, 0)
+#     # d10_recip = generate_pme_recip(Ck_10, kappa, True, pme_order, K1, K2, K3, 0)
+#     # disp_pme_recip_fns = [d6_recip, d8_recip, d10_recip]
+#     # energy_force_disp_pme = value_and_grad(energy_disp_pme)
+#     # e, f = energy_force_disp_pme(positions, box, pairs, c_list, mScales, covalent_map, kappa, K1, K2, K3, pmax, *disp_pme_recip_fns)
+#     # print('ok')
+#     # e, f = energy_force_disp_pme(positions, box, pairs, c_list, mScales, covalent_map, kappa, K1, K2, K3, pmax, *disp_pme_recip_fns)
+#     # print(e)
+
+#     disp_pme_force = ADMPDispPmeForce(box, covalent_map, rc, ethresh, pmax)
+#     disp_pme_force.update_env('kappa', 0.657065221219616)
+
+#     print(c_list[:4])
+#     E, F = disp_pme_force.get_forces(positions, box, pairs, c_list, mScales)
+#     print('ok')
+#     E, F = disp_pme_force.get_forces(positions, box, pairs, c_list, mScales)
+#     print(E)
+#     return
+
+
+# # below is the validation code
+# if __name__ == '__main__':
+#     validation(sys.argv[1])

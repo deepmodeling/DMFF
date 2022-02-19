@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 import sys
+from pathlib import Path
+admp_path = Path(__file__).parent.parent.parent
+sys.path.append(str(admp_path))
 import numpy as np
 import jax.numpy as jnp
-from jax import grad, value_and_grad
 from jax_md import partition, space
-import admp.settings
-from admp.multipole import convert_cart2harm
-from admp.pme import ADMPPmeForce
-from admp.parser import *
+from dmff.admp.multipole import convert_cart2harm
+from dmff.admp.pme import ADMPPmeForce
+from dmff.admp.parser import *
 
 
 import linecache

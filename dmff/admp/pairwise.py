@@ -1,9 +1,7 @@
-#!/usr/bin/env python
 import sys
-import jax
 from jax import vmap
 import jax.numpy as jnp
-from dmff.admp.settings import DO_JIT, jit_condition
+from dmff.utils import jit_condition
 from dmff.admp.spatial import v_pbc_shift
 from functools import partial
 

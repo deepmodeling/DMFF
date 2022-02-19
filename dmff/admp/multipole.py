@@ -1,9 +1,7 @@
-#!/usr/bin/env python
 import sys
-import numpy as np
 import jax.numpy as jnp
 from jax import vmap
-from dmff.admp.settings import DO_JIT, jit_condition
+from dmff.utils import jit_condition
 from functools import partial
 
 # This module deals with the transformations and rotations of multipoles

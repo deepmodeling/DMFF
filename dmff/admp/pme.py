@@ -1,11 +1,12 @@
-#!/usr/bin/env python
 import sys
 import numpy as np
 import jax
 import jax.numpy as jnp
 from jax import grad, value_and_grad, vmap, jit
 from jax.scipy.special import erf
-from dmff.admp.settings import DO_JIT, jit_condition, POL_CONV, MAX_N_POL
+from dmff.settings import DO_JIT
+from dmff.admp.settings import POL_CONV, MAX_N_POL
+from dmff.utils import jit_condition
 from dmff.admp.multipole import C1_c2h, convert_cart2harm
 from dmff.admp.multipole import rot_ind_global2local, rot_global2local, rot_local2global
 from dmff.admp.spatial import v_pbc_shift, generate_construct_local_frames, build_quasi_internal
