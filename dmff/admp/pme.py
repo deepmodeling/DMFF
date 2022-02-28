@@ -14,7 +14,7 @@ from dmff.admp.pairwise import distribute_scalar, distribute_v3, distribute_mult
 from functools import partial
 
 DIELECTRIC = 1389.35455846
-DEFAULT_THOLE_WIDTH = 0.3
+DEFAULT_THOLE_WIDTH = 5.0
 
 from dmff.admp.recip import generate_pme_recip, Ck_1
 
@@ -408,7 +408,7 @@ def calc_e_ind(dr, thole1, thole2, dmp, pscales, dscales, kappa, lmax=2):
     ## switch function
 
     # a = 1/(jnp.exp((pscales-0.001)*10000)+1) * (thole1 + thole2) + 8/(jnp.exp((-pscales+0.01)*10000)+1)
-    a = switch_val(pscales, 1e-3, 1e-5, DEFAULT_THOLE_WIDTH, thole1+thole2)
+    a = switch_val(pscales, 1e-3, 1e-5, thole1+thole2, DEFAULT_THOLE_WIDTH)
 
     dmp = trim_val_0(dmp)
     u = trim_val_infty(dr/dmp)
@@ -469,9 +469,8 @@ def calc_e_ind(dr, thole1, thole2, dmp, pscales, dscales, kappa, lmax=2):
         udq_m0 = 0.0
         udq_m1 = 0.0
     ## Uind-Uind
-    uscales = 1
-    udud_m0 = -2.0/3.0*rInvVec[3]*(3.0*(uscales*thole_d0 + bVec[3]) + alphaRVec[3]*X)
-    udud_m1 = rInvVec[3]*(uscales*thole_d1 + bVec[3] - 2.0/3.0*alphaRVec[3]*X)
+    udud_m0 = -2.0/3.0*rInvVec[3]*(3.0*(dscales*thole_d0 + bVec[3]) + alphaRVec[3]*X)
+    udud_m1 = rInvVec[3]*(dscales*thole_d1 + bVec[3] - 2.0/3.0*alphaRVec[3]*X)
     return cud, dud_m0, dud_m1, udq_m0, udq_m1, udud_m0, udud_m1
 
 
