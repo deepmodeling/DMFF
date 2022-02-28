@@ -220,7 +220,7 @@ class ADMPPmeGenerator:
             "kx": [],
             "ky": [],
         }
-        self.params = {
+        self._input_params = {
             "c0": [],
             "dX": [],
             "dY": [],
@@ -245,9 +245,12 @@ class ADMPPmeGenerator:
             "polarizabilityXX": [],
             "polarizabilityYY": [],
             "polarizabilityZZ": [],
+
+        }
+        self.params = {
             "mScales": [],
             "pScales": [],
-            "dScales": []
+            "dScales": [],
         }
         # if more or optional input params
         # self._input_params = defaultDict(list) 
@@ -269,7 +272,7 @@ class ADMPPmeGenerator:
                 self.kStrings[kString].append("")
 
         for k, v in atom.items():
-            self.params[k].append(float(v))
+            self._input_params[k].append(float(v))
 
     @staticmethod
     def parseElement(element, hamiltonian):
@@ -296,16 +299,47 @@ class ADMPPmeGenerator:
                     break
             generator.registerAtomType(atomAttrib)
 
+        for k in generator._input_params.keys():
+            generator._input_params[k] = jnp.array(generator._input_params[k])
+        generator.types = np.array(generator.types)
+        
+        n_atoms = len(element.findall('Atom'))
+        
+        # map atom multipole moments
+        Q = np.zeros((n_atoms, 10))
+        Q[:, 0] = generator._input_params["c0"]
+        Q[:, 1] = generator._input_params["dX"] * 10
+        Q[:, 2] = generator._input_params["dY"] * 10
+        Q[:, 3] = generator._input_params["dZ"] * 10
+        Q[:, 4] = generator._input_params["qXX"] * 300
+        Q[:, 5] = generator._input_params["qYY"] * 300
+        Q[:, 6] = generator._input_params["qZZ"] * 300
+        Q[:, 7] = generator._input_params["qXY"] * 300
+        Q[:, 8] = generator._input_params["qXZ"] * 300
+        Q[:, 9] = generator._input_params["qYZ"] * 300
+
+        # add all differentiable params to self.params
+        Q_local = convert_cart2harm(Q, 2)
+        generator.params['Q_local'] = Q_local
+        
+        pol = jnp.vstack((generator._input_params['polarizabilityXX'], generator._input_params['polarizabilityYY'], generator._input_params['polarizabilityZZ'])).T
+        pol = 1000*jnp.mean(pol,axis=1)
+
+        tholes = jnp.array(generator._input_params['thole'])
+        # tholes = jnp.mean(jnp.atleast_2d(tholes), axis=1)
+        
+        generator.params['pol'] = pol
+        generator.params['tholes'] = tholes
+        # generator.params['']
         for k in generator.params.keys():
             generator.params[k] = jnp.array(generator.params[k])
-        generator.types = np.array(generator.types)
+        
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
 
         n_atoms = len(data.atoms)
         # build index map
         map_atomtype = np.zeros(n_atoms, dtype=int)
-        self.map_atomtype = map_atomtype
 
         for i in range(n_atoms):
             atype = data.atomType[data.atoms[i]]
@@ -356,40 +390,38 @@ class ADMPPmeGenerator:
         )
         if self.lpol:
             self.params['U_ind'] = pme_force.U_ind
+            
+        params = self.params
+        mScales = params["mScales"]
+        pScales = params["pScales"]
+        dScales = params["dScales"]
+        Q_local = params["Q_local"][map_atomtype]
+        pol = params["pol"][map_atomtype]
+        tholes = params["tholes"][map_atomtype]
+        U_ind = params['U_ind']
+        
+        jnp.save('mScales', mScales)
+        jnp.save('Q_local', Q_local)
+        jnp.save('pol', pol)
+        jnp.save('tholes', tholes)
+        jnp.save('pScales', pScales)
+        jnp.save('dScales', dScales)
+        jnp.save('U_ind', U_ind)        
 
 
         def potential_fn(positions, box, pairs, params):
 
             mScales = params["mScales"]
-            
-            # map atom multipole moments
-            Q = jnp.zeros((n_atoms, 10))
-            Q = Q.at[:, 0].set(params["c0"][map_atomtype])
-            Q = Q.at[:, 1].set(params["dX"][map_atomtype] * 10)
-            Q = Q.at[:, 2].set(params["dY"][map_atomtype] * 10)
-            Q = Q.at[:, 3].set(params["dZ"][map_atomtype] * 10)
-            Q = Q.at[:, 4].set(params["qXX"][map_atomtype] * 300)
-            Q = Q.at[:, 5].set(params["qYY"][map_atomtype] * 300)
-            Q = Q.at[:, 6].set(params["qZZ"][map_atomtype] * 300)
-            Q = Q.at[:, 7].set(params["qXY"][map_atomtype] * 300)
-            Q = Q.at[:, 8].set(params["qXZ"][map_atomtype] * 300)
-            Q = Q.at[:, 9].set(params["qYZ"][map_atomtype] * 300)
-
-            # add all differentiable params to self.params
-            Q_local = convert_cart2harm(Q, 2)
+            Q_local = params["Q_local"][map_atomtype]
+            pol = params["pol"][map_atomtype]
+            tholes = params["tholes"][map_atomtype]
 
             # positions, box, pairs, Q_local, mScales
             if self.lpol:
                 pScales = params["pScales"]
                 dScales = params["dScales"]
                 U_ind = params["U_ind"]
-                # map polarization-related params
-                pol = jnp.vstack((params['polarizabilityXX'][map_atomtype], params['polarizabilityYY'][map_atomtype], params['polarizabilityZZ'][map_atomtype])).T
-                pol = 1000*jnp.mean(pol,axis=1)
-
-                tholes = jnp.array(params['thole'][map_atomtype])
-                tholes = jnp.mean(jnp.atleast_2d(tholes), axis=1)
-                return pme_force.get_energy(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=U_ind)
+                return pme_force.get_energy(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_ind)
             else: 
                 return pme_force.get_energy(positions, box, pairs, Q_local, mScales)
 
