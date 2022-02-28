@@ -9,9 +9,11 @@ import jax.numpy as jnp
 from dmff.api import Hamiltonian
 from jax_md import space, partition
 from jax import grad
-
+from time import time
 
 if __name__ == '__main__':
+    
+    start = time()
     
     H = Hamiltonian('forcefield.xml')
     app.Topology.loadBondDefinitions("residues.xml")
@@ -21,6 +23,8 @@ if __name__ == '__main__':
     generator = H.getGenerators()
     disp_generator = generator[0]
     pme_generator = generator[1]
+    
+    pme_generator.lpol = True # debug
     pme_generator.ref_dip = 'dipole_1024'
     potentials = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
     # pot_fn is the actual energy calculator
@@ -36,13 +40,17 @@ if __name__ == '__main__':
     neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
     nbr = neighbor_list_fn.allocate(positions)
     pairs = nbr.idx.T
+    
+    end = time()
+    
 
-    print(pot_disp(positions, box, pairs, disp_generator.params))
-    param_grad = grad(pot_disp, argnums=3)(positions, box, pairs, generator[0].params)
-    print(param_grad['mScales'])
+    # print(pot_disp(positions, box, pairs, disp_generator.params))
+    # param_grad = grad(pot_disp, argnums=3)(positions, box, pairs, generator[0].params)
+    # print(param_grad['mScales'])
     
     print(pot_pme(positions, box, pairs, pme_generator.params))
     param_grad = grad(pot_pme, argnums=3)(positions, box, pairs, generator[1].params)
     print(param_grad['mScales'])
 
+    print(end - start)
     
