@@ -10,6 +10,7 @@ from .admp.pairwise import TT_damping_qq_c6_kernel, generate_pairwise_interactio
 from .admp.pme import ADMPPmeForce
 from .admp.spatial import generate_construct_local_frames
 from .admp.recip import Ck_1, generate_pme_recip
+from .classical.intra import HarmonicBondJaxForce, HarmonicAngleJaxForce, PeriodicTorsionJaxForce
 from jax_md import space, partition
 from jax import grad
 import linecache
