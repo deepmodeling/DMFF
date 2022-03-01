@@ -49,7 +49,11 @@ if __name__ == '__main__':
     # print(param_grad['mScales'])
     
     print(pot_pme(positions, box, pairs, pme_generator.params))
-    param_grad = grad(pot_pme, argnums=(3))(positions, box, pairs, generator[1].params)
+    pme_force = pme_generator.pme_force
+    p = pme_generator
+    # positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_ind
+    mScales = grad(pme_force.get_energy, argnums=(6, ))(positions, box, pairs, p.Q_local, p.pol, p.tholes, p.mScales, p.pScales, p.dScales, p.U_ind)
+    param_grad = grad(pot_pme, argnums=(3))(positions, box, pairs, pme_generator.params)
     print(param_grad)
 
     print(end - start)

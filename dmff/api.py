@@ -391,84 +391,43 @@ class ADMPPmeGenerator:
         pme_force = ADMPPmeForce(box, self.axis_types, self.axis_indices,
                                  covalent_map, rc, self.ethresh, self.lmax,
                                  self.lpol)
+        self.pme_force = pme_force  # jichen: hook for debug
         if self.lpol:
             self.params['U_ind'] = pme_force.U_ind
             
         params = self.params
-        mScales = params["mScales"]
-        pScales = params["pScales"]
-        dScales = params["dScales"]
-        Q_local = params["Q_local"][map_atomtype]
-        pol = params["pol"][map_atomtype]
-        tholes = params["tholes"][map_atomtype]
-        U_ind = params['U_ind']
         
-        jnp.save('mScales', mScales)
-        jnp.save('Q_local', Q_local)
-        jnp.save('pol', pol)
-        jnp.save('tholes', tholes)
-        jnp.save('pScales', pScales)
-        jnp.save('dScales', dScales)
-        jnp.save('U_ind', U_ind)        
+        # jichen: pickle for debug
+        self.mScales = params["mScales"]
+        self.pScales = params["pScales"]
+        self.dScales = params["dScales"]
+        self.Q_local = params["Q_local"][map_atomtype]
+        self.pol = params["pol"][map_atomtype]
+        self.tholes = params["tholes"][map_atomtype]
+        self.U_ind = params['U_ind']
+        jnp.save('mScales', self.mScales)
+        jnp.save('Q_local', self.Q_local)
+        jnp.save('pol', self.pol)
+        jnp.save('tholes', self.tholes)
+        jnp.save('pScales', self.pScales)
+        jnp.save('dScales', self.dScales)
+        jnp.save('U_ind', self.U_ind)        
 
         def potential_fn(positions, box, pairs, params):
 
             mScales = params["mScales"]
-<<<<<<< HEAD
             Q_local = params["Q_local"][map_atomtype]
             pol = params["pol"][map_atomtype]
             tholes = params["tholes"][map_atomtype]
-=======
-
-            # map atom multipole moments
-            Q = jnp.zeros((n_atoms, 10))
-            Q = Q.at[:, 0].set(params["c0"][map_atomtype])
-            Q = Q.at[:, 1].set(params["dX"][map_atomtype] * 10)
-            Q = Q.at[:, 2].set(params["dY"][map_atomtype] * 10)
-            Q = Q.at[:, 3].set(params["dZ"][map_atomtype] * 10)
-            Q = Q.at[:, 4].set(params["qXX"][map_atomtype] * 300)
-            Q = Q.at[:, 5].set(params["qYY"][map_atomtype] * 300)
-            Q = Q.at[:, 6].set(params["qZZ"][map_atomtype] * 300)
-            Q = Q.at[:, 7].set(params["qXY"][map_atomtype] * 300)
-            Q = Q.at[:, 8].set(params["qXZ"][map_atomtype] * 300)
-            Q = Q.at[:, 9].set(params["qYZ"][map_atomtype] * 300)
-
-            # add all differentiable params to self.params
-            Q_local = convert_cart2harm(Q, 2)
->>>>>>> 87f961065dfc5286b519d4d00732bddce39abe1d
 
             # positions, box, pairs, Q_local, mScales
             if self.lpol:
                 pScales = params["pScales"]
                 dScales = params["dScales"]
                 U_ind = params["U_ind"]
-<<<<<<< HEAD
                 return pme_force.get_energy(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_ind)
             else: 
                 return pme_force.get_energy(positions, box, pairs, Q_local, mScales)
-=======
-                # map polarization-related params
-                pol = jnp.vstack((params['polarizabilityXX'][map_atomtype],
-                                  params['polarizabilityYY'][map_atomtype],
-                                  params['polarizabilityZZ'][map_atomtype])).T
-                pol = 1000 * jnp.mean(pol, axis=1)
-
-                tholes = jnp.array(params['thole'][map_atomtype])
-                tholes = jnp.mean(jnp.atleast_2d(tholes), axis=1)
-                return pme_force.get_energy(positions,
-                                            box,
-                                            pairs,
-                                            Q_local,
-                                            pol,
-                                            tholes,
-                                            mScales,
-                                            pScales,
-                                            dScales,
-                                            U_init=U_ind)
-            else:
-                return pme_force.get_energy(positions, box, pairs, Q_local,
-                                            mScales)
->>>>>>> 87f961065dfc5286b519d4d00732bddce39abe1d
 
         self._jaxPotential = potential_fn
 
