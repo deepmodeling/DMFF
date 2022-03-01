@@ -15,9 +15,8 @@ from jax import grad
 import linecache
 
 
-
 def get_line_context(file_path, line_number):
-    return linecache.getline(file_path,line_number).strip()
+    return linecache.getline(file_path, line_number).strip()
 
 
 def build_covalent_map(data, max_neighbor):
@@ -30,8 +29,8 @@ def build_covalent_map(data, max_neighbor):
         for i in range(n_atoms):
             # current neighbors
             j_list = np.where(
-                np.logical_and(covalent_map[i] <= n_curr, covalent_map[i] > 0)
-            )[0]
+                np.logical_and(covalent_map[i] <= n_curr,
+                               covalent_map[i] > 0))[0]
             for j in j_list:
                 k_list = np.where(covalent_map[j] == 1)[0]
                 for k in k_list:
@@ -119,7 +118,14 @@ def set_axis_type(map_atomtypes, types, params):
 class ADMPDispGenerator:
     def __init__(self, hamiltonian):
         self.ff = hamiltonian
-        self.params = {"A": [], "B": [], "Q": [], "C6": [], "C8": [], "C10": []}
+        self.params = {
+            "A": [],
+            "B": [],
+            "Q": [],
+            "C6": [],
+            "C8": [],
+            "C10": []
+        }
         self._jaxPotential = None
         self.types = []
         self.ethresh = 1.0e-5
@@ -150,7 +156,8 @@ class ADMPDispGenerator:
             generator.params[k] = jnp.array(generator.params[k])
         generator.types = np.array(generator.types)
 
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
 
         n_atoms = len(data.atoms)
         # build index map
@@ -168,22 +175,22 @@ class ADMPDispGenerator:
         rc = nonbondedCutoff.value_in_unit(unit.angstrom)
 
         # get calculator
-        Force_DispPME = ADMPDispPmeForce(box, covalent_map, rc, self.ethresh, self.pmax)
+        Force_DispPME = ADMPDispPmeForce(box, covalent_map, rc, self.ethresh,
+                                         self.pmax)
         # debugging
         # Force_DispPME.update_env('kappa', 0.657065221219616)
         # Force_DispPME.update_env('K1', 96)
         # Force_DispPME.update_env('K2', 96)
         # Force_DispPME.update_env('K3', 96)
         pot_fn_lr = Force_DispPME.get_energy
-        pot_fn_sr = generate_pairwise_interaction(
-            TT_damping_qq_c6_kernel, covalent_map, static_args={}
-        )
+        pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_c6_kernel,
+                                                  covalent_map,
+                                                  static_args={})
 
         def potential_fn(positions, box, pairs, params):
             mScales = params["mScales"]
-            a_list = (
-                params["A"][map_atomtype] / 2625.5
-            )  # kj/mol to au, as expected by TT_damping kernel
+            a_list = (params["A"][map_atomtype] / 2625.5
+                      )  # kj/mol to au, as expected by TT_damping kernel
             b_list = params["B"][map_atomtype] * 0.0529177249  # nm^-1 to au
             q_list = params["Q"][map_atomtype]
             c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)
@@ -191,9 +198,8 @@ class ADMPDispGenerator:
             c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
             c_list = jnp.vstack((c6_list, c8_list, c10_list))
 
-            E_sr = pot_fn_sr(
-                positions, box, pairs, mScales, a_list, b_list, q_list, c_list[0]
-            )
+            E_sr = pot_fn_sr(positions, box, pairs, mScales, a_list, b_list,
+                             q_list, c_list[0])
             E_lr = pot_fn_lr(positions, box, pairs, c_list.T, mScales)
             return E_sr - E_lr
 
@@ -253,15 +259,15 @@ class ADMPPmeGenerator:
             "dScales": [],
         }
         # if more or optional input params
-        # self._input_params = defaultDict(list) 
+        # self._input_params = defaultDict(list)
         self._jaxPotential = None
         self.types = []
         self.ethresh = 1.0e-5
         self.lpol = False
         self.ref_dip = ''
 
-    def registerAtomType(self, atom:dict):
-        
+    def registerAtomType(self, atom: dict):
+
         self.types.append(atom.pop("type"))
 
         kStrings = ["kz", "kx", "ky"]
@@ -279,14 +285,17 @@ class ADMPPmeGenerator:
         generator = ADMPPmeGenerator(hamiltonian)
         generator.lmax = int(element.attrib.get('lmax'))
         generator.defaultTholeWidth = 5
-        
+
         hamiltonian.registerGenerator(generator)
 
         for i in range(2, 7):
-            generator.params["mScales"].append(float(element.attrib["mScale1%d" % i]))
-            generator.params["pScales"].append(float(element.attrib["pScale1%d" % i]))
-            generator.params["dScales"].append(float(element.attrib["dScale1%d" % i]))
-        
+            generator.params["mScales"].append(
+                float(element.attrib["mScale1%d" % i]))
+            generator.params["pScales"].append(
+                float(element.attrib["pScale1%d" % i]))
+            generator.params["dScales"].append(
+                float(element.attrib["dScale1%d" % i]))
+
         if element.findall('Polarize'):
             generator.lpol = True
 
@@ -335,7 +344,8 @@ class ADMPPmeGenerator:
             generator.params[k] = jnp.array(generator.params[k])
         
 
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
 
         n_atoms = len(data.atoms)
         # build index map
@@ -347,7 +357,7 @@ class ADMPPmeGenerator:
 
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
-        box = jnp.array([a._value, b._value, c._value]) * 10     
+        box = jnp.array([a._value, b._value, c._value]) * 10
 
         # get the admp calculator
         rc = nonbondedCutoff.value_in_unit(unit.angstrom)
@@ -357,15 +367,15 @@ class ADMPPmeGenerator:
 
         # build intra-molecule axis
         self.axis_types, self.axis_indices = set_axis_type(
-            map_atomtype, self.types, self.kStrings
-        )
+            map_atomtype, self.types, self.kStrings)
         map_axis_indices = []
         # map axis_indices
         for i in range(n_atoms):
             catom = data.atoms[i]
             residue = catom.residue._atoms
             atom_indices = [
-                index if index != "" else -1 for index in self.axis_indices[i][1:]
+                index if index != "" else -1
+                for index in self.axis_indices[i][1:]
             ]
             for atom in residue:
                 if atom == catom:
@@ -377,37 +387,12 @@ class ADMPPmeGenerator:
             map_axis_indices.append(atom_indices)
 
         self.axis_indices = np.array(map_axis_indices)
-        
-        pme_force = ADMPPmeForce(
-            box,
-            self.axis_types,
-            self.axis_indices,
-            covalent_map,
-            rc,
-            self.ethresh,
-            self.lmax,
-            self.lpol
-        )
-        if self.lpol:
-            self.params['U_ind'] = pme_force.U_ind
-            
-        params = self.params
-        mScales = params["mScales"]
-        pScales = params["pScales"]
-        dScales = params["dScales"]
-        Q_local = params["Q_local"][map_atomtype]
-        pol = params["pol"][map_atomtype]
-        tholes = params["tholes"][map_atomtype]
-        U_ind = params['U_ind']
-        
-        jnp.save('mScales', mScales)
-        jnp.save('Q_local', Q_local)
-        jnp.save('pol', pol)
-        jnp.save('tholes', tholes)
-        jnp.save('pScales', pScales)
-        jnp.save('dScales', dScales)
-        jnp.save('U_ind', U_ind)        
 
+        pme_force = ADMPPmeForce(box, self.axis_types, self.axis_indices,
+                                 covalent_map, rc, self.ethresh, self.lmax,
+                                 self.lpol)
+        if self.lpol:
+            self.params['U_ind'] = pme_force.U_ind   
 
         def potential_fn(positions, box, pairs, params):
 
@@ -416,7 +401,6 @@ class ADMPPmeGenerator:
             pol = params["pol"][map_atomtype]
             tholes = params["tholes"][map_atomtype]
 
-            # positions, box, pairs, Q_local, mScales
             if self.lpol:
                 pScales = params["pScales"]
                 dScales = params["dScales"]
@@ -437,6 +421,313 @@ class ADMPPmeGenerator:
 app.forcefield.parsers["ADMPPmeForce"] = ADMPPmeGenerator.parseElement
 
 
+class HarmonicBondGenerator:
+    def __init__(self, hamiltonian):
+        self.ff = hamiltonian
+        self.params = {'k': [], 'length': []}
+        self._jaxPotential = None
+        self.types = []
+
+    def registerBondType(self, bond):
+        types = self.ff._findAtomTypes(bond, 2)
+        self.types.append(types)
+        self.params['k'].append(float(bond['k']))
+        self.params['length'].append(float(bond['length']))
+
+    @staticmethod
+    def parseElement(element, hamiltonian):
+        generator = HarmonicBondGenerator(hamiltonian)
+        hamiltonian.registerGenerator(generator)
+        for bondtype in element.findall("Bond"):
+            generator.registerBondType(bondtype.attrib)
+        # jax it!
+        for k in generator.params.keys():
+            generator.params[k] = jnp.array(generator.params[k])
+        generator.types = np.array(generator.types)
+
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
+
+        n_bonds = len(data.bonds)
+        # build map
+        map_atom1 = np.zeros(n_bonds, dtype=int)
+        map_atom2 = np.zeros(n_bonds, dtype=int)
+        map_param = np.zeros(n_bonds, dtype=int)
+        for i in range(n_bonds):
+            idx1 = data.bonds[i].atom1
+            idx2 = data.bonds[i].atom2
+            type1 = data.atomType[data.atoms[idx1]]
+            type2 = data.atomType[data.atoms[idx2]]
+            ifFound = False
+            for ii in range(len(self.types)):
+                if (type1 in self.types[ii][0] and type2 in self.types[ii][1]
+                    ) or (type1 in self.types[ii][1]
+                          and type2 in self.types[ii][0]):
+                    map_atom1[i] = idx1
+                    map_atom2[i] = idx2
+                    map_param[i] = ii
+                    ifFound = True
+                    break
+            if not ifFound:
+                raise BaseException("No parameter for bond %i - %i" %
+                                    (idx1, idx2))
+
+        bforce = HarmonicBondJaxForce(map_atom1, map_atom2, map_param)
+
+        def potential_fn(positions, box, pairs, params):
+            return bforce.get_energy(positions, box, pairs, params["k"],
+                                     params["length"])
+
+        self._jaxPotential = potential_fn
+        # self._top_data = data
+
+    def getJaxPotential(self):
+        return self._jaxPotential
+
+    def renderXML(self):
+        # generate xml force field file
+        pass
+
+
+# register all parsers
+app.forcefield.parsers[
+    "HarmonicBondForce"] = HarmonicBondGenerator.parseElement
+
+
+class HarmonicAngleGenerator:
+    def __init__(self, hamiltonian):
+        self.ff = hamiltonian
+        self.params = {'k': [], 'theta0': []}
+        self._jaxPotential = None
+        self.types = []
+
+    def registerAngleType(self, angle):
+        types = self.ff._findAtomTypes(angle, 3)
+        self.types.append(types)
+        self.params['k'].append(float(angle['k']))
+        self.params['theta0'].append(float(angle['theta0']))
+
+    @staticmethod
+    def parseElement(element, hamiltonian):
+        generator = HarmonicAngleGenerator(hamiltonian)
+        hamiltonian.registerGenerator(generator)
+        for bondtype in element.findall("Angle"):
+            generator.registerAngleType(bondtype.attrib)
+        # jax it!
+        for k in generator.params.keys():
+            generator.params[k] = jnp.array(generator.params[k])
+        generator.types = np.array(generator.types)
+
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
+
+        n_angles = len(data.angles)
+        # build map
+        map_atom1 = np.zeros(n_angles, dtype=int)
+        map_atom2 = np.zeros(n_angles, dtype=int)
+        map_atom3 = np.zeros(n_angles, dtype=int)
+        map_param = np.zeros(n_angles, dtype=int)
+        for i in range(n_angles):
+            idx1 = data.angles[i].atom1
+            idx2 = data.angles[i].atom2
+            idx3 = data.angles[i].atom3
+            type1 = data.atomType[data.atoms[idx1]]
+            type2 = data.atomType[data.atoms[idx2]]
+            type3 = data.atomType[data.atoms[idx3]]
+            ifFound = False
+            for ii in range(len(self.types)):
+                if type2 in self.types[ii][1]:
+                    if (type1 in self.types[ii][0]
+                            and type3 in self.types[ii][2]) or (
+                                type1 in self.types[ii][2]
+                                and type3 in self.types[ii][0]):
+                        map_atom1[i] = idx1
+                        map_atom2[i] = idx2
+                        map_atom3[i] = idx3
+                        map_param[i] = ii
+                        ifFound = True
+                        break
+            if not ifFound:
+                raise BaseException("No parameter for angle %i - %i - %i" %
+                                    (idx1, idx2, idx3))
+
+        aforce = HarmonicAngleJaxForce(map_atom1, map_atom2, map_atom3,
+                                       map_param)
+
+        def potential_fn(positions, box, pairs, params):
+            return aforce.get_energy(positions, box, pairs, params["k"],
+                                     params["theta0"])
+
+        self._jaxPotential = potential_fn
+        # self._top_data = data
+
+    def getJaxPotential(self):
+        return self._jaxPotential
+
+    def renderXML(self):
+        # generate xml force field file
+        pass
+
+
+# register all parsers
+app.forcefield.parsers[
+    "HarmonicAngleForce"] = HarmonicAngleGenerator.parseElement
+
+
+class PeriodicTorsion(object):
+    """A PeriodicTorsion records the information for a periodic torsion definition."""
+    def __init__(self, types):
+        self.types1 = types[0]
+        self.types2 = types[1]
+        self.types3 = types[2]
+        self.types4 = types[3]
+        self.periodicity = []
+        self.phase = []
+        self.k = []
+        self.ordering = 'default'
+
+
+## @private
+class PeriodicTorsionGenerator(object):
+    """A PeriodicTorsionGenerator constructs a PeriodicTorsionForce."""
+    def __init__(self, hamiltonian):
+        self.ff = hamiltonian
+        self.proper = []
+        self.improper = []
+        self.params = {'k': [], 'theta0': []}
+        self.propersForAtomType = defaultdict(set)
+
+    def registerProperTorsion(self, parameters):
+        torsion = self.ff._parseTorsion(parameters)
+        if torsion is not None:
+            index = len(self.proper)
+            self.proper.append(torsion)
+            for t in torsion.types2:
+                self.propersForAtomType[t].add(index)
+            for t in torsion.types3:
+                self.propersForAtomType[t].add(index)
+
+    def registerImproperTorsion(self, parameters, ordering='default'):
+        torsion = self.ff._parseTorsion(parameters)
+        if torsion is not None:
+            if ordering in ['default', 'charmm', 'amber', 'smirnoff']:
+                torsion.ordering = ordering
+            else:
+                raise ValueError(
+                    'Illegal ordering type %s for improper torsion %s' %
+                    (ordering, torsion))
+            self.improper.append(torsion)
+
+    @staticmethod
+    def parseElement(element, ff):
+        existing = [
+            f for f in ff._forces if isinstance(f, PeriodicTorsionGenerator)
+        ]
+        if len(existing) == 0:
+            generator = PeriodicTorsionGenerator(ff)
+            ff.registerGenerator(generator)
+        else:
+            generator = existing[0]
+        for torsion in element.findall('Proper'):
+            generator.registerProperTorsion(torsion.attrib)
+        for torsion in element.findall('Improper'):
+            if 'ordering' in element.attrib:
+                generator.registerImproperTorsion(torsion.attrib,
+                                                  element.attrib['ordering'])
+            else:
+                generator.registerImproperTorsion(torsion.attrib)
+        # jax it!
+        for k in generator.params.keys():
+            generator.params[k] = jnp.array(generator.params[k])
+        generator.types = np.array(generator.types)
+
+    def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
+        wildcard = self.ff._atomClasses['']
+        proper_cache = {}
+        for torsion in data.propers:
+            type1, type2, type3, type4 = [
+                data.atomType[data.atoms[torsion[i]]] for i in range(4)
+            ]
+            sig = (type1, type2, type3, type4)
+            sig = frozenset((sig, sig[::-1]))
+            match = proper_cache.get(sig, None)
+            if match == -1:
+                continue
+            if match is None:
+                for index in self.propersForAtomType[type2]:
+                    tordef = self.proper[index]
+                    types1 = tordef.types1
+                    types2 = tordef.types2
+                    types3 = tordef.types3
+                    types4 = tordef.types4
+                    if (type2 in types2 and type3 in types3 and type4 in types4
+                            and type1 in types1) or (type2 in types3
+                                                     and type3 in types2
+                                                     and type4 in types1
+                                                     and type1 in types4):
+                        hasWildcard = (wildcard
+                                       in (types1, types2, types3, types4))
+                        if match is None or not hasWildcard:  # Prefer specific definitions over ones with wildcards
+                            match = tordef
+                        if not hasWildcard:
+                            break
+                if match is None:
+                    proper_cache[sig] = -1
+                else:
+                    proper_cache[sig] = match
+            if match is not None:
+                for i in range(len(match.phase)):
+                    if match.k[i] != 0:
+                        force.addTorsion(torsion[0], torsion[1], torsion[2],
+                                         torsion[3], match.periodicity[i],
+                                         match.phase[i], match.k[i])
+        impr_cache = {}
+        for torsion in data.impropers:
+            t1, t2, t3, t4 = [
+                data.atomType[data.atoms[torsion[i]]] for i in range(4)
+            ]
+            sig = (t1, t2, t3, t4)
+            match = impr_cache.get(sig, None)
+            if match == -1:
+                # Previously checked, and doesn't appear in the database
+                continue
+            elif match:
+                i1, i2, i3, i4, tordef = match
+                a1, a2, a3, a4 = (torsion[i] for i in (i1, i2, i3, i4))
+                match = (a1, a2, a3, a4, tordef)
+            if match is None:
+                match = _matchImproper(data, torsion, self)
+                if match is not None:
+                    order = match[:4]
+                    i1, i2, i3, i4 = tuple(torsion.index(a) for a in order)
+                    impr_cache[sig] = (i1, i2, i3, i4, match[-1])
+                else:
+                    impr_cache[sig] = -1
+            if match is not None:
+                (a1, a2, a3, a4, tordef) = match
+                for i in range(len(tordef.phase)):
+                    if tordef.k[i] != 0:
+                        if tordef.ordering == 'smirnoff':
+                            # Add all torsions in trefoil
+                            force.addTorsion(a1, a2, a3, a4,
+                                             tordef.periodicity[i],
+                                             tordef.phase[i], tordef.k[i])
+                            force.addTorsion(a1, a3, a4, a2,
+                                             tordef.periodicity[i],
+                                             tordef.phase[i], tordef.k[i])
+                            force.addTorsion(a1, a4, a2, a3,
+                                             tordef.periodicity[i],
+                                             tordef.phase[i], tordef.k[i])
+                        else:
+                            force.addTorsion(a1, a2, a3, a4,
+                                             tordef.periodicity[i],
+                                             tordef.phase[i], tordef.k[i])
+
+
+app.forcefield.parsers[
+    "PeriodicTorsionForce"] = PeriodicTorsionGenerator.parseElement
+
+
 class Hamiltonian(app.forcefield.ForceField):
     def __init__(self, xmlname):
         super().__init__(xmlname)
@@ -448,9 +739,9 @@ class Hamiltonian(app.forcefield.ForceField):
         nonbondedMethod=app.NoCutoff,
         nonbondedCutoff=1.0 * unit.nanometer,
     ):
-        system = self.createSystem(
-            topology, nonbondedMethod=nonbondedMethod, nonbondedCutoff=nonbondedCutoff
-        )
+        system = self.createSystem(topology,
+                                   nonbondedMethod=nonbondedMethod,
+                                   nonbondedCutoff=nonbondedCutoff)
         # load_constraints_from_system_if_needed
         # create potentials
         for generator in self._forces:
@@ -465,7 +756,8 @@ if __name__ == "__main__":
     app.Topology.loadBondDefinitions("residues.xml")
     pdb = app.PDBFile("../water1024.pdb")
     rc = 4.0
-    potentials = H.createPotential(pdb.topology, nonbondedCutoff=rc * unit.angstrom)
+    potentials = H.createPotential(pdb.topology,
+                                   nonbondedCutoff=rc * unit.angstrom)
     pot_disp = potentials[0]
 
     positions = jnp.array(pdb.positions._value) * 10
@@ -474,13 +766,15 @@ if __name__ == "__main__":
 
     # neighbor list
     displacement_fn, shift_fn = space.periodic_general(
-        box, fractional_coordinates=False
-    )
-    neighbor_list_fn = partition.neighbor_list(
-        displacement_fn, box, rc, 0, format=partition.OrderedSparse
-    )
+        box, fractional_coordinates=False)
+    neighbor_list_fn = partition.neighbor_list(displacement_fn,
+                                               box,
+                                               rc,
+                                               0,
+                                               format=partition.OrderedSparse)
     nbr = neighbor_list_fn.allocate(positions)
     pairs = nbr.idx.T
 
-    param_grad = grad(pot_disp, argnums=3)(positions, box, pairs, generator.params)
+    param_grad = grad(pot_disp, argnums=3)(positions, box, pairs,
+                                           generator.params)
     print(param_grad)
