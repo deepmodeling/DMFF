@@ -128,7 +128,7 @@ class ADMPDispGenerator:
         }
         self._jaxPotential = None
         self.types = []
-        self.ethresh = 1.0e-5
+        self.ethresh = 1e-5
         self.pmax = 10
 
     def registerAtomType(self, atom):
@@ -301,9 +301,12 @@ class ADMPPmeGenerator:
 
         for atomType in element.findall("Atom"):
             atomAttrib = atomType.attrib
+            # if not set
+            atomAttrib.update({'polarizabilityXX': 0, 'polarizabilityYY': 0, 'polarizabilityZZ': 0})
             for polarInfo in element.findall("Polarize"):
                 polarAttrib = polarInfo.attrib
                 if polarInfo.attrib['type'] == atomAttrib['type']:
+                    # cover default
                     atomAttrib.update(polarAttrib)
                     break
             generator.registerAtomType(atomAttrib)
@@ -391,21 +394,17 @@ class ADMPPmeGenerator:
         pme_force = ADMPPmeForce(box, self.axis_types, self.axis_indices,
                                  covalent_map, rc, self.ethresh, self.lmax,
                                  self.lpol)
-        if self.lpol:
-            self.params['U_ind'] = pme_force.U_ind   
 
         def potential_fn(positions, box, pairs, params):
 
             mScales = params["mScales"]
             Q_local = params["Q_local"][map_atomtype]
-            pol = params["pol"][map_atomtype]
-            tholes = params["tholes"][map_atomtype]
-
             if self.lpol:
                 pScales = params["pScales"]
                 dScales = params["dScales"]
-                U_ind = params["U_ind"]
-                return pme_force.get_energy(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_ind)
+                pol = params["pol"][map_atomtype]
+                tholes = params["tholes"][map_atomtype]
+                return pme_force.get_energy(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, pme_force.U_ind)
             else: 
                 return pme_force.get_energy(positions, box, pairs, Q_local, mScales)
 
