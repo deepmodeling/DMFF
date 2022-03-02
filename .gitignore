@@ -3,6 +3,7 @@
 err
 out
 sub.sh
+*.npy
 
 ### C++ ###
 # Prerequisites
