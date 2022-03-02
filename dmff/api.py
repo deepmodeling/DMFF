@@ -420,7 +420,7 @@ class ADMPPmeGenerator:
 app.forcefield.parsers["ADMPPmeForce"] = ADMPPmeGenerator.parseElement
 
 
-class HarmonicBondGenerator:
+class HarmonicBondJaxGenerator:
     def __init__(self, hamiltonian):
         self.ff = hamiltonian
         self.params = {'k': [], 'length': []}
@@ -435,17 +435,19 @@ class HarmonicBondGenerator:
 
     @staticmethod
     def parseElement(element, hamiltonian):
-        generator = HarmonicBondGenerator(hamiltonian)
+        print("PARSE ELEMENT")
+        generator = HarmonicBondJaxGenerator(hamiltonian)
         hamiltonian.registerGenerator(generator)
         for bondtype in element.findall("Bond"):
             generator.registerBondType(bondtype.attrib)
-        # jax it!
-        for k in generator.params.keys():
-            generator.params[k] = jnp.array(generator.params[k])
-        generator.types = np.array(generator.types)
+
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
                     args):
+        # jax it!
+        for k in self.params.keys():
+            self.params[k] = jnp.array(self.params[k])
+        self.types = np.array(self.types)
 
         n_bonds = len(data.bonds)
         # build map
@@ -472,7 +474,6 @@ class HarmonicBondGenerator:
                                     (idx1, idx2))
 
         bforce = HarmonicBondJaxForce(map_atom1, map_atom2, map_param)
-
         def potential_fn(positions, box, pairs, params):
             return bforce.get_energy(positions, box, pairs, params["k"],
                                      params["length"])
@@ -490,13 +491,13 @@ class HarmonicBondGenerator:
 
 # register all parsers
 app.forcefield.parsers[
-    "HarmonicBondForce"] = HarmonicBondGenerator.parseElement
+    "HarmonicBondForce"] = HarmonicBondJaxGenerator.parseElement
 
 
-class HarmonicAngleGenerator:
+class HarmonicAngleJaxGenerator:
     def __init__(self, hamiltonian):
         self.ff = hamiltonian
-        self.params = {'k': [], 'theta0': []}
+        self.params = {'k': [], 'angle': []}
         self._jaxPotential = None
         self.types = []
 
@@ -504,11 +505,11 @@ class HarmonicAngleGenerator:
         types = self.ff._findAtomTypes(angle, 3)
         self.types.append(types)
         self.params['k'].append(float(angle['k']))
-        self.params['theta0'].append(float(angle['theta0']))
+        self.params['angle'].append(float(angle['angle']))
 
     @staticmethod
     def parseElement(element, hamiltonian):
-        generator = HarmonicAngleGenerator(hamiltonian)
+        generator = HarmonicAngleJaxGenerator(hamiltonian)
         hamiltonian.registerGenerator(generator)
         for bondtype in element.findall("Angle"):
             generator.registerAngleType(bondtype.attrib)
@@ -527,9 +528,9 @@ class HarmonicAngleGenerator:
         map_atom3 = np.zeros(n_angles, dtype=int)
         map_param = np.zeros(n_angles, dtype=int)
         for i in range(n_angles):
-            idx1 = data.angles[i].atom1
-            idx2 = data.angles[i].atom2
-            idx3 = data.angles[i].atom3
+            idx1 = data.angles[i][0]
+            idx2 = data.angles[i][1]
+            idx3 = data.angles[i][2]
             type1 = data.atomType[data.atoms[idx1]]
             type2 = data.atomType[data.atoms[idx2]]
             type3 = data.atomType[data.atoms[idx3]]
@@ -555,7 +556,7 @@ class HarmonicAngleGenerator:
 
         def potential_fn(positions, box, pairs, params):
             return aforce.get_energy(positions, box, pairs, params["k"],
-                                     params["theta0"])
+                                     params["angle"])
 
         self._jaxPotential = potential_fn
         # self._top_data = data
@@ -570,7 +571,7 @@ class HarmonicAngleGenerator:
 
 # register all parsers
 app.forcefield.parsers[
-    "HarmonicAngleForce"] = HarmonicAngleGenerator.parseElement
+    "HarmonicAngleForce"] = HarmonicAngleJaxGenerator.parseElement
 
 
 class PeriodicTorsion(object):
@@ -723,13 +724,13 @@ class PeriodicTorsionGenerator(object):
                                              tordef.phase[i], tordef.k[i])
 
 
-app.forcefield.parsers[
-    "PeriodicTorsionForce"] = PeriodicTorsionGenerator.parseElement
+#app.forcefield.parsers[
+#    "PeriodicTorsionForce"] = PeriodicTorsionGenerator.parseElement
 
 
 class Hamiltonian(app.forcefield.ForceField):
-    def __init__(self, xmlname):
-        super().__init__(xmlname)
+    def __init__(self, *xmlnames):
+        super().__init__(*xmlnames)
         self._potentials = []
 
     def createPotential(
@@ -737,15 +738,22 @@ class Hamiltonian(app.forcefield.ForceField):
         topology,
         nonbondedMethod=app.NoCutoff,
         nonbondedCutoff=1.0 * unit.nanometer,
+        constraints=None,
+        removeCMMotion=True
     ):
         system = self.createSystem(topology,
                                    nonbondedMethod=nonbondedMethod,
-                                   nonbondedCutoff=nonbondedCutoff)
+                                   nonbondedCutoff=nonbondedCutoff,
+                                   constraints=constraints,
+                                   removeCMMotion=removeCMMotion)
         # load_constraints_from_system_if_needed
         # create potentials
         for generator in self._forces:
-            potentialImpl = generator.getJaxPotential()
-            self._potentials.append(potentialImpl)
+            try:
+                potentialImpl = generator.getJaxPotential()
+                self._potentials.append(potentialImpl)
+            except:
+                pass
         return [p for p in self._potentials]
 
 

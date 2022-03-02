@@ -6,11 +6,16 @@ from jax import grad, value_and_grad, vmap, jit
 from jax.scipy.special import erf
 
 def distance(p1v, p2v):
-    pass
-
+    return jnp.sqrt(jnp.sum(jnp.power(p1v - p2v, 2), axis=1))
+    
 def angle(p1v, p2v, p3v):
-    pass
-
+    v1 = (p2v - p1v) / jnp.reshape(distance(p1v, p2v), (-1,1))
+    v2 = (p2v - p3v) / jnp.reshape(distance(p2v, p3v), (-1,1))
+    vxx = v1[:,0] * v2[:,0]
+    vyy = v1[:,1] * v2[:,1]
+    vzz = v1[:,2] * v2[:,2]
+    return jnp.arccos(vxx + vyy + vzz)
+    
 def dihedral(p1v, p2v, p3v, p4v):
     pass
 
@@ -25,8 +30,8 @@ class HarmonicBondJaxForce:
         def get_energy(positions, box, pairs, k, length):
             p1 = positions[self.p1idx]
             p2 = positions[self.p2idx]
-            kprm = k[self.prmidx][0]
-            b0prm = length[self.prmidx][1]
+            kprm = k[self.prmidx]
+            b0prm = length[self.prmidx]
             dist = distance(p1, p2)
             return jnp.sum(0.5 * kprm * jnp.power(dist - b0prm, 2))
 
@@ -60,8 +65,8 @@ class HarmonicAngleJaxForce:
             p1 = positions[self.p1idx]
             p2 = positions[self.p2idx]
             p3 = positions[self.p3idx]
-            kprm = k[self.prmidx][0]
-            theta0prm = theta0[self.prmidx][1]
+            kprm = k[self.prmidx]
+            theta0prm = theta0[self.prmidx]
             ang = angle(p1, p2, p3)
             return jnp.sum(0.5 * kprm * jnp.power(ang - theta0prm, 2))
 
