@@ -4,6 +4,7 @@ import numpy as np
 import jax.numpy as jnp
 import jax.lax as lax
 from jax import vmap, value_and_grad
+import jax.nn.initializers
 from dmff.utils import jit_condition
 from dmff.sgnn.graph import MAX_VALENCE
 from dmff.sgnn.graph import TopGraph, from_pdb
@@ -15,16 +16,18 @@ from functools import partial
 class MolGNN:
 
     def __init__(self, G, n_layers=(3, 2), sizes=[(40, 20, 20), (20, 10)], nn=1, 
-                 sigma=162.13039087945623, mu=117.41975505778706):
+                 sigma=162.13039087945623, mu=117.41975505778706, seed=12345):
         self.nn = nn
         self.G = G
         self.G.get_all_subgraphs(nn, typify=True)
         self.G.prepare_subgraph_feature_calc()
         params = OrderedDict()
-        params['w'] = jnp.array(np.random.random(1))
+        key = jax.random.PRNGKey(seed)
+        params['w'] = jax.random.uniform(key)
         self.n_layers = n_layers
         self.sizes = sizes
         dim_in = G.n_features
+        initializer = jax.nn.initializers.he_uniform()
         for i_nn, n_layers in enumerate(n_layers):
             nn_name = 'fc%d'%i_nn
             params[nn_name + '.weight'] = []
@@ -32,13 +35,16 @@ class MolGNN:
             for i_layer in range(n_layers):
                 layer_name = nn_name + '.' + '%d'%i_layer
                 dim_out = sizes[i_nn][i_layer]
-                # params[layer_name+'.'+'weight'] = jnp.array(np.random.random((dim_out, dim_in)))
-                # params[layer_name+'.'+'bias'] = jnp.array(np.random.random(dim_out))
-                params[nn_name+'.weight'].append(jnp.array(np.random.random((dim_out, dim_in))))
-                params[nn_name+'.bias'].append(jnp.array(np.random.random(dim_out)))
+                # params[nn_name+'.weight'].append(jnp.array(np.random.random((dim_out, dim_in))))
+                # params[nn_name+'.bias'].append(jnp.array(np.random.random(dim_out)))
+                key, subkey = jax.random.split(key)
+                params[nn_name+'.weight'].append(initializer(subkey, (dim_out, dim_in)))
+                params[nn_name+'.bias'].append(jnp.zeros(dim_out))
                 dim_in = dim_out
-        params['fc_final.weight'] = jnp.array(np.random.random((1, dim_in)))
-        params['fc_final.bias'] = jnp.array(np.random.random(1))
+        key, subkey = jax.random.split(key)
+        params['fc_final.weight'] = jnp.array(initializer(subkey, (1, dim_in)))
+        key, subkey = jax.random.split(key)
+        params['fc_final.bias'] = jax.random.uniform(subkey)
         self.params = params
         self.sigma = sigma
         self.mu = mu

@@ -16,7 +16,7 @@ from dmff.admp.parser import *
 
 # below is the validation code
 if __name__ == '__main__':
-    pdb = 'water1024.pdb'
+    pdb = 'waterbox_31ang.pdb'
     xml = 'mpidwater.xml'
     pdbinfo = read_pdb(pdb)
     serials = pdbinfo['serials']
