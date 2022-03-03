@@ -1,0 +1,49 @@
+<!-- Note that the atom types "name" are numeric - this is because of how AMOEBA/MPID assign anchor atoms -->
+<ForceField>
+ <AtomTypes>
+  <Type name="380" class="OW" element="O" mass="15.999"/>
+  <Type name="381" class="HW" element="H" mass="1.008"/>
+ </AtomTypes>
+ <Residues>
+  <Residue name="HOH">
+   <Atom name="H1" type="381"/>
+   <Atom name="H2" type="381"/>
+   <Atom name="O" type="380"/>
+   <Bond from="0" to="2"/>
+   <Bond from="1" to="2"/>
+ </Residue>
+ </Residues>
+ <CustomNonbondedForce bondCutoff="4" 
+    energy="A*exp(-B*r)+(-138.93542)*exp(-B*r)*(1+B*r)*Q/r-(1-exp(-B*r)*(1+B*r+0.5*(B*r)^2+(B*r)^3/6+(B*r)^4/24+(B*r)^5/120+(B*r)^6/720))*C6/(r^6) - C8/(r^8) - C10/(r^10);
+    B=sqrt(B1*B2);Q=Q1*Q2; C6=sqrt(C61*C62); C8=sqrt(C81*C82); C10=sqrt(C101*C102); A=sqrt(A1*A2)" >
+    <PerParticleParameter name="A"/>
+    <PerParticleParameter name="B"/>
+    <PerParticleParameter name="Q"/>
+    <PerParticleParameter name="C6"/>
+    <PerParticleParameter name="C8"/>
+    <PerParticleParameter name="C10"/>
+    <Atom type="380"  A="1203470.743" B="37.81265679"  Q="-0.741706"  C6="1.3836E-03" C8="7.27065e-05" C10="1.8076465e-06"/>
+    <Atom type="381"  A="83.2283563"  B="37.78544799"  Q="0.370853" C6="5.7929E-05" C8="1.416624e-06" C10="2.26525e-08"/>
+ </CustomNonbondedForce>
+
+ <MPIDForce>
+   <Multipole type="380" kz="381" kx="-381"
+             c0="-0.803721"
+             dX="0.0" dY="0.0"  dZ="-0.00784325"
+             qXX="0.000366476" qXY="0.0" qYY="-0.000381799" qXZ="0.0" qYZ="0.0" qZZ="1.53231e-05"
+             oXXX="0.0" oXXY="0.0" oXYY="0.0" oYYY="0.0" oXXZ="0.0000" oXYZ="0.0" oYYZ="0.00000" oXZZ="0.0" oYZZ="0.0" oZZZ="-0.0000"
+             />
+   <Multipole type="381" kz="380" kx="381"
+             c0="0.401876"
+             dX="-0.00121713" dY="0.0"  dZ="-0.00095895"
+             qXX="6.7161e-06" qXY="0.0" qYY="-3.37874e-05" qXZ="1.25905e-05" qYZ="0.0" qZZ="2.70713e-05"
+             oXXX="0.0" oXXY="0.0" oXYY="0.0" oYYY="0.0" oXXZ="0.0" oXYZ="0.0" oYYZ="0.0" oXZZ="0.0" oYZZ="0.0" oZZZ="0.0"
+             />
+   <Polarize type="380" polarizabilityXX="1.1249e-03" polarizabilityYY="1.1249e-03" polarizabilityZZ="1.1249e-03" thole="0.33"/>
+   <Polarize type="381" polarizabilityXX="2.6906e-04" polarizabilityYY="2.6906e-04" polarizabilityZZ="2.6906e-04" thole="0.33"/>
+ </MPIDForce>
+</ForceField>
+
+<!--  Dump unwanted parameters here!
+  <Atom type="380" charge="-0.0" sigma="0.31983264" epsilon="0.677808"/>
+-->

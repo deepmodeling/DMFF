@@ -394,6 +394,7 @@ class ADMPPmeGenerator:
         pme_force = ADMPPmeForce(box, self.axis_types, self.axis_indices,
                                  covalent_map, rc, self.ethresh, self.lmax,
                                  self.lpol)
+        self.pme_force = pme_force
 
         def potential_fn(positions, box, pairs, params):
 
