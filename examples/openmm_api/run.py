@@ -45,5 +45,5 @@ if __name__ == '__main__':
     
     print(pot_pme(positions, box, pairs, pme_generator.params))
     param_grad = grad(pot_pme, argnums=(3))(positions, box, pairs, pme_generator.params)
-    print(param_grad)
+    print(param_grad['mScales'])
     
