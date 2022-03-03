@@ -9,6 +9,7 @@ from jax_md import partition, space
 from dmff.admp.multipole import convert_cart2harm
 from dmff.admp.pme import ADMPPmeForce
 from dmff.admp.parser import *
+from jax import grad
 
 
 import linecache
@@ -134,11 +135,20 @@ if __name__ == '__main__':
     # electrostatic
     pme_force = ADMPPmeForce(box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax, lpol=True)
     pme_force.update_env('kappa', 0.657065221219616)
-    E, F = pme_force.get_forces(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales)
-    print('# Electrostatic Energy (kJ/mol)')
+    pot_pme = pme_force.get_energy
+    jnp.save('mScales', mScales)
+    jnp.save('Q_local', Q_local)
+    jnp.save('pol', pol)
+    jnp.save('tholes', tholes)
+    jnp.save('pScales', pScales)
+    jnp.save('dScales', dScales)
+    jnp.save('U_ind', pme_force.U_ind)  
+    # E, F = pme_force.get_forces(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales)
+    # print('# Electrostatic Energy (kJ/mol)')
     # E = pme_force.get_energy(positions, box, pairs, Q_local, mScales, pScales, dScales)
-    E, F = pme_force.get_forces(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=pme_force.U_ind)
-    print(E)
+    E = pot_pme(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=pme_force.U_ind)
+    grad_params = grad(pot_pme, argnums=(3,4,5,6,7,8,9))(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, pme_force.U_ind)
+    # print(E)
     U_ind = pme_force.U_ind
     # compare U_ind with reference
     for i in range(1024):
