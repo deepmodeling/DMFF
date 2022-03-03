@@ -175,8 +175,12 @@ class ADMPDispGenerator:
         rc = nonbondedCutoff.value_in_unit(unit.angstrom)
 
         # get calculator
+        if 'ethresh' in args:
+            self.ethresh = args['ethresh']
+
         Force_DispPME = ADMPDispPmeForce(box, covalent_map, rc, self.ethresh,
                                          self.pmax)
+        self.disp_pme_force = Force_DispPME
         # debugging
         # Force_DispPME.update_env('kappa', 0.657065221219616)
         # Force_DispPME.update_env('K1', 96)
@@ -298,6 +302,8 @@ class ADMPPmeGenerator:
 
         if element.findall('Polarize'):
             generator.lpol = True
+        else:
+            generator.lpol = False
 
         for atomType in element.findall("Atom"):
             atomAttrib = atomType.attrib
@@ -318,30 +324,41 @@ class ADMPPmeGenerator:
         n_atoms = len(element.findall('Atom'))
         
         # map atom multipole moments
-        Q = np.zeros((n_atoms, 10))
+        if generator.lmax == 0:
+            n_mtps = 1
+        elif generator.lmax == 1:
+            n_mtps = 4
+        elif generator.lmax == 2:
+            n_mtps = 10
+        Q = np.zeros((n_atoms, n_mtps))
+
         Q[:, 0] = generator._input_params["c0"]
-        Q[:, 1] = generator._input_params["dX"] * 10
-        Q[:, 2] = generator._input_params["dY"] * 10
-        Q[:, 3] = generator._input_params["dZ"] * 10
-        Q[:, 4] = generator._input_params["qXX"] * 300
-        Q[:, 5] = generator._input_params["qYY"] * 300
-        Q[:, 6] = generator._input_params["qZZ"] * 300
-        Q[:, 7] = generator._input_params["qXY"] * 300
-        Q[:, 8] = generator._input_params["qXZ"] * 300
-        Q[:, 9] = generator._input_params["qYZ"] * 300
+        if generator.lmax >= 1:
+            Q[:, 1] = generator._input_params["dX"] * 10
+            Q[:, 2] = generator._input_params["dY"] * 10
+            Q[:, 3] = generator._input_params["dZ"] * 10
+        if generator.lmax >= 2:
+            Q[:, 4] = generator._input_params["qXX"] * 300
+            Q[:, 5] = generator._input_params["qYY"] * 300
+            Q[:, 6] = generator._input_params["qZZ"] * 300
+            Q[:, 7] = generator._input_params["qXY"] * 300
+            Q[:, 8] = generator._input_params["qXZ"] * 300
+            Q[:, 9] = generator._input_params["qYZ"] * 300
 
         # add all differentiable params to self.params
-        Q_local = convert_cart2harm(Q, 2)
+        Q_local = convert_cart2harm(Q, generator.lmax)
         generator.params['Q_local'] = Q_local
-        
-        pol = jnp.vstack((generator._input_params['polarizabilityXX'], generator._input_params['polarizabilityYY'], generator._input_params['polarizabilityZZ'])).T
-        pol = 1000*jnp.mean(pol,axis=1)
+       
+        if generator.lpol:
+            pol = jnp.vstack((generator._input_params['polarizabilityXX'], generator._input_params['polarizabilityYY'], generator._input_params['polarizabilityZZ'])).T
+            pol = 1000*jnp.mean(pol,axis=1)
+            tholes = jnp.array(generator._input_params['thole'])
+            generator.params['pol'] = pol
+            generator.params['tholes'] = tholes
+        else:
+            pol = None
+            tholes = None
 
-        tholes = jnp.array(generator._input_params['thole'])
-        # tholes = jnp.mean(jnp.atleast_2d(tholes), axis=1)
-        
-        generator.params['pol'] = pol
-        generator.params['tholes'] = tholes
         # generator.params['']
         for k in generator.params.keys():
             generator.params[k] = jnp.array(generator.params[k])
@@ -369,27 +386,36 @@ class ADMPPmeGenerator:
         covalent_map = build_covalent_map(data, 6)
 
         # build intra-molecule axis
-        self.axis_types, self.axis_indices = set_axis_type(
-            map_atomtype, self.types, self.kStrings)
-        map_axis_indices = []
-        # map axis_indices
-        for i in range(n_atoms):
-            catom = data.atoms[i]
-            residue = catom.residue._atoms
-            atom_indices = [
-                index if index != "" else -1
-                for index in self.axis_indices[i][1:]
-            ]
-            for atom in residue:
-                if atom == catom:
-                    continue
-                for i in range(len(atom_indices)):
-                    if atom_indices[i] == data.atomType[atom]:
-                        atom_indices[i] = atom.index
-                        break
-            map_axis_indices.append(atom_indices)
+        if self.lmax > 0:
+            self.axis_types, self.axis_indices = set_axis_type(
+                map_atomtype, self.types, self.kStrings)
+            map_axis_indices = []
+            # map axis_indices
+            for i in range(n_atoms):
+                catom = data.atoms[i]
+                residue = catom.residue._atoms
+                atom_indices = [
+                    index if index != "" else -1
+                    for index in self.axis_indices[i][1:]
+                ]
+                for atom in residue:
+                    if atom == catom:
+                        continue
+                    for i in range(len(atom_indices)):
+                        if atom_indices[i] == data.atomType[atom]:
+                            atom_indices[i] = atom.index
+                            break
+                map_axis_indices.append(atom_indices)
 
-        self.axis_indices = np.array(map_axis_indices)
+            self.axis_indices = np.array(map_axis_indices)
+        else:
+            self.axis_types = None
+            self.axis_indices = None
+
+
+        # get calculator
+        if 'ethresh' in args:
+            self.ethresh = args['ethresh']
 
         pme_force = ADMPPmeForce(box, self.axis_types, self.axis_indices,
                                  covalent_map, rc, self.ethresh, self.lmax,
@@ -405,6 +431,7 @@ class ADMPPmeGenerator:
                 dScales = params["dScales"]
                 pol = params["pol"][map_atomtype]
                 tholes = params["tholes"][map_atomtype]
+
                 return pme_force.get_energy(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, pme_force.U_ind)
             else: 
                 return pme_force.get_energy(positions, box, pairs, Q_local, mScales)
@@ -738,10 +765,12 @@ class Hamiltonian(app.forcefield.ForceField):
         topology,
         nonbondedMethod=app.NoCutoff,
         nonbondedCutoff=1.0 * unit.nanometer,
+        **args
     ):
         system = self.createSystem(topology,
                                    nonbondedMethod=nonbondedMethod,
-                                   nonbondedCutoff=nonbondedCutoff)
+                                   nonbondedCutoff=nonbondedCutoff,
+                                   **args)
         # load_constraints_from_system_if_needed
         # create potentials
         for generator in self._forces:
