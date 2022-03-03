@@ -128,7 +128,7 @@ class ADMPDispGenerator:
         }
         self._jaxPotential = None
         self.types = []
-        self.ethresh = 1e-5
+        self.ethresh = 5e-4
         self.pmax = 10
 
     def registerAtomType(self, atom):
@@ -262,7 +262,7 @@ class ADMPPmeGenerator:
         # self._input_params = defaultDict(list)
         self._jaxPotential = None
         self.types = []
-        self.ethresh = 1.0e-5
+        self.ethresh = 5e-4
         self.lpol = False
         self.ref_dip = ''
 
