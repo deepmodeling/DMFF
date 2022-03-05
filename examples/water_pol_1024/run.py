@@ -9,8 +9,11 @@ from jax_md import partition, space
 from dmff.admp.multipole import convert_cart2harm
 from dmff.admp.pme import ADMPPmeForce
 from dmff.admp.parser import *
-from jax import grad
-
+from dmff.admp.disp_pme import ADMPDispPmeForce
+from dmff.admp.pairwise import generate_pairwise_interaction, TT_damping_qq_c6_kernel
+from dmff.admp.intra import *
+from jax import grad, value_and_grad
+import time
 
 import linecache
 def get_line_context(file_path, line_number):
@@ -18,9 +21,9 @@ def get_line_context(file_path, line_number):
 
 # below is the validation code
 if __name__ == '__main__':
-    pdb = str('waterbox_31ang.pdb')
-    xml = str('mpidwater.xml')
-    ref_dip = str('dipole_1024')
+    pdb = str(sys.argv[1])
+    xml = str(sys.argv[2])
+    #ref_dip = str('dipole_1024')
     pdbinfo = read_pdb(pdb)
     serials = pdbinfo['serials']
     names = pdbinfo['names']
@@ -48,6 +51,37 @@ if __name__ == '__main__':
     Q = np.vstack(
         [(atom.c0, atom.dX*10, atom.dY*10, atom.dZ*10, atom.qXX*300, atom.qYY*300, atom.qZZ*300, atom.qXY*300, atom.qXZ*300, atom.qYZ*300) for atom in atomDicts.values()]
     )
+
+    c0 = []
+    c6_list = []
+    #compute geometry-dependent terms
+    b=[np.arange(n_atoms)[i:i+3] for i in range(0,len(np.arange(n_atoms)),3)]
+    for i in b:
+        O = positions[i][0]
+        H1 = positions[i][1]
+        H2 = positions[i][2]
+        bond1_len = (np.linalg.norm(H1-O))
+        bond2_len = (np.linalg.norm(H2-O))
+        bond1 = H1-O
+        bond2 = H2-O
+        cos_angle = np.dot(bond1,bond2)/(bond1_len * bond2_len)
+        angle = np.arccos(cos_angle)*180/np.pi
+        dipole = -0.016858755+0.002287251*angle + 0.239667591*bond1_len + (-0.070483437)*bond2_len
+        charge_H = dipole/bond1_len
+        charge_O=charge_H*(-2)
+        C6_H = (-2.36066199 + (-0.007049238)*angle + 1.949429648*bond1_len + 2.097120784*bond2_len) * 0.529**6 * 2625.5
+        C6_O = (-8.641301261 + 0.093247893*angle + 11.90395358*(bond1_len+bond2_len)) * 0.529**6 * 2625.5
+        c0.append(charge_O)
+        c0.append(charge_H)
+        c0.append(charge_H)
+        c6_list.append(np.sqrt(C6_O))
+        c6_list.append(np.sqrt(C6_H))
+        c6_list.append(np.sqrt(C6_H))
+
+
+    # change leading term
+    Q[:,0]=c0
+
     Q = jnp.array(Q)
     Q_local = convert_cart2harm(Q, 2)
     axis_type = np.array(
@@ -72,12 +106,6 @@ if __name__ == '__main__':
     tholes = jnp.mean(tholes,axis=1) 
     defaultTholeWidth=8
    
-    Uind_global = jnp.zeros([n_atoms,3])
-    for i in range(n_atoms):
-        a = get_line_context(ref_dip,i+1)
-        b = a.split()
-        t = np.array([10*float(b[0]),10*float(b[1]),10*float(b[2])])
-        Uind_global = Uind_global.at[i].set(t)    
 
 
     
@@ -113,10 +141,13 @@ if __name__ == '__main__':
         b_list[b] = 1.999519942
         b_list[c] = 1.999519942
         # a, Hartree
-        a_list[a] = 458.3777
-        a_list[b] = 0.0317
-        a_list[c] = 0.0317
+        a_list[a] = 83.0733
+        a_list[b] = 1.74832
+        a_list[c] = 1.74832
 
+    c_list[0]=c6_list
+    c_list = jnp.array(c_list.T)
+    q_list = jnp.array(c0)
     # Finish data preparation
     # -------------------------------------------------------------------------------------
     # parameters should be ready: 
@@ -143,15 +174,33 @@ if __name__ == '__main__':
     jnp.save('pScales', pScales)
     jnp.save('dScales', dScales)
     jnp.save('U_ind', pme_force.U_ind)  
-    # E, F = pme_force.get_forces(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales)
-    # print('# Electrostatic Energy (kJ/mol)')
-    # E = pme_force.get_energy(positions, box, pairs, Q_local, mScales, pScales, dScales)
+    E, F = pme_force.get_forces(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales)
+    print('# Electrostatic Energy (kJ/mol)')
+    #E = pme_force.get_energy(positions, box, pairs, Q_local, mScales, pScales, dScales)
+    print(E)
     E = pot_pme(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=pme_force.U_ind)
+    
     grad_params = grad(pot_pme, argnums=(3,4,5,6,7,8,9))(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, pme_force.U_ind)
-    # print(E)
     U_ind = pme_force.U_ind
-    # compare U_ind with reference
-    for i in range(1024):
-        for j in range(3):
-            print(Uind_global[i*3, j], Uind_global[i*3, j], U_ind[i*3, j])
+    
+    # dispersion
+    disp_pme_force = ADMPDispPmeForce(box, covalent_map, rc, ethresh, pmax)
+    disp_pme_force.update_env('kappa', 0.657065221219616)
+    E, F = disp_pme_force.get_forces(positions, box, pairs, c_list, mScales)
+    print('Dispersion Energy (kJ/mol)')
+    #E = disp_pme_force.get_energy(positions, box, pairs, c_list.T, mScales)
+    #E, F = disp_pme_force.get_forces(positions, box, pairs, c_list.T, mScales)
+    print(E)
 
+    # short range damping
+    TT_damping_qq_c6 = value_and_grad(generate_pairwise_interaction(TT_damping_qq_c6_kernel, covalent_map, static_args={}))
+    TT_damping_qq_c6(positions, box, pairs, mScales, a_list, b_list, q_list, c_list[0])
+    print('Tang-Tonnies Damping (kJ/mol)')
+    E, F = TT_damping_qq_c6(positions, box, pairs, mScales, a_list, b_list, q_list, c_list[0])
+    print(E)
+
+    # intramolecular term
+    print('Intramolecular Energy (kJ/mol)')
+    E1 = onebodyenergy(positions, box)
+    #force = grad_E1(n_atoms,positions, box)
+    print(E1)       
