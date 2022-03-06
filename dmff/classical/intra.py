@@ -16,8 +16,15 @@ def angle(p1v, p2v, p3v):
     vzz = v1[:,2] * v2[:,2]
     return jnp.arccos(vxx + vyy + vzz)
     
-def dihedral(p1v, p2v, p3v, p4v):
-    pass
+def dihedral(i, j, k, l):
+    f, g, h = i - j, j - k, l - k
+    a = vmap(jnp.cross, (0, 0))(f, g)
+    b = vmap(jnp.cross, (0, 0))(h, g)
+    axb = vmap(jnp.cross, (0, 0))(a, b)
+    cos = vmap(jnp.dot, (0, 0))(a, b)
+    sin = vmap(jnp.dot, (0, 0))(axb, g) / jnp.linalg.norm(g)
+    r = - vmap(jnp.arctan2, (0, 0))(sin, cos)
+    return r
 
 class HarmonicBondJaxForce:
     def __init__(self, p1idx, p2idx, prmidx):
@@ -97,15 +104,19 @@ class PeriodicTorsionJaxForce:
         self.refresh_calculators()
 
     def generate_get_energy(self):
-        def get_energy(positions, box, pairs, k, psi0):
+        def get_energy(positions, box, pairs, k1, psi1, k2, psi2, k3, psi3):
             p1 = positions[self.p1idx]
             p2 = positions[self.p2idx]
             p3 = positions[self.p3idx]
             p4 = positions[self.p4idx]
-            kprm = k[self.prmidx][0]
-            psi0prm = psi0[self.prmidx][1]
+            k1p = k1[self.prmidx]
+            psi1p = psi1[self.prmidx]
+            k2p = k2[self.prmidx]
+            psi2p = psi2[self.prmidx]
+            k3p = k3[self.prmidx]
+            psi3p = psi3[self.prmidx]
             dih = dihedral(p1, p2, p3, p4)
-            return jnp.sum(0.5 * k * jnp.power(dih - psi0, 2))
+            return k1p * (1 + jnp.cos(dih - psi1p)) + k2p * (1 + jnp.cos(2. * dih - psi2p)) + k3p * (1 + jnp.cos(3. * dih - psi3p)) 
 
         return get_energy
 
