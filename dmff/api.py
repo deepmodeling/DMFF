@@ -704,7 +704,7 @@ class PeriodicTorsionJaxGenerator(object):
             type1, type2, type3, type4 = [
                 data.atomType[data.atoms[torsion[i]]] for i in range(4)
             ]
-            for nn in range(len(self.p_types)):
+            for nn in range(len(self.i_types)):
                 types1, types2, types3, types4 = self.i_types[nn]
                 if (type2 in types2 and type3 in types3 and type4 in types4
                         and type1 in types1) or (type2 in types3
