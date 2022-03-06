@@ -116,7 +116,8 @@ class PeriodicTorsionJaxForce:
             k3p = k3[self.prmidx]
             psi3p = psi3[self.prmidx]
             dih = dihedral(p1, p2, p3, p4)
-            return k1p * (1 + jnp.cos(dih - psi1p)) + k2p * (1 + jnp.cos(2. * dih - psi2p)) + k3p * (1 + jnp.cos(3. * dih - psi3p)) 
+            ener = k1p * (1 + jnp.cos(dih - psi1p)) + k2p * (1 + jnp.cos(2. * dih - psi2p)) + k3p * (1 + jnp.cos(3. * dih - psi3p)) 
+            return jnp.sum(ener)
 
         return get_energy
 
