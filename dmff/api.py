@@ -513,13 +513,14 @@ class HarmonicAngleJaxGenerator:
         hamiltonian.registerGenerator(generator)
         for bondtype in element.findall("Angle"):
             generator.registerAngleType(bondtype.attrib)
-        # jax it!
-        for k in generator.params.keys():
-            generator.params[k] = jnp.array(generator.params[k])
-        generator.types = np.array(generator.types)
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
                     args):
+
+        # jax it!
+        for k in self.params.keys():
+            self.params[k] = jnp.array(self.params[k])
+        self.types = np.array(self.types)
 
         n_angles = len(data.angles)
         # build map
@@ -663,13 +664,14 @@ class PeriodicTorsionJaxGenerator(object):
             generator.registerProperTorsion(torsion.attrib)
         for torsion in element.findall('Improper'):
             generator.registerImproperTorsion(torsion.attrib)
-        # jax it!
-        for k in generator.params.keys():
-            generator.params[k] = jnp.array(generator.params[k])
-        generator.p_types = np.array(generator.p_types)
-        generator.i_types = np.array(generator.i_types)
 
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
+        # jax it!
+        for k in self.params.keys():
+            self.params[k] = jnp.array(self.params[k])
+        self.p_types = np.array(self.p_types)
+        self.i_types = np.array(self.i_types)
+
         wildcard = self.ff._atomClasses['']
         map_a1_p = []
         map_a2_p = []
