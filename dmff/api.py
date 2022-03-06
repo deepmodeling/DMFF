@@ -666,7 +666,8 @@ class PeriodicTorsionJaxGenerator(object):
         # jax it!
         for k in generator.params.keys():
             generator.params[k] = jnp.array(generator.params[k])
-        generator.types = np.array(generator.types)
+        generator.p_types = np.array(generator.p_types)
+        generator.i_types = np.array(generator.i_types)
 
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
         wildcard = self.ff._atomClasses['']
