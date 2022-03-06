@@ -602,53 +602,73 @@ class PeriodicTorsionJaxGenerator(object):
             "psi2_p": [],
             "k3_p": [],
             "psi3_p": [],
+            "k4_p": [],
+            "psi4_p": [],
             'k1_i': [],
             'psi1_i': [],
             "k2_i": [],
             "psi2_i": [],
             "k3_i": [],
             "psi3_i": [],
+            "k4_i": [],
+            "psi4_i": [],
         }
 
     def registerProperTorsion(self, parameters):
         types = self.ff._findAtomTypes(parameters, 4)
         self.p_types.append(types)
-        k1, p1, k2, p2, k3, p3 = 0., 0., 0., 0., 0., 0.
-        for ii in range(1, 4):
-            if "periodicity1%i" % ii in parameters:
-                nperiod = int(parameters["periodicity1%i" % ii])
+        k1, p1, k2, p2, k3, p3, k4, p4 = 0., 0., 0., 0., 0., 0., 0., 0.
+        for ii in range(1, 5):
+            if "periodicity%i" % ii in parameters:
+                nperiod = int(parameters["periodicity%i" % ii])
                 if nperiod == 1:
-                    k1, p1 = parameters["k1"], parameters["phase1"]
+                    k1, p1 = float(parameters["k%i" % ii]), float(
+                        parameters["phase%i" % ii])
                 if nperiod == 2:
-                    k2, p2 = parameters["k2"], parameters["phase2"]
+                    k2, p2 = float(parameters["k%i" % ii]), float(
+                        parameters["phase%i" % ii])
                 if nperiod == 3:
-                    k3, p3 = parameters["k3"], parameters["phase3"]
+                    k3, p3 = float(parameters["k%i" % ii]), float(
+                        parameters["phase%i" % ii])
+                if nperiod == 4:
+                    k4, p4 = float(parameters["k%i" % ii]), float(
+                        parameters["phase%i" % ii])
         self.params["k1_p"].append(k1)
         self.params["psi1_p"].append(p1)
         self.params["k2_p"].append(k2)
         self.params["psi2_p"].append(p2)
         self.params["k3_p"].append(k3)
         self.params["psi3_p"].append(p3)
+        self.params["k4_p"].append(k4)
+        self.params["psi4_p"].append(p4)
 
     def registerImproperTorsion(self, parameters):
         types = self.ff._findAtomTypes(parameters, 4)
         self.i_types.append(types)
-        k1, p1, k2, p2, k3, p3 = 0., 0., 0., 0., 0., 0.
+        k1, p1, k2, p2, k3, p3, k4, p4 = 0., 0., 0., 0., 0., 0., 0., 0.
         for ii in range(1, 4):
-            if "periodicity1%i" % ii in parameters:
-                nperiod = int(parameters["periodicity1%i" % ii])
+            if "periodicity%i" % ii in parameters:
+                nperiod = int(parameters["periodicity%i" % ii])
                 if nperiod == 1:
-                    k1, p1 = parameters["k1"], parameters["phase1"]
+                    k1, p1 = float(parameters["k%i" % ii]), float(
+                        parameters["phase%i" % ii])
                 if nperiod == 2:
-                    k2, p2 = parameters["k2"], parameters["phase2"]
+                    k2, p2 = float(parameters["k%i" % ii]), float(
+                        parameters["phase%i" % ii])
                 if nperiod == 3:
-                    k3, p3 = parameters["k3"], parameters["phase3"]
+                    k3, p3 = float(parameters["k%i" % ii]), float(
+                        parameters["phase%i" % ii])
+                if nperiod == 4:
+                    k4, p4 = float(parameters["k%i" % ii]), float(
+                        parameters["phase%i" % ii])
         self.params["k1_i"].append(k1)
         self.params["psi1_i"].append(p1)
         self.params["k2_i"].append(k2)
         self.params["psi2_i"].append(p2)
         self.params["k3_i"].append(k3)
         self.params["psi3_i"].append(p3)
+        self.params["k4_i"].append(k4)
+        self.params["psi4_i"].append(p4)
 
     @staticmethod
     def parseElement(element, ff):
@@ -736,11 +756,12 @@ class PeriodicTorsionJaxGenerator(object):
         def potential_fn(positions, box, pairs, params):
             return prop.get_energy(
                 positions, box, pairs, params["k1_p"], params["psi1_p"],
-                params["k2_p"], params["psi2_p"],
-                params["k3_p"], params["psi3_p"]) + impr.get_energy(
+                params["k2_p"], params["psi2_p"], params["k3_p"],
+                params["psi3_p"],
+                params["k4_p"], params["psi4_p"]) + impr.get_energy(
                     positions, box, pairs, params["k1_i"], params["psi1_i"],
                     params["k2_i"], params["psi2_i"], params["k3_i"],
-                    params["psi3_i"])
+                    params["psi3_i"], params["k4_i"], params["psi4_i"])
 
         self._jaxPotential = potential_fn
         # self._top_data = data

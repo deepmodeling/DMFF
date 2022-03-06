@@ -104,7 +104,7 @@ class PeriodicTorsionJaxForce:
         self.refresh_calculators()
 
     def generate_get_energy(self):
-        def get_energy(positions, box, pairs, k1, psi1, k2, psi2, k3, psi3):
+        def get_energy(positions, box, pairs, k1, psi1, k2, psi2, k3, psi3, k4, psi4):
             p1 = positions[self.p1idx]
             p2 = positions[self.p2idx]
             p3 = positions[self.p3idx]
@@ -115,8 +115,10 @@ class PeriodicTorsionJaxForce:
             psi2p = psi2[self.prmidx]
             k3p = k3[self.prmidx]
             psi3p = psi3[self.prmidx]
+            k4p = k4[self.prmidx]
+            psi4p = psi4[self.prmidx]
             dih = dihedral(p1, p2, p3, p4)
-            ener = k1p * (1 + jnp.cos(dih - psi1p)) + k2p * (1 + jnp.cos(2. * dih - psi2p)) + k3p * (1 + jnp.cos(3. * dih - psi3p)) 
+            ener = k1p * (1 + jnp.cos(dih - psi1p)) + k2p * (1 + jnp.cos(2. * dih - psi2p)) + k3p * (1 + jnp.cos(3. * dih - psi3p))  + k4p * (1 + jnp.cos(4. * dih - psi4p)) 
             return jnp.sum(ener)
 
         return get_energy
