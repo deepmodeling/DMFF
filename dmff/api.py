@@ -717,6 +717,17 @@ class PeriodicTorsionJaxGenerator(object):
                     map_a4_i.append(torsion[3])
                     map_impr.append(nn)
 
+        map_a1_p = np.array(map_a1_p, dtype=int)
+        map_a2_p = np.array(map_a2_p, dtype=int)
+        map_a3_p = np.array(map_a3_p, dtype=int)
+        map_a4_p = np.array(map_a4_p, dtype=int)
+        map_proper = np.array(map_proper, dtype=int)
+        map_a1_i = np.array(map_a1_i, dtype=int)
+        map_a2_i = np.array(map_a2_i, dtype=int)
+        map_a3_i = np.array(map_a3_i, dtype=int)
+        map_a4_i = np.array(map_a4_i, dtype=int)
+        map_impr = np.array(map_impr, dtype=int)
+
         prop = PeriodicTorsionJaxForce(map_a1_p, map_a2_p, map_a3_p, map_a4_p,
                                        map_proper)
         impr = PeriodicTorsionJaxForce(map_a1_i, map_a2_i, map_a3_i, map_a4_i,
