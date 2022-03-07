@@ -12,7 +12,7 @@ class TestClassical:
     @pytest.mark.parametrize(
         "pdb, prm, value",
         [
-            ("data/bond1.pdb", "data/bond1.xml", 100.00),
+            ("data/bond1.pdb", "data/bond1.xml", 1389.162109375),
             #("data/bond2.pdb", "data/bond2.xml", 100.00),
         ])
     def test_harmonic_bond_force(self, pdb, prm, value):
