@@ -891,28 +891,28 @@ class PeriodicTorsionJaxGenerator(object):
             if match is not None:
                 for i in range(len(match.phase)):
                     if match.k[i] != 0:
-                        if match.phase == 1:
+                        if match.periodicity[i] == 1:
                             map_a1_1_p.append(torsion[0])
                             map_a2_1_p.append(torsion[1])
                             map_a3_1_p.append(torsion[2])
                             map_a4_1_p.append(torsion[3])
                             prm1_p.append(match.points[i])
                             assert match.points[i] != -1
-                        if match.phase == 2:
+                        if match.periodicity[i] == 2:
                             map_a1_2_p.append(torsion[0])
                             map_a2_2_p.append(torsion[1])
                             map_a3_2_p.append(torsion[2])
                             map_a4_2_p.append(torsion[3])
                             prm2_p.append(match.points[i])
                             assert match.points[i] != -1
-                        if match.phase == 3:
+                        if match.periodicity[i] == 3:
                             map_a1_3_p.append(torsion[0])
                             map_a2_3_p.append(torsion[1])
                             map_a3_3_p.append(torsion[2])
                             map_a4_3_p.append(torsion[3])
                             prm3_p.append(match.points[i])
                             assert match.points[i] != -1
-                        if match.phase == 4:
+                        if match.periodicity[i] == 4:
                             map_a1_4_p.append(torsion[0])
                             map_a2_4_p.append(torsion[1])
                             map_a3_4_p.append(torsion[2])
@@ -967,28 +967,28 @@ class PeriodicTorsionJaxGenerator(object):
                 (a1, a2, a3, a4, tordef) = match
                 for i in range(len(tordef.phase)):
                     if tordef.k[i] != 0:
-                        if tordef.phase == 1:
+                        if tordef.periodicity[i] == 1:
                             map_a1_1_i.append(torsion[0])
                             map_a2_1_i.append(torsion[1])
                             map_a3_1_i.append(torsion[2])
                             map_a4_1_i.append(torsion[3])
                             prm1_i.append(tordef.points[i])
                             assert tordef.points[i] != -1
-                        if tordef.phase == 2:
+                        if tordef.periodicity[i] == 2:
                             map_a1_2_i.append(torsion[0])
                             map_a2_2_i.append(torsion[1])
                             map_a3_2_i.append(torsion[2])
                             map_a4_2_i.append(torsion[3])
                             prm2_i.append(tordef.points[i])
                             assert tordef.points[i] != -1
-                        if tordef.phase == 3:
+                        if tordef.periodicity[i] == 3:
                             map_a1_3_i.append(torsion[0])
                             map_a2_3_i.append(torsion[1])
                             map_a3_3_i.append(torsion[2])
                             map_a4_3_i.append(torsion[3])
                             prm3_i.append(tordef.points[i])
                             assert tordef.points[i] != -1
-                        if tordef.phase == 4:
+                        if tordef.periodicity[i] == 4:
                             map_a1_4_i.append(torsion[0])
                             map_a2_4_i.append(torsion[1])
                             map_a3_4_i.append(torsion[2])
