@@ -32,7 +32,7 @@ class TestClassical:
     @pytest.mark.parametrize(
         "pdb, prm, value",
         [
-            ("data/angle1.pdb", "data/angle1.xml", 100.00),
+            ("data/angle1.pdb", "data/angle1.xml", 315.88775634765625),
             #("data/angle2.pdb", "data/angle2.xml", 100.00),
         ])
     def test_harmonic_angle_force(self, pdb, prm, value):
@@ -52,9 +52,9 @@ class TestClassical:
     @pytest.mark.parametrize(
         "pdb, prm, value",
         [
-            ("data/proper1.pdb", "data/proper1.xml", 100.00),
-            ("data/impr1.pdb", "data/impr1.xml", 100.00),
-            ("data/proper1.pdb", "data/wild1.xml", 100.00),
+            ("data/proper1.pdb", "data/proper1.xml", 8.368000030517578),
+            ("data/impr1.pdb", "data/impr1.xml", 4.184000015258789),
+            ("data/proper1.pdb", "data/wild1.xml", 8.368000030517578),
             #("data/tor2.pdb", "data/tor2.xml", 100.00)
         ])
     def test_periodic_torsion_force(self, pdb, prm, value):

@@ -12,8 +12,8 @@
             <Atom name="N3" type="n3"/>
             <Atom name="N4" type="n4"/>
             <Bond atomName1="N1" atomName2="N2"/>
-            <Bond atomName1="N2" atomName2="N3"/>
-            <Bond atomName1="N3" atomName2="N4"/>
+            <Bond atomName1="N1" atomName2="N3"/>
+            <Bond atomName1="N1" atomName2="N4"/>
         </Residue>
     </Residues>
     <PeriodicTorsionForce>
