@@ -470,6 +470,7 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.iobj
+*.ipdb
 *.pgc
 *.pgd
 *.rsp
