@@ -968,31 +968,31 @@ class PeriodicTorsionJaxGenerator(object):
                 for i in range(len(tordef.phase)):
                     if tordef.k[i] != 0:
                         if tordef.periodicity[i] == 1:
-                            map_a1_1_i.append(torsion[0])
-                            map_a2_1_i.append(torsion[1])
-                            map_a3_1_i.append(torsion[2])
-                            map_a4_1_i.append(torsion[3])
+                            map_a1_1_i.append(a1)
+                            map_a2_1_i.append(a2)
+                            map_a3_1_i.append(a3)
+                            map_a4_1_i.append(a4)
                             prm1_i.append(tordef.points[i])
                             assert tordef.points[i] != -1
                         if tordef.periodicity[i] == 2:
-                            map_a1_2_i.append(torsion[0])
-                            map_a2_2_i.append(torsion[1])
-                            map_a3_2_i.append(torsion[2])
-                            map_a4_2_i.append(torsion[3])
+                            map_a1_2_i.append(a1)
+                            map_a2_2_i.append(a2)
+                            map_a3_2_i.append(a3)
+                            map_a4_2_i.append(a4)
                             prm2_i.append(tordef.points[i])
                             assert tordef.points[i] != -1
                         if tordef.periodicity[i] == 3:
-                            map_a1_3_i.append(torsion[0])
-                            map_a2_3_i.append(torsion[1])
-                            map_a3_3_i.append(torsion[2])
-                            map_a4_3_i.append(torsion[3])
+                            map_a1_3_i.append(a1)
+                            map_a2_3_i.append(a2)
+                            map_a3_3_i.append(a3)
+                            map_a4_3_i.append(a4)
                             prm3_i.append(tordef.points[i])
                             assert tordef.points[i] != -1
                         if tordef.periodicity[i] == 4:
-                            map_a1_4_i.append(torsion[0])
-                            map_a2_4_i.append(torsion[1])
-                            map_a3_4_i.append(torsion[2])
-                            map_a4_4_i.append(torsion[3])
+                            map_a1_4_i.append(a1)
+                            map_a2_4_i.append(a2)
+                            map_a3_4_i.append(a3)
+                            map_a4_4_i.append(a4)
                             prm4_i.append(tordef.points[i])
                             assert tordef.points[i] != -1
 
