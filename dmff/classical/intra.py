@@ -95,30 +95,25 @@ class HarmonicAngleJaxForce:
 
 
 class PeriodicTorsionJaxForce:
-    def __init__(self, p1idx, p2idx, p3idx, p4idx, prmidx):
+    def __init__(self, p1idx, p2idx, p3idx, p4idx, prmidx, order):
         self.p1idx = p1idx
         self.p2idx = p2idx
         self.p3idx = p3idx
         self.p4idx = p4idx
         self.prmidx = prmidx
+        self.order = order
         self.refresh_calculators()
 
     def generate_get_energy(self):
-        def get_energy(positions, box, pairs, k1, psi1, k2, psi2, k3, psi3, k4, psi4):
+        def get_energy(positions, box, pairs, k, psi):
             p1 = positions[self.p1idx]
             p2 = positions[self.p2idx]
             p3 = positions[self.p3idx]
             p4 = positions[self.p4idx]
-            k1p = k1[self.prmidx]
-            psi1p = psi1[self.prmidx]
-            k2p = k2[self.prmidx]
-            psi2p = psi2[self.prmidx]
-            k3p = k3[self.prmidx]
-            psi3p = psi3[self.prmidx]
-            k4p = k4[self.prmidx]
-            psi4p = psi4[self.prmidx]
+            kp = k[self.prmidx]
+            psip = psi[self.prmidx]
             dih = dihedral(p1, p2, p3, p4)
-            ener = k1p * (1 + jnp.cos(dih - psi1p)) + k2p * (1 + jnp.cos(2. * dih - psi2p)) + k3p * (1 + jnp.cos(3. * dih - psi3p))  + k4p * (1 + jnp.cos(4. * dih - psi4p)) 
+            ener = kp * (1 + jnp.cos(self.order * dih - psip))
             return jnp.sum(ener)
 
         return get_energy

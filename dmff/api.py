@@ -2,6 +2,7 @@
 import openmm.app as app
 import openmm.unit as unit
 import numpy as np
+from sympy import E
 import jax.numpy as jnp
 from collections import defaultdict
 from .admp.disp_pme import ADMPDispPmeForce
@@ -575,6 +576,120 @@ app.forcefield.parsers[
     "HarmonicAngleForce"] = HarmonicAngleJaxGenerator.parseElement
 
 
+def _matchImproper(data, torsion, generator):
+    type1 = data.atomType[data.atoms[torsion[0]]]
+    type2 = data.atomType[data.atoms[torsion[1]]]
+    type3 = data.atomType[data.atoms[torsion[2]]]
+    type4 = data.atomType[data.atoms[torsion[3]]]
+    wildcard = generator.ff._atomClasses['']
+    match = None
+    for tordef in generator.improper:
+        types1 = tordef.types1
+        types2 = tordef.types2
+        types3 = tordef.types3
+        types4 = tordef.types4
+        hasWildcard = (wildcard in (types1, types2, types3, types4))
+        if match is not None and hasWildcard:
+            # Prefer specific definitions over ones with wildcards
+            continue
+        if type1 in types1:
+            for (t2, t3, t4) in itertools.permutations(
+                ((type2, 1), (type3, 2), (type4, 3))):
+                if t2[0] in types2 and t3[0] in types3 and t4[0] in types4:
+                    if tordef.ordering == 'default':
+                        # Workaround to be more consistent with AMBER.  It uses wildcards to define most of its
+                        # impropers, which leaves the ordering ambiguous.  It then follows some bizarre rules
+                        # to pick the order.
+                        a1 = torsion[t2[1]]
+                        a2 = torsion[t3[1]]
+                        e1 = data.atoms[a1].element
+                        e2 = data.atoms[a2].element
+                        if e1 == e2 and a1 > a2:
+                            (a1, a2) = (a2, a1)
+                        elif e1 != elem.carbon and (e2 == elem.carbon
+                                                    or e1.mass < e2.mass):
+                            (a1, a2) = (a2, a1)
+                        match = (a1, a2, torsion[0], torsion[t4[1]], tordef)
+                        break
+                    elif tordef.ordering == 'charmm':
+                        if hasWildcard:
+                            # Workaround to be more consistent with AMBER.  It uses wildcards to define most of its
+                            # impropers, which leaves the ordering ambiguous.  It then follows some bizarre rules
+                            # to pick the order.
+                            a1 = torsion[t2[1]]
+                            a2 = torsion[t3[1]]
+                            e1 = data.atoms[a1].element
+                            e2 = data.atoms[a2].element
+                            if e1 == e2 and a1 > a2:
+                                (a1, a2) = (a2, a1)
+                            elif e1 != elem.carbon and (e2 == elem.carbon
+                                                        or e1.mass < e2.mass):
+                                (a1, a2) = (a2, a1)
+                            match = (a1, a2, torsion[0], torsion[t4[1]],
+                                     tordef)
+                        else:
+                            # There are no wildcards, so the order is unambiguous.
+                            match = (torsion[0], torsion[t2[1]],
+                                     torsion[t3[1]], torsion[t4[1]], tordef)
+                        break
+                    elif tordef.ordering == 'amber':
+                        # topology atom indexes
+                        a2 = torsion[t2[1]]
+                        a3 = torsion[t3[1]]
+                        a4 = torsion[t4[1]]
+                        # residue indexes
+                        r2 = data.atoms[a2].residue.index
+                        r3 = data.atoms[a3].residue.index
+                        r4 = data.atoms[a4].residue.index
+                        # template atom indexes
+                        ta2 = data.atomTemplateIndexes[data.atoms[a2]]
+                        ta3 = data.atomTemplateIndexes[data.atoms[a3]]
+                        ta4 = data.atomTemplateIndexes[data.atoms[a4]]
+                        # elements
+                        e2 = data.atoms[a2].element
+                        e3 = data.atoms[a3].element
+                        e4 = data.atoms[a4].element
+                        if not hasWildcard:
+                            if t2[0] == t4[0] and (r2 > r4 or
+                                                   (r2 == r4 and ta2 > ta4)):
+                                (a2, a4) = (a4, a2)
+                                r2 = data.atoms[a2].residue.index
+                                r4 = data.atoms[a4].residue.index
+                                ta2 = data.atomTemplateIndexes[data.atoms[a2]]
+                                ta4 = data.atomTemplateIndexes[data.atoms[a4]]
+                            if t3[0] == t4[0] and (r3 > r4 or
+                                                   (r3 == r4 and ta3 > ta4)):
+                                (a3, a4) = (a4, a3)
+                                r3 = data.atoms[a3].residue.index
+                                r4 = data.atoms[a4].residue.index
+                                ta3 = data.atomTemplateIndexes[data.atoms[a3]]
+                                ta4 = data.atomTemplateIndexes[data.atoms[a4]]
+                            if t2[0] == t3[0] and (r2 > r3 or
+                                                   (r2 == r3 and ta2 > ta3)):
+                                (a2, a3) = (a3, a2)
+                        else:
+                            if e2 == e4 and (r2 > r4 or
+                                             (r2 == r4 and ta2 > ta4)):
+                                (a2, a4) = (a4, a2)
+                                r2 = data.atoms[a2].residue.index
+                                r4 = data.atoms[a4].residue.index
+                                ta2 = data.atomTemplateIndexes[data.atoms[a2]]
+                                ta4 = data.atomTemplateIndexes[data.atoms[a4]]
+                            if e3 == e4 and (r3 > r4 or
+                                             (r3 == r4 and ta3 > ta4)):
+                                (a3, a4) = (a4, a3)
+                                r3 = data.atoms[a3].residue.index
+                                r4 = data.atoms[a4].residue.index
+                                ta3 = data.atomTemplateIndexes[data.atoms[a3]]
+                                ta4 = data.atomTemplateIndexes[data.atoms[a4]]
+                            if r2 > r3 or (r2 == r3 and ta2 > ta3):
+                                (a2, a3) = (a3, a2)
+                        match = (a2, a3, torsion[0], a4, tordef)
+                        break
+
+    return match
+
+
 class PeriodicTorsion(object):
     """A PeriodicTorsion records the information for a periodic torsion definition."""
     def __init__(self, types):
@@ -585,10 +700,26 @@ class PeriodicTorsion(object):
         self.periodicity = []
         self.phase = []
         self.k = []
+        self.points = []
         self.ordering = 'default'
 
 
-## @private
+def _parseTorsion(ff, attrib):
+    """Parse the node defining a torsion."""
+    types = ff._findAtomTypes(attrib, 4)
+    if None in types:
+        return None
+    torsion = PeriodicTorsion(types)
+    index = 1
+    while 'phase%d' % index in attrib:
+        torsion.periodicity.append(int(attrib['periodicity%d' % index]))
+        torsion.phase.append(float(attrib['phase%d' % index]))
+        torsion.k.append(float(attrib['k%d' % index]))
+        index += 1
+        torsion.points.append(-1)
+    return torsion
+
+
 class PeriodicTorsionJaxGenerator(object):
     """A PeriodicTorsionGenerator constructs a PeriodicTorsionForce."""
     def __init__(self, hamiltonian):
@@ -613,62 +744,30 @@ class PeriodicTorsionJaxGenerator(object):
             "k4_i": [],
             "psi4_i": [],
         }
+        self.proper = []
+        self.improper = []
+        self.propersForAtomType = defaultdict(set)
 
     def registerProperTorsion(self, parameters):
-        types = self.ff._findAtomTypes(parameters, 4)
-        self.p_types.append(types)
-        k1, p1, k2, p2, k3, p3, k4, p4 = 0., 0., 0., 0., 0., 0., 0., 0.
-        for ii in range(1, 5):
-            if "periodicity%i" % ii in parameters:
-                nperiod = int(parameters["periodicity%i" % ii])
-                if nperiod == 1:
-                    k1, p1 = float(parameters["k%i" % ii]), float(
-                        parameters["phase%i" % ii])
-                if nperiod == 2:
-                    k2, p2 = float(parameters["k%i" % ii]), float(
-                        parameters["phase%i" % ii])
-                if nperiod == 3:
-                    k3, p3 = float(parameters["k%i" % ii]), float(
-                        parameters["phase%i" % ii])
-                if nperiod == 4:
-                    k4, p4 = float(parameters["k%i" % ii]), float(
-                        parameters["phase%i" % ii])
-        self.params["k1_p"].append(k1)
-        self.params["psi1_p"].append(p1)
-        self.params["k2_p"].append(k2)
-        self.params["psi2_p"].append(p2)
-        self.params["k3_p"].append(k3)
-        self.params["psi3_p"].append(p3)
-        self.params["k4_p"].append(k4)
-        self.params["psi4_p"].append(p4)
+        torsion = _parseTorsion(self.ff, parameters)
+        if torsion is not None:
+            index = len(self.proper)
+            self.proper.append(torsion)
+            for t in torsion.types2:
+                self.propersForAtomType[t].add(index)
+            for t in torsion.types3:
+                self.propersForAtomType[t].add(index)
 
-    def registerImproperTorsion(self, parameters):
-        types = self.ff._findAtomTypes(parameters, 4)
-        self.i_types.append(types)
-        k1, p1, k2, p2, k3, p3, k4, p4 = 0., 0., 0., 0., 0., 0., 0., 0.
-        for ii in range(1, 4):
-            if "periodicity%i" % ii in parameters:
-                nperiod = int(parameters["periodicity%i" % ii])
-                if nperiod == 1:
-                    k1, p1 = float(parameters["k%i" % ii]), float(
-                        parameters["phase%i" % ii])
-                if nperiod == 2:
-                    k2, p2 = float(parameters["k%i" % ii]), float(
-                        parameters["phase%i" % ii])
-                if nperiod == 3:
-                    k3, p3 = float(parameters["k%i" % ii]), float(
-                        parameters["phase%i" % ii])
-                if nperiod == 4:
-                    k4, p4 = float(parameters["k%i" % ii]), float(
-                        parameters["phase%i" % ii])
-        self.params["k1_i"].append(k1)
-        self.params["psi1_i"].append(p1)
-        self.params["k2_i"].append(k2)
-        self.params["psi2_i"].append(p2)
-        self.params["k3_i"].append(k3)
-        self.params["psi3_i"].append(p3)
-        self.params["k4_i"].append(k4)
-        self.params["psi4_i"].append(p4)
+    def registerImproperTorsion(self, parameters, ordering='default'):
+        torsion = _parseTorsion(self.ff, parameters)
+        if torsion is not None:
+            if ordering in ['default', 'charmm', 'amber']:
+                torsion.ordering = ordering
+            else:
+                raise ValueError(
+                    'Illegal ordering type %s for improper torsion %s' %
+                    (ordering, torsion))
+            self.improper.append(torsion)
 
     @staticmethod
     def parseElement(element, ff):
@@ -683,85 +782,241 @@ class PeriodicTorsionJaxGenerator(object):
         for torsion in element.findall('Proper'):
             generator.registerProperTorsion(torsion.attrib)
         for torsion in element.findall('Improper'):
-            generator.registerImproperTorsion(torsion.attrib)
+            if 'ordering' in element.attrib:
+                generator.registerImproperTorsion(torsion.attrib,
+                                                  element.attrib['ordering'])
+            else:
+                generator.registerImproperTorsion(torsion.attrib)
 
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
+
+        # pump proper params
+        for tor in self.proper:
+            for i in range(len(tor.phase)):
+                if tor.phase[i] == 1:
+                    self.params["k1_p"].append(tor.k[i])
+                    self.params["psi1_p"].append(tor.phase[i])
+                    tor.points[i] = len(self.params["k1_p"]) - 1
+                if tor.phase[i] == 2:
+                    self.params["k2_p"].append(tor.k[i])
+                    self.params["psi2_p"].append(tor.phase[i])
+                    tor.points[i] = len(self.params["k2_p"]) - 1
+                if tor.phase[i] == 3:
+                    self.params["k3_p"].append(tor.k[i])
+                    self.params["psi3_p"].append(tor.phase[i])
+                    tor.points[i] = len(self.params["k3_p"]) - 1
+                if tor.phase[i] == 4:
+                    self.params["k4_p"].append(tor.k[i])
+                    self.params["psi4_p"].append(tor.phase[i])
+                    tor.points[i] = len(self.params["k4_p"]) - 1
+        # pump impr params
+        for tor in self.improper:
+            for i in range(len(tor.phase)):
+                if tor.phase[i] == 1:
+                    self.params["k1_i"].append(tor.k[i])
+                    self.params["psi1_i"].append(tor.phase[i])
+                    tor.points[i] = len(self.params["k1_i"]) - 1
+                if tor.phase[i] == 2:
+                    self.params["k2_i"].append(tor.k[i])
+                    self.params["psi2_i"].append(tor.phase[i])
+                    tor.points[i] = len(self.params["k2_i"]) - 1
+                if tor.phase[i] == 3:
+                    self.params["k3_i"].append(tor.k[i])
+                    self.params["psi3_i"].append(tor.phase[i])
+                    tor.points[i] = len(self.params["k3_i"]) - 1
+                if tor.phase[i] == 4:
+                    self.params["k4_i"].append(tor.k[i])
+                    self.params["psi4_i"].append(tor.phase[i])
+                    tor.points[i] = len(self.params["k4_i"]) - 1
+
         # jax it!
         for k in self.params.keys():
             self.params[k] = jnp.array(self.params[k])
-        self.p_types = np.array(self.p_types)
-        self.i_types = np.array(self.i_types)
+
+        map_a1_1_p = []
+        map_a2_1_p = []
+        map_a3_1_p = []
+        map_a4_1_p = []
+        prm1_p = []
+        map_a1_2_p = []
+        map_a2_2_p = []
+        map_a3_2_p = []
+        map_a4_2_p = []
+        prm2_p = []
+        map_a1_3_p = []
+        map_a2_3_p = []
+        map_a3_3_p = []
+        map_a4_3_p = []
+        prm3_p = []
+        map_a1_4_p = []
+        map_a2_4_p = []
+        map_a3_4_p = []
+        map_a4_4_p = []
+        prm4_p = []
 
         wildcard = self.ff._atomClasses['']
-        map_a1_p = []
-        map_a2_p = []
-        map_a3_p = []
-        map_a4_p = []
-        map_proper = []
-        map_a1_i = []
-        map_a2_i = []
-        map_a3_i = []
-        map_a4_i = []
-        map_impr = []
+        proper_cache = {}
         for torsion in data.propers:
             type1, type2, type3, type4 = [
                 data.atomType[data.atoms[torsion[i]]] for i in range(4)
             ]
-            for nn in range(len(self.p_types)):
-                types1, types2, types3, types4 = self.p_types[nn]
-                if (type2 in types2 and type3 in types3 and type4 in types4
-                        and type1 in types1) or (type2 in types3
-                                                 and type3 in types2
-                                                 and type4 in types1
-                                                 and type1 in types4):
-                    map_a1_p.append(torsion[0])
-                    map_a2_p.append(torsion[1])
-                    map_a3_p.append(torsion[2])
-                    map_a4_p.append(torsion[3])
-                    map_proper.append(nn)
+            sig = (type1, type2, type3, type4)
+            sig = frozenset((sig, sig[::-1]))
+            match = proper_cache.get(sig, None)
+            if match == -1:
+                continue
+            if match is None:
+                for index in self.propersForAtomType[type2]:
+                    tordef = self.proper[index]
+                    types1 = tordef.types1
+                    types2 = tordef.types2
+                    types3 = tordef.types3
+                    types4 = tordef.types4
+                    if (type2 in types2 and type3 in types3 and type4 in types4
+                            and type1 in types1) or (type2 in types3
+                                                     and type3 in types2
+                                                     and type4 in types1
+                                                     and type1 in types4):
+                        hasWildcard = (wildcard
+                                       in (types1, types2, types3, types4))
+                        if match is None or not hasWildcard:  # Prefer specific definitions over ones with wildcards
+                            match = tordef
+                        if not hasWildcard:
+                            break
+                if match is None:
+                    proper_cache[sig] = -1
+                else:
+                    proper_cache[sig] = match
+            if match is not None:
+                for i in range(len(match.phase)):
+                    if match.k[i] != 0:
+                        if match.phase == 1:
+                            map_a1_1_p.append(torsion[0])
+                            map_a2_1_p.append(torsion[1])
+                            map_a3_1_p.append(torsion[2])
+                            map_a4_1_p.append(torsion[3])
+                            prm1_p.append(match.points[i])
+                            assert match.points[i] != -1
+                        if match.phase == 2:
+                            map_a1_2_p.append(torsion[0])
+                            map_a2_2_p.append(torsion[1])
+                            map_a3_2_p.append(torsion[2])
+                            map_a4_2_p.append(torsion[3])
+                            prm2_p.append(match.points[i])
+                            assert match.points[i] != -1
+                        if match.phase == 3:
+                            map_a1_3_p.append(torsion[0])
+                            map_a2_3_p.append(torsion[1])
+                            map_a3_3_p.append(torsion[2])
+                            map_a4_3_p.append(torsion[3])
+                            prm3_p.append(match.points[i])
+                            assert match.points[i] != -1
+                        if match.phase == 4:
+                            map_a1_4_p.append(torsion[0])
+                            map_a2_4_p.append(torsion[1])
+                            map_a3_4_p.append(torsion[2])
+                            map_a4_4_p.append(torsion[3])
+                            prm4_p.append(match.points[i])
+                            assert match.points[i] != -1
 
+        map_a1_1_i = []
+        map_a2_1_i = []
+        map_a3_1_i = []
+        map_a4_1_i = []
+        prm1_i = []
+        map_a1_2_i = []
+        map_a2_2_i = []
+        map_a3_2_i = []
+        map_a4_2_i = []
+        prm2_i = []
+        map_a1_3_i = []
+        map_a2_3_i = []
+        map_a3_3_i = []
+        map_a4_3_i = []
+        prm3_i = []
+        map_a1_4_i = []
+        map_a2_4_i = []
+        map_a3_4_i = []
+        map_a4_4_i = []
+        prm4_i = []
+
+        impr_cache = {}
         for torsion in data.impropers:
-            type1, type2, type3, type4 = [
+            t1, t2, t3, t4 = [
                 data.atomType[data.atoms[torsion[i]]] for i in range(4)
             ]
-            for nn in range(len(self.i_types)):
-                types1, types2, types3, types4 = self.i_types[nn]
-                if (type2 in types2 and type3 in types3 and type4 in types4
-                        and type1 in types1) or (type2 in types3
-                                                 and type3 in types2
-                                                 and type4 in types1
-                                                 and type1 in types4):
-                    map_a1_i.append(torsion[0])
-                    map_a2_i.append(torsion[1])
-                    map_a3_i.append(torsion[2])
-                    map_a4_i.append(torsion[3])
-                    map_impr.append(nn)
+            sig = (t1, t2, t3, t4)
+            match = impr_cache.get(sig, None)
+            if match == -1:
+                # Previously checked, and doesn't appear in the database
+                continue
+            elif match:
+                i1, i2, i3, i4, tordef = match
+                a1, a2, a3, a4 = (torsion[i] for i in (i1, i2, i3, i4))
+                match = (a1, a2, a3, a4, tordef)
+            if match is None:
+                match = _matchImproper(data, torsion, self)
+                if match is not None:
+                    order = match[:4]
+                    i1, i2, i3, i4 = tuple(torsion.index(a) for a in order)
+                    impr_cache[sig] = (i1, i2, i3, i4, match[-1])
+                else:
+                    impr_cache[sig] = -1
+            if match is not None:
+                (a1, a2, a3, a4, tordef) = match
+                for i in range(len(tordef.phase)):
+                    if tordef.k[i] != 0:
+                        if tordef.phase == 1:
+                            map_a1_1_i.append(torsion[0])
+                            map_a2_1_i.append(torsion[1])
+                            map_a3_1_i.append(torsion[2])
+                            map_a4_1_i.append(torsion[3])
+                            prm1_i.append(tordef.points[i])
+                            assert tordef.points[i] != -1
+                        if tordef.phase == 2:
+                            map_a1_2_i.append(torsion[0])
+                            map_a2_2_i.append(torsion[1])
+                            map_a3_2_i.append(torsion[2])
+                            map_a4_2_i.append(torsion[3])
+                            prm2_i.append(tordef.points[i])
+                            assert tordef.points[i] != -1
+                        if tordef.phase == 3:
+                            map_a1_3_i.append(torsion[0])
+                            map_a2_3_i.append(torsion[1])
+                            map_a3_3_i.append(torsion[2])
+                            map_a4_3_i.append(torsion[3])
+                            prm3_i.append(tordef.points[i])
+                            assert tordef.points[i] != -1
+                        if tordef.phase == 4:
+                            map_a1_4_i.append(torsion[0])
+                            map_a2_4_i.append(torsion[1])
+                            map_a3_4_i.append(torsion[2])
+                            map_a4_4_i.append(torsion[3])
+                            prm4_i.append(tordef.points[i])
+                            assert tordef.points[i] != -1
 
-        map_a1_p = np.array(map_a1_p, dtype=int)
-        map_a2_p = np.array(map_a2_p, dtype=int)
-        map_a3_p = np.array(map_a3_p, dtype=int)
-        map_a4_p = np.array(map_a4_p, dtype=int)
-        map_proper = np.array(map_proper, dtype=int)
-        map_a1_i = np.array(map_a1_i, dtype=int)
-        map_a2_i = np.array(map_a2_i, dtype=int)
-        map_a3_i = np.array(map_a3_i, dtype=int)
-        map_a4_i = np.array(map_a4_i, dtype=int)
-        map_impr = np.array(map_impr, dtype=int)
+        prop1 = PeriodicTorsionJaxForce(map_a1_1_p, map_a2_1_p, map_a3_1_p, map_a4_1_p, prm1_p, 1)
+        prop2 = PeriodicTorsionJaxForce(map_a1_2_p, map_a2_2_p, map_a3_2_p, map_a4_2_p, prm2_p, 2)
+        prop3 = PeriodicTorsionJaxForce(map_a1_3_p, map_a2_3_p, map_a3_3_p, map_a4_3_p, prm3_p, 3)
+        prop4 = PeriodicTorsionJaxForce(map_a1_4_p, map_a2_4_p, map_a3_4_p, map_a4_4_p, prm4_p, 4)
 
-        prop = PeriodicTorsionJaxForce(map_a1_p, map_a2_p, map_a3_p, map_a4_p,
-                                       map_proper)
-        impr = PeriodicTorsionJaxForce(map_a1_i, map_a2_i, map_a3_i, map_a4_i,
-                                       map_impr)
+        impr1 = PeriodicTorsionJaxForce(map_a1_1_i, map_a2_1_i, map_a3_1_i, map_a4_1_i, prm1_i)
+        impr2 = PeriodicTorsionJaxForce(map_a1_2_i, map_a2_2_i, map_a3_2_i, map_a4_2_i, prm2_i)
+        impr3 = PeriodicTorsionJaxForce(map_a1_3_i, map_a2_3_i, map_a3_3_i, map_a4_3_i, prm3_i)
+        impr4 = PeriodicTorsionJaxForce(map_a1_4_i, map_a2_4_i, map_a3_4_i, map_a4_4_i, prm4_i)
 
         def potential_fn(positions, box, pairs, params):
-            return prop.get_energy(
-                positions, box, pairs, params["k1_p"], params["psi1_p"],
-                params["k2_p"], params["psi2_p"], params["k3_p"],
-                params["psi3_p"],
-                params["k4_p"], params["psi4_p"]) + impr.get_energy(
-                    positions, box, pairs, params["k1_i"], params["psi1_i"],
-                    params["k2_i"], params["psi2_i"], params["k3_i"],
-                    params["psi3_i"], params["k4_i"], params["psi4_i"])
+            p1e = prop1.get_energy(positions, box, pairs, params["k1_p"], params["psi1_p"])
+            p2e = prop2.get_energy(positions, box, pairs, params["k2_p"], params["psi2_p"])
+            p3e = prop3.get_energy(positions, box, pairs, params["k3_p"], params["psi3_p"])
+            p4e = prop4.get_energy(positions, box, pairs, params["k4_p"], params["psi4_p"])
+
+            i1e = impr1.get_energy(positions, box, pairs, params["k1_i"], params["psi1_i"])
+            i2e = impr2.get_energy(positions, box, pairs, params["k2_i"], params["psi2_i"])
+            i3e = impr3.get_energy(positions, box, pairs, params["k3_i"], params["psi3_i"])
+            i4e = impr4.get_energy(positions, box, pairs, params["k4_i"], params["psi4_i"])
+
+            return p1e + p2e + p3e + p4e + i1e + i2e + i3e + i4e
 
         self._jaxPotential = potential_fn
         # self._top_data = data
