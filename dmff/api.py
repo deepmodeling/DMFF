@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import openmm.app as app
 import openmm.unit as unit
+import openmm.app.element as elem
 import numpy as np
 import jax.numpy as jnp
 from collections import defaultdict
