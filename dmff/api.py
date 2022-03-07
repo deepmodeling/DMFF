@@ -2,7 +2,6 @@
 import openmm.app as app
 import openmm.unit as unit
 import numpy as np
-from sympy import E
 import jax.numpy as jnp
 from collections import defaultdict
 from .admp.disp_pme import ADMPDispPmeForce
