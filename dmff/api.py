@@ -794,38 +794,38 @@ class PeriodicTorsionJaxGenerator(object):
         # pump proper params
         for tor in self.proper:
             for i in range(len(tor.phase)):
-                if tor.phase[i] == 1:
+                if tor.periodicity[i] == 1:
                     self.params["k1_p"].append(tor.k[i])
                     self.params["psi1_p"].append(tor.phase[i])
                     tor.points[i] = len(self.params["k1_p"]) - 1
-                if tor.phase[i] == 2:
+                if tor.periodicity[i] == 2:
                     self.params["k2_p"].append(tor.k[i])
                     self.params["psi2_p"].append(tor.phase[i])
                     tor.points[i] = len(self.params["k2_p"]) - 1
-                if tor.phase[i] == 3:
+                if tor.periodicity[i] == 3:
                     self.params["k3_p"].append(tor.k[i])
                     self.params["psi3_p"].append(tor.phase[i])
                     tor.points[i] = len(self.params["k3_p"]) - 1
-                if tor.phase[i] == 4:
+                if tor.periodicity[i] == 4:
                     self.params["k4_p"].append(tor.k[i])
                     self.params["psi4_p"].append(tor.phase[i])
                     tor.points[i] = len(self.params["k4_p"]) - 1
         # pump impr params
         for tor in self.improper:
             for i in range(len(tor.phase)):
-                if tor.phase[i] == 1:
+                if tor.periodicity[i] == 1:
                     self.params["k1_i"].append(tor.k[i])
                     self.params["psi1_i"].append(tor.phase[i])
                     tor.points[i] = len(self.params["k1_i"]) - 1
-                if tor.phase[i] == 2:
+                if tor.periodicity[i] == 2:
                     self.params["k2_i"].append(tor.k[i])
                     self.params["psi2_i"].append(tor.phase[i])
                     tor.points[i] = len(self.params["k2_i"]) - 1
-                if tor.phase[i] == 3:
+                if tor.periodicity[i] == 3:
                     self.params["k3_i"].append(tor.k[i])
                     self.params["psi3_i"].append(tor.phase[i])
                     tor.points[i] = len(self.params["k3_i"]) - 1
-                if tor.phase[i] == 4:
+                if tor.periodicity[i] == 4:
                     self.params["k4_i"].append(tor.k[i])
                     self.params["psi4_i"].append(tor.phase[i])
                     tor.points[i] = len(self.params["k4_i"]) - 1
