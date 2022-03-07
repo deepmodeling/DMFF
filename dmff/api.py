@@ -14,6 +14,7 @@ from .classical.intra import HarmonicBondJaxForce, HarmonicAngleJaxForce, Period
 from jax_md import space, partition
 from jax import grad
 import linecache
+import itertools
 
 
 def get_line_context(file_path, line_number):
@@ -993,6 +994,48 @@ class PeriodicTorsionJaxGenerator(object):
                             map_a4_4_i.append(torsion[3])
                             prm4_i.append(tordef.points[i])
                             assert tordef.points[i] != -1
+
+        map_a1_1_p = np.array(map_a1_1_p, dtype=int)
+        map_a2_1_p = np.array(map_a2_1_p, dtype=int)
+        map_a3_1_p = np.array(map_a3_1_p, dtype=int)
+        map_a4_1_p = np.array(map_a4_1_p, dtype=int)
+        map_a1_2_p = np.array(map_a1_2_p, dtype=int)
+        map_a2_2_p = np.array(map_a2_2_p, dtype=int)
+        map_a3_2_p = np.array(map_a3_2_p, dtype=int)
+        map_a4_2_p = np.array(map_a4_2_p, dtype=int)
+        map_a1_3_p = np.array(map_a1_3_p, dtype=int)
+        map_a2_3_p = np.array(map_a2_3_p, dtype=int)
+        map_a3_3_p = np.array(map_a3_3_p, dtype=int)
+        map_a4_3_p = np.array(map_a4_3_p, dtype=int)
+        map_a1_4_p = np.array(map_a1_4_p, dtype=int)
+        map_a2_4_p = np.array(map_a2_4_p, dtype=int)
+        map_a3_4_p = np.array(map_a3_4_p, dtype=int)
+        map_a4_4_p = np.array(map_a4_4_p, dtype=int)
+        prm1_p = np.array(prm1_p, dtype=int)
+        prm2_p = np.array(prm2_p, dtype=int)
+        prm3_p = np.array(prm3_p, dtype=int)
+        prm4_p = np.array(prm4_p, dtype=int)
+
+        map_a1_1_i = np.array(map_a1_1_i, dtype=int)
+        map_a2_1_i = np.array(map_a2_1_i, dtype=int)
+        map_a3_1_i = np.array(map_a3_1_i, dtype=int)
+        map_a4_1_i = np.array(map_a4_1_i, dtype=int)
+        map_a1_2_i = np.array(map_a1_2_i, dtype=int)
+        map_a2_2_i = np.array(map_a2_2_i, dtype=int)
+        map_a3_2_i = np.array(map_a3_2_i, dtype=int)
+        map_a4_2_i = np.array(map_a4_2_i, dtype=int)
+        map_a1_3_i = np.array(map_a1_3_i, dtype=int)
+        map_a2_3_i = np.array(map_a2_3_i, dtype=int)
+        map_a3_3_i = np.array(map_a3_3_i, dtype=int)
+        map_a4_3_i = np.array(map_a4_3_i, dtype=int)
+        map_a1_4_i = np.array(map_a1_4_i, dtype=int)
+        map_a2_4_i = np.array(map_a2_4_i, dtype=int)
+        map_a3_4_i = np.array(map_a3_4_i, dtype=int)
+        map_a4_4_i = np.array(map_a4_4_i, dtype=int)
+        prm1_i = np.array(prm1_i, dtype=int)
+        prm2_i = np.array(prm2_i, dtype=int)
+        prm3_i = np.array(prm3_i, dtype=int)
+        prm4_i = np.array(prm4_i, dtype=int)
 
         prop1 = PeriodicTorsionJaxForce(map_a1_1_p, map_a2_1_p, map_a3_1_p, map_a4_1_p, prm1_p, 1)
         prop2 = PeriodicTorsionJaxForce(map_a1_2_p, map_a2_2_p, map_a3_2_p, map_a4_2_p, prm2_p, 2)
