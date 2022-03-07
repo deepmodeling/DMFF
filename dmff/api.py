@@ -999,10 +999,10 @@ class PeriodicTorsionJaxGenerator(object):
         prop3 = PeriodicTorsionJaxForce(map_a1_3_p, map_a2_3_p, map_a3_3_p, map_a4_3_p, prm3_p, 3)
         prop4 = PeriodicTorsionJaxForce(map_a1_4_p, map_a2_4_p, map_a3_4_p, map_a4_4_p, prm4_p, 4)
 
-        impr1 = PeriodicTorsionJaxForce(map_a1_1_i, map_a2_1_i, map_a3_1_i, map_a4_1_i, prm1_i)
-        impr2 = PeriodicTorsionJaxForce(map_a1_2_i, map_a2_2_i, map_a3_2_i, map_a4_2_i, prm2_i)
-        impr3 = PeriodicTorsionJaxForce(map_a1_3_i, map_a2_3_i, map_a3_3_i, map_a4_3_i, prm3_i)
-        impr4 = PeriodicTorsionJaxForce(map_a1_4_i, map_a2_4_i, map_a3_4_i, map_a4_4_i, prm4_i)
+        impr1 = PeriodicTorsionJaxForce(map_a1_1_i, map_a2_1_i, map_a3_1_i, map_a4_1_i, prm1_i, 1)
+        impr2 = PeriodicTorsionJaxForce(map_a1_2_i, map_a2_2_i, map_a3_2_i, map_a4_2_i, prm2_i, 2)
+        impr3 = PeriodicTorsionJaxForce(map_a1_3_i, map_a2_3_i, map_a3_3_i, map_a4_3_i, prm3_i, 3)
+        impr4 = PeriodicTorsionJaxForce(map_a1_4_i, map_a2_4_i, map_a3_4_i, map_a4_4_i, prm4_i, 4)
 
         def potential_fn(positions, box, pairs, params):
             p1e = prop1.get_energy(positions, box, pairs, params["k1_p"], params["psi1_p"])
