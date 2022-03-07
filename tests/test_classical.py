@@ -27,7 +27,7 @@ class TestClassical:
         pairs = np.array([[]], dtype=int)
         bondE = h._potentials[0]
         energy = bondE(pos, box, pairs, h.getGenerators()[0].params)
-        npt.assert_allclose(energy, value)
+        npt.assert_almost_equal(energy, value, decimal=3)
 
     @pytest.mark.parametrize(
         "pdb, prm, value",
@@ -47,7 +47,7 @@ class TestClassical:
         pairs = np.array([[]], dtype=int)
         bondE = h._potentials[0]
         energy = bondE(pos, box, pairs, h.getGenerators()[0].params)
-        npt.assert_allclose(energy, value)
+        npt.assert_almost_equal(energy, value, decimal=3)
 
     @pytest.mark.parametrize(
         "pdb, prm, value",
@@ -69,4 +69,4 @@ class TestClassical:
         pairs = np.array([[]], dtype=int)
         bondE = h._potentials[0]
         energy = bondE(pos, box, pairs, h.getGenerators()[0].params)
-        npt.assert_allclose(energy, value)
+        npt.assert_almost_equal(energy, value, decimal=3)
