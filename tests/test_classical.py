@@ -1,3 +1,4 @@
+from haiku import grad
 import jax.numpy as jnp
 import openmm as mm
 import openmm.app as app
@@ -6,6 +7,8 @@ import numpy as np
 import numpy.testing as npt
 from dmff.api import Hamiltonian
 import pytest
+
+from dmff.classical.inter import LennardJonesForce
 
 
 class TestClassical:
@@ -71,3 +74,26 @@ class TestClassical:
         bondE = h._potentials[0]
         energy = bondE(pos, box, pairs, h.getGenerators()[0].params)
         npt.assert_almost_equal(energy, value, decimal=3)
+
+
+class TestLennardJonesForce:
+    
+    def test_norm_lj(self):
+        
+        lj = LennardJonesForce(False, False, r_switch=0, r_cut=0)
+        
+        positions = jnp.array([[0, 0, 0], [1, 0, 0]])
+        
+        box = jnp.array([[10, 0, 0], [0, 10, 0], [0, 0, 10]])
+        
+        pairs = np.array([[0, 1]])
+        
+        epsilon = jnp.array([1])
+        sigma = jnp.array([0.1])
+        
+        get_energy = lj.generate_get_energy()
+        
+        E = get_energy(positions, box, pairs, epsilon, sigma)
+        F = grad(get_energy)(positions, box, pairs, epsilon, sigma)
+        assert E == 0
+        assert F != 0

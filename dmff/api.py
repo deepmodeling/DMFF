@@ -462,7 +462,7 @@ class HarmonicBondJaxGenerator:
         types = self.ff._findAtomTypes(bond, 2)
         self.types.append(types)
         self.params['k'].append(float(bond['k']))
-        self.params['length'].append(float(bond['length']))
+        self.params['length'].append(float(bond['length']))  # length := r0
 
     @staticmethod
     def parseElement(element, hamiltonian):
