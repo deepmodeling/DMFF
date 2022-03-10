@@ -53,6 +53,7 @@ class TestClassical:
         "pdb, prm, value",
         [
             ("data/proper1.pdb", "data/proper1.xml", 8.368000030517578),
+            ("data/proper2.pdb", "data/proper2.xml", 20.931230545),
             ("data/impr1.pdb", "data/impr1.xml", 2.9460556507110596),
             ("data/proper1.pdb", "data/wild1.xml", 8.368000030517578),
             ("data/impr1.pdb", "data/wild2.xml", 2.9460556507110596),
