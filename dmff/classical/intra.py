@@ -17,13 +17,16 @@ def angle(p1v, p2v, p3v):
     return jnp.arccos(vxx + vyy + vzz)
     
 def dihedral(i, j, k, l):
-    f, g, h = i - j, j - k, l - k
-    a = vmap(jnp.cross, (0, 0))(f, g)
-    b = vmap(jnp.cross, (0, 0))(h, g)
-    axb = vmap(jnp.cross, (0, 0))(a, b)
-    cos = vmap(jnp.dot, (0, 0))(a, b)
-    sin = vmap(jnp.dot, (0, 0))(axb, g) / jnp.linalg.norm(g)
-    r = - vmap(jnp.arctan2, (0, 0))(sin, cos)
+    b1, b2, b3 = j - i, k - j, l - k
+
+    c1 = vmap(jnp.cross, (0, 0))(b2, b3)
+    c2 = vmap(jnp.cross, (0, 0))(b1, b2)
+
+    p1 = (b1 * c1).sum(-1)
+    p1 = p1 * jnp.sqrt((b2 * b2).sum(-1))
+    p2 = (c1 * c2).sum(-1)
+
+    r = vmap(jnp.arctan2, (0, 0))(p1, p2)
     return r
 
 class HarmonicBondJaxForce:
