@@ -102,7 +102,11 @@ class ADMPPmeForce:
             self.construct_local_frames = generate_construct_local_frames(self.axis_type, self.axis_indices)
         else:
             self.construct_local_frames = None
-        self.pme_recip = generate_pme_recip(Ck_1, self.kappa, False, self.pme_order, self.K1, self.K2, self.K3, self.lmax)
+        lmax = self.lmax
+        # for polarizable monopole force field, need to increase lmax to 1, accomodating induced dipoles
+        if self.lmax == 0 and self.lpol is True:
+            lmax = 1
+        self.pme_recip = generate_pme_recip(Ck_1, self.kappa, False, self.pme_order, self.K1, self.K2, self.K3, lmax)
         # generate the force calculator
         self.get_energy = self.generate_get_energy()
         self.get_forces = value_and_grad(self.get_energy)
@@ -132,7 +136,6 @@ class ADMPPmeForce:
         for i in range(maxiter):
             field = self.grad_U_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
             E = self.energy_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
-            # print(i, E, jnp.max(jnp.abs(field[site_filter])))
             if jnp.max(jnp.abs(field[site_filter])) < thresh:
                 break
             U = U - field * pol[:, jnp.newaxis] / DIELECTRIC
@@ -224,7 +227,7 @@ def energy_pme(positions, box, pairs,
         if lpol:
             # if fixed multipole only contains charge, and it's polarizable, then expand Q matrix
             dips = jnp.zeros((Q_local.shape[0], 3))
-            Q_global = jnp.hstack((Q_global, dips))
+            Q_global = jnp.hstack((Q_local, dips))
             lmax = 1
         else:
             Q_global = Q_local
@@ -405,10 +408,9 @@ def calc_e_ind(dr, thole1, thole2, dmp, pscales, dscales, kappa, lmax=2):
     Output:
         Interaction tensors components
     '''
-    ## switch function
-
-    # a = 1/(jnp.exp((pscales-0.001)*10000)+1) * (thole1 + thole2) + 8/(jnp.exp((-pscales+0.01)*10000)+1)
-    a = switch_val(pscales, 1e-3, 1e-5, thole1+thole2, DEFAULT_THOLE_WIDTH)
+    ## pscale == 0 ? thole1 + thole2 : DEFAULT_THOLE_WIDTH
+    w = jnp.heaviside(pscales, 0)
+    a = w * DEFAULT_THOLE_WIDTH + (1-w) * (thole1+thole2)
 
     dmp = trim_val_0(dmp)
     u = trim_val_infty(dr/dmp)

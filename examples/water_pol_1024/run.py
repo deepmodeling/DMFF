@@ -18,7 +18,7 @@ def get_line_context(file_path, line_number):
 
 # below is the validation code
 if __name__ == '__main__':
-    pdb = str('water1024.pdb')
+    pdb = str('waterbox_31ang.pdb')
     xml = str('mpidwater.xml')
     ref_dip = str('dipole_1024')
     pdbinfo = read_pdb(pdb)
