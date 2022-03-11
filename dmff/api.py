@@ -16,6 +16,7 @@ from jax_md import space, partition
 from jax import grad
 import linecache
 import itertools
+from .classical.inter import LennardJonesForce
 
 
 def get_line_context(file_path, line_number):
@@ -1075,6 +1076,65 @@ class PeriodicTorsionJaxGenerator(object):
 
 app.forcefield.parsers[
     "PeriodicTorsionForce"] = PeriodicTorsionJaxGenerator.parseElement
+
+
+class NonbondJaxGenerator:
+    
+    SCALETOL = 1e-5
+    
+    def __ini__(self, hamiltionian):
+        
+        self.ff = hamiltionian
+        # self.coulomb14scale = coulomb14scale
+        # self.lj14scale = lj14scale
+        # self.useDispersionCorrection = useDispersionCorrection
+        self.params = app.ForceField._AtomTypeParameters(hamiltionian, 'NonbondedForce', 'Atom', ('charge', 'sigma', 'epsilon'))        
+        
+    @staticmethod
+    def parseElement(element, ff):
+        
+        existing = [f for f in ff._forces if isinstance(f, NonbondJaxGenerator)]
+        
+        # TODO: useDispersionCorrection
+        
+        if len(existing) == 0:
+            generator = NonbondJaxGenerator(
+                ff, 
+                # float(element.attrib['coulomb14scale']),
+                # float(element.attrib['lj14scale']),
+                # useDispersionCorrection
+            )
+            ff.registerGenerator(generator)
+        else:
+            generator = existing[0]
+            # if (abs(generator.coulomb14scale - float(element.attrib['coulomb14scale'])) > NonbondedGenerator.SCALETOL
+            #     or abs(generator.lj14scale - float(element.attrib['lj14scale'])) > NonbondedGenerator.SCALETOL
+            # ):
+            #     raise ValueError('Found multiple NonbondedForce tags with different 1-4 scales')
+            # if (
+            #         generator.useDispersionCorrection is not None
+            #         and useDispersionCorrection is not None
+            #         and generator.useDispersionCorrection != useDispersionCorrection
+            # ):
+            #     raise ValueError('Found multiple NonbondedForce tags with different useDispersionCorrection settings.')
+        generator.params.parseDefinitions(element)     
+        
+    def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
+        
+        methodMap = {
+            
+        }
+        if nonbondedMethod not in methodMap:
+            raise ValueError('Illegal nonbonded method for NonbondedForce')
+        force = LennardJonesForce()
+        for atom in data.atoms:
+            values = self.params.getAtomParameters(atom, data)
+            force.addParticle(values[0], values[1], values[2])
+            
+               
+        
+app.forcefield.parsers[
+    "NonbondedForce"] = PeriodicTorsionJaxGenerator.parseElement        
 
 
 class Hamiltonian(app.forcefield.ForceField):
