@@ -16,7 +16,7 @@ from jax_md import space, partition
 from jax import grad
 import linecache
 import itertools
-from .classical.inter import LennardJonesForce
+from .classical.inter import CoulombForce, LennardJonesForce
 import sys
 
 def get_line_context(file_path, line_number):
@@ -1233,15 +1233,35 @@ class NonbondJaxGenerator:
         }
         if nonbondedMethod not in methodMap:
             raise ValueError('Illegal nonbonded method for NonbondedForce')
-        force = LennardJonesForce()
+        ljforce = LennardJonesForce()
+        coulforce = CoulombForce()
         for atom in data.atoms:
             values = self.params.getAtomParameters(atom, data)
             force.addParticle(values[0], values[1], values[2])
             
+        
+        
+        def potential_fn(positions, box, pairs, params):
+            
+            mScales = params['mScales']
+            Q = params['Q'][map_atomtype]
+            
+            ljE = ljforce.get_energy(positions, box, pairs)
+            coulE = coulforce.get_energy(positions, box, pairs)
+            
+            return ljE + coulE
+        
+        self._jaxPotential = potential_fn
+        
+    def getJaxPotential(self):
+        return self._jaxPotential
+    
+    def renderXML(self):
+        pass
                
         
 app.forcefield.parsers[
-    "NonbondedForce"] = PeriodicTorsionJaxGenerator.parseElement        
+    "NonbondedForce"] = NonbondJaxGenerator.parseElement        
 
 
 class Hamiltonian(app.forcefield.ForceField):
