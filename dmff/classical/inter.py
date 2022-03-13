@@ -69,10 +69,14 @@ class LennardJonesForce:
             sig_m2 = sig_m1.T
             sig_mat = (sig_m1 + sig_m2) * 0.5
 
-            eps_mat = eps_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(epsfix)
-            eps_mat = eps_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(epsfix)
-            sig_mat = sig_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(sigfix)
-            sig_mat = sig_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(sigfix)
+            eps_mat = eps_mat.at[self.map_nbfix[:, 0],
+                                 self.map_nbfix[:, 1]].set(epsfix)
+            eps_mat = eps_mat.at[self.map_nbfix[:, 1],
+                                 self.map_nbfix[:, 0]].set(epsfix)
+            sig_mat = sig_mat.at[self.map_nbfix[:, 0],
+                                 self.map_nbfix[:, 1]].set(sigfix)
+            sig_mat = sig_mat.at[self.map_nbfix[:, 1],
+                                 self.map_nbfix[:, 0]].set(sigfix)
 
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
             prm_pair0 = self.map_prm[pairs[:, 0]]
@@ -108,10 +112,12 @@ if __name__ == '__main__':
     # nbfix: 0 - 3 (3., 0.3)
     positions = jnp.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 0, 1]],
                           dtype=float)
+    p_ref = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 0, 1]], dtype=float)
 
     box = jnp.array([[10, 0, 0], [0, 10, 0], [0, 0, 10]])
 
-    pairs = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]])
+    pairs = np.array([[0, 1], [0, 2], [1, 2], [1, 3], [2, 3]])
+    pairs_ref = np.array([[0, 2], [0, 3], [1, 2], [1, 3]])
 
     epsilon = jnp.array([1., 2.])
     sigma = jnp.array([0.5, 0.6])
@@ -127,6 +133,26 @@ if __name__ == '__main__':
     get_energy = lj.generate_get_energy()
 
     E = get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix)
-    print(E)
+
+    # Eref
+    eps0 = epsilon[map_prm[pairs_ref[:, 0]]]
+    eps1 = epsilon[map_prm[pairs_ref[:, 1]]]
+    sig0 = sigma[map_prm[pairs_ref[:, 0]]]
+    sig1 = sigma[map_prm[pairs_ref[:, 1]]]
+
+    eps = np.sqrt(eps0 * eps1)
+    sig = (sig0 + sig1) / 2.
+    p0 = p_ref[pairs_ref[:, 0]]
+    p1 = p_ref[pairs_ref[:, 1]]
+    dr_vec = p1 - p0
+    dr = np.sqrt(np.power(dr_vec, 2).sum(axis=1))
+    sig_dr = sig / dr
+    Eref = 4. * eps * (np.power(sig_dr, 12) - np.power(sig_dr, 6))
+    Eref = Eref.sum()
+    dr_fix = p_ref[0] - p_ref[3]
+    dr_fix = np.sqrt((dr_fix * dr_fix).sum())
+    Eref += 4. * 3. * ((0.3 / dr_fix)**12 - (0.3 / dr_fix)**6)
+
+    print(E, "vs", Eref)
     F = grad(get_energy)(positions, box, pairs, epsilon, sigma, epsfix, sigfix)
     print(F)
