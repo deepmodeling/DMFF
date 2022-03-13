@@ -29,6 +29,36 @@ class LennardJonesForce:
         self.map_14 = map_14
 
     def generate_get_energy(self):
+
+        def get_LJ_energy(dr_vec, sig, eps, box):
+            dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
+            dr_norm = jnp.linalg.norm(dr_vec, axis=1)
+            dr_norm = dr_norm[dr_norm <= self.r_cut]
+
+            dr_inv = 1.0 / dr_norm
+            sig_dr = sig * dr_inv
+            sig_dr12 = jnp.power(sig_dr, 12)
+            sig_dr6 = jnp.power(sig_dr, 6)
+            E = 4 * eps * (sig_dr12 - sig_dr6)
+
+            shiftedE = 0
+
+            if self.isShift:
+
+                rcut_inv = 1.0 / self.r_cut
+                sig_rcut = sig * rcut_inv
+                sig_rcut12 = jnp.power(sig_rcut, 12)
+                sig_rcut6 = jnp.power(sig_rcut, 6)
+                shiftedE = 4 * eps * (sig_rcut12 - sig_rcut6)
+
+            if self.isSwitch:
+
+                x = (dr_norm - self.r_switch) / (self.r_cut - self.r_switch)
+                S = 1 - 6 * x**5 + 15 * x**4 - 10 * x**3
+                jnp.where(dr_norm > self.r_switch, E, E * S)
+
+            return jnp.sum(E) + shiftedE
+
         def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix):
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)),
                                 epsilon.shape[0],
@@ -50,33 +80,19 @@ class LennardJonesForce:
             eps = eps_mat[prm_pair0, prm_pair1]
             sig = sig_mat[prm_pair0, prm_pair1]
 
-            dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
-            dr_norm = jnp.linalg.norm(dr_vec, axis=1)
-            dr_norm = dr_norm[dr_norm <= self.r_cut]
+            E_inter = get_LJ_energy(dr_vec, sig, eps, box)
 
-            dr_inv = 1.0 / dr_norm
-            sig_dr = sig * dr_inv
-            sig_dr12 = jnp.power(sig_dr, 12)
-            sig_dr6 = jnp.power(sig_dr, 6)
-            E = 4 * eps * (sig_dr12 - sig_dr6)
+            # exclusion
+            dr_excl_vec = positions[self.map_exclusion[:, 0]] - positions[
+                self.map_exclusion[:, 1]]
+            excl_map0 = self.map_prm[self.map_exclusion[:, 0]]
+            excl_map1 = self.map_prm[self.map_exclusion[:, 1]]
+            eps_excl = eps_mat[excl_map0, excl_map1]
+            sig_excl = sig_mat[excl_map0, excl_map1]
 
-            shiftedE = 0
+            E_excl = get_LJ_energy(dr_excl_vec, sig_excl, eps_excl, box)
 
-            if self.isShift:
-
-                rcut_inv = 1.0 / self.r_cut
-                sig_rcut = sigma * rcut_inv
-                sig_rcut12 = jnp.power(sig_rcut, 12)
-                sig_rcut6 = jnp.power(sig_rcut, 6)
-                shiftedE = 4 * epsilon * (sig_rcut12 - sig_rcut6)
-
-            if self.isSwitch:
-
-                x = (dr_norm - self.r_switch) / (self.r_cut - self.r_switch)
-                S = 1 - 6 * x**5 + 15 * x**4 - 10 * x**3
-                jnp.where(dr_norm > self.r_switch, E, E * S)
-
-            return jnp.sum(E) + shiftedE
+            return E_inter - E_excl
 
         return get_energy
 
