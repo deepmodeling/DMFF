@@ -1,6 +1,6 @@
 from jax.config import config
 
-PRECISION = 'single'  # 'double'
+PRECISION = 'single'
 
 DO_JIT = True
 

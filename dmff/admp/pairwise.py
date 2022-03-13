@@ -109,6 +109,46 @@ def TT_damping_qq_c6_kernel(dr, m, ai, aj, bi, bj, qi, qj, ci, cj):
 
     return f * m
 
+@vmap
+@jit_condition(static_argnums=())
+def slater_disp_damping_kernel(dr, m, bi, bj, c6i, c6j, c8i, c8j, c10i, c10j):
+    '''
+    Slater-ISA type damping for dispersion:
+    f(x) = -e^{-x} * \sum_{k} x^k/k!
+    x = Br - \frac{2*(Br)^2 + 3Br}{(Br)^2 + 3*Br + 3}
+    see jctc 12 3851
+    '''
+    b = jnp.sqrt(bi*bj)
+    c6 = jnp.sqrt(c6i*c6j)
+    c8 = jnp.sqrt(c8i*c8j)
+    c10 = jnp.sqrt(c10i*c10j)
+    br = b * dr
+    br2 = br * br
+    x = br - (2*br2 + 3*br) / (br2 + 3*br + 3)
+    s6 = 1 + x + x**2/2 + x**3/6 + x**4/24 + x**5/120 + x**6/720
+    s8 = s6 + x**7/5040 + x**8/40320
+    s10 = s8 + x**9/362880 + x**10/3628800
+    exp_x = jnp.exp(-x)
+    f6 = exp_x * s6
+    f8 = exp_x * s8
+    f10 = exp_x * s10
+    return (f6*c6/dr**6 + f8*c8/dr**8 + f10*c10/dr**10) * m
+
+
+@vmap
+@jit_condition(static_argnums=())
+def slater_sr_kernel(dr, m, ai, aj, bi, bj):
+    '''
+    Slater-ISA type short range terms
+    see jctc 12 3851
+    '''
+    b = jnp.sqrt(bi * bj)
+    a = jnp.sqrt(ai * aj)
+    br = b * dr
+    br2 = br * br
+    P = 1/3 * br2 + br + 1 
+    return a * P * jnp.exp(-br) * m
+
 
 def validation(pdb):
     xml = 'mpidwater.xml'
