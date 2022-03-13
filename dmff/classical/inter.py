@@ -114,12 +114,12 @@ if __name__ == '__main__':
     pairs = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]])
 
     epsilon = jnp.array([1., 2.])
-    sigma = jnp.array([0.1, 0.2])
+    sigma = jnp.array([0.5, 0.6])
 
     map_prm = np.array([0, 0, 1, 1])
     map_nbfix = np.array([[0, 3]])
     epsfix = jnp.array([3.])
-    sigfix = jnp.array([0.3])
+    sigfix = jnp.array([0.8])
     map_exclusion = np.array([[0, 1], [2, 3]])
     map_14 = np.array([[]])
 
