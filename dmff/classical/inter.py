@@ -1,3 +1,4 @@
+from mmap import MAP_EXECUTABLE
 import sys
 import jax.numpy as jnp
 from dmff.admp.spatial import v_pbc_shift
@@ -29,7 +30,6 @@ class LennardJonesForce:
         self.map_14 = map_14
 
     def generate_get_energy(self):
-
         def get_LJ_energy(dr_vec, sig, eps, box):
             dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
@@ -103,20 +103,30 @@ class CoulombForce:
 
 if __name__ == '__main__':
 
-    lj = LennardJonesForce(False, False, r_switch=0, r_cut=3)
-
-    positions = jnp.array([[0, 0, 0], [1, 0, 0]], dtype=float)
+    # atoms: 0, 1, 2, 3
+    # exclusion: 0 - 1, 2 - 3
+    # nbfix: 0 - 3 (3., 0.3)
+    positions = jnp.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 0, 1]],
+                          dtype=float)
 
     box = jnp.array([[10, 0, 0], [0, 10, 0], [0, 0, 10]])
 
-    pairs = np.array([[0, 1]])
+    pairs = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]])
 
-    epsilon = jnp.array([1, 1])
-    sigma = jnp.array([0.1, 0.1])
+    epsilon = jnp.array([1., 2.])
+    sigma = jnp.array([0.1, 0.2])
 
+    map_prm = np.array([0, 0, 1, 1])
+    map_nbfix = np.array([[0, 3]])
+    epsfix = jnp.array([3.])
+    sigfix = jnp.array([0.3])
+    map_exclusion = np.array([[0, 1], [2, 3]])
+    map_14 = np.array([[]])
+
+    lj = LennardJonesForce(0, 3, map_prm, map_nbfix, map_exclusion, map_14)
     get_energy = lj.generate_get_energy()
 
-    E = get_energy(positions, box, pairs, epsilon, sigma)
+    E = get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix)
     print(E)
-    F = grad(get_energy)(positions, box, pairs, epsilon, sigma)
+    F = grad(get_energy)(positions, box, pairs, epsilon, sigma, epsfix, sigfix)
     print(F)
