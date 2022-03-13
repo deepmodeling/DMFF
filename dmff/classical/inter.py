@@ -1,6 +1,11 @@
-
+import sys
+sys.path.append(
+    '/home/lijichen/work/DMFF'
+)
 import jax.numpy as jnp
 from dmff.admp.spatial import v_pbc_shift
+import numpy as np
+import jax.numpy as jnp
 
 class LennardJonesForce:
     
@@ -47,3 +52,21 @@ class LennardJonesForce:
     
 class CoulombForce:
     pass
+
+if __name__ == '__main__':
+    
+    lj = LennardJonesForce(False, False, r_switch=0, r_cut=0)
+    
+    positions = jnp.array([[0, 0, 0], [1, 0, 0]])
+    
+    box = jnp.array([[10, 0, 0], [0, 10, 0], [0, 0, 10]])
+    
+    pairs = np.array([[0, 1]])
+    
+    epsilon = jnp.array([1])
+    sigma = jnp.array([0.1])
+    
+    get_energy = lj.generate_get_energy()
+    
+    E = get_energy(positions, box, pairs, epsilon, sigma)
+    print(E)
