@@ -15,13 +15,9 @@ from .classical.intra import HarmonicBondJaxForce, HarmonicAngleJaxForce, Period
 from jax_md import space, partition
 from jax import grad
 import linecache
-<<<<<<< HEAD
 import itertools
 from .classical.inter import LennardJonesForce
-=======
 import sys
->>>>>>> 27b8bde1c4744db2f9ce5623fcebd9f764693073
-
 
 def get_line_context(file_path, line_number):
     return linecache.getline(file_path, line_number).strip()
@@ -333,7 +329,7 @@ class ADMPPmeGenerator:
             Bisector          = 1
             ZBisect           = 2
             ThreeFold         = 3
-            Zonly             = 4
+            ZOnly             = 4  # typo fix
             NoAxisType        = 5
             LastAxisTypeIndex = 6
 
