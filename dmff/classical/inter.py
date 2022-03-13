@@ -69,10 +69,10 @@ class LennardJonesForce:
             sig_m2 = sig_m1.T
             sig_mat = (sig_m1 + sig_m2) * 0.5
 
-            eps_mat[self.map_nbfix[:, 0], self.map_nbfix[:, 1]] = epsfix
-            eps_mat[self.map_nbfix[:, 1], self.map_nbfix[:, 0]] = epsfix
-            sig_mat[self.map_nbfix[:, 0], self.map_nbfix[:, 1]] = sigfix
-            sig_mat[self.map_nbfix[:, 1], self.map_nbfix[:, 0]] = sigfix
+            eps_mat = eps_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(epsfix)
+            eps_mat = eps_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(epsfix)
+            sig_mat = sig_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(sigfix)
+            sig_mat = sig_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(sigfix)
 
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
             prm_pair0 = self.map_prm[pairs[:, 0]]
