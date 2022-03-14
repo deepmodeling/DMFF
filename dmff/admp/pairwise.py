@@ -143,7 +143,7 @@ def slater_sr_kernel(dr, m, ai, aj, bi, bj):
     see jctc 12 3851
     '''
     b = jnp.sqrt(bi * bj)
-    a = jnp.sqrt(ai * aj)
+    a = ai * aj
     br = b * dr
     br2 = br * br
     P = 1/3 * br2 + br + 1 
