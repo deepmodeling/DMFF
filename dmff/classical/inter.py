@@ -1,5 +1,5 @@
-from mmap import MAP_EXECUTABLE
 import sys
+sys.path.append('/home/lijichen/work/DMFF')
 import jax.numpy as jnp
 from dmff.admp.pme import energy_pme, setup_ewald_parameters
 from dmff.admp.recip import generate_pme_recip
@@ -8,6 +8,7 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad
 from dmff.admp.recip import generate_pme_recip, Ck_1
+
 
 class LennardJonesForce:
     def __init__(self,
@@ -105,9 +106,13 @@ class LennardJonesForce:
 
 class CoulombForce:
     
-    def __init__(self, box, rc, ethresh):
+    def __init__(self, covalent_map, box, rc, ethresh):
         
+        self.covalent_map = covalent_map
+        self.pme_order = 6
+        self.lmax = 0
         self.kappa, self.K1, self.K2, self.K3 = setup_ewald_parameters(rc, ethresh, box)
+        self.refresh_calculator()
 
     def generate_get_energy(self):
         
@@ -119,10 +124,10 @@ class CoulombForce:
     def refresh_calculator(self):
         
         self.construct_local_frames = None
-        lmax = 0
-        self.pme_recip = generate_pme_recip(Ck_1, self.kappa, False, self.pme_order, self.K1, self.K2, self.K3, lmax)
         
-        self.get_energy = self.genreate_get_energy()
+        self.pme_recip = generate_pme_recip(Ck_1, self.kappa, False, self.pme_order, self.K1, self.K2, self.K3, self.lmax)
+        
+        self.get_energy = self.generate_get_energy()
         
         return 
         
@@ -139,6 +144,7 @@ if __name__ == '__main__':
     box = jnp.array([[10, 0, 0], [0, 10, 0], [0, 0, 10]])
 
     pairs = np.array([[0, 1], [0, 2], [1, 2], [1, 3], [2, 3]])
+    covalent_map = np.array([[0, 1, 1, 0], [1, 0, 1, 1], [1, 1, 0, 1], [0, 1, 1, 0]]) # NOTE:not sure
     pairs_ref = np.array([[0, 2], [0, 3], [1, 2], [1, 3]])
 
     epsilon = jnp.array([1., 2.])
@@ -183,8 +189,8 @@ if __name__ == '__main__':
     rc = 4
     ethresh = 1e-4
     mScales = np.array([1., 1., 1.])
-    Q = np.array([0.1, 0.1])
-    pme = CoulombForce(box, rc, ethresh)
-    get_energy = pme.generate_get_energy()
-    E = get_energy(positions, box, pairs, Q, mScales)
+    Q = np.array([[0.1, 0.1, 0.1, 0.1]]).T
+    pme = CoulombForce(covalent_map, box, rc, ethresh)
+    E = pme.get_energy(positions, box, pairs, Q, mScales)
     
+    print(E)
