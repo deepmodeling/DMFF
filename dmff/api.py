@@ -15,13 +15,9 @@ from .classical.intra import HarmonicBondJaxForce, HarmonicAngleJaxForce, Period
 from jax_md import space, partition
 from jax import grad
 import linecache
-<<<<<<< HEAD
 import itertools
-from .classical.inter import LennardJonesForce
-=======
+from .classical.inter import CoulombForce, LennardJonesForce
 import sys
->>>>>>> 27b8bde1c4744db2f9ce5623fcebd9f764693073
-
 
 def get_line_context(file_path, line_number):
     return linecache.getline(file_path, line_number).strip()
@@ -333,7 +329,7 @@ class ADMPPmeGenerator:
             Bisector          = 1
             ZBisect           = 2
             ThreeFold         = 3
-            Zonly             = 4
+            ZOnly             = 4  # typo fix
             NoAxisType        = 5
             LastAxisTypeIndex = 6
 
@@ -546,7 +542,7 @@ class HarmonicBondJaxGenerator:
         types = self.ff._findAtomTypes(bond, 2)
         self.types.append(types)
         self.params['k'].append(float(bond['k']))
-        self.params['length'].append(float(bond['length']))
+        self.params['length'].append(float(bond['length']))  # length := r0
 
     @staticmethod
     def parseElement(element, hamiltonian):
@@ -1237,15 +1233,35 @@ class NonbondJaxGenerator:
         }
         if nonbondedMethod not in methodMap:
             raise ValueError('Illegal nonbonded method for NonbondedForce')
-        force = LennardJonesForce()
+        ljforce = LennardJonesForce()
+        coulforce = CoulombForce()
         for atom in data.atoms:
             values = self.params.getAtomParameters(atom, data)
             force.addParticle(values[0], values[1], values[2])
             
+        
+        
+        def potential_fn(positions, box, pairs, params):
+            
+            mScales = params['mScales']
+            Q = params['Q'][map_atomtype]
+            
+            ljE = ljforce.get_energy(positions, box, pairs)
+            coulE = coulforce.get_energy(positions, box, pairs)
+            
+            return ljE + coulE
+        
+        self._jaxPotential = potential_fn
+        
+    def getJaxPotential(self):
+        return self._jaxPotential
+    
+    def renderXML(self):
+        pass
                
         
 app.forcefield.parsers[
-    "NonbondedForce"] = PeriodicTorsionJaxGenerator.parseElement        
+    "NonbondedForce"] = NonbondJaxGenerator.parseElement        
 
 
 class Hamiltonian(app.forcefield.ForceField):

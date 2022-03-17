@@ -1,11 +1,13 @@
 from mmap import MAP_EXECUTABLE
 import sys
 import jax.numpy as jnp
+from dmff.admp.pme import energy_pme, setup_ewald_parameters
+from dmff.admp.recip import generate_pme_recip
 from dmff.admp.spatial import v_pbc_shift
 import numpy as np
 import jax.numpy as jnp
 from jax import grad
-
+from dmff.admp.recip import generate_pme_recip, Ck_1
 
 class LennardJonesForce:
     def __init__(self,
@@ -102,8 +104,28 @@ class LennardJonesForce:
 
 
 class CoulombForce:
-    pass
+    
+    def __init__(self, box, rc, ethresh):
+        
+        self.kappa, self.K1, self.K2, self.K3 = setup_ewald_parameters(rc, ethresh, box)
 
+    def generate_get_energy(self):
+        
+        def get_energy(positions, box, pairs, Q, mScales):
+            return energy_pme(positions, box, pairs, Q, None, None, None, mScales, None, None, self.covalent_map, None, self.pme_recip, self.kappa, self.K1, self.K2, self.K3, self.lmax, False)
+        return get_energy
+
+    
+    def refresh_calculator(self):
+        
+        self.construct_local_frames = None
+        lmax = 0
+        self.pme_recip = generate_pme_recip(Ck_1, self.kappa, False, self.pme_order, self.K1, self.K2, self.K3, lmax)
+        
+        self.get_energy = self.genreate_get_energy()
+        
+        return 
+        
 
 if __name__ == '__main__':
 
@@ -156,3 +178,13 @@ if __name__ == '__main__':
     print(E, "vs", Eref)
     F = grad(get_energy)(positions, box, pairs, epsilon, sigma, epsfix, sigfix)
     print(F)
+
+    # test PME
+    rc = 4
+    ethresh = 1e-4
+    mScales = np.array([1., 1., 1.])
+    Q = np.array([0.1, 0.1])
+    pme = CoulombForce(box, rc, ethresh)
+    get_energy = pme.generate_get_energy()
+    E = get_energy(positions, box, pairs, Q, mScales)
+    
