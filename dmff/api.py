@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import openmm as mm
 import openmm.app as app
 import openmm.unit as unit
 import openmm.app.element as elem
@@ -1189,14 +1190,32 @@ class NonbondJaxGenerator:
     
     SCALETOL = 1e-5
     
-    def __ini__(self, hamiltionian):
+    def __init__(self, hamiltionian):
         
         self.ff = hamiltionian
         # self.coulomb14scale = coulomb14scale
         # self.lj14scale = lj14scale
         # self.useDispersionCorrection = useDispersionCorrection
-        self.params = app.ForceField._AtomTypeParameters(hamiltionian, 'NonbondedForce', 'Atom', ('charge', 'sigma', 'epsilon'))        
+        #self.params = app.ForceField._AtomTypeParameters(hamiltionian, 'NonbondedForce', 'Atom', ('charge', 'sigma', 'epsilon'))  
+        self.params = {
+            "sigma": [],
+            "epsilon":[],
+            "charge":[]
+        }
+        self.ljtypes = []
+        self.coultypes = []
+        self.useAttributeFromResidue = []
         
+    def registerAtom(self, atom):
+        # use types in nb cards or resname+atomname in residue cards
+        types = self.ff._findAtomTypes(atom, 1)
+        self.types.append(types)
+        
+        for key in ["sigma", "epsilon", "charge"]:
+            if key not in self.useAttributeFromResidue:
+                self.params[key].append(atom[key])
+
+
     @staticmethod
     def parseElement(element, ff):
         
@@ -1224,7 +1243,12 @@ class NonbondJaxGenerator:
             #         and generator.useDispersionCorrection != useDispersionCorrection
             # ):
             #     raise ValueError('Found multiple NonbondedForce tags with different useDispersionCorrection settings.')
-        generator.params.parseDefinitions(element)     
+        excludedParams = [node.attrib['name'] for node in element.findall('UseAttributeFromResidue')]
+        for eprm in excludedParams:
+            if eprm not in generator.useAttributeFromResidue:
+                generator.useAttributeFromResidue.append(eprm)
+        for atom in element.findall("Atom"):
+            generator.registerAtom(atom.attrib)
         
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
         
@@ -1233,13 +1257,52 @@ class NonbondJaxGenerator:
         }
         if nonbondedMethod not in methodMap:
             raise ValueError('Illegal nonbonded method for NonbondedForce')
-        ljforce = LennardJonesForce()
+
+
+        # load LJ from types
+        map_lj = []
+        for atom in data.atoms:
+            types = data.atomType[atom]
+            ifFound = False
+            for ntp, tp in enumerate(self.ljtypes):
+                if types in tp:
+                    ifFound = True
+                    map_lj.append(ntp)
+                    break
+            if not ifFound:
+                raise mm.OpenMMException("AtomType of %s mismatched in NonbondedForce"%(str(atom)))
+        map_lj = np.array(map_lj, dtype=int)
+
+        ifChargeFromResidue = False
+        if "charge" in self.useAttributeFromResidue:
+            # load charge from residue cards
+            ifChargeFromResidue = True
+            chargeinfo = {}
+            for atom in data.atoms:
+                resname, aname = atom.residue.name, atom.name
+                prm = data.atomParameters[atom]
+                chargeinfo[resname+"+"+aname] = prm["charge"]
+            ckeys = [k for k in chargeinfo.keys()]
+            self.params["charge"] = [chargeinfo[k] for k in chargeinfo.keys()]
+            chargeidx = {}
+            for n,i in enumerate(ckeys):
+                chargeidx[i] = n 
+            map_charge = []
+            for na in range(len(data.atoms)):
+                key = data.atoms[na].residue.name + "+" + data.atoms[na].name
+                if key in chargeidx:
+                    map_charge.append(chargeidx[key])
+        else:
+            map_charge = map_lj
+
+        colv_map = build_covalent_map(data, 6)
+
+        ljforce = LennardJonesForce(r_switch, r_cut, map_lj, [], )
         coulforce = CoulombForce()
         for atom in data.atoms:
             values = self.params.getAtomParameters(atom, data)
             force.addParticle(values[0], values[1], values[2])
             
-        
         
         def potential_fn(positions, box, pairs, params):
             
