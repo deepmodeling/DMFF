@@ -193,4 +193,10 @@ if __name__ == '__main__':
     pme = CoulombForce(covalent_map, box, rc, ethresh)
     E = pme.get_energy(positions, box, pairs, Q, mScales)
     
-    print(E)
+    # Eref
+    DIELECTRIC = 1389.35455846
+    
+    Eref = np.sum(DIELECTRIC * 0.01 * (1 / dr**2))
+     
+    print(E, 'vs', Eref)
+    print(grad(pme.get_energy)(positions, box, pairs, Q, mScales))
