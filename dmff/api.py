@@ -1305,6 +1305,16 @@ class NonbondJaxGenerator:
             map_charge = map_lj
 
         colv_map = build_covalent_map(data, 6)
+        map_exclusion = []
+        scale_exclusion = []
+        mscale = {1:0., 2:0., 3:0.5}
+        for ii in range(colv_map.shape[0]):
+            for jj in range(ii+1, colv_map.shape[1]):
+                if colv_map[ii,jj] > 0 and colv_map[ii,jj] < 4:
+                    map_exclusion.append((ii, jj))
+                    scale_exclusion.append(1. - mscale[colv_map[ii,jj]])
+        scale_exclusion = np.array(scale_exclusion)
+
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
         else:
