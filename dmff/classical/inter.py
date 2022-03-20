@@ -1,5 +1,7 @@
 import sys
+
 sys.path.append('/home/lijichen/work/DMFF')
+from dmff.admp.pairwise import distribute_scalar
 import jax.numpy as jnp
 from dmff.admp.pme import energy_pme, setup_ewald_parameters
 from dmff.admp.recip import generate_pme_recip
@@ -18,9 +20,11 @@ class LennardJonesForce:
                  map_nbfix,
                  map_exclusion,
                  map_14,
+                 covalent_map,
                  scale14=0.0,
                  isShift=False,
-                 isSwitch=False) -> None:
+                 isSwitch=False,
+                 ifPBC=True) -> None:
 
         self.isShift = isShift
         self.isSwitch = isSwitch
@@ -31,10 +35,14 @@ class LennardJonesForce:
         self.map_nbfix = map_nbfix
         self.map_exclusion = map_exclusion
         self.map_14 = map_14
+        self.ifPBC = ifPBC
+        
+        self.covalent_map = covalent_map
 
     def generate_get_energy(self):
         def get_LJ_energy(dr_vec, sig, eps, box):
-            dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
+            if self.ifPBC:
+                dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
             dr_norm = dr_norm[dr_norm <= self.r_cut]
 
@@ -62,7 +70,14 @@ class LennardJonesForce:
 
             return jnp.sum(E) + shiftedE
 
-        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix):
+        covalent_map = self.covalent_map
+
+        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix, mScales):
+            
+            nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
+            indices = nbonds - 1
+            mscales = distribute_scalar(mScales, indices)
+            
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)),
                                 epsilon.shape[0],
                                 axis=1)
@@ -105,32 +120,36 @@ class LennardJonesForce:
 
 
 class CoulombForce:
-    
-    def __init__(self, covalent_map, box, rc, ethresh):
+    def __init__(self, box, rc, ethresh, covalent_map):
+
+        self.kappa, self.K1, self.K2, self.K3 = setup_ewald_parameters(
+            rc, ethresh, box)
         
         self.covalent_map = covalent_map
-        self.pme_order = 6
-        self.lmax = 0
-        self.kappa, self.K1, self.K2, self.K3 = setup_ewald_parameters(rc, ethresh, box)
         self.refresh_calculator()
 
     def generate_get_energy(self):
-        
         def get_energy(positions, box, pairs, Q, mScales):
-            return energy_pme(positions, box, pairs, Q, None, None, None, mScales, None, None, self.covalent_map, None, self.pme_recip, self.kappa, self.K1, self.K2, self.K3, self.lmax, False)
+            
+            return energy_pme(positions, box, pairs, Q, None, None, None,
+                              mScales, None, None, self.covalent_map, None,
+                              self.pme_recip, self.kappa, self.K1, self.K2,
+                              self.K3, self.lmax, False)
+
         return get_energy
 
-    
     def refresh_calculator(self):
-        
+
         self.construct_local_frames = None
-        
-        self.pme_recip = generate_pme_recip(Ck_1, self.kappa, False, self.pme_order, self.K1, self.K2, self.K3, self.lmax)
-        
-        self.get_energy = self.generate_get_energy()
-        
-        return 
-        
+        lmax = 0
+        self.pme_recip = generate_pme_recip(Ck_1, self.kappa, False,
+                                            self.pme_order, self.K1, self.K2,
+                                            self.K3, lmax)
+
+        self.get_energy = self.genreate_get_energy()
+
+        return
+
 
 if __name__ == '__main__':
 
@@ -189,14 +208,7 @@ if __name__ == '__main__':
     rc = 4
     ethresh = 1e-4
     mScales = np.array([1., 1., 1.])
-    Q = np.array([[0.1, 0.1, 0.1, 0.1]]).T
-    pme = CoulombForce(covalent_map, box, rc, ethresh)
+    Q = np.array([0.1, 0.1])
+    pme = CoulombForce(box, rc, ethresh)
+
     E = pme.get_energy(positions, box, pairs, Q, mScales)
-    
-    # Eref
-    DIELECTRIC = 1389.35455846
-    
-    Eref = np.sum(DIELECTRIC * 0.01 * (1 / dr**2))
-     
-    print(E, 'vs', Eref)
-    print(grad(pme.get_energy)(positions, box, pairs, Q, mScales))

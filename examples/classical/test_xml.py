@@ -2,6 +2,8 @@ import openmm as mm
 import openmm.app as app
 import openmm.unit as unit 
 import numpy as np
+import sys
+sys.path.append('/home/lijichen/work/DMFF/')
 
 
 def forcegroupify(system):
@@ -44,6 +46,7 @@ if __name__ == "__main__":
 
     print()
     print("Jax Energy")
+    
     from dmff.api import Hamiltonian
     h = Hamiltonian("gaff-2.11.xml", "lig-prm.xml")
     system = h.createPotential(pdb.topology, nonbondedMethod=app.NoCutoff, constraints=None, removeCMMotion=False)
