@@ -1211,9 +1211,8 @@ class NonbondJaxGenerator:
         types = self.ff._findAtomTypes(atom, 1)
         self.types.append(types)
         
-        for key in ["sigma", "epsilon", "charge"]:
-            if key not in self.useAttributeFromResidue:
-                self.params[key].append(atom[key])
+        for key in ["sigma", "epsilon", "charge"]:  # load xml params as ususal,
+                self.params[key].append(atom[key])  # cover them by reading residue info later
 
 
     @staticmethod
@@ -1233,6 +1232,7 @@ class NonbondJaxGenerator:
             ff.registerGenerator(generator)
         else:
             generator = existing[0]
+            
             # if (abs(generator.coulomb14scale - float(element.attrib['coulomb14scale'])) > NonbondedGenerator.SCALETOL
             #     or abs(generator.lj14scale - float(element.attrib['lj14scale'])) > NonbondedGenerator.SCALETOL
             # ):
@@ -1243,6 +1243,7 @@ class NonbondJaxGenerator:
             #         and generator.useDispersionCorrection != useDispersionCorrection
             # ):
             #     raise ValueError('Found multiple NonbondedForce tags with different useDispersionCorrection settings.')
+            
         excludedParams = [node.attrib['name'] for node in element.findall('UseAttributeFromResidue')]
         for eprm in excludedParams:
             if eprm not in generator.useAttributeFromResidue:
@@ -1252,11 +1253,11 @@ class NonbondJaxGenerator:
         
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
         
-        methodMap = {
-            
-        }
-        if nonbondedMethod not in methodMap:
-            raise ValueError('Illegal nonbonded method for NonbondedForce')
+        # methodMap = {
+        #     app.PME: 
+        # }
+        # if nonbondedMethod not in methodMap:
+        #     raise ValueError('Illegal nonbonded method for NonbondedForce')
 
 
         # load LJ from types
