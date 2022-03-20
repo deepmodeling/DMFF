@@ -9,6 +9,7 @@ import jax.numpy as jnp
 from jax import grad
 from dmff.admp.recip import generate_pme_recip, Ck_1
 
+
 class LennardJonesForce:
     def __init__(self,
                  r_switch,
@@ -19,7 +20,8 @@ class LennardJonesForce:
                  map_14,
                  scale14=0.0,
                  isShift=False,
-                 isSwitch=False) -> None:
+                 isSwitch=False,
+                 ifPBC=True) -> None:
 
         self.isShift = isShift
         self.isSwitch = isSwitch
@@ -30,10 +32,12 @@ class LennardJonesForce:
         self.map_nbfix = map_nbfix
         self.map_exclusion = map_exclusion
         self.map_14 = map_14
+        self.ifPBC = ifPBC
 
     def generate_get_energy(self):
         def get_LJ_energy(dr_vec, sig, eps, box):
-            dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
+            if self.ifPBC:
+                dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
             dr_norm = dr_norm[dr_norm <= self.r_cut]
 
@@ -104,28 +108,32 @@ class LennardJonesForce:
 
 
 class CoulombForce:
-    
     def __init__(self, box, rc, ethresh):
-        
-        self.kappa, self.K1, self.K2, self.K3 = setup_ewald_parameters(rc, ethresh, box)
+
+        self.kappa, self.K1, self.K2, self.K3 = setup_ewald_parameters(
+            rc, ethresh, box)
 
     def generate_get_energy(self):
-        
         def get_energy(positions, box, pairs, Q, mScales):
-            return energy_pme(positions, box, pairs, Q, None, None, None, mScales, None, None, self.covalent_map, None, self.pme_recip, self.kappa, self.K1, self.K2, self.K3, self.lmax, False)
+            return energy_pme(positions, box, pairs, Q, None, None, None,
+                              mScales, None, None, self.covalent_map, None,
+                              self.pme_recip, self.kappa, self.K1, self.K2,
+                              self.K3, self.lmax, False)
+
         return get_energy
 
-    
     def refresh_calculator(self):
-        
+
         self.construct_local_frames = None
         lmax = 0
-        self.pme_recip = generate_pme_recip(Ck_1, self.kappa, False, self.pme_order, self.K1, self.K2, self.K3, lmax)
-        
+        self.pme_recip = generate_pme_recip(Ck_1, self.kappa, False,
+                                            self.pme_order, self.K1, self.K2,
+                                            self.K3, lmax)
+
         self.get_energy = self.genreate_get_energy()
-        
-        return 
-        
+
+        return
+
 
 if __name__ == '__main__':
 
@@ -187,4 +195,3 @@ if __name__ == '__main__':
     pme = CoulombForce(box, rc, ethresh)
     get_energy = pme.generate_get_energy()
     E = get_energy(positions, box, pairs, Q, mScales)
-    

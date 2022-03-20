@@ -1253,11 +1253,20 @@ class NonbondJaxGenerator:
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
         
         methodMap = {
-            
+            app.NoCutoff: "NoCutoff",
+            app.CutoffPeriodic: "CutoffPeriodic",
+            app.CutoffNonPeriodic: "CutoffNonPeriodic",
+            app.PME: "PME"
         }
         if nonbondedMethod not in methodMap:
             raise ValueError('Illegal nonbonded method for NonbondedForce')
-
+        
+        # Coulomb: only support PME for now
+        # set PBC
+        if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
+            ifPBC = True
+        else:
+            ifPBC = False
 
         # load LJ from types
         map_lj = []
@@ -1307,7 +1316,7 @@ class NonbondJaxGenerator:
         else:
             r_switch = r_cut
             ifSwitch = False
-        ljforce = LennardJonesForce(r_switch, r_cut, map_lj, [], ifSwitch=ifSwitch)
+        ljforce = LennardJonesForce(r_switch, r_cut, map_lj, [], ifSwitch=ifSwitch, ifPBC=ifPBC)
         coulforce = CoulombForce()
         
         def potential_fn(positions, box, pairs, params):
