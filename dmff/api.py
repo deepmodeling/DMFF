@@ -20,6 +20,7 @@ import itertools
 from .classical.inter import CoulombForce, LennardJonesForce
 import sys
 
+
 def get_line_context(file_path, line_number):
     return linecache.getline(file_path, line_number).strip()
 
@@ -186,7 +187,6 @@ class ADMPPmeGenerator:
             "polarizabilityXX": [],
             "polarizabilityYY": [],
             "polarizabilityZZ": [],
-
         }
         self.params = {
             "mScales": [],
@@ -244,7 +244,11 @@ class ADMPPmeGenerator:
         for atomType in element.findall("Atom"):
             atomAttrib = atomType.attrib
             # if not set
-            atomAttrib.update({'polarizabilityXX': 0, 'polarizabilityYY': 0, 'polarizabilityZZ': 0})
+            atomAttrib.update({
+                'polarizabilityXX': 0,
+                'polarizabilityYY': 0,
+                'polarizabilityZZ': 0
+            })
             for polarInfo in element.findall("Polarize"):
                 polarAttrib = polarInfo.attrib
                 if polarInfo.attrib['type'] == atomAttrib['type']:
@@ -256,9 +260,9 @@ class ADMPPmeGenerator:
         for k in generator._input_params.keys():
             generator._input_params[k] = jnp.array(generator._input_params[k])
         generator.types = np.array(generator.types)
-        
+
         n_atoms = len(element.findall('Atom'))
-        
+
         # map atom multipole moments
         if generator.lmax == 0:
             n_mtps = 1
@@ -284,10 +288,12 @@ class ADMPPmeGenerator:
         # add all differentiable params to self.params
         Q_local = convert_cart2harm(Q, generator.lmax)
         generator.params['Q_local'] = Q_local
-       
+
         if generator.lpol:
-            pol = jnp.vstack((generator._input_params['polarizabilityXX'], generator._input_params['polarizabilityYY'], generator._input_params['polarizabilityZZ'])).T
-            pol = 1000*jnp.mean(pol,axis=1)
+            pol = jnp.vstack((generator._input_params['polarizabilityXX'],
+                              generator._input_params['polarizabilityYY'],
+                              generator._input_params['polarizabilityZZ'])).T
+            pol = 1000 * jnp.mean(pol, axis=1)
             tholes = jnp.array(generator._input_params['thole'])
             generator.params['pol'] = pol
             generator.params['tholes'] = tholes
@@ -298,7 +304,6 @@ class ADMPPmeGenerator:
         # generator.params['']
         for k in generator.params.keys():
             generator.params[k] = jnp.array(generator.params[k])
-        
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
                     args):
@@ -326,12 +331,12 @@ class ADMPPmeGenerator:
         if self.lmax > 0:
 
             # setting up axis_indices and axis_type
-            ZThenX            = 0
-            Bisector          = 1
-            ZBisect           = 2
-            ThreeFold         = 3
-            ZOnly             = 4  # typo fix
-            NoAxisType        = 5
+            ZThenX = 0
+            Bisector = 1
+            ZBisect = 2
+            ThreeFold = 3
+            ZOnly = 4  # typo fix
+            NoAxisType = 5
             LastAxisTypeIndex = 6
 
             self.axis_types = []
@@ -358,33 +363,47 @@ class ADMPPmeGenerator:
                             if hit != 0:
                                 break
                             z_type = int(data.atomType[data.atoms[z_index]])
-                            if z_type == abs(kz):  # find the z atom, start searching for x
+                            if z_type == abs(
+                                    kz
+                            ):  # find the z atom, start searching for x
                                 for x_index in neighbors:
                                     if x_index == z_index or hit != 0:
                                         continue
-                                    x_type = int(data.atomType[data.atoms[x_index]])
-                                    if x_type == abs(kx): # find the x atom, start searching for y
+                                    x_type = int(
+                                        data.atomType[data.atoms[x_index]])
+                                    if x_type == abs(
+                                            kx
+                                    ):  # find the x atom, start searching for y
                                         if ky == 0:
                                             zaxis = z_index
                                             xaxis = x_index
                                             # cannot ditinguish x and z? use the smaller index for z, and the larger index for x
-                                            if (x_type == z_type and xaxis < zaxis):
+                                            if (x_type == z_type
+                                                    and xaxis < zaxis):
                                                 swap = z_axis
                                                 z_axis = x_axis
                                                 x_axis = swap
                                             # otherwise, try to see if we can find an even smaller index for x?
                                             else:
                                                 for x_index in neighbors:
-                                                    x_type1 = int(data.atomType[data.atoms[x_index]])
-                                                    if x_type1 == abs(kx) and x_index != z_index and x_index < xaxis:
+                                                    x_type1 = int(
+                                                        data.atomType[
+                                                            data.
+                                                            atoms[x_index]])
+                                                    if x_type1 == abs(
+                                                            kx
+                                                    ) and x_index != z_index and x_index < xaxis:
                                                         xaxis = x_index
-                                            hit = 1 # hit, finish matching
+                                            hit = 1  # hit, finish matching
                                             matched_itype = itype
                                         else:
                                             for y_index in neighbors:
-                                                if (y_index == z_index or y_index == x_index or hit != 0):
+                                                if (y_index == z_index
+                                                        or y_index == x_index
+                                                        or hit != 0):
                                                     continue
-                                                y_type = int(data.atomType[data.atoms[y_index]])
+                                                y_type = int(data.atomType[
+                                                    data.atoms[y_index]])
                                                 if y_type == abs(ky):
                                                     zaxis = z_index
                                                     xaxis = x_index
@@ -411,16 +430,23 @@ class ADMPPmeGenerator:
                                 for x_index in neighbors_2nd:
                                     if x_index == z_index or hit != 0:
                                         continue
-                                    x_type = int(data.atomType[data.atoms[x_index]])
+                                    x_type = int(
+                                        data.atomType[data.atoms[x_index]])
                                     # we ask x to be in 2'nd neighbor, and x is z's neighbor
-                                    if x_type == abs(kx) and covalent_map[z_index, x_index] == 1:
+                                    if x_type == abs(kx) and covalent_map[
+                                            z_index, x_index] == 1:
                                         if ky == 0:
                                             zaxis = z_index
                                             xaxis = x_index
                                             # select smallest x index
                                             for x_index in neighbors_2nd:
-                                                x_type1 = int(data.atomType[data.atoms[x_index]])
-                                                if x_type1 == abs(kx) and x_index != z_index and covalent_map[x_index, z_index] == 1 and x_index < xaxis:
+                                                x_type1 = int(data.atomType[
+                                                    data.atoms[x_index]])
+                                                if x_type1 == abs(
+                                                        kx
+                                                ) and x_index != z_index and covalent_map[
+                                                        x_index,
+                                                        z_index] == 1 and x_index < xaxis:
                                                     xaxis = x_index
                                             hit = 3
                                             matched_itype = itype
@@ -428,8 +454,12 @@ class ADMPPmeGenerator:
                                             for y_index in neighbors_2nd:
                                                 if y_index == z_index or y_index == x_index or hit != 0:
                                                     continue
-                                                y_type = int(data.atomType[data.atoms[y_index]])
-                                                if y_type == abs(ky) and covalent_map[y_index, z_index] == 1:
+                                                y_type = int(data.atomType[
+                                                    data.atoms[y_index]])
+                                                if y_type == abs(
+                                                        ky) and covalent_map[
+                                                            y_index,
+                                                            z_index] == 1:
                                                     zaxis = z_index
                                                     xaxis = x_index
                                                     yaxis = y_index
@@ -463,7 +493,7 @@ class ADMPPmeGenerator:
                         yaxis = -1
                         if kz == 0:
                             hit = 6
-                            matched_itype = itype 
+                            matched_itype = itype
                     # add particle if there was a hit
                     if hit != 0:
                         map_atomtype[i_atom] = matched_itype
@@ -472,30 +502,29 @@ class ADMPPmeGenerator:
                         kz = int(self.kStrings['kz'][matched_itype])
                         kx = int(self.kStrings['kx'][matched_itype])
                         ky = int(self.kStrings['ky'][matched_itype])
-                        axisType = ZThenX        
-                        if (kz == 0):                                    
+                        axisType = ZThenX
+                        if (kz == 0):
                             axisType = NoAxisType
-                        if (kz != 0 and kx == 0):                        
-                            axisType = ZOnly     
-                        if (kz < 0 or kx < 0):                           
-                            axisType = Bisector  
-                        if (kx < 0 and ky < 0):                          
-                            axisType = ZBisect   
-                        if (kz < 0 and kx < 0 and ky  < 0):              
-                            axisType = ThreeFold 
+                        if (kz != 0 and kx == 0):
+                            axisType = ZOnly
+                        if (kz < 0 or kx < 0):
+                            axisType = Bisector
+                        if (kx < 0 and ky < 0):
+                            axisType = ZBisect
+                        if (kz < 0 and kx < 0 and ky < 0):
+                            axisType = ThreeFold
                         self.axis_types.append(axisType)
-                        
+
                     else:
-                        sys.exit('Atom %d not matched in forcefield!'%i_atom)
-                        
+                        sys.exit('Atom %d not matched in forcefield!' % i_atom)
+
                 else:
-                    sys.exit('Atom %d not matched in forcefield!'%i_atom)
+                    sys.exit('Atom %d not matched in forcefield!' % i_atom)
             self.axis_indices = np.array(self.axis_indices)
             self.axis_types = np.array(self.axis_types)
         else:
             self.axis_types = None
             self.axis_indices = None
-
 
         # get calculator
         if 'ethresh' in args:
@@ -516,9 +545,12 @@ class ADMPPmeGenerator:
                 pol = params["pol"][map_atomtype]
                 tholes = params["tholes"][map_atomtype]
 
-                return pme_force.get_energy(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, pme_force.U_ind)
-            else: 
-                return pme_force.get_energy(positions, box, pairs, Q_local, mScales)
+                return pme_force.get_energy(positions, box, pairs, Q_local,
+                                            pol, tholes, mScales, pScales,
+                                            dScales, pme_force.U_ind)
+            else:
+                return pme_force.get_energy(positions, box, pairs, Q_local,
+                                            mScales)
 
         self._jaxPotential = potential_fn
 
@@ -1148,26 +1180,42 @@ class PeriodicTorsionJaxGenerator(object):
         prm3_i = np.array(prm3_i, dtype=int)
         prm4_i = np.array(prm4_i, dtype=int)
 
-        prop1 = PeriodicTorsionJaxForce(map_a1_1_p, map_a2_1_p, map_a3_1_p, map_a4_1_p, prm1_p, 1)
-        prop2 = PeriodicTorsionJaxForce(map_a1_2_p, map_a2_2_p, map_a3_2_p, map_a4_2_p, prm2_p, 2)
-        prop3 = PeriodicTorsionJaxForce(map_a1_3_p, map_a2_3_p, map_a3_3_p, map_a4_3_p, prm3_p, 3)
-        prop4 = PeriodicTorsionJaxForce(map_a1_4_p, map_a2_4_p, map_a3_4_p, map_a4_4_p, prm4_p, 4)
+        prop1 = PeriodicTorsionJaxForce(map_a1_1_p, map_a2_1_p, map_a3_1_p,
+                                        map_a4_1_p, prm1_p, 1)
+        prop2 = PeriodicTorsionJaxForce(map_a1_2_p, map_a2_2_p, map_a3_2_p,
+                                        map_a4_2_p, prm2_p, 2)
+        prop3 = PeriodicTorsionJaxForce(map_a1_3_p, map_a2_3_p, map_a3_3_p,
+                                        map_a4_3_p, prm3_p, 3)
+        prop4 = PeriodicTorsionJaxForce(map_a1_4_p, map_a2_4_p, map_a3_4_p,
+                                        map_a4_4_p, prm4_p, 4)
 
-        impr1 = PeriodicTorsionJaxForce(map_a1_1_i, map_a2_1_i, map_a3_1_i, map_a4_1_i, prm1_i, 1)
-        impr2 = PeriodicTorsionJaxForce(map_a1_2_i, map_a2_2_i, map_a3_2_i, map_a4_2_i, prm2_i, 2)
-        impr3 = PeriodicTorsionJaxForce(map_a1_3_i, map_a2_3_i, map_a3_3_i, map_a4_3_i, prm3_i, 3)
-        impr4 = PeriodicTorsionJaxForce(map_a1_4_i, map_a2_4_i, map_a3_4_i, map_a4_4_i, prm4_i, 4)
+        impr1 = PeriodicTorsionJaxForce(map_a1_1_i, map_a2_1_i, map_a3_1_i,
+                                        map_a4_1_i, prm1_i, 1)
+        impr2 = PeriodicTorsionJaxForce(map_a1_2_i, map_a2_2_i, map_a3_2_i,
+                                        map_a4_2_i, prm2_i, 2)
+        impr3 = PeriodicTorsionJaxForce(map_a1_3_i, map_a2_3_i, map_a3_3_i,
+                                        map_a4_3_i, prm3_i, 3)
+        impr4 = PeriodicTorsionJaxForce(map_a1_4_i, map_a2_4_i, map_a3_4_i,
+                                        map_a4_4_i, prm4_i, 4)
 
         def potential_fn(positions, box, pairs, params):
-            p1e = prop1.get_energy(positions, box, pairs, params["k1_p"], params["psi1_p"])
-            p2e = prop2.get_energy(positions, box, pairs, params["k2_p"], params["psi2_p"])
-            p3e = prop3.get_energy(positions, box, pairs, params["k3_p"], params["psi3_p"])
-            p4e = prop4.get_energy(positions, box, pairs, params["k4_p"], params["psi4_p"])
+            p1e = prop1.get_energy(positions, box, pairs, params["k1_p"],
+                                   params["psi1_p"])
+            p2e = prop2.get_energy(positions, box, pairs, params["k2_p"],
+                                   params["psi2_p"])
+            p3e = prop3.get_energy(positions, box, pairs, params["k3_p"],
+                                   params["psi3_p"])
+            p4e = prop4.get_energy(positions, box, pairs, params["k4_p"],
+                                   params["psi4_p"])
 
-            i1e = impr1.get_energy(positions, box, pairs, params["k1_i"], params["psi1_i"])
-            i2e = impr2.get_energy(positions, box, pairs, params["k2_i"], params["psi2_i"])
-            i3e = impr3.get_energy(positions, box, pairs, params["k3_i"], params["psi3_i"])
-            i4e = impr4.get_energy(positions, box, pairs, params["k4_i"], params["psi4_i"])
+            i1e = impr1.get_energy(positions, box, pairs, params["k1_i"],
+                                   params["psi1_i"])
+            i2e = impr2.get_energy(positions, box, pairs, params["k2_i"],
+                                   params["psi2_i"])
+            i3e = impr3.get_energy(positions, box, pairs, params["k3_i"],
+                                   params["psi3_i"])
+            i4e = impr4.get_energy(positions, box, pairs, params["k4_i"],
+                                   params["psi4_i"])
 
             return p1e + p2e + p3e + p4e + i1e + i2e + i3e + i4e
 
@@ -1187,45 +1235,48 @@ app.forcefield.parsers[
 
 
 class NonbondJaxGenerator:
-    
+
     SCALETOL = 1e-5
-    
+
     def __init__(self, hamiltionian):
-        
+
         self.ff = hamiltionian
         # self.coulomb14scale = coulomb14scale
         # self.lj14scale = lj14scale
         # self.useDispersionCorrection = useDispersionCorrection
-        #self.params = app.ForceField._AtomTypeParameters(hamiltionian, 'NonbondedForce', 'Atom', ('charge', 'sigma', 'epsilon'))  
+        #self.params = app.ForceField._AtomTypeParameters(hamiltionian, 'NonbondedForce', 'Atom', ('charge', 'sigma', 'epsilon'))
         self.params = {
             "sigma": [],
-            "epsilon":[],
-            "charge":[]
+            "epsilon": [],
+            "epsfix": [],
+            "sigfix": [],
+            "charge": []
         }
         self.ljtypes = []
         self.coultypes = []
         self.useAttributeFromResidue = []
-        
+
     def registerAtom(self, atom):
         # use types in nb cards or resname+atomname in residue cards
         types = self.ff._findAtomTypes(atom, 1)
         self.types.append(types)
-        
+
         for key in ["sigma", "epsilon", "charge"]:
             if key not in self.useAttributeFromResidue:
                 self.params[key].append(atom[key])
 
-
     @staticmethod
     def parseElement(element, ff):
-        
-        existing = [f for f in ff._forces if isinstance(f, NonbondJaxGenerator)]
-        
+
+        existing = [
+            f for f in ff._forces if isinstance(f, NonbondJaxGenerator)
+        ]
+
         # TODO: useDispersionCorrection
-        
+
         if len(existing) == 0:
             generator = NonbondJaxGenerator(
-                ff, 
+                ff,
                 # float(element.attrib['coulomb14scale']),
                 # float(element.attrib['lj14scale']),
                 # useDispersionCorrection
@@ -1243,15 +1294,18 @@ class NonbondJaxGenerator:
             #         and generator.useDispersionCorrection != useDispersionCorrection
             # ):
             #     raise ValueError('Found multiple NonbondedForce tags with different useDispersionCorrection settings.')
-        excludedParams = [node.attrib['name'] for node in element.findall('UseAttributeFromResidue')]
+        excludedParams = [
+            node.attrib['name']
+            for node in element.findall('UseAttributeFromResidue')
+        ]
         for eprm in excludedParams:
             if eprm not in generator.useAttributeFromResidue:
                 generator.useAttributeFromResidue.append(eprm)
         for atom in element.findall("Atom"):
             generator.registerAtom(atom.attrib)
-        
+
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
-        
+
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",
@@ -1260,7 +1314,7 @@ class NonbondJaxGenerator:
         }
         if nonbondedMethod not in methodMap:
             raise ValueError('Illegal nonbonded method for NonbondedForce')
-        
+
         # Coulomb: only support PME for now
         # set PBC
         if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
@@ -1279,7 +1333,9 @@ class NonbondJaxGenerator:
                     map_lj.append(ntp)
                     break
             if not ifFound:
-                raise mm.OpenMMException("AtomType of %s mismatched in NonbondedForce"%(str(atom)))
+                raise mm.OpenMMException(
+                    "AtomType of %s mismatched in NonbondedForce" %
+                    (str(atom)))
         map_lj = np.array(map_lj, dtype=int)
 
         ifChargeFromResidue = False
@@ -1290,12 +1346,12 @@ class NonbondJaxGenerator:
             for atom in data.atoms:
                 resname, aname = atom.residue.name, atom.name
                 prm = data.atomParameters[atom]
-                chargeinfo[resname+"+"+aname] = prm["charge"]
+                chargeinfo[resname + "+" + aname] = prm["charge"]
             ckeys = [k for k in chargeinfo.keys()]
             self.params["charge"] = [chargeinfo[k] for k in chargeinfo.keys()]
             chargeidx = {}
-            for n,i in enumerate(ckeys):
-                chargeidx[i] = n 
+            for n, i in enumerate(ckeys):
+                chargeidx[i] = n
             map_charge = []
             for na in range(len(data.atoms)):
                 key = data.atoms[na].residue.name + "+" + data.atoms[na].name
@@ -1305,41 +1361,58 @@ class NonbondJaxGenerator:
             map_charge = map_lj
 
         colv_map = build_covalent_map(data, 6)
+        map_exclusion = []
+        scale_exclusion = []
+        mscale = {1: 0., 2: 0., 3: 0.5}
+        for ii in range(colv_map.shape[0]):
+            for jj in range(ii + 1, colv_map.shape[1]):
+                if colv_map[ii, jj] > 0 and colv_map[ii, jj] < 4:
+                    map_exclusion.append((ii, jj))
+                    scale_exclusion.append(1. - mscale[colv_map[ii, jj]])
+        scale_exclusion = np.array(scale_exclusion)
+
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
         else:
             r_cut = nonbondedCutoff
         if "switchDistance" in args:
             r_switch = args["switchDistance"]
-            r_switch = r_switch if not unit.is_quantity(r_switch) else r_switch.value_in_unit(unit.nanometer)
+            r_switch = r_switch if not unit.is_quantity(
+                r_switch) else r_switch.value_in_unit(unit.nanometer)
             ifSwitch = True
         else:
             r_switch = r_cut
             ifSwitch = False
-        ljforce = LennardJonesForce(r_switch, r_cut, map_lj, [], ifSwitch=ifSwitch, ifPBC=ifPBC)
-        coulforce = CoulombForce()
-        
+        ljforce = LennardJonesForce(r_switch,
+                                    r_cut,
+                                    map_lj, [],
+                                    ifSwitch=ifSwitch,
+                                    ifPBC=ifPBC)
+        ljenergy = ljforce.generate_get_energy()
+
+        #coulforce = CoulombForce()
+
         def potential_fn(positions, box, pairs, params):
-            
-            mScales = params['mScales']
-            Q = params['Q'][map_atomtype]
-            
-            ljE = ljforce.get_energy(positions, box, pairs)
-            coulE = coulforce.get_energy(positions, box, pairs)
-            
-            return ljE + coulE
-        
+
+            # mScales = params['mScales']
+            # Q = params['Q'][map_atomtype]
+
+            ljE = ljenergy(positions, box, pairs, params["epsilon"],
+                           params["sigma"], params["epsfix"], params["sigfix"])
+            #coulE = coulforce.get_energy(positions, box, pairs)
+
+            return ljE  # + coulE
+
         self._jaxPotential = potential_fn
-        
+
     def getJaxPotential(self):
         return self._jaxPotential
-    
+
     def renderXML(self):
         pass
-               
-        
-app.forcefield.parsers[
-    "NonbondedForce"] = NonbondJaxGenerator.parseElement        
+
+
+app.forcefield.parsers["NonbondedForce"] = NonbondJaxGenerator.parseElement
 
 
 class Hamiltonian(app.forcefield.ForceField):
@@ -1347,13 +1420,11 @@ class Hamiltonian(app.forcefield.ForceField):
         super().__init__(*xmlnames)
         self._potentials = []
 
-    def createPotential(
-        self,
-        topology,
-        nonbondedMethod=app.NoCutoff,
-        nonbondedCutoff=1.0 * unit.nanometer,
-        **args
-    ):
+    def createPotential(self,
+                        topology,
+                        nonbondedMethod=app.NoCutoff,
+                        nonbondedCutoff=1.0 * unit.nanometer,
+                        **args):
         system = self.createSystem(topology,
                                    nonbondedMethod=nonbondedMethod,
                                    nonbondedCutoff=nonbondedCutoff,
