@@ -1296,13 +1296,19 @@ class NonbondJaxGenerator:
             map_charge = map_lj
 
         colv_map = build_covalent_map(data, 6)
-
-        ljforce = LennardJonesForce(r_switch, r_cut, map_lj, [], )
+        if unit.is_quantity(nonbondedCutoff):
+            r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
+        else:
+            r_cut = nonbondedCutoff
+        if "switchDistance" in args:
+            r_switch = args["switchDistance"]
+            r_switch = r_switch if not unit.is_quantity(r_switch) else r_switch.value_in_unit(unit.nanometer)
+            ifSwitch = True
+        else:
+            r_switch = r_cut
+            ifSwitch = False
+        ljforce = LennardJonesForce(r_switch, r_cut, map_lj, [], ifSwitch=ifSwitch)
         coulforce = CoulombForce()
-        for atom in data.atoms:
-            values = self.params.getAtomParameters(atom, data)
-            force.addParticle(values[0], values[1], values[2])
-            
         
         def potential_fn(positions, box, pairs, params):
             
