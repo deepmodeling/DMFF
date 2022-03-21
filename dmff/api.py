@@ -1252,18 +1252,17 @@ class NonbondJaxGenerator:
             "sigfix": [],
             "charge": []
         }
-        self.ljtypes = []
-        self.coultypes = []
+        self.types = []
         self.useAttributeFromResidue = []
 
     def registerAtom(self, atom):
         # use types in nb cards or resname+atomname in residue cards
-        types = self.ff._findAtomTypes(atom, 1)
+        types = self.ff._findAtomTypes(atom, 1)[0]
         self.types.append(types)
 
         for key in ["sigma", "epsilon", "charge"]:
             if key not in self.useAttributeFromResidue:
-                self.params[key].append(atom[key])
+                self.params[key].append(float(atom[key]))
 
     @staticmethod
     def parseElement(element, ff):
@@ -1314,6 +1313,13 @@ class NonbondJaxGenerator:
         }
         if nonbondedMethod not in methodMap:
             raise ValueError('Illegal nonbonded method for NonbondedForce')
+        isNoCut = False
+        if nonbondedMethod is app.NoCutoff:
+            isNoCut = True
+
+        # Jax prms!
+        for k in self.params.keys():
+            self.params[k] = jnp.array(self.params[k])
 
         # Coulomb: only support PME for now
         # set PBC
@@ -1327,7 +1333,7 @@ class NonbondJaxGenerator:
         for atom in data.atoms:
             types = data.atomType[atom]
             ifFound = False
-            for ntp, tp in enumerate(self.ljtypes):
+            for ntp, tp in enumerate(self.types):
                 if types in tp:
                     ifFound = True
                     map_lj.append(ntp)
@@ -1360,6 +1366,11 @@ class NonbondJaxGenerator:
         else:
             map_charge = map_lj
 
+        # nbfix!
+        map_nbfix = []
+        # implement it later
+        map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
+
         colv_map = build_covalent_map(data, 6)
         map_exclusion = []
         scale_exclusion = []
@@ -1369,13 +1380,15 @@ class NonbondJaxGenerator:
                 if colv_map[ii, jj] > 0 and colv_map[ii, jj] < 4:
                     map_exclusion.append((ii, jj))
                     scale_exclusion.append(1. - mscale[colv_map[ii, jj]])
+
+        map_exclusion = np.array(map_exclusion, dtype=int)
         scale_exclusion = np.array(scale_exclusion)
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
         else:
             r_cut = nonbondedCutoff
-        if "switchDistance" in args:
+        if "switchDistance" in args and args["switchDistance"] is not None:
             r_switch = args["switchDistance"]
             r_switch = r_switch if not unit.is_quantity(
                 r_switch) else r_switch.value_in_unit(unit.nanometer)
@@ -1385,9 +1398,13 @@ class NonbondJaxGenerator:
             ifSwitch = False
         ljforce = LennardJonesForce(r_switch,
                                     r_cut,
-                                    map_lj, [],
-                                    ifSwitch=ifSwitch,
-                                    ifPBC=ifPBC)
+                                    map_lj,
+                                    map_nbfix,
+                                    map_exclusion,
+                                    scale_exclusion,
+                                    isSwitch=ifSwitch,
+                                    isPBC=ifPBC,
+                                    isNoCut=isNoCut)
         ljenergy = ljforce.generate_get_energy()
 
         #coulforce = CoulombForce()
