@@ -70,9 +70,8 @@ class TestClassical:
                                    constraints=None,
                                    removeCMMotion=False)
         pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
-        npt.assert_allclose(pos, jnp.array([[0, 0.1, 0], [0.1, 0, 0.1]]))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
         pairs = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]], dtype=int)
         ljE = h._potentials[0]
         energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
-        
+        npt.assert_almost_equal(energy, value, decimal=3)
