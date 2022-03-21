@@ -19,14 +19,10 @@ class LennardJonesForce:
                  map_prm,
                  map_nbfix,
                  map_exclusion,
-                 map_14,
-                 covalent_map,
-                 scale14=0.0,
-                 isShift=False,
+                 scale_exclusion,
                  isSwitch=False,
                  ifPBC=True) -> None:
 
-        self.isShift = isShift
         self.isSwitch = isSwitch
         self.r_switch = r_switch
         self.r_cut = r_cut
@@ -34,7 +30,7 @@ class LennardJonesForce:
         self.map_prm = map_prm
         self.map_nbfix = map_nbfix
         self.map_exclusion = map_exclusion
-        self.map_14 = map_14
+        self.scale_exclusion = scale_exclusion
         self.ifPBC = ifPBC
         
         self.covalent_map = covalent_map
@@ -52,23 +48,13 @@ class LennardJonesForce:
             sig_dr6 = jnp.power(sig_dr, 6)
             E = 4 * eps * (sig_dr12 - sig_dr6)
 
-            shiftedE = 0
-
-            if self.isShift:
-
-                rcut_inv = 1.0 / self.r_cut
-                sig_rcut = sig * rcut_inv
-                sig_rcut12 = jnp.power(sig_rcut, 12)
-                sig_rcut6 = jnp.power(sig_rcut, 6)
-                shiftedE = 4 * eps * (sig_rcut12 - sig_rcut6)
-
             if self.isSwitch:
 
                 x = (dr_norm - self.r_switch) / (self.r_cut - self.r_switch)
                 S = 1 - 6 * x**5 + 15 * x**4 - 10 * x**3
                 jnp.where(dr_norm > self.r_switch, E, E * S)
 
-            return jnp.sum(E) + shiftedE
+            return E
 
         covalent_map = self.covalent_map
 
@@ -113,8 +99,9 @@ class LennardJonesForce:
             sig_excl = sig_mat[excl_map0, excl_map1]
 
             E_excl = get_LJ_energy(dr_excl_vec, sig_excl, eps_excl, box)
+            E_excl = self.scale_exclusion * E_excl
 
-            return E_inter - E_excl
+            return jnp.sum(E_inter) - jnp.sum(E_excl)
 
         return get_energy
 
@@ -174,9 +161,10 @@ if __name__ == '__main__':
     epsfix = jnp.array([3.])
     sigfix = jnp.array([0.8])
     map_exclusion = np.array([[0, 1], [2, 3]])
+    scale_exclusion = jnp.array([1.0, 1.0])
     map_14 = np.array([[]])
 
-    lj = LennardJonesForce(0, 3, map_prm, map_nbfix, map_exclusion, map_14)
+    lj = LennardJonesForce(0, 3, map_prm, map_nbfix, map_exclusion, scale_exclusion)
     get_energy = lj.generate_get_energy()
 
     E = get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix)
