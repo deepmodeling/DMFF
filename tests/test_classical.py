@@ -59,7 +59,7 @@ class TestClassical:
     @pytest.mark.parametrize(
         "pdb, prm, value",
         [
-            ('data/lj1.pdb', 'data/lj1.xml', 123)
+            ("data/lj2.pdb", "data/lj2.xml", -1.85001802444458)
         ]
     )
     def test_lj_force(self, pdb, prm, value):
@@ -72,7 +72,7 @@ class TestClassical:
         pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
         npt.assert_allclose(pos, jnp.array([[0, 0.1, 0], [0.1, 0, 0.1]]))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
-        pairs = np.array([[0, 1]], dtype=int)
+        pairs = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]], dtype=int)
         ljE = h._potentials[0]
-        # energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
+        energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
         
