@@ -19,7 +19,9 @@ class LennardJonesForce:
                  map_exclusion,
                  scale_exclusion,
                  isSwitch=False,
-                 ifPBC=True) -> None:
+                 isPBC=True,
+                 isNoCut=False
+                 ) -> None:
 
         self.isSwitch = isSwitch
         self.r_switch = r_switch
@@ -29,20 +31,24 @@ class LennardJonesForce:
         self.map_nbfix = map_nbfix
         self.map_exclusion = map_exclusion
         self.scale_exclusion = scale_exclusion
-        self.ifPBC = ifPBC
+        self.ifPBC = isPBC
+        self.ifNoCut = isNoCut
 
     def generate_get_energy(self):
         def get_LJ_energy(dr_vec, sig, eps, box):
             if self.ifPBC:
                 dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
-            dr_norm = dr_norm[dr_norm <= self.r_cut]
+            if not self.ifNoCut:
+                sig_use = sig[dr_norm <= self.r_cut]
+                eps_use = eps[dr_norm <= self.r_cut]
+                dr_norm = dr_norm[dr_norm <= self.r_cut]
 
             dr_inv = 1.0 / dr_norm
-            sig_dr = sig * dr_inv
-            sig_dr12 = jnp.power(sig_dr, 12)
+            sig_dr = sig_use * dr_inv
             sig_dr6 = jnp.power(sig_dr, 6)
-            E = 4 * eps * (sig_dr12 - sig_dr6)
+            sig_dr12 = jnp.power(sig_dr6, 2)
+            E = 4 * eps_use * (sig_dr12 - sig_dr6)
 
             if self.isSwitch:
 

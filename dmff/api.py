@@ -1313,6 +1313,9 @@ class NonbondJaxGenerator:
         }
         if nonbondedMethod not in methodMap:
             raise ValueError('Illegal nonbonded method for NonbondedForce')
+        isNoCut = False
+        if nonbondedMethod is app.NoCutoff:
+            isNoCut = True
 
         # Jax prms!
         for k in self.params.keys():
@@ -1385,7 +1388,7 @@ class NonbondJaxGenerator:
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
         else:
             r_cut = nonbondedCutoff
-        if "switchDistance" in args:
+        if "switchDistance" in args and args["switchDistance"] is not None:
             r_switch = args["switchDistance"]
             r_switch = r_switch if not unit.is_quantity(
                 r_switch) else r_switch.value_in_unit(unit.nanometer)
@@ -1400,7 +1403,8 @@ class NonbondJaxGenerator:
                                     map_exclusion,
                                     scale_exclusion,
                                     isSwitch=ifSwitch,
-                                    ifPBC=ifPBC)
+                                    isPBC=ifPBC,
+                                    isNoCut=isNoCut)
         ljenergy = ljforce.generate_get_energy()
 
         #coulforce = CoulombForce()
