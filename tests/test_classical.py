@@ -75,3 +75,27 @@ class TestClassical:
         ljE = h._potentials[0]
         energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
         npt.assert_almost_equal(energy, value, decimal=3)
+
+    @pytest.mark.parametrize(
+        "pdb, prm, value",
+        [
+            ("data/lj3.pdb", "data/lj3.xml", -2.001220464706421)
+        ]
+    )
+    def test_lj_large_force(self, pdb, prm, value):
+        pdb = app.PDBFile(pdb)
+        h = Hamiltonian(prm)
+        system = h.createPotential(pdb.topology,
+                                   nonbondedMethod=app.NoCutoff,
+                                   constraints=None,
+                                   removeCMMotion=False)
+        pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
+        box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
+        pairs = []
+        for ii in range(10):
+            for jj in range(ii+1, 10):
+                pairs.append((ii, jj))
+        pairs = np.array(pairs, dtype=int)
+        ljE = h._potentials[0]
+        energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
+        npt.assert_almost_equal(energy, value, decimal=3)

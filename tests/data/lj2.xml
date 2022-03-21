@@ -10,7 +10,7 @@
             <Bond atomName1="N1" atomName2="N2"/>
         </Residue>
     </Residues>
-    <NonbondedForce>
+    <NonbondedForce coulomb14scale="0.8333333333333334" lj14scale="0.5">
         <Atom type="n1" charge="0" sigma="0.2" epsilon="1"/>
         <Atom type="n2" charge="0" sigma="0.2" epsilon="1"/>
     </NonbondedForce>
