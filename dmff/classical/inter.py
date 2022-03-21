@@ -40,15 +40,15 @@ class LennardJonesForce:
                 dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
             if not self.ifNoCut:
-                sig_use = sig[dr_norm <= self.r_cut]
-                eps_use = eps[dr_norm <= self.r_cut]
+                sig = sig[dr_norm <= self.r_cut]
+                eps = eps[dr_norm <= self.r_cut]
                 dr_norm = dr_norm[dr_norm <= self.r_cut]
 
             dr_inv = 1.0 / dr_norm
-            sig_dr = sig_use * dr_inv
+            sig_dr = sig * dr_inv
             sig_dr6 = jnp.power(sig_dr, 6)
             sig_dr12 = jnp.power(sig_dr6, 2)
-            E = 4 * eps_use * (sig_dr12 - sig_dr6)
+            E = 4 * eps * (sig_dr12 - sig_dr6)
 
             if self.isSwitch:
 
