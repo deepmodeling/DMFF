@@ -1,4 +1,7 @@
 import sys
+
+sys.path.append('/home/lijichen/work/DMFF')
+from dmff.admp.pairwise import distribute_scalar
 import jax.numpy as jnp
 from dmff.admp.pme import energy_pme, setup_ewald_parameters
 from dmff.admp.recip import generate_pme_recip
@@ -59,7 +62,14 @@ class LennardJonesForce:
 
             return E
 
-        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix):
+        covalent_map = self.covalent_map
+
+        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix, mScales):
+            
+            nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
+            indices = nbonds - 1
+            mscales = distribute_scalar(mScales, indices)
+            
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)),
                                 epsilon.shape[0],
                                 axis=1)
@@ -215,13 +225,17 @@ class CoulReactionFieldForce:
 
 
 class CoulombForce:
-    def __init__(self, box, rc, ethresh):
+    def __init__(self, box, rc, ethresh, covalent_map):
 
         self.kappa, self.K1, self.K2, self.K3 = setup_ewald_parameters(
             rc, ethresh, box)
+        
+        self.covalent_map = covalent_map
+        self.refresh_calculator()
 
     def generate_get_energy(self):
         def get_energy(positions, box, pairs, Q, mScales):
+            
             return energy_pme(positions, box, pairs, Q, None, None, None,
                               mScales, None, None, self.covalent_map, None,
                               self.pme_recip, self.kappa, self.K1, self.K2,
@@ -254,6 +268,7 @@ if __name__ == '__main__':
     box = jnp.array([[10, 0, 0], [0, 10, 0], [0, 0, 10]])
 
     pairs = np.array([[0, 1], [0, 2], [1, 2], [1, 3], [2, 3]])
+    covalent_map = np.array([[0, 1, 1, 0], [1, 0, 1, 1], [1, 1, 0, 1], [0, 1, 1, 0]]) # NOTE:not sure
     pairs_ref = np.array([[0, 2], [0, 3], [1, 2], [1, 3]])
 
     epsilon = jnp.array([1., 2.])
