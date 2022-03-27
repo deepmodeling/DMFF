@@ -19,13 +19,13 @@ DEFAULT_THOLE_WIDTH = 5.0
 from dmff.admp.recip import generate_pme_recip, Ck_1
 
 # for debugging use only
-# from jax_md import partition, space
-# from admp.parser import *
+#from jax_md import partition, space
+#from admp.parser import *
 
-# from jax.config import config
-# config.update("jax_enable_x64", True)
+#from jax.config import config
+#config.update("jax_enable_x64", True)
 
-# Functions that are related to electrostatic pme
+#Functions that are related to electrostatic pme
 
 class ADMPPmeForce:
     '''
@@ -253,7 +253,6 @@ def energy_pme(positions, box, pairs,
 
     if lpol:
         ene_self += pol_penalty(U_ind, pol)
-
     return ene_real + ene_recip + ene_self
 
 

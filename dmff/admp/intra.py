@@ -10,7 +10,6 @@ from dmff.admp.pme import ADMPPmeForce
 from dmff.admp.parser import *
 from jax import vmap
 import time
-
 #from admp.multipole import convert_cart2harm
 #from jax_md import partition, space
 
@@ -402,6 +401,23 @@ idx3 = jnp.array([1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15, 1, 2, 3, 4, 5,
        4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2,
        3, 4, 5, 6, 7])
 
+matrix1 = np.zeros((245,16))
+matrix2 = np.zeros((245,16))
+matrix3 = np.zeros((245,16))
+for i in range(245):
+    a = int(idx1[i])
+    b = int(idx2[i])
+    c = int(idx3[i])
+    list1 = np.zeros(16)
+    list2 = np.zeros(16)
+    list3 = np.zeros(16)
+    list1[a] = 1
+    list2[b] = 1
+    list3[c] = 1
+    matrix1[i] = list1
+    matrix2[i] = list2
+    matrix3[i] = list3
+    
 c5z = jnp.zeros(245)
 for i in range(245):
     c5z = c5z.at[i].set(f5z*c5zA[i] + fbasis*cbasis[i]+ fcore*ccore[i] + frest*crest[i])
@@ -409,8 +425,18 @@ deoh = f5z*deohA
 phh1 = f5z*phh1A*jnp.exp(phh2)
 costhe = -0.24780227221366464506
 
+Eh_J = 4.35974434e-18
+Na = 6.02214129e+23
+kcal_J = 4184.0
+c0 = 299792458.0
+h_Js = 6.62606957e-34
+cal2joule = 4.184
+Eh_kcalmol = Eh_J*Na/kcal_J
+Eh_cm1 = 1.0e-2*Eh_J/(c0*h_Js)
+cm1_kcalmol = Eh_kcalmol/Eh_cm1
+
+
 ## compute intra 
-@jit_condition(static_argnums=())
 def onebodyenergy(positions, box):
     box_inv = jnp.linalg.inv(box)
     O = positions[::3]
@@ -442,39 +468,23 @@ def onebodyenergy(positions, box):
 @vmap
 @jit_condition(static_argnums={})
 def onebody_kernel(x1, x2, x3, Va, Vb, efac):      
-    fmat = jnp.zeros((3,16))
-    list0 = jnp.array([0,0,0])
-    list1 = jnp.array([1,1,1])
-    fmat = fmat.at[:,0].set(list0)
-    fmat = fmat.at[:,1].set(list1)
-    list3 = fmat[0]
-    list4 = fmat[1]
-    list5 = fmat[2]
-    for i in range(2,16):
-        list3 = list3.at[i].set(list3[i-1]*x1)
-        list4 = list4.at[i].set(list4[i-1]*x2)
-        list5 = list5.at[i].set(list5[i-1]*x3)
-    fmat = fmat.at[0].set(list3)
-    fmat = fmat.at[1].set(list4)
-    fmat = fmat.at[2].set(list5)
-    sum0 = 0
-    for j in range(1,245):
-        inI = idx1[j]
-        inJ = idx2[j]
-        inK = idx3[j]
-        sum0 += c5z[j]*(fmat[0][inI]*fmat[1][inJ]+ fmat[0][inJ]*fmat[1][inI])*fmat[2][inK]
+    const = jnp.array([0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    CONST = jnp.array([const,const,const])
+    list1 = jnp.array([x1**i for i in range(-1, 15)])
+    list2 = jnp.array([x2**i for i in range(-1, 15)])
+    list3 = jnp.array([x3**i for i in range(-1, 15)])
+    fmat = jnp.array([list1, list2, list3])
+    fmat *= CONST
+    F1 = jnp.sum(fmat[0].T * matrix1, axis=1) # fmat[0][inI] 1*245
+    F2 = jnp.sum(fmat[1].T * matrix2, axis=1) #fmat[1][inJ] 1*245
+    F3 = jnp.sum(fmat[0].T * matrix2, axis=1) #fmat[0][inJ] 1*245
+    F4 = jnp.sum(fmat[1].T * matrix1, axis=1) #fmat[1][inI] 1*245
+    F5 = jnp.sum(fmat[2].T * matrix3, axis=1) #fmat[2][inK] 1*245
+    total = c5z * (F1*F2 + F3*F4)* F5
+    sum0 = jnp.sum(total[1:245])
     Vc = 2*c5z[0] + efac*sum0
     e1 = Va + Vb + Vc
     e1 += 0.44739574026257
-    Eh_J = 4.35974434e-18
-    Na = 6.02214129e+23
-    kcal_J = 4184.0
-    c0 = 299792458.0
-    h_Js = 6.62606957e-34
-    cal2joule = 4.184
-    Eh_kcalmol = Eh_J*Na/kcal_J
-    Eh_cm1 = 1.0e-2*Eh_J/(c0*h_Js)
-    cm1_kcalmol = Eh_kcalmol/Eh_cm1
     e1 *= cm1_kcalmol 
     e1 *= cal2joule # conver cal 2 j
     return e1
@@ -504,15 +514,16 @@ def validation(pdb):
     n_atoms = len(serials)
 
     # compute intra
-    start = time.time()
+    start=time.time()
     for i in range(10):
         E1 = onebodyenergy(positions, box)
     end = time.time()
     print(E1)
     print((end-start)/10)
-    #grad_E1 = grad(onebodyenergy,argnums=(1))
-    #force = -grad_E1(positions, box)
-    #print(force)
+
+    grad_E1 = grad(onebodyenergy,argnums=(0))
+    force = -grad_E1(positions, box)
+    print(force)
     return
 
 
