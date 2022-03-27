@@ -63,6 +63,7 @@ class LennardJonesForce:
             return E
 
         def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix):
+
             
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)),
                                 epsilon.shape[0],
@@ -219,6 +220,7 @@ class CoulReactionFieldForce:
 
 
 class CoulombPMEForce:
+
     def __init__(self, box, rc, ethresh, covalent_map):
 
         self.kappa, self.K1, self.K2, self.K3 = setup_ewald_parameters(

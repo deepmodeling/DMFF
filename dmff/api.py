@@ -1442,6 +1442,7 @@ class NonbondJaxGenerator:
                 coulforce = CoulNoCutoffForce(map_charge, map_exclusion, scale_coul_exclusion)
         else:
             coulforce = CoulombPMEForce(box, r_cut, self.ethresh, colv_map)
+
             
 
         coulenergy = coulforce.generate_get_energy()
@@ -1455,6 +1456,7 @@ class NonbondJaxGenerator:
                            params["sigma"], params["epsfix"], params["sigfix"])
 
             coulE = coulenergy(positions, box, pairs, params["charge"], mscales_coul)
+
 
 
             return ljE + coulE
