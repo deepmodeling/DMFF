@@ -17,7 +17,7 @@ from jax_md import space, partition
 from jax import grad
 import linecache
 import itertools
-from .classical.inter import CoulombForce, LennardJonesForce, CoulNoCutoffForce, CoulReactionFieldForce
+from .classical.inter import CoulombPMEForce, LennardJonesForce, CoulNoCutoffForce, CoulReactionFieldForce
 import sys
 
 
@@ -1250,7 +1250,9 @@ class NonbondJaxGenerator:
             "epsilon": [],
             "epsfix": [],
             "sigfix": [],
-            "charge": []
+            "charge": [],
+            "coulomb14scale": [coulomb14scale],
+            "lj14scale": [lj14scale]
         }
         self.types = []
         self.useAttributeFromResidue = []
@@ -1330,6 +1332,9 @@ class NonbondJaxGenerator:
         for k in self.params.keys():
             self.params[k] = jnp.array(self.params[k])
 
+        mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0]) # mscale for PME
+        mscales_coul = mscales_coul.at[2].set(1. - self.params["coulomb14scale"][0])
+
         # Coulomb: only support PME for now
         # set PBC
         if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
@@ -1353,10 +1358,10 @@ class NonbondJaxGenerator:
                     (str(atom)))
         map_lj = np.array(map_lj, dtype=int)
 
-        ifChargeFromResidue = False
+        self.ifChargeFromResidue = False
         if "charge" in self.useAttributeFromResidue:
             # load charge from residue cards
-            ifChargeFromResidue = True
+            self.ifChargeFromResidue = True
             chargeinfo = {}
             for atom in data.atoms:
                 resname, aname = atom.residue.name, atom.name
@@ -1372,6 +1377,8 @@ class NonbondJaxGenerator:
                 key = data.atoms[na].residue.name + "+" + data.atoms[na].name
                 if key in chargeidx:
                     map_charge.append(chargeidx[key])
+            map_charge = np.array(map_charge, dtype=int)
+            self.params["charge"] = jnp.array(self.params["charge"])
         else:
             map_charge = map_lj
 
@@ -1382,20 +1389,25 @@ class NonbondJaxGenerator:
 
         colv_map = build_covalent_map(data, 6)
         map_exclusion = []
-        scale_lj_exclusion = []
-        scale_coul_exclusion = []
-        mscale_lj = {1: 0., 2: 0., 3: self.lj14scale}
-        mscale_coul = {1: 0., 2: 0., 3: self.lj14scale}
+        scale_14 = []
+        npair = 0
         for ii in range(colv_map.shape[0]):
             for jj in range(ii + 1, colv_map.shape[1]):
                 if colv_map[ii, jj] > 0 and colv_map[ii, jj] < 4:
                     map_exclusion.append((ii, jj))
-                    scale_lj_exclusion.append(1. - mscale_lj[colv_map[ii, jj]])
-                    scale_coul_exclusion.append(1. - mscale_coul[colv_map[ii, jj]])
+                    if colv_map[ii, jj] == 3:
+                        scale_14.append(npair)
+                    npair += 1
 
         map_exclusion = np.array(map_exclusion, dtype=int)
-        scale_lj_exclusion = np.array(scale_lj_exclusion)
-        scale_coul_exclusion = np.array(scale_coul_exclusion)
+        scale_14 = np.array(scale_14, dtype=int)
+        scale_lj_exclusion = np.ones((map_exclusion.shape[0],))
+        scale_coul_exclusion = np.ones((map_exclusion.shape[0],))
+        scale_lj_exclusion = jnp.array(scale_lj_exclusion)
+        scale_coul_exclusion = jnp.array(scale_coul_exclusion)
+        scale_lj_exclusion = scale_lj_exclusion.at[scale_14].set(1. - self.params["lj14scale"][0])
+        scale_coul_exclusion = scale_coul_exclusion.at[scale_14].set(1. - self.params["coulomb14scale"][0])
+        
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -1429,7 +1441,8 @@ class NonbondJaxGenerator:
                 # use NoCutoff
                 coulforce = CoulNoCutoffForce(map_charge, map_exclusion, scale_coul_exclusion)
         else:
-            coulforce = CoulombForce(box, r_cut, self.ethresh, colv_map)
+            coulforce = CoulombPMEForce(box, r_cut, self.ethresh, colv_map)
+
             
 
         coulenergy = coulforce.generate_get_energy()
@@ -1442,7 +1455,8 @@ class NonbondJaxGenerator:
             ljE = ljenergy(positions, box, pairs, params["epsilon"],
                            params["sigma"], params["epsfix"], params["sigfix"])
 
-            coulE = coulenergy(positions, box, pairs, params["charge"], params['mScales'])
+            coulE = coulenergy(positions, box, pairs, params["charge"], mscales_coul)
+
 
 
             return ljE + coulE

@@ -2,6 +2,7 @@ import openmm as mm
 import openmm.app as app
 import openmm.unit as unit 
 import numpy as np
+import sys
 
 def forcegroupify(system):
     forcegroups = {}
@@ -20,8 +21,8 @@ def getEnergyDecomposition(context, forcegroups):
 if __name__ == "__main__":
 
     print("MM Reference Energy:")
-    pdb = app.PDBFile("lj1.pdb")
-    ff = app.ForceField("lj1.xml")
+    pdb = app.PDBFile(sys.argv[1])
+    ff = app.ForceField(sys.argv[2])
     system = ff.createSystem(pdb.topology, nonbondedMethod=app.NoCutoff, constraints=None, removeCMMotion=False)
     
 
