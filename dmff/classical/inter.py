@@ -62,13 +62,7 @@ class LennardJonesForce:
 
             return E
 
-        covalent_map = self.covalent_map
-
-        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix, mScales):
-            
-            nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
-            indices = nbonds - 1
-            mscales = distribute_scalar(mScales, indices)
+        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix):
             
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)),
                                 epsilon.shape[0],
@@ -136,7 +130,7 @@ class CoulNoCutoffForce:
 
             return E
 
-        def get_energy(positions, box, pairs, charges):
+        def get_energy(positions, box, pairs, charges, mscales):
             chrg_map0 = self.map_prm[pairs[:,0]]
             chrg_map1 = self.map_prm[pairs[:,1]]
             charge0 = charges[chrg_map0]
@@ -197,7 +191,7 @@ class CoulReactionFieldForce:
 
             return E
 
-        def get_energy(positions, box, pairs, charges):
+        def get_energy(positions, box, pairs, charges, mscales):
             chrg_map0 = self.map_prm[pairs[:,0]]
             chrg_map1 = self.map_prm[pairs[:,1]]
             charge0 = charges[chrg_map0]
@@ -224,7 +218,7 @@ class CoulReactionFieldForce:
         return get_energy
 
 
-class CoulombForce:
+class CoulombPMEForce:
     def __init__(self, box, rc, ethresh, covalent_map):
 
         self.kappa, self.K1, self.K2, self.K3 = setup_ewald_parameters(
