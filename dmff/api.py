@@ -1259,18 +1259,11 @@ class NonbondJaxGenerator:
     def registerAtom(self, atom):
         # use types in nb cards or resname+atomname in residue cards
         types = self.ff._findAtomTypes(atom, 1)
-<<<<<<< HEAD
         self.ljtypes.append(types)
-        
-        for key in ["sigma", "epsilon", "charge"]:  # load xml params as ususal,
-                self.params[key].append(atom[key])  # cover them by reading residue info later
-=======
-        self.types.append(types)
 
         for key in ["sigma", "epsilon", "charge"]:
             if key not in self.useAttributeFromResidue:
                 self.params[key].append(atom[key])
->>>>>>> e828858239ffe838138841a7162bc9226b67b5ab
 
     @staticmethod
     def parseElement(element, ff):
@@ -1333,12 +1326,12 @@ class NonbondJaxGenerator:
         # load LJ from types
         map_lj = []
         for atom in data.atoms:
-            types = data.atomType[atom]
-            ifFound = False
+            types = data.atomType.get(atom, TypeError)
+            ifFound=False
             for ntp, tp in enumerate(self.ljtypes):
                 if types in tp:
-                    ifFound = True
                     map_lj.append(ntp)
+                    ifFound=True
                     break
             if not ifFound:
                 raise mm.OpenMMException(
@@ -1369,9 +1362,6 @@ class NonbondJaxGenerator:
             map_charge = map_lj
 
         colv_map = build_covalent_map(data, 6)
-<<<<<<< HEAD
-        
-=======
         map_exclusion = []
         scale_exclusion = []
         mscale = {1: 0., 2: 0., 3: 0.5}
@@ -1382,7 +1372,6 @@ class NonbondJaxGenerator:
                     scale_exclusion.append(1. - mscale[colv_map[ii, jj]])
         scale_exclusion = np.array(scale_exclusion)
 
->>>>>>> e828858239ffe838138841a7162bc9226b67b5ab
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
         else:
@@ -1395,21 +1384,6 @@ class NonbondJaxGenerator:
         else:
             r_switch = r_cut
             ifSwitch = False
-<<<<<<< HEAD
-        ljforce = LennardJonesForce(r_switch, r_cut, map_lj, [], colv_map, ifSwitch=ifSwitch, ifPBC=ifPBC)
-        coulforce = CoulombForce()
-        
-        def potential_fn(positions, box, pairs, params):
-            
-            
-
-            
-            ljE = ljforce.get_energy(positions, box, pairs)
-            coulE = coulforce.get_energy(positions, box, pairs)
-            
-            return ljE + coulE
-        
-=======
         ljforce = LennardJonesForce(r_switch,
                                     r_cut,
                                     map_lj, [],
@@ -1430,7 +1404,6 @@ class NonbondJaxGenerator:
 
             return ljE  # + coulE
 
->>>>>>> e828858239ffe838138841a7162bc9226b67b5ab
         self._jaxPotential = potential_fn
 
     def getJaxPotential(self):
