@@ -1431,6 +1431,7 @@ class NonbondJaxGenerator:
         else:
             coulforce = CoulombForce(box, r_cut, self.ethresh, colv_map)
             
+
         coulenergy = coulforce.generate_get_energy()
 
         def potential_fn(positions, box, pairs, params):
@@ -1440,7 +1441,9 @@ class NonbondJaxGenerator:
 
             ljE = ljenergy(positions, box, pairs, params["epsilon"],
                            params["sigma"], params["epsfix"], params["sigfix"])
+
             coulE = coulenergy(positions, box, pairs, params["charge"], params['mScales'])
+
 
             return ljE + coulE
 
