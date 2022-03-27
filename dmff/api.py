@@ -17,7 +17,7 @@ from jax_md import space, partition
 from jax import grad
 import linecache
 import itertools
-from .classical.inter import CoulombForce, LennardJonesForce
+from .classical.inter import CoulombForce, LennardJonesForce, CoulNoCutoffForce, CoulReactionFieldForce
 import sys
 
 
@@ -1238,11 +1238,11 @@ class NonbondJaxGenerator:
 
     SCALETOL = 1e-5
 
-    def __init__(self, hamiltionian):
+    def __init__(self, hamiltionian, coulomb14scale, lj14scale):
 
         self.ff = hamiltionian
-        # self.coulomb14scale = coulomb14scale
-        # self.lj14scale = lj14scale
+        self.coulomb14scale = coulomb14scale
+        self.lj14scale = lj14scale
         # self.useDispersionCorrection = useDispersionCorrection
         #self.params = app.ForceField._AtomTypeParameters(hamiltionian, 'NonbondedForce', 'Atom', ('charge', 'sigma', 'epsilon'))
         self.params = {
@@ -1276,8 +1276,8 @@ class NonbondJaxGenerator:
         if len(existing) == 0:
             generator = NonbondJaxGenerator(
                 ff,
-                # float(element.attrib['coulomb14scale']),
-                # float(element.attrib['lj14scale']),
+                float(element.attrib['coulomb14scale']),
+                float(element.attrib['lj14scale']),
                 # useDispersionCorrection
             )
             ff.registerGenerator(generator)
@@ -1373,16 +1373,20 @@ class NonbondJaxGenerator:
 
         colv_map = build_covalent_map(data, 6)
         map_exclusion = []
-        scale_exclusion = []
-        mscale = {1: 0., 2: 0., 3: 0.5}
+        scale_lj_exclusion = []
+        scale_coul_exclusion = []
+        mscale_lj = {1: 0., 2: 0., 3: self.lj14scale}
+        mscale_coul = {1: 0., 2: 0., 3: self.lj14scale}
         for ii in range(colv_map.shape[0]):
             for jj in range(ii + 1, colv_map.shape[1]):
                 if colv_map[ii, jj] > 0 and colv_map[ii, jj] < 4:
                     map_exclusion.append((ii, jj))
-                    scale_exclusion.append(1. - mscale[colv_map[ii, jj]])
+                    scale_lj_exclusion.append(1. - mscale_lj[colv_map[ii, jj]])
+                    scale_coul_exclusion.append(1. - mscale_coul[colv_map[ii, jj]])
 
         map_exclusion = np.array(map_exclusion, dtype=int)
-        scale_exclusion = np.array(scale_exclusion)
+        scale_lj_exclusion = np.array(scale_lj_exclusion)
+        scale_coul_exclusion = np.array(scale_coul_exclusion)
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -1401,13 +1405,24 @@ class NonbondJaxGenerator:
                                     map_lj,
                                     map_nbfix,
                                     map_exclusion,
-                                    scale_exclusion,
+                                    scale_lj_exclusion,
                                     isSwitch=ifSwitch,
                                     isPBC=ifPBC,
                                     isNoCut=isNoCut)
         ljenergy = ljforce.generate_get_energy()
-
-        #coulforce = CoulombForce()
+        
+        if nonbondedMethod is not app.PME:
+            # do not use PME
+            if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
+                # use Reaction Field
+                coulforce = CoulReactionFieldForce(r_cut, map_charge, map_exclusion, scale_coul_exclusion, isPBC=ifPBC)
+            if nonbondedMethod is app.NoCutoff:
+                # use NoCutoff
+                coulforce = CoulNoCutoffForce(map_charge, map_exclusion, scale_coul_exclusion)
+        else:
+            #coulforce = CoulombForce()
+            coulforce = CoulReactionFieldForce(r_cut, map_charge, map_exclusion, scale_coul_exclusion, isPBC=ifPBC) # use it for test
+        coulenergy = coulforce.generate_get_energy()
 
         def potential_fn(positions, box, pairs, params):
 
@@ -1416,9 +1431,9 @@ class NonbondJaxGenerator:
 
             ljE = ljenergy(positions, box, pairs, params["epsilon"],
                            params["sigma"], params["epsfix"], params["sigfix"])
-            #coulE = coulforce.get_energy(positions, box, pairs)
+            coulE = coulenergy(positions, box, pairs, params["charge"])
 
-            return ljE  # + coulE
+            return ljE + coulE
 
         self._jaxPotential = potential_fn
 
