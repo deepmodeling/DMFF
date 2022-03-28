@@ -5,17 +5,20 @@ import jax.numpy as jnp
 from jax import grad, value_and_grad, vmap, jit
 from jax.scipy.special import erf
 
+
 def distance(p1v, p2v):
     return jnp.sqrt(jnp.sum(jnp.power(p1v - p2v, 2), axis=1))
-    
+
+
 def angle(p1v, p2v, p3v):
-    v1 = (p2v - p1v) / jnp.reshape(distance(p1v, p2v), (-1,1))
-    v2 = (p2v - p3v) / jnp.reshape(distance(p2v, p3v), (-1,1))
-    vxx = v1[:,0] * v2[:,0]
-    vyy = v1[:,1] * v2[:,1]
-    vzz = v1[:,2] * v2[:,2]
+    v1 = (p2v - p1v) / jnp.reshape(distance(p1v, p2v), (-1, 1))
+    v2 = (p2v - p3v) / jnp.reshape(distance(p2v, p3v), (-1, 1))
+    vxx = v1[:, 0] * v2[:, 0]
+    vyy = v1[:, 1] * v2[:, 1]
+    vzz = v1[:, 2] * v2[:, 2]
     return jnp.arccos(vxx + vyy + vzz)
-    
+
+
 def dihedral(i, j, k, l):
     b1, b2, b3 = j - i, k - j, l - k
 
@@ -28,6 +31,7 @@ def dihedral(i, j, k, l):
 
     r = vmap(jnp.arctan2, (0, 0))(p1, p2)
     return r
+
 
 class HarmonicBondJaxForce:
     def __init__(self, p1idx, p2idx, prmidx):
@@ -48,16 +52,16 @@ class HarmonicBondJaxForce:
         return get_energy
 
     def update_env(self, attr, val):
-        '''
+        """
         Update the environment of the calculator
-        '''
+        """
         setattr(self, attr, val)
         self.refresh_calculators()
 
     def refresh_calculators(self):
-        '''
+        """
         refresh the energy and force calculators according to the current environment
-        '''
+        """
         self.get_energy = self.generate_get_energy()
         self.get_forces = value_and_grad(self.get_energy)
 
@@ -83,16 +87,16 @@ class HarmonicAngleJaxForce:
         return get_energy
 
     def update_env(self, attr, val):
-        '''
+        """
         Update the environment of the calculator
-        '''
+        """
         setattr(self, attr, val)
         self.refresh_calculators()
 
     def refresh_calculators(self):
-        '''
+        """
         refresh the energy and force calculators according to the current environment
-        '''
+        """
         self.get_energy = self.generate_get_energy()
         self.get_forces = value_and_grad(self.get_energy)
 
@@ -122,15 +126,15 @@ class PeriodicTorsionJaxForce:
         return get_energy
 
     def update_env(self, attr, val):
-        '''
+        """
         Update the environment of the calculator
-        '''
+        """
         setattr(self, attr, val)
         self.refresh_calculators()
 
     def refresh_calculators(self):
-        '''
+        """
         refresh the energy and force calculators according to the current environment
-        '''
+        """
         self.get_energy = self.generate_get_energy()
         self.get_forces = value_and_grad(self.get_energy)
