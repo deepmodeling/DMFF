@@ -27,6 +27,7 @@ from .classical.inter import (
     CoulNoCutoffForce,
     CoulReactionFieldForce,
 )
+
 import sys
 
 
@@ -1585,7 +1586,6 @@ class NonbondJaxGenerator:
                 params["epsfix"],
                 params["sigfix"],
             )
-
             coulE = coulenergy(positions, box, pairs, params["charge"], mscales_coul)
 
             return ljE + coulE
