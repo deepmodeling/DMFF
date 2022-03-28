@@ -28,7 +28,6 @@ class LennardJonesForce:
         isPBC=True,
         isNoCut=False,
     ) -> None:
-
         self.isSwitch = isSwitch
         self.r_switch = r_switch
         self.r_cut = r_cut
@@ -54,12 +53,12 @@ class LennardJonesForce:
             sig_dr = sig * dr_inv
             sig_dr6 = jnp.power(sig_dr, 6)
             sig_dr12 = jnp.power(sig_dr6, 2)
-            E = 4 * eps * (sig_dr12 - sig_dr6)
+            E = 4.0 * eps * (sig_dr12 - sig_dr6)
 
             if self.isSwitch:
 
                 x = (dr_norm - self.r_switch) / (self.r_cut - self.r_switch)
-                S = 1 - 6 * x ** 5 + 15 * x ** 4 - 10 * x ** 3
+                S = 1 - 6. * x ** 5 + 15. * x ** 4 - 10. * x ** 3
                 jnp.where(dr_norm > self.r_switch, E, E * S)
 
             return E
@@ -100,6 +99,7 @@ class LennardJonesForce:
             E_excl = self.scale_exclusion * E_excl
 
             return jnp.sum(E_inter) - jnp.sum(E_excl)
+            #return jnp.sum(E_inter)
 
         return get_energy
 

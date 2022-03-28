@@ -1576,7 +1576,6 @@ class NonbondJaxGenerator:
 
         def potential_fn(positions, box, pairs, params):
 
-            # TODO: can not differentiate lj14scale temperarily
             ljE = ljenergy(
                 positions,
                 box,
