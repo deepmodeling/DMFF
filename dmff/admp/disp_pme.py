@@ -14,17 +14,24 @@ class ADMPDispPmeForce:
     The so called "environment paramters" means parameters that do not need to be differentiable
     '''
 
-    def __init__(self, box, covalent_map, rc, ethresh, pmax):
+    def __init__(self, box, covalent_map, rc, ethresh, pmax, lpme=True):
         self.covalent_map = covalent_map
         self.rc = rc
         self.ethresh = ethresh
         self.pmax = pmax
         # Need a different function for dispersion ??? Need tests
-        kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
-        self.kappa = kappa
-        self.K1 = K1
-        self.K2 = K2
-        self.K3 = K3
+        self.lpme = lpme
+        if lpme:
+            kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
+            self.kappa = kappa
+            self.K1 = K1
+            self.K2 = K2
+            self.K3 = K3
+        else:
+            self.kappa = 0.0
+            self.K1 = 0
+            self.K2 = 0
+            self.K3 = 0
         self.pme_order = 6
         # setup calculators
         self.refresh_calculators()
@@ -36,7 +43,7 @@ class ADMPDispPmeForce:
             return energy_disp_pme(positions, box, pairs, 
                                   c_list, mScales, self.covalent_map,
                                   self.kappa, self.K1, self.K2, self.K3, self.pmax,
-                                  self.d6_recip, self.d8_recip, self.d10_recip)
+                                  self.d6_recip, self.d8_recip, self.d10_recip, lpme=self.lpme)
         return get_energy
 
     
@@ -70,7 +77,7 @@ class ADMPDispPmeForce:
 def energy_disp_pme(positions, box, pairs,
         c_list, mScales, covalent_map,
         kappa, K1, K2, K3, pmax, 
-        recip_fn6, recip_fn8, recip_fn10):
+        recip_fn6, recip_fn8, recip_fn10, lpme=True):
     '''
     Top level wrapper for dispersion pme
 
@@ -95,22 +102,29 @@ def energy_disp_pme(positions, box, pairs,
             int: max K for reciprocal calculations
         pmax:
             int array: maximal exponents (p) to compute, e.g., (6, 8, 10)
+        lpme:
+            bool: whether do pme or not, useful when doing cluster calculations
 
     Output:
         energy: total dispersion pme energy
     '''
 
+    if lpme is False:
+        kappa = 0
+
     ene_real = disp_pme_real(positions, box, pairs, c_list, mScales, covalent_map, kappa, pmax)
 
-    ene_recip = recip_fn6(positions, box, c_list[:, 0, jnp.newaxis])
-    if pmax >= 8:
-        ene_recip += recip_fn8(positions, box, c_list[:, 1, jnp.newaxis])
-    if pmax >= 10:
-        ene_recip += recip_fn10(positions, box, c_list[:, 2, jnp.newaxis])
+    if lpme:
+        ene_recip = recip_fn6(positions, box, c_list[:, 0, jnp.newaxis])
+        if pmax >= 8:
+            ene_recip += recip_fn8(positions, box, c_list[:, 1, jnp.newaxis])
+        if pmax >= 10:
+            ene_recip += recip_fn10(positions, box, c_list[:, 2, jnp.newaxis])
+        ene_self = disp_pme_self(c_list, kappa, pmax)
+        return ene_real + ene_recip + ene_self
 
-    ene_self = disp_pme_self(c_list, kappa, pmax)
-
-    return ene_real + ene_recip + ene_self
+    else:
+        return ene_real
 
 
 def disp_pme_real(positions, box, pairs, 

@@ -34,17 +34,25 @@ class ADMPPmeForce:
     The so called "environment paramters" means parameters that do not need to be differentiable
     '''
 
-    def __init__(self, box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax, lpol=False):
+    def __init__(self, box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax, lpol=False, lpme=True):
         self.axis_type = axis_type
         self.axis_indices = axis_indices
         self.rc = rc
         self.ethresh = ethresh
         self.lmax = int(lmax)  # jichen: type checking
-        kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
-        self.kappa = kappa
-        self.K1 = K1
-        self.K2 = K2
-        self.K3 = K3
+        # turn off pme if lpme is False, this is useful when doing cluster calculations
+        self.lpme = lpme
+        if self.lpme is False:
+            self.kappa = 0
+            self.K1 = 0
+            self.K2 = 0
+            self.K3 = 0
+        else:
+            kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
+            self.kappa = kappa
+            self.K1 = K1
+            self.K2 = K2
+            self.K3 = K3
         self.pme_order = 6
         self.covalent_map = covalent_map
         self.lpol = lpol
@@ -63,7 +71,7 @@ class ADMPPmeForce:
                                  Q_local, None, None, None,
                                  mScales, None, None, self.covalent_map,
                                  self.construct_local_frames, self.pme_recip,
-                                 self.kappa, self.K1, self.K2, self.K3, self.lmax, False)
+                                 self.kappa, self.K1, self.K2, self.K3, self.lmax, False, lpme=self.lpme)
             return get_energy
         else:
             # this is the bare energy calculator, with Uind as explicit input
@@ -72,7 +80,7 @@ class ADMPPmeForce:
                                  Q_local, Uind_global, pol, tholes,
                                  mScales, pScales, dScales, self.covalent_map,
                                  self.construct_local_frames, self.pme_recip,
-                                 self.kappa, self.K1, self.K2, self.K3, self.lmax, True)
+                                 self.kappa, self.K1, self.K2, self.K3, self.lmax, True, lpme=self.lpme)
             self.energy_fn = energy_fn
             self.grad_U_fn = grad(self.energy_fn, argnums=(4))
             self.grad_pos_fn = grad(self.energy_fn, argnums=(0))
@@ -179,7 +187,7 @@ def setup_ewald_parameters(rc, ethresh, box):
 def energy_pme(positions, box, pairs,
         Q_local, Uind_global, pol, tholes,
         mScales, pScales, dScales, covalent_map, 
-        construct_local_frame_fn, pme_recip_fn, kappa, K1, K2, K3, lmax, lpol):
+        construct_local_frame_fn, pme_recip_fn, kappa, K1, K2, K3, lmax, lpol, lpme=True):
     '''
     This is the top-level wrapper for multipole PME
 
@@ -213,8 +221,10 @@ def energy_pme(positions, box, pairs,
             int: max K for reciprocal calculations
         lmax:
             int: maximum L
-        bool:
-            int: if polarizable or not? if yes, 1, otherwise 0
+        lpol:
+            bool: if polarizable or not? if yes, 1, otherwise 0
+        lpme:
+            bool: doing pme? If false, then turn off reciprocal space and set kappa = 0
 
     Output:
         energy: total pme energy
@@ -240,6 +250,9 @@ def energy_pme(positions, box, pairs,
     else:
         Q_global_tot = Q_global
 
+    if lpme is False:
+        kappa = 0
+
     if lpol:
         ene_real = pme_real(positions, box, pairs, Q_global, U_ind, pol, tholes, 
                            mScales, pScales, dScales, covalent_map, kappa, lmax, True)
@@ -247,14 +260,23 @@ def energy_pme(positions, box, pairs,
         ene_real = pme_real(positions, box, pairs, Q_global, None, None, None,
                            mScales, None, None, covalent_map, kappa, lmax, False)
 
-    ene_recip = pme_recip_fn(positions, box, Q_global_tot)
+    if lpme:
+        ene_recip = pme_recip_fn(positions, box, Q_global_tot)
 
-    ene_self = pme_self(Q_global_tot, kappa, lmax)
+        ene_self = pme_self(Q_global_tot, kappa, lmax)
 
-    if lpol:
-        ene_self += pol_penalty(U_ind, pol)
+        if lpol:
+            ene_self += pol_penalty(U_ind, pol)
+        
+        return ene_real + ene_recip + ene_self
 
-    return ene_real + ene_recip + ene_self
+    else:
+        if lpol:
+            ene_self = pol_penalty(U_ind, pol)
+        else:
+            ene_self = 0.0
+
+        return ene_real + ene_self
 
 
 # @partial(vmap, in_axes=(0, 0, None, None), out_axes=0)

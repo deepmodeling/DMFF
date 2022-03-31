@@ -5,6 +5,8 @@ from dmff.utils import jit_condition
 from dmff.admp.spatial import v_pbc_shift
 from functools import partial
 
+DIELECTRIC = 1389.35455846
+
 # for debug
 # from jax_md import partition, space
 # from admp.parser import *
@@ -109,6 +111,18 @@ def TT_damping_qq_c6_kernel(dr, m, ai, aj, bi, bj, qi, qj, ci, cj):
 
     return f * m
 
+
+@vmap
+@jit_condition(static_argnums={})
+def TT_damping_qq_kernel(dr, m, bi, bj, qi, qj):
+    b = jnp.sqrt(bi * bj)
+    q = qi * qj
+    br = b * dr
+    exp_br = jnp.exp(-br)
+    f = - DIELECTRIC * exp_br * (1+br) * q / dr 
+    return f * m
+
+
 @vmap
 @jit_condition(static_argnums=())
 def slater_disp_damping_kernel(dr, m, bi, bj, c6i, c6j, c8i, c8j, c10i, c10j):
@@ -118,10 +132,10 @@ def slater_disp_damping_kernel(dr, m, bi, bj, c6i, c6j, c8i, c8j, c10i, c10j):
     x = Br - \frac{2*(Br)^2 + 3Br}{(Br)^2 + 3*Br + 3}
     see jctc 12 3851
     '''
-    b = jnp.sqrt(bi*bj)
-    c6 = jnp.sqrt(c6i*c6j)
-    c8 = jnp.sqrt(c8i*c8j)
-    c10 = jnp.sqrt(c10i*c10j)
+    b = jnp.sqrt(bi * bj)
+    c6 = c6i * c6j
+    c8 = c8i * c8j
+    c10 = c10i * c10j
     br = b * dr
     br2 = br * br
     x = br - (2*br2 + 3*br) / (br2 + 3*br + 3)
