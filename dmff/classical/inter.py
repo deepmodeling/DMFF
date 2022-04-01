@@ -1,6 +1,3 @@
-import sys
-
-sys.path.append("/home/lijichen/work/DMFF")
 from dmff.admp.pairwise import distribute_scalar
 import jax.numpy as jnp
 from dmff.admp.pme import energy_pme, setup_ewald_parameters
@@ -10,9 +7,9 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad
 from dmff.admp.recip import generate_pme_recip, Ck_1
+from dmff.admp.pme import DIELECTRIC 
 
-
-ONE_4PI_EPS0 = 138.935456
+ONE_4PI_EPS0 = DIELECTRIC * 0.1
 
 
 class LennardJonesForce:
