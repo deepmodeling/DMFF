@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from jax import vmap, value_and_grad
-from dmff.utils import jit_condition
+from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
 from dmff.admp.spatial import pbc_shift
 from dmff.admp.pme import setup_ewald_parameters
 from dmff.admp.recip import generate_pme_recip, Ck_6, Ck_8, Ck_10
@@ -74,6 +74,7 @@ class ADMPDispPmeForce:
         return
 
 
+@jit_condition()
 def energy_disp_pme(positions, box, pairs,
         c_list, mScales, covalent_map,
         kappa, K1, K2, K3, pmax, 
@@ -158,24 +159,26 @@ def disp_pme_real(positions, box, pairs,
     '''
 
     # expand pairwise parameters
-    pairs = pairs[pairs[:, 0] < pairs[:, 1]]
+    # pairs = pairs[pairs[:, 0] < pairs[:, 1]]
+    pairs = regularize_pairs(pairs)
 
     box_inv = jnp.linalg.inv(box)
 
     ri = distribute_v3(positions, pairs[:, 0])
     rj = distribute_v3(positions, pairs[:, 1])
-    # ri = positions[pairs[:, 0]]
-    # rj = positions[pairs[:, 1]]
     nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
     mscales = distribute_scalar(mScales, nbonds-1)
-    # mscales = mScales[nbonds-1]
+
+    buffer_scales = pair_buffer_scales(pairs)
+    mscales = mscales * buffer_scales
 
     ci = distribute_dispcoeff(c_list, pairs[:, 0])
     cj = distribute_dispcoeff(c_list, pairs[:, 1])
-    # ci = c_list[pairs[:, 0], :]
-    # cj = c_list[pairs[:, 1], :]
 
-    ene_real = jnp.sum(disp_pme_real_kernel(ri, rj, ci, cj, box, box_inv, mscales, kappa, pmax))
+    ene_real = jnp.sum(
+            disp_pme_real_kernel(ri, rj, ci, cj, box, box_inv, mscales, kappa, pmax)
+            * buffer_scales
+            )
 
     return jnp.sum(ene_real)
 
@@ -207,6 +210,9 @@ def disp_pme_real_kernel(ri, rj, ci, cj, box, box_inv, mscales, kappa, pmax):
     dr = ri - rj
     dr = pbc_shift(dr, box, box_inv)
     dr2 = jnp.dot(dr, dr)
+    # deal with buffer pairs, avoid singluarity caused by dr = 0
+    dr2 = jnp.piecewise(dr2, (dr2<1e-3, dr2>=1e-3), (lambda x: jnp.array(1.0), lambda x: jnp.array(x)))
+
     x2 = kappa * kappa * dr2
     g = g_p(x2, pmax)
     dr6 = dr2 * dr2 * dr2

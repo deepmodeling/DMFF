@@ -1,7 +1,7 @@
 import sys
 from jax import vmap
 import jax.numpy as jnp
-from dmff.utils import jit_condition
+from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
 from dmff.admp.spatial import v_pbc_shift
 from functools import partial
 
@@ -64,18 +64,24 @@ def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
     '''
 
     def pair_int(positions, box, pairs, mScales, *atomic_params):
-        pairs =  pairs[pairs[:, 0] < pairs[:, 1]]
+        pairs = regularize_pairs(pairs)
+
         ri = distribute_v3(positions, pairs[:, 0])
         rj = distribute_v3(positions, pairs[:, 1])
         # ri = positions[pairs[:, 0]]
         # rj = positions[pairs[:, 1]]
         nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
         mscales = distribute_scalar(mScales, nbonds-1)
+
+        buffer_scales = pair_buffer_scales(pairs)
+        mscales = mscales * buffer_scales
         # mscales = mScales[nbonds-1]
         box_inv = jnp.linalg.inv(box)
         dr = ri - rj
         dr = v_pbc_shift(dr, box, box_inv)
         dr = jnp.linalg.norm(dr, axis=1)
+        # deal with buffer pairs
+        dr = jnp.piecewise(dr, (dr<1e-3, dr>=1e-3), (lambda x: jnp.array(1.0), lambda x: jnp.array(x)))
 
         pair_params = []
         for i, param in enumerate(atomic_params):
@@ -84,7 +90,7 @@ def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
             # pair_params.append(param[pairs[:, 0]])
             # pair_params.append(param[pairs[:, 1]])
 
-        energy = jnp.sum(pair_int_kernel(dr, mscales, *pair_params))
+        energy = jnp.sum(pair_int_kernel(dr, mscales, *pair_params) * buffer_scales)
         return energy
 
     return pair_int

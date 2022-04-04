@@ -6,7 +6,7 @@ from jax import grad, value_and_grad, vmap, jit
 from jax.scipy.special import erf
 from dmff.settings import DO_JIT
 from dmff.admp.settings import POL_CONV, MAX_N_POL
-from dmff.utils import jit_condition
+from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
 from dmff.admp.multipole import C1_c2h, convert_cart2harm
 from dmff.admp.multipole import rot_ind_global2local, rot_global2local, rot_local2global
 from dmff.admp.spatial import v_pbc_shift, generate_construct_local_frames, build_quasi_internal
@@ -691,7 +691,10 @@ def pme_real(positions, box, pairs,
     '''
 
     # expand pairwise parameters, from atomic parameters
-    pairs = pairs[pairs[:, 0] < pairs[:, 1]]
+    # debug
+    # pairs = pairs[pairs[:, 0] < pairs[:, 1]]
+    pairs = regularize_pairs(pairs)
+    buffer_scales = pair_buffer_scales(pairs)
     box_inv = jnp.linalg.inv(box)
     r1 = distribute_v3(positions, pairs[:, 0])
     r2 = distribute_v3(positions, pairs[:, 1])
@@ -704,6 +707,7 @@ def pme_real(positions, box, pairs,
     nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
     indices = nbonds-1
     mscales = distribute_scalar(mScales, indices)
+    mscales = mscales * buffer_scales
     # mscales = mScales[nbonds-1]
     if lpol:
         pol1 = distribute_scalar(pol, pairs[:, 0])
@@ -713,7 +717,9 @@ def pme_real(positions, box, pairs,
         Uind_extendi = distribute_v3(Uind_global, pairs[:, 0])
         Uind_extendj = distribute_v3(Uind_global, pairs[:, 1])
         pscales = distribute_scalar(pScales, indices)
+        pscales = pscales * buffer_scales
         dscales = distribute_scalar(dScales, indices)
+        dscales = dscales * buffer_scales
         # pol1 = pol[pairs[:,0]]
         # pol2 = pol[pairs[:,1]]
         # thole1 = tholes[pairs[:,0]]
@@ -736,6 +742,16 @@ def pme_real(positions, box, pairs,
     dr = r1 - r2
     dr = v_pbc_shift(dr, box, box_inv)
     norm_dr = jnp.linalg.norm(dr, axis=-1)
+    # deal with buffer pairs
+    dr = dr + jnp.tile(jnp.piecewise(
+            norm_dr,
+            (norm_dr<1e-3, norm_dr>=1e-3),
+            (lambda x: jnp.array(1.0), lambda x: jnp.array(0.0))
+            ), (3, 1)).T
+    norm_dr = jnp.piecewise(
+            norm_dr, 
+            (norm_dr<1e-3, norm_dr>=1e-3), 
+            (lambda x: jnp.array(1.0), lambda x: jnp.array(x)))
     Ri = build_quasi_internal(r1, r2, dr, norm_dr)
     qiQI = rot_global2local(Q_extendi, Ri, lmax)
     qiQJ = rot_global2local(Q_extendj, Ri, lmax)
@@ -747,7 +763,10 @@ def pme_real(positions, box, pairs,
         qiUindJ = None
 
     # everything should be pair-specific now
-    ene = jnp.sum(pme_real_kernel(norm_dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscales, pscales, dscales, kappa, lmax, lpol))
+    ene = jnp.sum(
+            pme_real_kernel(norm_dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscales, pscales, dscales, kappa, lmax, lpol)
+            * buffer_scales
+            )
 
     return ene
 
