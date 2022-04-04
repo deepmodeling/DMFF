@@ -74,7 +74,6 @@ class ADMPDispPmeForce:
         return
 
 
-@jit_condition()
 def energy_disp_pme(positions, box, pairs,
         c_list, mScales, covalent_map,
         kappa, K1, K2, K3, pmax, 
