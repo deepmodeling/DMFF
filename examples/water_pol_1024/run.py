@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 import sys
 from pathlib import Path
+import openmm.app as app
+import openmm.unit as unit
+from dmff.api import Hamiltonian
 admp_path = Path(__file__).parent.parent.parent
 sys.path.append(str(admp_path))
 import numpy as np
@@ -18,71 +21,33 @@ def get_line_context(file_path, line_number):
 
 # below is the validation code
 if __name__ == '__main__':
-    pdb = str('waterbox_31ang.pdb')
-    xml = str('mpidwater.xml')
-    ref_dip = str('dipole_1024')
-    pdbinfo = read_pdb(pdb)
-    serials = pdbinfo['serials']
-    names = pdbinfo['names']
-    resNames = pdbinfo['resNames']
-    resSeqs = pdbinfo['resSeqs']
-    positions = pdbinfo['positions']
-    box = pdbinfo['box'] # a, b, c, α, β, γ
-    charges = pdbinfo['charges']
-    positions = jnp.asarray(positions)
-    lx, ly, lz, _, _, _ = box
-    box = jnp.eye(3)*jnp.array([lx, ly, lz])
-
-    mScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    pScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    dScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-
-    rc = 4  # in Angstrom
-    ethresh = 1e-4
-
-    n_atoms = len(serials)
-
-    atomTemplate, residueTemplate = read_xml(xml)
-    atomDicts, residueDicts = init_residues(serials, names, resNames, resSeqs, positions, charges, atomTemplate, residueTemplate)
-
-    Q = np.vstack(
-        [(atom.c0, atom.dX*10, atom.dY*10, atom.dZ*10, atom.qXX*300, atom.qYY*300, atom.qZZ*300, atom.qXY*300, atom.qXZ*300, atom.qYZ*300) for atom in atomDicts.values()]
-    )
-    Q = jnp.array(Q)
-    Q_local = convert_cart2harm(Q, 2)
-    axis_type = np.array(
-        [atom.axisType for atom in atomDicts.values()]
-    )
-    axis_indices = np.vstack(
-        [atom.axis_indices for atom in atomDicts.values()]
-    )
-    covalent_map = assemble_covalent(residueDicts, n_atoms)
-
-    ## ind paras
-    pol = np.vstack(
-        [(atom.polarizabilityXX, atom.polarizabilityYY, atom.polarizabilityZZ) for atom in atomDicts.values()]
-    )
-    pol = jnp.array(pol.astype(np.float32))
-    pol = 1000*jnp.mean(pol,axis=1)
-
-    tholes = np.vstack(
-        [atom.thole  for atom in atomDicts.values()]
-    )
-    tholes = jnp.array(tholes.astype(np.float32))
-    tholes = jnp.mean(tholes,axis=1) 
-    defaultTholeWidth=8
-   
-    Uind_global = jnp.zeros([n_atoms,3])
-    for i in range(n_atoms):
-        a = get_line_context(ref_dip,i+1)
-        b = a.split()
-        t = np.array([10*float(b[0]),10*float(b[1]),10*float(b[2])])
-        Uind_global = Uind_global.at[i].set(t)    
-
-
     
-    lmax = 2
-    pmax = 10
+    rc = 4.0
+    
+    H = Hamiltonian('forcefield.xml')
+    app.Topology.loadBondDefinitions('residues.xml')
+    pdb = app.PDBFile('waterbox_31ang.pdb')
+    
+    generator = H.getGenerators()
+    disp_generator, pme_generator = generator
+    
+    pme_generator.lpol = True
+    pme_generator.ref_dip = 'dipole_1024'
+    potentials = H.createPotential(pdb.topology, nonbondedCutoff=4.0*unit.angstrom)
+    
+    disp_pot, pme_pot = potentials
+    
+    positions = jnp.array(pdb.positions._value) * 10
+    a, b, c = pdb.topology.getPeriodicBoxVectors()
+    box = jnp.array([a._value, b._value, c._value]) * 10
+    
+    # neighbor list
+    displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
+    neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
+    nbr = neighbor_list_fn.allocate(positions)
+    pairs = nbr.idx.T
+
+    n_atoms = len(positions)
 
     # construct the C list
     c_list = np.zeros((3, n_atoms))
