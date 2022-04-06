@@ -80,8 +80,6 @@ def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
         dr = ri - rj
         dr = v_pbc_shift(dr, box, box_inv)
         dr = jnp.linalg.norm(dr, axis=1)
-        # deal with buffer pairs
-        dr = jnp.piecewise(dr, (dr<1e-3, dr>=1e-3), (lambda x: jnp.array(1.0), lambda x: jnp.array(x)))
 
         pair_params = []
         for i, param in enumerate(atomic_params):

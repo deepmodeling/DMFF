@@ -742,16 +742,6 @@ def pme_real(positions, box, pairs,
     dr = r1 - r2
     dr = v_pbc_shift(dr, box, box_inv)
     norm_dr = jnp.linalg.norm(dr, axis=-1)
-    # deal with buffer pairs
-    dr = dr + jnp.tile(jnp.piecewise(
-            norm_dr,
-            (norm_dr<1e-3, norm_dr>=1e-3),
-            (lambda x: jnp.array(1.0), lambda x: jnp.array(0.0))
-            ), (3, 1)).T
-    norm_dr = jnp.piecewise(
-            norm_dr, 
-            (norm_dr<1e-3, norm_dr>=1e-3), 
-            (lambda x: jnp.array(1.0), lambda x: jnp.array(x)))
     Ri = build_quasi_internal(r1, r2, dr, norm_dr)
     qiQI = rot_global2local(Q_extendi, Ri, lmax)
     qiQJ = rot_global2local(Q_extendj, Ri, lmax)

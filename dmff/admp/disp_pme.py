@@ -209,8 +209,6 @@ def disp_pme_real_kernel(ri, rj, ci, cj, box, box_inv, mscales, kappa, pmax):
     dr = ri - rj
     dr = pbc_shift(dr, box, box_inv)
     dr2 = jnp.dot(dr, dr)
-    # deal with buffer pairs, avoid singluarity caused by dr = 0
-    dr2 = jnp.piecewise(dr2, (dr2<1e-3, dr2>=1e-3), (lambda x: jnp.array(1.0), lambda x: jnp.array(x)))
 
     x2 = kappa * kappa * dr2
     g = g_p(x2, pmax)
