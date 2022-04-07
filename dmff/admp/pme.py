@@ -34,7 +34,36 @@ class ADMPPmeForce:
     The so called "environment paramters" means parameters that do not need to be differentiable
     '''
 
-    def __init__(self, box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax, lpol=False, lpme=True):
+    def __init__(self, box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax, lpol=False, lpme=True, steps_pol=None):
+        '''
+        Initialize the ADMPPmeForce calculator.
+
+        Input:
+            box: 
+                (3, 3) float, box size in row
+            axis_type:
+                (na,) int, types of local axis (bisector, z-then-x etc.)
+            covalent_map:
+                (na, na) int, covalent map matrix, labels the topological distances between atoms
+            rc: 
+                float: cutoff distance
+            ethresh: 
+                float: pme energy threshold
+            lmax:
+                int: max L for multipoles
+            lpol:
+                bool: polarize or not?
+            lpme:
+                bool: do pme or simple cutoff? 
+                if False, the kappa will be set to zero and the reciprocal part will not be computed
+            steps:
+                None or int: Whether do fixed number of dipole iteration steps?
+                if None: converge dipoles until convergence threshold is met
+                if int: optimize for this many steps and stop, this is useful if you want to jit the entire function
+
+        Output:
+
+        '''
         self.axis_type = axis_type
         self.axis_indices = axis_indices
         self.rc = rc
@@ -56,6 +85,7 @@ class ADMPPmeForce:
         self.pme_order = 6
         self.covalent_map = covalent_map
         self.lpol = lpol
+        self.steps_pol = steps_pol
         self.n_atoms = int(covalent_map.shape[0]) # len(axis_type)
 
         # setup calculators
@@ -86,8 +116,14 @@ class ADMPPmeForce:
             self.grad_pos_fn = grad(self.energy_fn, argnums=(0))
             self.U_ind = jnp.zeros((self.n_atoms, 3))
             # this is the wrapper that include a Uind optimizer
-            def get_energy(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=self.U_ind):
-                self.U_ind, self.lconverg, self.n_cycle = self.optimize_Uind(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=U_init)
+            def get_energy(
+                    positions, box, pairs, 
+                    Q_local, pol, tholes, mScales, pScales, dScales, 
+                    U_init=self.U_ind):
+                self.U_ind, self.lconverg, self.n_cycle = self.optimize_Uind(
+                        positions, box, pairs, Q_local, pol, tholes, 
+                        mScales, pScales, dScales, 
+                        U_init=U_init, steps_pol=self.steps_pol)
                 # here we rely on Feynman-Hellman theorem, drop the term dV/dU*dU/dr !
                 # self.U_ind = jax.lax.stop_gradient(U_ind)
                 return self.energy_fn(positions, box, pairs, Q_local, self.U_ind, pol, tholes, mScales, pScales, dScales)
@@ -120,7 +156,11 @@ class ADMPPmeForce:
         self.get_forces = value_and_grad(self.get_energy)
         return
 
-    def optimize_Uind(self, positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=None, maxiter=MAX_N_POL, thresh=POL_CONV):
+    def optimize_Uind(self, 
+            positions, box, pairs, 
+            Q_local, pol, tholes, mScales, pScales, dScales, 
+            U_init=None, steps_pol=None,
+            maxiter=MAX_N_POL, thresh=POL_CONV):
         '''
         This function converges the induced dipole
         Note that we cut all the gradient chain passing through this function as we assume Feynman-Hellman theorem
@@ -139,17 +179,26 @@ class ADMPPmeForce:
             U = jnp.zeros((self.n_atoms, 3))
         else:
             U = U_init
-        site_filter = (pol>0.001) # focus on the actual polarizable sites
+        if steps_pol is None:
+            site_filter = (pol>0.001) # focus on the actual polarizable sites
 
-        for i in range(maxiter):
-            field = self.grad_U_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
-            E = self.energy_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
-            if jnp.max(jnp.abs(field[site_filter])) < thresh:
-                break
-            U = U - field * pol[:, jnp.newaxis] / DIELECTRIC
-        if i == maxiter-1:
-            flag = False
-        else: # converged
+        if steps_pol is None:
+            for i in range(maxiter):
+                field = self.grad_U_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
+                # E = self.energy_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
+                if jnp.max(jnp.abs(field[site_filter])) < thresh:
+                    break
+                U = U - field * pol[:, jnp.newaxis] / DIELECTRIC
+            if i == maxiter-1:
+                flag = False
+            else: # converged
+                flag = True
+        else:
+            # do fixed number of iterations
+            for i in range(steps_pol):
+                field = self.grad_U_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
+                # E = self.energy_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
+                U = U - field * pol[:, jnp.newaxis] / DIELECTRIC
             flag = True
         return U, flag, i
 
