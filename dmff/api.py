@@ -40,7 +40,7 @@ def build_covalent_map(data, max_neighbor):
                     if k != i and k not in j_list:
                         covalent_map[i, k] = n_curr + 1
                         covalent_map[k, i] = n_curr + 1
-    return covalent_map
+    return jnp.array(covalent_map)
 
 
 class ADMPDispGenerator:

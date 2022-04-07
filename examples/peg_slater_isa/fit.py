@@ -104,10 +104,6 @@ if __name__ == '__main__':
     pairs_A = np.array(nbr_A.idx.T)
     pairs_B = np.array(nbr_B.idx.T)
 
-    pairs_AB =  pairs_AB[pairs_AB[:, 0] < pairs_AB[:, 1]]
-    pairs_A =  pairs_A[pairs_A[:, 0] < pairs_A[:, 1]]
-    pairs_B =  pairs_B[pairs_B[:, 0] < pairs_B[:, 1]]
-
 
     # construct total force field params
     comps = ['ex', 'es', 'pol', 'disp', 'dhf', 'tot']
