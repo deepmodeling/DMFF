@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from re import subn
 import openmm as mm
 import openmm.app as app
 import openmm.unit as unit
@@ -1510,6 +1509,7 @@ class NonbondJaxGenerator:
         mscales_coul = mscales_coul.at[2].set(self.params["coulomb14scale"][0])
         mscales_lj = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for LJ
         mscales_lj = mscales_lj.at[2].set(self.params["lj14scale"][0])
+
 
         # Coulomb: only support PME for now
         # set PBC
