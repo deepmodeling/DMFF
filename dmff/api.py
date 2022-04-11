@@ -1450,9 +1450,9 @@ class NonbondJaxGenerator:
             self.params[k] = jnp.array(self.params[k])
 
         mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for PME
-        mscales_coul = mscales_coul.at[2].set(1.0 - self.params["coulomb14scale"][0])
-        mscales_lj = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for PME
-        mscales_lj = mscales_lj.at[2].set(1.0 - self.params["lj14scale"][0])
+        mscales_coul = mscales_coul.at[2].set(self.params["coulomb14scale"][0])
+        mscales_lj = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for LJ
+        mscales_lj = mscales_lj.at[2].set(self.params["lj14scale"][0])
 
         # Coulomb: only support PME for now
         # set PBC
