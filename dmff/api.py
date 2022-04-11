@@ -1508,32 +1508,6 @@ class NonbondJaxGenerator:
 
         colv_map = build_covalent_map(data, 6)
 
-        map_exclusion = []
-        scale_14 = []
-        npair = 0
-        for ii in range(colv_map.shape[0]):
-            for jj in range(ii + 1, colv_map.shape[1]):
-                if colv_map[ii, jj] > 0 and colv_map[ii, jj] < 4:
-                    map_exclusion.append((ii, jj))
-                    if colv_map[ii, jj] == 3:
-                        scale_14.append(npair)
-                    npair += 1
-
-        map_exclusion = np.array(map_exclusion, dtype=int)
-        scale_14 = np.array(scale_14, dtype=int)
-        scale_lj_exclusion = np.ones((map_exclusion.shape[0],))
-        scale_coul_exclusion = np.ones((map_exclusion.shape[0],))
-        scale_lj_exclusion = jnp.array(scale_lj_exclusion)
-        scale_coul_exclusion = jnp.array(scale_coul_exclusion)
-        scale_lj_exclusion = scale_lj_exclusion.at[scale_14].set(
-            1.0 - self.params["lj14scale"][0]
-        )
-        scale_coul_exclusion = scale_coul_exclusion.at[scale_14].set(
-            1.0 - self.params["coulomb14scale"][0]
-        )
-
-
-
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
         else:
@@ -1565,14 +1539,10 @@ class NonbondJaxGenerator:
             # do not use PME
             if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
                 # use Reaction Field
-                coulforce = CoulReactionFieldForce(
-                    r_cut, map_charge, map_exclusion, scale_coul_exclusion, isPBC=ifPBC
-                )
+                coulforce = CoulReactionFieldForce(r_cut, map_charge, colv_map, isPBC=ifPBC)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
-                coulforce = CoulNoCutoffForce(
-                    map_charge, map_exclusion, scale_coul_exclusion
-                )
+                coulforce = CoulNoCutoffForce(map_charge, colv_map)
         else:
             coulforce = CoulombPMEForce(box, r_cut, self.ethresh, colv_map)
 
