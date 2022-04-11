@@ -73,7 +73,7 @@ class LennardJonesForce:
             sig_mat = sig_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(sigfix)
 
             colv_pair = self.colvmap[pairs[:,0],pairs[:,1]]
-            mscale_pair = mscale[colv_pair]
+            mscale_pair = scale14[colv_pair]
 
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
             prm_pair0 = self.map_prm[pairs[:, 0]]
