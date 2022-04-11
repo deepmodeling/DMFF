@@ -19,8 +19,7 @@ class LennardJonesForce:
         r_cut,
         map_prm,
         map_nbfix,
-        map_exclusion,
-        scale_exclusion,
+        colvmap,
         isSwitch=False,
         isPBC=True,
         isNoCut=False,
@@ -31,10 +30,9 @@ class LennardJonesForce:
 
         self.map_prm = map_prm
         self.map_nbfix = map_nbfix
-        self.map_exclusion = map_exclusion
-        self.scale_exclusion = scale_exclusion
         self.ifPBC = isPBC
         self.ifNoCut = isNoCut
+        self.colvmap = colvmap
 
     def generate_get_energy(self):
         def get_LJ_energy(dr_vec, sig, eps, box):
@@ -60,7 +58,7 @@ class LennardJonesForce:
 
             return E
 
-        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix):
+        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix, scale14):
 
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)), epsilon.shape[0], axis=1)
             eps_m2 = eps_m1.T
@@ -74,6 +72,9 @@ class LennardJonesForce:
             sig_mat = sig_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(sigfix)
             sig_mat = sig_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(sigfix)
 
+            colv_pair = self.colvmap[pairs[:,0],pairs[:,1]]
+            mscale_pair = mscale[colv_pair]
+
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
             prm_pair0 = self.map_prm[pairs[:, 0]]
             prm_pair1 = self.map_prm[pairs[:, 1]]
@@ -83,20 +84,20 @@ class LennardJonesForce:
             E_inter = get_LJ_energy(dr_vec, sig, eps, box)
 
             # exclusion
-            dr_excl_vec = (
-                positions[self.map_exclusion[:, 0]]
-                - positions[self.map_exclusion[:, 1]]
-            )
-            excl_map0 = self.map_prm[self.map_exclusion[:, 0]]
-            excl_map1 = self.map_prm[self.map_exclusion[:, 1]]
-            eps_excl = eps_mat[excl_map0, excl_map1]
-            sig_excl = sig_mat[excl_map0, excl_map1]
+            # dr_excl_vec = (
+            #     positions[self.map_exclusion[:, 0]]
+            #     - positions[self.map_exclusion[:, 1]]
+            # )
+            # excl_map0 = self.map_prm[self.map_exclusion[:, 0]]
+            # excl_map1 = self.map_prm[self.map_exclusion[:, 1]]
+            # eps_excl = eps_mat[excl_map0, excl_map1]
+            # sig_excl = sig_mat[excl_map0, excl_map1]
+# 
+            # E_excl = get_LJ_energy(dr_excl_vec, sig_excl, eps_excl, box)
+            # E_excl = self.scale_exclusion * E_excl
 
-            E_excl = get_LJ_energy(dr_excl_vec, sig_excl, eps_excl, box)
-            E_excl = self.scale_exclusion * E_excl
-
-            return jnp.sum(E_inter) - jnp.sum(E_excl)
-            #return jnp.sum(E_inter)
+            # return jnp.sum(E_inter) - jnp.sum(E_excl)
+            return jnp.sum(E_inter * mscale_pair)
 
         return get_energy
 

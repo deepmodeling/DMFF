@@ -647,7 +647,7 @@ class HarmonicBondJaxGenerator:
               <HarmonicBondForce>
                 <Bond type1="ow" type2="hw" length="0.09572000000000001" k="462750.3999999999"/>
                 <Bond type1="hw" type2="hw" length="0.15136000000000002" k="462750.3999999999"/>
-              <\HarminicBondForce>
+              <\HarmonicBondForce>
         
         """
 
@@ -1451,6 +1451,8 @@ class NonbondJaxGenerator:
 
         mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for PME
         mscales_coul = mscales_coul.at[2].set(1.0 - self.params["coulomb14scale"][0])
+        mscales_lj = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for PME
+        mscales_lj = mscales_lj.at[2].set(1.0 - self.params["lj14scale"][0])
 
         # Coulomb: only support PME for now
         # set PBC
@@ -1505,6 +1507,7 @@ class NonbondJaxGenerator:
         map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
 
         colv_map = build_covalent_map(data, 6)
+
         map_exclusion = []
         scale_14 = []
         npair = 0
@@ -1529,6 +1532,8 @@ class NonbondJaxGenerator:
             1.0 - self.params["coulomb14scale"][0]
         )
 
+
+
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
         else:
@@ -1549,8 +1554,7 @@ class NonbondJaxGenerator:
             r_cut,
             map_lj,
             map_nbfix,
-            map_exclusion,
-            scale_lj_exclusion,
+            colv_map,
             isSwitch=ifSwitch,
             isPBC=ifPBC,
             isNoCut=isNoCut,
@@ -1584,6 +1588,7 @@ class NonbondJaxGenerator:
                 params["sigma"],
                 params["epsfix"],
                 params["sigfix"],
+                mscales_lj
             )
             coulE = coulenergy(positions, box, pairs, params["charge"], mscales_coul)
 
