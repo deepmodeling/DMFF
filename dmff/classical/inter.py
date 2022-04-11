@@ -81,7 +81,9 @@ class LennardJonesForce:
             eps = eps_mat[prm_pair0, prm_pair1]
             sig = sig_mat[prm_pair0, prm_pair1]
 
-            E_inter = get_LJ_energy(dr_vec, sig, eps, box)
+            eps_scale = eps * mscale_pair
+
+            E_inter = get_LJ_energy(dr_vec, sig, eps_scale, box)
 
             # exclusion
             # dr_excl_vec = (
@@ -97,7 +99,7 @@ class LennardJonesForce:
             # E_excl = self.scale_exclusion * E_excl
 
             # return jnp.sum(E_inter) - jnp.sum(E_excl)
-            return jnp.sum(E_inter * mscale_pair)
+            return jnp.sum(E_inter)
 
         return get_energy
 
