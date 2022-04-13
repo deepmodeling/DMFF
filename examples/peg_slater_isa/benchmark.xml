@@ -1,0 +1,77 @@
+<ForceField>  
+   <AtomTypes>    
+      <Type class="CT" element="C" mass="12.0107" name="1" />    
+      <Type class="HC" element="H" mass="1.00784" name="2" />    
+      <Type class="OS" element="O" mass="15.999" name="3" />    
+      <Type class="CT" element="C" mass="12.0107" name="4" />    
+      <Type class="HC" element="H" mass="1.00784" name="5" />    
+   </AtomTypes>  
+   <Residues>    
+       <Residue name="TER">      
+           <Atom name="C00" type="1" />      
+           <Atom name="H01" type="2" />      
+           <Atom name="H02" type="2" />      
+           <Atom name="O03" type="3" />      
+           <Atom name="C04" type="4" />      
+           <Atom name="H05" type="5" />      
+           <Atom name="H06" type="5" />      
+           <Atom name="H07" type="5" />      
+           <Bond from="0" to="1" />      
+           <Bond from="0" to="2" />      
+           <Bond from="0" to="3" />      
+           <Bond from="3" to="4" />      
+           <Bond from="4" to="5" />      
+           <Bond from="4" to="6" />      
+           <Bond from="4" to="7" />      
+           <ExternalBond atomName="C00" />      
+       </Residue>    
+       <Residue name="INT">
+           <Atom name="C00" type="1" />      
+           <Atom name="H01" type="2" />      
+           <Atom name="H02" type="2" />      
+           <Atom name="O03" type="3" />      
+           <Atom name="C04" type="1" />      
+           <Atom name="H05" type="2" />      
+           <Atom name="H06" type="2" />      
+           <Bond from="0" to="1" />
+           <Bond from="0" to="2" />
+           <Bond from="0" to="3" />
+           <Bond from="3" to="4" />
+           <Bond from="4" to="5" />
+           <Bond from="4" to="6" />
+           <ExternalBond atomName="C00" />      
+           <ExternalBond atomName="C04" />      
+       </Residue>
+   </Residues>  
+   <AmoebaMultipoleForce direct11Scale="1.0" direct12Scale="1.0" direct13Scale="1.0" direct14Scale="1.0" mpole12Scale="0.5" mpole13Scale="0.5" mpole14Scale="0.8" mpole15Scale="0.8" mutual11Scale="0.0" mutual12Scale="0.0" mutual13Scale="1.0" mutual14Scale="1.0" polar12Scale="1.0" polar13Scale="0.0" polar14Intra="0.5" polar14Scale="1.0" polar15Scale="1.0">    
+        <Multipole c0="0.14574378" d1="0.00158195" d2="0.00011841" d3="0.00693851" kx="1" kz="3" q11="-0.00005399" q21="0.00000367" q22="-0.00005356" q31="-0.00002917" q32="0.00000185" q33="0.00010755" type="1" />    
+        <Multipole c0="0.02178918" d1="-0.00043629" d2="0.00004082" d3="-0.00219400" kx="2" kz="1" q11="-0.00002509" q21="0.00000025" q22="0.00000855" q31="0.00000249" q32="-0.00000070" q33="0.00001654" type="2" />    
+        <Multipole c0="-0.34690552" d1="0.00074502" d2="-0.00008518" d3="0.01025277" kx="4" kz="-1" q11="0.00033647" q21="-0.00000009" q22="-0.00023636" q31="0.00000021" q32="0.00000353" q33="-0.00010012" type="3" />    
+        <Multipole c0="-0.34690552" d1="0.00074502" d2="-0.00008518" d3="0.01025277" kx="1" kz="-1" q11="0.00033647" q21="-0.00000009" q22="-0.00023636" q31="0.00000021" q32="0.00000353" q33="-0.00010012" type="3" />    
+        <Multipole c0="0.00942772" d1="0.00001267" d2="0.00003435" d3="0.00815618" kx="5" kz="3" q11="-0.00006481" q21="0.00000355" q22="-0.00006754" q31="0.00000077" q32="0.00000115" q33="0.00013235" type="4" />    
+        <Multipole c0="0.04964274" d1="0.00046553" d2="-0.00001268" d3="-0.00206894" kx="3" kz="4" q11="0.00001716" q21="-0.00000005" q22="-0.00003286" q31="0.00000060" q32="0.00000033" q33="0.00001570" type="5" />    
+        <Polarize pgrp1="1" pgrp2="2" pgrp3="3" polarizability="1.072970e-03" thole="0.33" type="1" />    
+        <Polarize pgrp1="1" polarizability="3.680091e-04" thole="0.33" type="2" />    
+        <Polarize pgrp1="1" pgrp2="4" polarizability="6.192140e-04" thole="0.33" type="3" />    
+        <Polarize pgrp1="3" pgrp2="5" polarizability="1.099428e-03" thole="0.33" type="4" />    
+        <Polarize pgrp1="4" polarizability="3.365314e-04" thole="0.33" type="5" />    
+   </AmoebaMultipoleForce>  
+   <CustomNonbondedForce bondCutoff="4" energy="A*exp(-B*r) - 138.935584*exp(-B*r)*(1+B*r)*Q/r
+ - (1-exp(-x)*(1+x+0.5*x^2+x^3/6+x^4/24+x^5/120+x^6/720)) * C6/(r^6)
+ - (1-exp(-x)*(1+x+0.5*x^2+x^3/6+x^4/24+x^5/120+x^6/720+x^7/5040+x^8/40320)) * C8/(r^8)
+ - (1-exp(-x)*(1+x+0.5*x^2+x^3/6+x^4/24+x^5/120+x^6/720+x^7/5040+x^8/40320+x^9/362880+x^10/3628800)) * C10/(r^10);
+ x=B*r - (2*B^2*r+3*B)/(B^2*r^2+3*B*r+3)*r;
+ B=sqrt(B1*B2); Q=Q1*Q2; C6=sqrt(C61*C62); C8=sqrt(C81*C82); C10=sqrt(C101*C102); A=sqrt(A1*A2)">    
+        <PerParticleParameter name="B" />    
+        <PerParticleParameter name="Q" />    
+        <PerParticleParameter name="C6" />    
+        <PerParticleParameter name="C8" />    
+        <PerParticleParameter name="C10" />    
+        <PerParticleParameter name="A" />    
+        <Atom A="0.0" type="1" B="3.977508e+01" C6="1.507393e-03" C8="1.241793e-04" C10="4.890285e-06" Q="1.457438e-01" />    
+        <Atom A="0.0" type="2" B="4.596271e+01" C6="1.212045e-04" C8="4.577425e-06" C10="8.708729e-08" Q="2.178918e-02" />    
+        <Atom A="0.0" type="3" B="4.637414e+01" C6="7.159800e-04" C8="5.846871e-05" C10="2.282115e-06" Q="-3.469055e-01" />    
+        <Atom A="0.0" type="4" B="3.831504e+01" C6="1.523005e-03" C8="1.127912e-04" C10="4.005600e-06" Q="9.427719e-03" />    
+        <Atom A="0.0" type="5" B="4.632228e+01" C6="1.136931e-04" C8="4.123377e-06" C10="7.495037e-08" Q="4.964274e-02" />    
+   </CustomNonbondedForce>  
+</ForceField>

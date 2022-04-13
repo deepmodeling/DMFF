@@ -10,16 +10,18 @@ import xml.etree.ElementTree as ET
 from .admp.disp_pme import ADMPDispPmeForce
 from .admp.multipole import convert_cart2harm, rot_local2global
 from .admp.pairwise import TT_damping_qq_c6_kernel, generate_pairwise_interaction
+from .admp.pairwise import slater_disp_damping_kernel, slater_sr_kernel, TT_damping_qq_kernel
 from .admp.pme import ADMPPmeForce
 from .admp.spatial import generate_construct_local_frames
 from .admp.recip import Ck_1, generate_pme_recip
+from .utils import jit_condition
 from .classical.intra import (
     HarmonicBondJaxForce,
     HarmonicAngleJaxForce,
     PeriodicTorsionJaxForce,
 )
 from jax_md import space, partition
-from jax import grad
+from jax import grad, vmap
 import linecache
 import itertools
 from .classical.inter import (
@@ -87,7 +89,7 @@ def build_covalent_map(data, max_neighbor):
                     if k != i and k not in j_list:
                         covalent_map[i, k] = n_curr + 1
                         covalent_map[k, i] = n_curr + 1
-    return covalent_map
+    return jnp.array(covalent_map)
 
 
 def findAtomTypeTexts(attribs, num):
@@ -136,12 +138,25 @@ class ADMPDispGenerator:
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
 
+        methodMap = {
+            app.CutoffPeriodic: "CutoffPeriodic",
+            app.NoCutoff: "NoCutoff",
+            app.PME: "PME",
+        }
+        if nonbondedMethod not in methodMap:
+            raise ValueError("Illegal nonbonded method for ADMPDispForce")
+        if nonbondedMethod is app.CutoffPeriodic:
+            self.lpme = False
+        else:
+            self.lpme = True
+
         n_atoms = len(data.atoms)
         # build index map
         map_atomtype = np.zeros(n_atoms, dtype=int)
         for i in range(n_atoms):
             atype = data.atomType[data.atoms[i]]
             map_atomtype[i] = np.where(self.types == atype)[0][0]
+        self.map_atomtype = map_atomtype
         # build covalent map
         covalent_map = build_covalent_map(data, 6)
 
@@ -155,13 +170,9 @@ class ADMPDispGenerator:
         if "ethresh" in args:
             self.ethresh = args["ethresh"]
 
-        Force_DispPME = ADMPDispPmeForce(box, covalent_map, rc, self.ethresh, self.pmax)
+        Force_DispPME = ADMPDispPmeForce(box, covalent_map, rc, self.ethresh,
+                                         self.pmax, lpme=self.lpme)
         self.disp_pme_force = Force_DispPME
-        # debugging
-        # Force_DispPME.update_env('kappa', 0.657065221219616)
-        # Force_DispPME.update_env('K1', 96)
-        # Force_DispPME.update_env('K2', 96)
-        # Force_DispPME.update_env('K3', 96)
         pot_fn_lr = Force_DispPME.get_energy
         pot_fn_sr = generate_pairwise_interaction(
             TT_damping_qq_c6_kernel, covalent_map, static_args={}
@@ -195,9 +206,367 @@ class ADMPDispGenerator:
         # generate xml force field file
         pass
 
-
 # register all parsers
 app.forcefield.parsers["ADMPDispForce"] = ADMPDispGenerator.parseElement
+
+
+class ADMPDispPmeGenerator:
+    '''
+    This one computes the undamped C6/C8/C10 interactions
+    u = \sum_{ij} c6/r^6 + c8/r^8 + c10/r^10
+    '''
+
+    def __init__(self, hamiltonian):
+        self.ff = hamiltonian
+        self.params = {
+                "C6": [],
+                "C8": [],
+                "C10": []
+                }
+        self._jaxPotential = None
+        self.types = []
+        self.ethresh = 5e-4
+        self.pmax = 10
+
+    def registerAtomType(self, atom):
+        self.types.append(atom["type"])
+        self.params["C6"].append(float(atom["C6"]))
+        self.params["C8"].append(float(atom["C8"]))
+        self.params["C10"].append(float(atom["C10"]))
+
+    @staticmethod
+    def parseElement(element, hamiltonian):
+        generator = ADMPDispPmeGenerator(hamiltonian)
+        hamiltonian.registerGenerator(generator)
+        # covalent scales
+        mScales = []
+        for i in range(2, 7):
+            mScales.append(float(element.attrib["mScale1%d" % i]))
+        mScales.append(1.0)
+        generator.params["mScales"] = mScales
+        for atomtype in element.findall("Atom"):
+            generator.registerAtomType(atomtype.attrib)
+        # jax it!
+        for k in generator.params.keys():
+            generator.params[k] = jnp.array(generator.params[k])
+        generator.types = np.array(generator.types)
+
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
+        methodMap = {
+            app.CutoffPeriodic: "CutoffPeriodic",
+            app.NoCutoff: "NoCutoff",
+            app.PME: "PME",
+        }
+        if nonbondedMethod not in methodMap:
+            raise ValueError("Illegal nonbonded method for ADMPDispPmeForce")
+        if nonbondedMethod is app.CutoffPeriodic:
+            self.lpme = False
+        else:
+            self.lpme = True
+
+        n_atoms = len(data.atoms)
+        # build index map
+        map_atomtype = np.zeros(n_atoms, dtype=int)
+        for i in range(n_atoms):
+            atype = data.atomType[data.atoms[i]]
+            map_atomtype[i] = np.where(self.types == atype)[0][0]
+        self.map_atomtype = map_atomtype
+        # build covalent map
+        covalent_map = build_covalent_map(data, 6)
+
+        # here box is only used to setup ewald parameters, no need to be differentiable
+        a, b, c = system.getDefaultPeriodicBoxVectors()
+        box = jnp.array([a._value, b._value, c._value]) * 10
+        # get the admp calculator
+        rc = nonbondedCutoff.value_in_unit(unit.angstrom)
+
+        # get calculator
+        if 'ethresh' in args:
+            self.ethresh = args['ethresh']
+
+        disp_force = ADMPDispPmeForce(box, covalent_map, rc, self.ethresh,
+                                         self.pmax, self.lpme)
+        self.disp_force = disp_force
+        pot_fn_lr = disp_force.get_energy
+
+        def potential_fn(positions, box, pairs, params):
+            mScales = params["mScales"]
+            C6_list = params["C6"][map_atomtype] * 1e6 # to kj/mol * A**6
+            C8_list = params["C8"][map_atomtype] * 1e8
+            C10_list = params["C10"][map_atomtype] * 1e10
+            c6_list = jnp.sqrt(C6_list)
+            c8_list = jnp.sqrt(C8_list)
+            c10_list = jnp.sqrt(C10_list)
+            c_list = jnp.vstack((c6_list, c8_list, c10_list))
+            E_lr = pot_fn_lr(positions, box, pairs, c_list.T, mScales)
+            return - E_lr
+
+        self._jaxPotential = potential_fn
+        # self._top_data = data
+
+    def getJaxPotential(self):
+        return self._jaxPotential
+
+    def renderXML(self):
+        # generate xml force field file
+        pass
+
+# register all parsers
+app.forcefield.parsers["ADMPDispPmeForce"] = ADMPDispPmeGenerator.parseElement
+
+class QqTtDampingGenerator:
+    '''
+    This one calculates the tang-tonnies damping of charge-charge interaction
+    E = \sum_ij exp(-B*r)*(1+B*r)*q_i*q_j/r
+    '''
+    def __init__(self, hamiltonian):
+        self.ff = hamiltonian
+        self.params = {
+            "B": [],
+            "Q": [],
+        }
+        self._jaxPotential = None
+        self.types = []
+
+    def registerAtomType(self, atom):
+        self.types.append(atom["type"])
+        self.params["B"].append(float(atom["B"]))
+        self.params["Q"].append(float(atom["Q"]))
+
+    @staticmethod
+    def parseElement(element, hamiltonian):
+        generator = QqTtDampingGenerator(hamiltonian)
+        hamiltonian.registerGenerator(generator)
+        # covalent scales
+        mScales = []
+        for i in range(2, 7):
+            mScales.append(float(element.attrib["mScale1%d" % i]))
+        mScales.append(1.0)
+        generator.params["mScales"] = mScales
+        for atomtype in element.findall("Atom"):
+            generator.registerAtomType(atomtype.attrib)
+        # jax it!
+        for k in generator.params.keys():
+            generator.params[k] = jnp.array(generator.params[k])
+        generator.types = np.array(generator.types)
+
+    # on working
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
+
+        n_atoms = len(data.atoms)
+        # build index map
+        map_atomtype = np.zeros(n_atoms, dtype=int)
+        for i in range(n_atoms):
+            atype = data.atomType[data.atoms[i]]
+            map_atomtype[i] = np.where(self.types == atype)[0][0]
+        self.map_atomtype = map_atomtype
+        # build covalent map
+        covalent_map = build_covalent_map(data, 6)
+
+        pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel,
+                                                  covalent_map,
+                                                  static_args={})
+
+        def potential_fn(positions, box, pairs, params):
+            mScales = params["mScales"]
+            b_list = params["B"][map_atomtype] / 10 # convert to A^-1
+            q_list = params["Q"][map_atomtype]
+
+            E_sr = pot_fn_sr(positions, box, pairs, mScales, b_list, q_list)
+            return E_sr
+
+        self._jaxPotential = potential_fn
+        # self._top_data = data
+
+    def getJaxPotential(self):
+        return self._jaxPotential
+
+    def renderXML(self):
+        # generate xml force field file
+        pass
+
+# register all parsers
+app.forcefield.parsers["QqTtDampingForce"] = QqTtDampingGenerator.parseElement
+
+
+class SlaterDampingGenerator:
+    '''
+    This one computes the slater-type damping function for c6/c8/c10 dispersion
+    E = \sum_ij (f6-1)*c6/r6 + (f8-1)*c8/r8 + (f10-1)*c10/r10
+    fn = f_tt(x, n)
+    x = br - (2*br2 + 3*br) / (br2 + 3*br + 3)
+    '''
+    def __init__(self, hamiltonian):
+        self.ff = hamiltonian
+        self.params = {
+            "B": [],
+            "C6": [],
+            "C8": [],
+            "C10": [],
+        }
+        self._jaxPotential = None
+        self.types = []
+
+    def registerAtomType(self, atom):
+        self.types.append(atom["type"])
+        self.params["B"].append(float(atom["B"]))
+        self.params["C6"].append(float(atom["C6"]))
+        self.params["C8"].append(float(atom["C8"]))
+        self.params["C10"].append(float(atom["C10"]))
+
+    @staticmethod
+    def parseElement(element, hamiltonian):
+        generator = SlaterDampingGenerator(hamiltonian)
+        hamiltonian.registerGenerator(generator)
+        # covalent scales
+        mScales = []
+        for i in range(2, 7):
+            mScales.append(float(element.attrib["mScale1%d" % i]))
+        mScales.append(1.0)
+        generator.params["mScales"] = mScales
+        for atomtype in element.findall("Atom"):
+            generator.registerAtomType(atomtype.attrib)
+        # jax it!
+        for k in generator.params.keys():
+            generator.params[k] = jnp.array(generator.params[k])
+        generator.types = np.array(generator.types)
+
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
+
+        n_atoms = len(data.atoms)
+        # build index map
+        map_atomtype = np.zeros(n_atoms, dtype=int)
+        for i in range(n_atoms):
+            atype = data.atomType[data.atoms[i]]
+            map_atomtype[i] = np.where(self.types == atype)[0][0]
+        self.map_atomtype = map_atomtype
+        # build covalent map
+        covalent_map = build_covalent_map(data, 6)
+
+        # WORKING
+        pot_fn_sr = generate_pairwise_interaction(slater_disp_damping_kernel,
+                                                  covalent_map,
+                                                  static_args={})
+
+        def potential_fn(positions, box, pairs, params):
+            mScales = params["mScales"]
+            b_list = params["B"][map_atomtype] / 10 # convert to A^-1
+            c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6) # to kj/mol * A**6
+            c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
+            c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
+            E_sr = pot_fn_sr(positions, box, pairs, mScales, b_list, c6_list, c8_list, c10_list)
+            return E_sr
+
+        self._jaxPotential = potential_fn
+        # self._top_data = data
+    
+    def getJaxPotential(self):
+        return self._jaxPotential
+
+    def renderXML(self):
+        # generate xml force field file
+        pass
+
+app.forcefield.parsers["SlaterDampingForce"] = SlaterDampingGenerator.parseElement
+
+
+class SlaterExGenerator:
+    '''
+    This one computes the Slater-ISA type exchange interaction
+    u = \sum_ij A * (1/3*(Br)^2 + Br + 1)
+    '''
+
+    def __init__(self, hamiltonian):
+        self.ff = hamiltonian
+        self.params = {
+                "A": [],
+                "B": [],
+                }
+        self._jaxPotential = None
+        self.types = []
+
+    def registerAtomType(self, atom):
+        self.types.append(atom["type"])
+        self.params["A"].append(float(atom["A"]))
+        self.params["B"].append(float(atom["B"]))
+
+    @staticmethod
+    def parseElement(element, hamiltonian):
+        generator = SlaterExGenerator(hamiltonian)
+        hamiltonian.registerGenerator(generator)
+        # covalent scales
+        mScales = []
+        for i in range(2, 7):
+            mScales.append(float(element.attrib["mScale1%d" % i]))
+        mScales.append(1.0)
+        generator.params["mScales"] = mScales
+        for atomtype in element.findall("Atom"):
+            generator.registerAtomType(atomtype.attrib)
+        # jax it!
+        for k in generator.params.keys():
+            generator.params[k] = jnp.array(generator.params[k])
+        generator.types = np.array(generator.types)
+
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
+
+        n_atoms = len(data.atoms)
+        # build index map
+        map_atomtype = np.zeros(n_atoms, dtype=int)
+        for i in range(n_atoms):
+            atype = data.atomType[data.atoms[i]]
+            map_atomtype[i] = np.where(self.types == atype)[0][0]
+        self.map_atomtype = map_atomtype
+        # build covalent map
+        covalent_map = build_covalent_map(data, 6)
+
+        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
+                                                  covalent_map,
+                                                  static_args={})
+
+        def potential_fn(positions, box, pairs, params):
+            mScales = params["mScales"]
+            a_list = params["A"][map_atomtype]
+            b_list = params["B"][map_atomtype] / 10   # nm^-1 to A^-1
+
+            return pot_fn_sr(positions, box, pairs, mScales, a_list, b_list)
+
+        self._jaxPotential = potential_fn
+        # self._top_data = data
+
+    def getJaxPotential(self):
+        return self._jaxPotential
+
+    def renderXML(self):
+        # generate xml force field file
+        pass
+
+app.forcefield.parsers["SlaterExForce"] = SlaterExGenerator.parseElement
+
+
+# Here are all the short range "charge penetration" terms
+# They all have the exchange form
+class SlaterSrEsGenerator(SlaterExGenerator):
+    def __init__(self):
+        super().__init__(self)
+class SlaterSrPolGenerator(SlaterExGenerator):
+    def __init__(self):
+        super().__init__(self)
+class SlaterSrDispGenerator(SlaterExGenerator):
+    def __init__(self):
+        super().__init__(self)
+class SlaterDhfGenerator(SlaterExGenerator):
+    def __init__(self):
+        super().__init__(self)
+
+# register all parsers
+app.forcefield.parsers["SlaterSrEsForce"] = SlaterSrEsGenerator.parseElement
+app.forcefield.parsers["SlaterSrPolForce"] = SlaterSrPolGenerator.parseElement
+app.forcefield.parsers["SlaterSrDispForce"] = SlaterSrDispGenerator.parseElement
+app.forcefield.parsers["SlaterDhfForce"] = SlaterDhfGenerator.parseElement
 
 
 class ADMPPmeGenerator:
@@ -382,12 +751,25 @@ class ADMPPmeGenerator:
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
 
+        methodMap = {
+            app.CutoffPeriodic: "CutoffPeriodic",
+            app.NoCutoff: "NoCutoff",
+            app.PME: "PME",
+        }
+        if nonbondedMethod not in methodMap:
+            raise ValueError("Illegal nonbonded method for ADMPPmeForce")
+        if nonbondedMethod is app.CutoffPeriodic:
+            self.lpme = False
+        else:
+            self.lpme = True
+
         n_atoms = len(data.atoms)
         map_atomtype = np.zeros(n_atoms, dtype=int)
 
         for i in range(n_atoms):
             atype = data.atomType[data.atoms[i]]
             map_atomtype[i] = np.where(self.types == atype)[0][0]
+        self.map_atomtype = map_atomtype
 
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
@@ -614,7 +996,6 @@ class ADMPPmeGenerator:
             self.axis_types = None
             self.axis_indices = None
 
-        # get calculator
         if "ethresh" in args:
             self.ethresh = args["ethresh"]
 
@@ -627,6 +1008,7 @@ class ADMPPmeGenerator:
             self.ethresh,
             self.lmax,
             self.lpol,
+            lpme=self.lpme
         )
         self.pme_force = pme_force
 
