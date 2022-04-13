@@ -1,0 +1,22 @@
+<ForceField>
+    <AtomTypes>
+        <Type element="N" name="n1" class="n1" mass="14.01"/>
+        <Type element="N" name="n2" class="n2" mass="14.01"/>
+        <Type element="N" name="n3" class="n3" mass="14.01"/>
+        <Type element="N" name="n4" class="n4" mass="14.01"/>
+    </AtomTypes>
+    <Residues>
+        <Residue name="LIG">
+            <Atom name="N1" type="n1"/>
+            <Atom name="N2" type="n2"/>
+            <Atom name="N3" type="n3"/>
+            <Atom name="N4" type="n4"/>
+            <Bond atomName1="N1" atomName2="N2"/>
+            <Bond atomName1="N1" atomName2="N3"/>
+            <Bond atomName1="N1" atomName2="N4"/>
+        </Residue>
+    </Residues>
+    <PeriodicTorsionForce>
+        <Improper type1="n1" type2="n2" type3="n3" type4="n4" periodicity1="1" phase1="0.0" k1="2.092"/>
+    </PeriodicTorsionForce>
+</ForceField>

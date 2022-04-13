@@ -2,8 +2,8 @@ import jax.numpy as jnp
 import numpy as np
 import numpy.testing as npt
 import pytest
-from admp.multipole import convert_cart2harm
-from admp.multipole import rot_global2local, rot_local2global
+from dmff.admp.multipole import convert_cart2harm
+from dmff.admp.multipole import rot_global2local, rot_local2global
 
 class TestMultipoleGeometry:
     @pytest.mark.parametrize(

@@ -21,7 +21,7 @@ if __name__ == '__main__':
     pdb_AB = PDBFile('peg2_dimer.pdb')
     pdb_A = PDBFile('peg2.pdb')
     pdb_B = PDBFile('peg2.pdb')
-    param_file = 'params.pickle'
+    param_file = 'params.0.pickle'
     H_AB = Hamiltonian(ff)
     H_A = Hamiltonian(ff)
     H_B = Hamiltonian(ff)

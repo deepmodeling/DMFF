@@ -470,6 +470,7 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.iobj
+*.ipdb
 *.pgc
 *.pgd
 *.rsp
@@ -774,3 +775,4 @@ FodyWeavers.xsd
 
 ### VisualStudio Patch ###
 # Additional files built by Visual Studio
+.vscode/**
