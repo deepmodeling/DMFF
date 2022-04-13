@@ -6,6 +6,7 @@ import openmm.app.element as elem
 import numpy as np
 import jax.numpy as jnp
 from collections import defaultdict
+import xml.etree.ElementTree as ET
 from .admp.disp_pme import ADMPDispPmeForce
 from .admp.multipole import convert_cart2harm, rot_local2global
 from .admp.pairwise import TT_damping_qq_c6_kernel, generate_pairwise_interaction
@@ -29,6 +30,39 @@ from .classical.inter import (
 )
 
 import sys
+
+
+class XMLNodeInfo:
+
+    class XMLElementInfo:
+        
+        def __init__(self, name):
+            self.name = name
+            self.attributes = {}
+        
+        def addAttribute(self, key, value):
+            self.attributes[key] = value
+
+
+    def __init__(self, name):
+        self.name = name
+        self.attributes = {}
+        self.elements = []
+    
+
+    def addAttribute(self, key, value):
+        self.attributes[key] = value
+
+
+    def addElement(self, name, info):
+        element = self.XMLElementInfo(name)
+        for k, v in info.items():
+            element.addAttribute(k, v)
+            self.elements.append(element)
+
+
+    def modResidue(self, residue, atom, key, value):
+        pass
 
 
 def get_line_context(file_path, line_number):
@@ -55,6 +89,15 @@ def build_covalent_map(data, max_neighbor):
                         covalent_map[k, i] = n_curr + 1
     return covalent_map
 
+
+def findAtomTypeTexts(attribs, num):
+    typetxt = []
+    for n in range(1, num+1):
+        for key in ["type%i"%n, "class%i"%n]:
+            if key in attribs:
+                typetxt.append((key, attribs[key]))
+                break
+    return typetxt
 
 class ADMPDispGenerator:
     def __init__(self, hamiltonian):
@@ -630,10 +673,13 @@ class HarmonicBondJaxGenerator:
         self.params = {"k": [], "length": []}
         self._jaxPotential = None
         self.types = []
+        self.typetexts = []
 
     def registerBondType(self, bond):
+        typetxt = findAtomTypeTexts(bond, 2)
         types = self.ff._findAtomTypes(bond, 2)
         self.types.append(types)
+        self.typetexts.append(typetxt)
         self.params["k"].append(float(bond["k"]))
         self.params["length"].append(float(bond["length"]))  # length := r0
 
@@ -647,10 +693,9 @@ class HarmonicBondJaxGenerator:
               <HarmonicBondForce>
                 <Bond type1="ow" type2="hw" length="0.09572000000000001" k="462750.3999999999"/>
                 <Bond type1="hw" type2="hw" length="0.15136000000000002" k="462750.3999999999"/>
-              <\HarminicBondForce>
+              <\HarmonicBondForce>
         
         """
-
         generator = HarmonicBondJaxGenerator(hamiltonian)
         hamiltonian.registerGenerator(generator)
         for bondtype in element.findall("Bond"):
@@ -700,7 +745,18 @@ class HarmonicBondJaxGenerator:
 
     def renderXML(self):
         # generate xml force field file
-        pass
+        finfo = XMLNodeInfo("HarmonicBondForce")
+        for ntype in range(len(self.types)):
+            binfo = {}
+            k1, v1 = self.typetexts[ntype][0]
+            k2, v2 = self.typetexts[ntype][1]
+            binfo[k1] = v1
+            binfo[k2] = v2
+            for key in self.params.keys():
+                binfo[key] = "%.8f"%self.params[key][ntype]
+            finfo.addElement("Bond", binfo)
+        return finfo
+
 
 
 # register all parsers
@@ -1450,7 +1506,10 @@ class NonbondJaxGenerator:
             self.params[k] = jnp.array(self.params[k])
 
         mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for PME
-        mscales_coul = mscales_coul.at[2].set(1.0 - self.params["coulomb14scale"][0])
+        mscales_coul = mscales_coul.at[2].set(self.params["coulomb14scale"][0])
+        mscales_lj = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for LJ
+        mscales_lj = mscales_lj.at[2].set(self.params["lj14scale"][0])
+
 
         # Coulomb: only support PME for now
         # set PBC
@@ -1505,29 +1564,6 @@ class NonbondJaxGenerator:
         map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
 
         colv_map = build_covalent_map(data, 6)
-        map_exclusion = []
-        scale_14 = []
-        npair = 0
-        for ii in range(colv_map.shape[0]):
-            for jj in range(ii + 1, colv_map.shape[1]):
-                if colv_map[ii, jj] > 0 and colv_map[ii, jj] < 4:
-                    map_exclusion.append((ii, jj))
-                    if colv_map[ii, jj] == 3:
-                        scale_14.append(npair)
-                    npair += 1
-
-        map_exclusion = np.array(map_exclusion, dtype=int)
-        scale_14 = np.array(scale_14, dtype=int)
-        scale_lj_exclusion = np.ones((map_exclusion.shape[0],))
-        scale_coul_exclusion = np.ones((map_exclusion.shape[0],))
-        scale_lj_exclusion = jnp.array(scale_lj_exclusion)
-        scale_coul_exclusion = jnp.array(scale_coul_exclusion)
-        scale_lj_exclusion = scale_lj_exclusion.at[scale_14].set(
-            1.0 - self.params["lj14scale"][0]
-        )
-        scale_coul_exclusion = scale_coul_exclusion.at[scale_14].set(
-            1.0 - self.params["coulomb14scale"][0]
-        )
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -1549,8 +1585,7 @@ class NonbondJaxGenerator:
             r_cut,
             map_lj,
             map_nbfix,
-            map_exclusion,
-            scale_lj_exclusion,
+            colv_map,
             isSwitch=ifSwitch,
             isPBC=ifPBC,
             isNoCut=isNoCut,
@@ -1561,14 +1596,10 @@ class NonbondJaxGenerator:
             # do not use PME
             if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
                 # use Reaction Field
-                coulforce = CoulReactionFieldForce(
-                    r_cut, map_charge, map_exclusion, scale_coul_exclusion, isPBC=ifPBC
-                )
+                coulforce = CoulReactionFieldForce(r_cut, map_charge, colv_map, isPBC=ifPBC)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
-                coulforce = CoulNoCutoffForce(
-                    map_charge, map_exclusion, scale_coul_exclusion
-                )
+                coulforce = CoulNoCutoffForce(map_charge, colv_map)
         else:
             coulforce = CoulombPMEForce(box, r_cut, self.ethresh, colv_map)
 
@@ -1584,6 +1615,7 @@ class NonbondJaxGenerator:
                 params["sigma"],
                 params["epsfix"],
                 params["sigfix"],
+                mscales_lj
             )
             coulE = coulenergy(positions, box, pairs, params["charge"], mscales_coul)
 
@@ -1604,6 +1636,9 @@ app.forcefield.parsers["NonbondedForce"] = NonbondJaxGenerator.parseElement
 class Hamiltonian(app.forcefield.ForceField):
     def __init__(self, *xmlnames):
         super().__init__(*xmlnames)
+        # add a function to parse AtomTypes and Residues information
+        self._atomtypes = None
+        self._residues = None
         self._potentials = []
 
     def createPotential(
@@ -1628,6 +1663,23 @@ class Hamiltonian(app.forcefield.ForceField):
             except:
                 pass
         return [p for p in self._potentials]
+
+    def render(self, filename):
+        root = ET.Element("ForceField")
+        forceInfos = [g.renderXML() for g in self._forces]
+        for finfo in forceInfos:
+            # create xml nodes
+            if finfo is not None:
+                node = ET.SubElement(root, finfo.name)
+                for key in finfo.attributes.keys():
+                    node.set(key, finfo.attributes[key])
+                for elem in finfo.elements:
+                    subnode = ET.SubElement(node, elem.name)
+                    for key in elem.attributes.keys():
+                        subnode.set(key, elem.attributes[key])
+
+        tree = ET.ElementTree(root)
+        tree.write(filename)
 
 
 if __name__ == "__main__":
