@@ -194,13 +194,13 @@ class ADMPPmeForce:
             else: # converged
                 flag = True
         else:
-            # do fixed number of iterations
-            for i in range(steps_pol):
+            def update_U(i, U):
                 field = self.grad_U_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
-                # E = self.energy_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
                 U = U - field * pol[:, jnp.newaxis] / DIELECTRIC
+                return U
+            U = jax.lax.fori_loop(0, steps_pol, update_U, U)
             flag = True
-        return U, flag, i
+        return U, flag, steps_pol
 
 
 def setup_ewald_parameters(rc, ethresh, box):
