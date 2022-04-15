@@ -155,6 +155,29 @@ class TestClassical:
         energy = coulE(pos, box, pairs, h.getGenerators()[0].params)
         npt.assert_almost_equal(energy, value, decimal=3)
 
+    @pytest.mark.parametrize(
+        "pdb, prm, value",
+        [("data/lig.pdb", "data/lig-prm-single-lj.xml", 22.77804946899414)])
+    def test_gaff2_lj_force(self, pdb, prm, value):
+        app.Topology.loadBondDefinitions("data/lig-top.xml")
+        pdb = app.PDBFile(pdb)
+        h = Hamiltonian(prm)
+        system = h.createPotential(pdb.topology,
+                                   nonbondedMethod=app.NoCutoff,
+                                   constraints=None,
+                                   removeCMMotion=False)
+        pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
+        box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
+        pairs = []
+        for ii in range(pos.shape[0]):
+            for jj in range(ii + 1, pos.shape[0]):
+                pairs.append((ii, jj))
+        pairs = np.array(pairs, dtype=int)
+        pairs = np.array(pairs, dtype=int)
+        ljE = h._potentials[0]
+        energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
+        npt.assert_almost_equal(energy, value, decimal=3)
+
     @pytest.mark.parametrize("pdb, prm, values", [
         ("data/lig.pdb", ["data/gaff-2.11.xml", "data/lig-prm-lj.xml"], [
             174.16702270507812, 99.81585693359375, 99.0631103515625,
@@ -171,7 +194,7 @@ class TestClassical:
                                    constraints=None,
                                    removeCMMotion=False)
         pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
-        box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
+        box = np.array([[20.0, 0.0, 0.0], [0.0, 20.0, 0.0], [0.0, 0.0, 20.0]])
         pairs = []
         for ii in range(pos.shape[0]):
             for jj in range(ii + 1, pos.shape[0]):

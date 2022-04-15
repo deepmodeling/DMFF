@@ -1,6 +1,3 @@
-import sys
-
-sys.path.append("/home/lijichen/work/DMFF")
 from dmff.admp.pairwise import distribute_scalar
 import jax.numpy as jnp
 from dmff.admp.pme import energy_pme, setup_ewald_parameters
@@ -10,9 +7,10 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad
 from dmff.admp.recip import generate_pme_recip, Ck_1
+from dmff.admp.pme import DIELECTRIC 
 
+ONE_4PI_EPS0 = DIELECTRIC * 0.1
 
-ONE_4PI_EPS0 = 138.935456
 
 
 class LennardJonesForce:
@@ -22,23 +20,20 @@ class LennardJonesForce:
         r_cut,
         map_prm,
         map_nbfix,
-        map_exclusion,
-        scale_exclusion,
+        colvmap,
         isSwitch=False,
         isPBC=True,
         isNoCut=False,
     ) -> None:
-
         self.isSwitch = isSwitch
         self.r_switch = r_switch
         self.r_cut = r_cut
 
         self.map_prm = map_prm
         self.map_nbfix = map_nbfix
-        self.map_exclusion = map_exclusion
-        self.scale_exclusion = scale_exclusion
         self.ifPBC = isPBC
         self.ifNoCut = isNoCut
+        self.colvmap = colvmap
 
     def generate_get_energy(self):
         def get_LJ_energy(dr_vec, sig, eps, box):
@@ -54,17 +49,17 @@ class LennardJonesForce:
             sig_dr = sig * dr_inv
             sig_dr6 = jnp.power(sig_dr, 6)
             sig_dr12 = jnp.power(sig_dr6, 2)
-            E = 4 * eps * (sig_dr12 - sig_dr6)
+            E = 4.0 * eps * (sig_dr12 - sig_dr6)
 
             if self.isSwitch:
 
                 x = (dr_norm - self.r_switch) / (self.r_cut - self.r_switch)
-                S = 1 - 6 * x ** 5 + 15 * x ** 4 - 10 * x ** 3
+                S = 1 - 6. * x ** 5 + 15. * x ** 4 - 10. * x ** 3
                 jnp.where(dr_norm > self.r_switch, E, E * S)
 
             return E
 
-        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix):
+        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix, mscales):
 
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)), epsilon.shape[0], axis=1)
             eps_m2 = eps_m1.T
@@ -78,28 +73,21 @@ class LennardJonesForce:
             sig_mat = sig_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(sigfix)
             sig_mat = sig_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(sigfix)
 
+            colv_pair = self.colvmap[pairs[:,0],pairs[:,1]]
+            mscale_pair = mscales[colv_pair-1] # in mscale vector, the 0th item is 1-2 scale, the 1st item is 1-3 scale, etc...
+            
+
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
             prm_pair0 = self.map_prm[pairs[:, 0]]
             prm_pair1 = self.map_prm[pairs[:, 1]]
             eps = eps_mat[prm_pair0, prm_pair1]
             sig = sig_mat[prm_pair0, prm_pair1]
 
-            E_inter = get_LJ_energy(dr_vec, sig, eps, box)
+            eps_scale = eps * mscale_pair
 
-            # exclusion
-            dr_excl_vec = (
-                positions[self.map_exclusion[:, 0]]
-                - positions[self.map_exclusion[:, 1]]
-            )
-            excl_map0 = self.map_prm[self.map_exclusion[:, 0]]
-            excl_map1 = self.map_prm[self.map_exclusion[:, 1]]
-            eps_excl = eps_mat[excl_map0, excl_map1]
-            sig_excl = sig_mat[excl_map0, excl_map1]
+            E_inter = get_LJ_energy(dr_vec, sig, eps_scale, box)
 
-            E_excl = get_LJ_energy(dr_excl_vec, sig_excl, eps_excl, box)
-            E_excl = self.scale_exclusion * E_excl
-
-            return jnp.sum(E_inter) - jnp.sum(E_excl)
+            return jnp.sum(E_inter)
 
         return get_energy
 
@@ -107,12 +95,11 @@ class LennardJonesForce:
 class CoulNoCutoffForce:
     # E=\frac{{q}_{1}{q}_{2}}{4\pi\epsilon_0\epsilon_1 r}
 
-    def __init__(self, map_prm, map_exclusion, scale_exclusion, epsilon_1=1.0) -> None:
+    def __init__(self, map_prm, colvmap, epsilon_1=1.0) -> None:
 
         self.eps_1 = epsilon_1
         self.map_prm = map_prm
-        self.map_exclusion = map_exclusion
-        self.scale_exclusion = scale_exclusion
+        self.colvmap = colvmap
 
     def generate_get_energy(self):
         def get_coul_energy(dr_vec, chrgprod, box):
@@ -124,30 +111,21 @@ class CoulNoCutoffForce:
             return E
 
         def get_energy(positions, box, pairs, charges, mscales):
+
+            colv_pair = self.colvmap[pairs[:,0],pairs[:,1]]
+            mscale_pair = mscales[colv_pair-1]
+
             chrg_map0 = self.map_prm[pairs[:, 0]]
             chrg_map1 = self.map_prm[pairs[:, 1]]
             charge0 = charges[chrg_map0]
             charge1 = charges[chrg_map1]
             chrgprod = charge0 * charge1
+            chrgprod_scale = chrgprod * mscale_pair
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
 
-            E_inter = get_coul_energy(dr_vec, chrgprod, box)
+            E_inter = get_coul_energy(dr_vec, chrgprod_scale, box)
 
-            # exclusion
-            dr_excl_vec = (
-                positions[self.map_exclusion[:, 0]]
-                - positions[self.map_exclusion[:, 1]]
-            )
-            excl_map0 = self.map_prm[self.map_exclusion[:, 0]]
-            excl_map1 = self.map_prm[self.map_exclusion[:, 1]]
-            chrg0_excl = charges[excl_map0]
-            chrg1_excl = charges[excl_map1]
-            chrgprod_excl = chrg0_excl * chrg1_excl
-
-            E_excl = get_coul_energy(dr_excl_vec, chrgprod_excl, box)
-            E_excl = self.scale_exclusion * E_excl
-
-            return jnp.sum(E_inter) - jnp.sum(E_excl)
+            return jnp.sum(E_inter) 
 
         return get_energy
 
@@ -158,8 +136,7 @@ class CoulReactionFieldForce:
         self,
         r_cut,
         map_prm,
-        map_exclusion,
-        scale_exclusion,
+        colvmap,
         epsilon_1=1.0,
         epsilon_solv=78.5,
         isPBC=True,
@@ -171,8 +148,7 @@ class CoulReactionFieldForce:
         self.exp_solv = epsilon_solv
         self.eps_1 = epsilon_1
         self.map_prm = map_prm
-        self.map_exclusion = map_exclusion
-        self.scale_exclusion = scale_exclusion
+        self.colvmap = colvmap
         self.ifPBC = isPBC
 
     def generate_get_energy(self):
@@ -194,30 +170,21 @@ class CoulReactionFieldForce:
             return E
 
         def get_energy(positions, box, pairs, charges, mscales):
+
+            colv_pair = self.colvmap[pairs[:,0],pairs[:,1]]
+            mscale_pair = mscales[colv_pair-1]
+
             chrg_map0 = self.map_prm[pairs[:, 0]]
             chrg_map1 = self.map_prm[pairs[:, 1]]
             charge0 = charges[chrg_map0]
             charge1 = charges[chrg_map1]
             chrgprod = charge0 * charge1
+            chrgprod_scale = chrgprod * mscale_pair
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
 
-            E_inter = get_rf_energy(dr_vec, chrgprod, box)
+            E_inter = get_rf_energy(dr_vec, chrgprod_scale, box)
 
-            # exclusion
-            dr_excl_vec = (
-                positions[self.map_exclusion[:, 0]]
-                - positions[self.map_exclusion[:, 1]]
-            )
-            excl_map0 = self.map_prm[self.map_exclusion[:, 0]]
-            excl_map1 = self.map_prm[self.map_exclusion[:, 1]]
-            chrg0_excl = charges[excl_map0]
-            chrg1_excl = charges[excl_map1]
-            chrgprod_excl = chrg0_excl * chrg1_excl
-
-            E_excl = get_rf_energy(dr_excl_vec, chrgprod_excl, box)
-            E_excl = self.scale_exclusion * E_excl
-
-            return jnp.sum(E_inter) - jnp.sum(E_excl)
+            return jnp.sum(E_inter)
 
         return get_energy
 
