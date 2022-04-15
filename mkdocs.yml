@@ -1,9 +1,14 @@
 site_name: DMFF
 nav:
-  - Home: 'index.md'
-  - About: 'about.md'
-  - 'User Guide':
-    - 'tutorial': 'tutorial.md'
-  - 'Modules':
-    - 'ADMP':
+  - Home: index.md
+  - User Guide:
+    - Introduction: user_guide/readme.md
+    - getting started: user_guide/get_start.md
+  - Dev Guide:
+    - Introduction: dev_guide/readme.md
+  - Modules:
+    - ADMP: 
+      - Introduction: admp/readme.md
+  - About: about.md
+
 theme: readthedocs
