@@ -3,13 +3,19 @@ nav:
   - Home: index.md
   - User Guide:
     - Introduction: user_guide/readme.md
-    - getting started: user_guide/get_start.md
+    - Installation: user_guide/get_start.md
+    - Compute energy and force: user_guide/compute.md
+    - Auto-diff: user_guide/auto_diff.md
+    - couple with MD: user_guide/couple.md
+    
   - Dev Guide:
     - Introduction: dev_guide/readme.md
     - Architecture: dev_guide/arch.md
+    - Convention: dev_guide/convention.md
   - Modules:
     - ADMP: 
       - Introduction: admp/readme.md
+      - Theory: admp/theory.md
   - About: about.md
 
 theme: readthedocs
