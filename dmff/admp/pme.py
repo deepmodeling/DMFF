@@ -6,7 +6,7 @@ from jax import grad, value_and_grad, vmap, jit
 from jax.scipy.special import erf
 from dmff.settings import DO_JIT
 from dmff.admp.settings import POL_CONV, MAX_N_POL
-from dmff.utils import jit_condition
+from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
 from dmff.admp.multipole import C1_c2h, convert_cart2harm
 from dmff.admp.multipole import rot_ind_global2local, rot_global2local, rot_local2global
 from dmff.admp.spatial import v_pbc_shift, generate_construct_local_frames, build_quasi_internal
@@ -19,13 +19,13 @@ DEFAULT_THOLE_WIDTH = 5.0
 from dmff.admp.recip import generate_pme_recip, Ck_1
 
 # for debugging use only
-# from jax_md import partition, space
-# from admp.parser import *
+#from jax_md import partition, space
+#from admp.parser import *
 
-# from jax.config import config
-# config.update("jax_enable_x64", True)
+#from jax.config import config
+#config.update("jax_enable_x64", True)
 
-# Functions that are related to electrostatic pme
+#Functions that are related to electrostatic pme
 
 class ADMPPmeForce:
     '''
@@ -34,20 +34,58 @@ class ADMPPmeForce:
     The so called "environment paramters" means parameters that do not need to be differentiable
     '''
 
-    def __init__(self, box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax, lpol=False):
+    def __init__(self, box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax, lpol=False, lpme=True, steps_pol=None):
+        '''
+        Initialize the ADMPPmeForce calculator.
+
+        Input:
+            box: 
+                (3, 3) float, box size in row
+            axis_type:
+                (na,) int, types of local axis (bisector, z-then-x etc.)
+            covalent_map:
+                (na, na) int, covalent map matrix, labels the topological distances between atoms
+            rc: 
+                float: cutoff distance
+            ethresh: 
+                float: pme energy threshold
+            lmax:
+                int: max L for multipoles
+            lpol:
+                bool: polarize or not?
+            lpme:
+                bool: do pme or simple cutoff? 
+                if False, the kappa will be set to zero and the reciprocal part will not be computed
+            steps:
+                None or int: Whether do fixed number of dipole iteration steps?
+                if None: converge dipoles until convergence threshold is met
+                if int: optimize for this many steps and stop, this is useful if you want to jit the entire function
+
+        Output:
+
+        '''
         self.axis_type = axis_type
         self.axis_indices = axis_indices
         self.rc = rc
         self.ethresh = ethresh
         self.lmax = int(lmax)  # jichen: type checking
-        kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
-        self.kappa = kappa
-        self.K1 = K1
-        self.K2 = K2
-        self.K3 = K3
+        # turn off pme if lpme is False, this is useful when doing cluster calculations
+        self.lpme = lpme
+        if self.lpme is False:
+            self.kappa = 0
+            self.K1 = 0
+            self.K2 = 0
+            self.K3 = 0
+        else:
+            kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
+            self.kappa = kappa
+            self.K1 = K1
+            self.K2 = K2
+            self.K3 = K3
         self.pme_order = 6
         self.covalent_map = covalent_map
         self.lpol = lpol
+        self.steps_pol = steps_pol
         self.n_atoms = int(covalent_map.shape[0]) # len(axis_type)
 
         # setup calculators
@@ -63,7 +101,7 @@ class ADMPPmeForce:
                                  Q_local, None, None, None,
                                  mScales, None, None, self.covalent_map,
                                  self.construct_local_frames, self.pme_recip,
-                                 self.kappa, self.K1, self.K2, self.K3, self.lmax, False)
+                                 self.kappa, self.K1, self.K2, self.K3, self.lmax, False, lpme=self.lpme)
             return get_energy
         else:
             # this is the bare energy calculator, with Uind as explicit input
@@ -72,14 +110,20 @@ class ADMPPmeForce:
                                  Q_local, Uind_global, pol, tholes,
                                  mScales, pScales, dScales, self.covalent_map,
                                  self.construct_local_frames, self.pme_recip,
-                                 self.kappa, self.K1, self.K2, self.K3, self.lmax, True)
+                                 self.kappa, self.K1, self.K2, self.K3, self.lmax, True, lpme=self.lpme)
             self.energy_fn = energy_fn
             self.grad_U_fn = grad(self.energy_fn, argnums=(4))
             self.grad_pos_fn = grad(self.energy_fn, argnums=(0))
             self.U_ind = jnp.zeros((self.n_atoms, 3))
             # this is the wrapper that include a Uind optimizer
-            def get_energy(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=self.U_ind):
-                self.U_ind, self.lconverg, self.n_cycle = self.optimize_Uind(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=U_init)
+            def get_energy(
+                    positions, box, pairs, 
+                    Q_local, pol, tholes, mScales, pScales, dScales, 
+                    U_init=self.U_ind):
+                self.U_ind, self.lconverg, self.n_cycle = self.optimize_Uind(
+                        positions, box, pairs, Q_local, pol, tholes, 
+                        mScales, pScales, dScales, 
+                        U_init=U_init, steps_pol=self.steps_pol)
                 # here we rely on Feynman-Hellman theorem, drop the term dV/dU*dU/dr !
                 # self.U_ind = jax.lax.stop_gradient(U_ind)
                 return self.energy_fn(positions, box, pairs, Q_local, self.U_ind, pol, tholes, mScales, pScales, dScales)
@@ -112,7 +156,11 @@ class ADMPPmeForce:
         self.get_forces = value_and_grad(self.get_energy)
         return
 
-    def optimize_Uind(self, positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=None, maxiter=MAX_N_POL, thresh=POL_CONV):
+    def optimize_Uind(self, 
+            positions, box, pairs, 
+            Q_local, pol, tholes, mScales, pScales, dScales, 
+            U_init=None, steps_pol=None,
+            maxiter=MAX_N_POL, thresh=POL_CONV):
         '''
         This function converges the induced dipole
         Note that we cut all the gradient chain passing through this function as we assume Feynman-Hellman theorem
@@ -131,19 +179,28 @@ class ADMPPmeForce:
             U = jnp.zeros((self.n_atoms, 3))
         else:
             U = U_init
-        site_filter = (pol>0.001) # focus on the actual polarizable sites
+        if steps_pol is None:
+            site_filter = (pol>0.001) # focus on the actual polarizable sites
 
-        for i in range(maxiter):
-            field = self.grad_U_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
-            E = self.energy_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
-            if jnp.max(jnp.abs(field[site_filter])) < thresh:
-                break
-            U = U - field * pol[:, jnp.newaxis] / DIELECTRIC
-        if i == maxiter-1:
-            flag = False
-        else: # converged
+        if steps_pol is None:
+            for i in range(maxiter):
+                field = self.grad_U_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
+                # E = self.energy_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
+                if jnp.max(jnp.abs(field[site_filter])) < thresh:
+                    break
+                U = U - field * pol[:, jnp.newaxis] / DIELECTRIC
+            if i == maxiter-1:
+                flag = False
+            else: # converged
+                flag = True
+        else:
+            def update_U(i, U):
+                field = self.grad_U_fn(positions, box, pairs, Q_local, U, pol, tholes, mScales, pScales, dScales)
+                U = U - field * pol[:, jnp.newaxis] / DIELECTRIC
+                return U
+            U = jax.lax.fori_loop(0, steps_pol, update_U, U)
             flag = True
-        return U, flag, i
+        return U, flag, steps_pol
 
 
 def setup_ewald_parameters(rc, ethresh, box):
@@ -179,7 +236,7 @@ def setup_ewald_parameters(rc, ethresh, box):
 def energy_pme(positions, box, pairs,
         Q_local, Uind_global, pol, tholes,
         mScales, pScales, dScales, covalent_map, 
-        construct_local_frame_fn, pme_recip_fn, kappa, K1, K2, K3, lmax, lpol):
+        construct_local_frame_fn, pme_recip_fn, kappa, K1, K2, K3, lmax, lpol, lpme=True):
     '''
     This is the top-level wrapper for multipole PME
 
@@ -213,8 +270,10 @@ def energy_pme(positions, box, pairs,
             int: max K for reciprocal calculations
         lmax:
             int: maximum L
-        bool:
-            int: if polarizable or not? if yes, 1, otherwise 0
+        lpol:
+            bool: if polarizable or not? if yes, 1, otherwise 0
+        lpme:
+            bool: doing pme? If false, then turn off reciprocal space and set kappa = 0
 
     Output:
         energy: total pme energy
@@ -240,6 +299,9 @@ def energy_pme(positions, box, pairs,
     else:
         Q_global_tot = Q_global
 
+    if lpme is False:
+        kappa = 0
+
     if lpol:
         ene_real = pme_real(positions, box, pairs, Q_global, U_ind, pol, tholes, 
                            mScales, pScales, dScales, covalent_map, kappa, lmax, True)
@@ -247,14 +309,23 @@ def energy_pme(positions, box, pairs,
         ene_real = pme_real(positions, box, pairs, Q_global, None, None, None,
                            mScales, None, None, covalent_map, kappa, lmax, False)
 
-    ene_recip = pme_recip_fn(positions, box, Q_global_tot)
+    if lpme:
+        ene_recip = pme_recip_fn(positions, box, Q_global_tot)
 
-    ene_self = pme_self(Q_global_tot, kappa, lmax)
+        ene_self = pme_self(Q_global_tot, kappa, lmax)
 
-    if lpol:
-        ene_self += pol_penalty(U_ind, pol)
+        if lpol:
+            ene_self += pol_penalty(U_ind, pol)
+        
+        return ene_real + ene_recip + ene_self
 
-    return ene_real + ene_recip + ene_self
+    else:
+        if lpol:
+            ene_self = pol_penalty(U_ind, pol)
+        else:
+            ene_self = 0.0
+
+        return ene_real + ene_self
 
 
 # @partial(vmap, in_axes=(0, 0, None, None), out_axes=0)
@@ -669,7 +740,10 @@ def pme_real(positions, box, pairs,
     '''
 
     # expand pairwise parameters, from atomic parameters
-    pairs = pairs[pairs[:, 0] < pairs[:, 1]]
+    # debug
+    # pairs = pairs[pairs[:, 0] < pairs[:, 1]]
+    pairs = regularize_pairs(pairs)
+    buffer_scales = pair_buffer_scales(pairs)
     box_inv = jnp.linalg.inv(box)
     r1 = distribute_v3(positions, pairs[:, 0])
     r2 = distribute_v3(positions, pairs[:, 1])
@@ -682,6 +756,7 @@ def pme_real(positions, box, pairs,
     nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
     indices = nbonds-1
     mscales = distribute_scalar(mScales, indices)
+    mscales = mscales * buffer_scales
     # mscales = mScales[nbonds-1]
     if lpol:
         pol1 = distribute_scalar(pol, pairs[:, 0])
@@ -691,7 +766,9 @@ def pme_real(positions, box, pairs,
         Uind_extendi = distribute_v3(Uind_global, pairs[:, 0])
         Uind_extendj = distribute_v3(Uind_global, pairs[:, 1])
         pscales = distribute_scalar(pScales, indices)
+        pscales = pscales * buffer_scales
         dscales = distribute_scalar(dScales, indices)
+        dscales = dscales * buffer_scales
         # pol1 = pol[pairs[:,0]]
         # pol2 = pol[pairs[:,1]]
         # thole1 = tholes[pairs[:,0]]
@@ -725,7 +802,10 @@ def pme_real(positions, box, pairs,
         qiUindJ = None
 
     # everything should be pair-specific now
-    ene = jnp.sum(pme_real_kernel(norm_dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscales, pscales, dscales, kappa, lmax, lpol))
+    ene = jnp.sum(
+            pme_real_kernel(norm_dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscales, pscales, dscales, kappa, lmax, lpol)
+            * buffer_scales
+            )
 
     return ene
 
