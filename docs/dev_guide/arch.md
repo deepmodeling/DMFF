@@ -24,6 +24,7 @@ When users use the DMFF, the only thing need to do is initilize the the `Hamilto
 
 Hamiltonian class is the top-level frontend module, which inherits from the [forcefield class](https://github.com/openmm/openmm/blob/master/wrappers/python/openmm/app/forcefield.py) of OpenMM. It is responsible for parsing XML force field files and generating potential functions to calculate system energy for given topology information. First, the usage of Hamiltonian class is given:
 
+
 ```python
 H = Hamiltonian('forcefield.xml')
 app.Topology.loadBondDefinitions("residues.xml")
@@ -52,6 +53,7 @@ Hamiltonian class performs the following operations during instantiation:
 
 ### Generator Class
 
+
 The generator class in charge of input file analysis, molecular topology construction, atomic classification, and expansion from force field parameter layer to atomic parameter layer. It is a middle layer link `Hamiltonian` and backend. See the following documents for the specific design logic:
 
 ![generator](../assets/generator.svg)
@@ -72,6 +74,7 @@ will activate `HarmonicBondJaxGenerator.parseElement` method which is the value 
 
 What `parseElement` do is parse `Element` object and initialize generator itself. The parameters in generators can be classified into to category. Those differentiable shoud store in a `dict` named `dict`, and non-differentiable static parameters can simply set as generator's attribute. Jax support pytree nested container, and `params` can be directly grad.
 
+  
 * `createForce(self, system, data, nonbondedMethod, *args)` pre-process XML parameters, initialize calculator. `System` and `data` are given by OpenMM's forcefield class, which store topology/atomType information (For now you need to use debug tool to access). To avoid break the differentiate chain, from XML raw data to per-atom properties, we should use `data` to construct per-atom info directly. Here is an example:
 
 ```python
@@ -84,7 +87,9 @@ for i in range(n_atoms):
 
 Finally, we need to bind calculator's compute function to `self._jaxPotential`
 
+
 ```python
+            
 def potential_fn(positions, box, pairs, params):
     return bforce.get_energy(
         positions, box, pairs, params["k"], params["length"]
@@ -176,6 +181,7 @@ class HarmonicBondJaxGenerator:
         # Work with xml tree. Element is the node of forcefield.
         # Use element.findall and element.attrib to get the 
         # children nodes and attributes in the node.
+            
         generator = HarmonicBondJaxGenerator(hamiltonian)
         hamiltonian.registerGenerator(generator)
         for bondtype in element.findall("Bond"):
@@ -219,6 +225,7 @@ class HarmonicBondJaxGenerator:
 
         # potential_fn is the function to call potential, in which the dict self.params
         # is fed to harmonic bond potential function
+            
         def potential_fn(positions, box, pairs, params):
             return bforce.get_energy(
                 positions, box, pairs, params["k"], params["length"]
