@@ -18,4 +18,3 @@ In the *easily expand new form* section, finally we can write the calculation pa
 In the *Write related docs* section, we will talk about how to write the manual. Duo to the DMFF is a collection of force field module, each force field has it unique parameters and usage. To make it clear to use and easy to maintain, you should write down the theroy behind the code and the meaning of parameters. 
 
 In the *Checklist before PR* section is what you should do before you publish your work to the Github. In this section, you will know how to write unit test, format checking and proper comment.
-
