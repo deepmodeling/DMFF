@@ -1,9 +1,13 @@
 # How to write XML file
 
-OpenMM的力场文件设计颇为模块化，有着很高的便利性。但遗憾的是现存资料较少，文档不够明确。现将OpenMM XML文件格式及含义整理如下。
-拓扑文件
-拓扑文件用于描述残基的成键信息。对于残基名称匹配的分子，OpenMM的Topology模块会按照XML文件中信息为原子添加成键。
-XML文件示例如下：
+The force field file design of openmm is quite modular and has high convenience. Unfortunately, there are few existing introductions and the documents are not clear enough. Now the format and meaning of OpenMM XML file are sorted as follows.
+
+## Topology file
+
+Topology file is used to describe the bonding information of residues. For molecules with residue name matching, the topology module of openmm will add keys for atoms according to the information in the XML file.
+
+Examples of XML files are as follows:
+```xml
 <!-- residues.xml -->
 <Residues>
     <Residue name="ALA">
@@ -23,25 +27,32 @@ XML文件示例如下：
         <Bond from="HXT" to="OXT"/>
     </Residue>
 </Residues>
+```
 
-其中"-C"表示与上一个残基中的"C"原子连接。在匹配时，同名残基内所有原子间均会尝试匹配，一旦匹配成功则会成键，匹配失败则跳过，因此实际成键数可以少于模板中设定的数目。
-XML文件注册方法如下：
+Where "- C" indicates the connection with the "C" atom in the **previous** residue. During typification, all atoms in the residue with the same name will try to match. Once the typification is successful, it will be bonded, and if the matching fails, it will be skipped. Therefore, the actual number of bonds can be less than the number set in the template.
+
+The XML file registration method is as follows:
+
+``` python
 try:
     import openmm.app as app
 except:
     import simtk.openmm.app as app
     
-    
-app.Topology.loadBondDefinations("residues.xml") # 注册残基拓扑
+app.Topology.loadBondDefinations("residues.xml") # register residue topology
 
-# 创建Topology并为其添加原子和残基, 读取PDB时自动执行这一过程
+# Create topology and add atoms and residues to it, which is automatically performed when reading PDB
 top = app.Topology()
 ...
-top.createStandardBonds() # 依照模板文件连接成键
+top.createStandardBonds() # Connect keys according to template files
+```
 
-需要注意的是disulfide bond不在这一步骤中完成。OpenMM Topology类会寻找有CYS中没有连接HG的SG原子，并将小于0.3 nm的原子对连接为disulfide bond。
-力场参数文件
-力场参数文件如下所示：
+It should be noted that disulfide bond is not completed in this step. The OpenMM topology class will look for SG atoms in Cys that are not connected to Hg, and connect atom pairs less than 0.3nm as disulfide bonds.
+
+## Force field parameter file
+
+The force field parameter file is as follows:
+``` xml
 <!-- tip3p.xml -->
 <ForceField>
     <Residues>
@@ -69,10 +80,11 @@ top.createStandardBonds() # 依照模板文件连接成键
         <Atom type="spce-H" sigma="1" epsilon="0"/>
     </NonbondedForce>
 </ForceField>
+```
+This document can be divided into residue part and force field part.
 
-这一文件可以分为残基部分与力场部分。
-残基部分
-残基部分为：
+### residue part
+``` xml
 <!-- tip3p.xml -->
 <ForceField>
     <Residues>
@@ -86,8 +98,10 @@ top.createStandardBonds() # 依照模板文件连接成键
     </Residues>
     ...
 </ForceField>
+```
+The `<atom>` node of the residue part defines the atomtype of each atom in the residue and some parameter information of per atom, which can be called by the force field part on demand. The `<bond>` node defines the bonding information of residues. The information contained in this part is different from that in the topology file above. Take ALA as an example. For ALA, we usually need to define at least three state, N-end, C-end and in-chain. The template in the force field is as follows:
 
-残基部分的<Atom>节点定义了残基中每个原子的atomtype和一些per atom的参数信息，以供力场部分按需调用。其中的<Bond>节点则定义了残基的成键信息，这一部分包含的信息与上文拓扑文件中会有一些区别。以ALA举例，对于ALA，我们通常至少需要定义它的N端、C端和链中三个状态，力场中模板如下：
+``` xml
 <Residue name="ALA">
   <Atom charge="-0.4157" name="N" type="protein-N"/>
   <Atom charge="0.2719" name="H" type="protein-H"/>
@@ -161,10 +175,11 @@ top.createStandardBonds() # 依照模板文件连接成键
   <Bond atomName1="C" atomName2="O"/>
   <ExternalBond atomName="C"/>
 </Residue>
+```
 
-在这一例子中，ALA、CALA、NALA的原子个数与成键关系均不相同。匹配每个ALA时，OpenMM会尝试将CALA、NALA与ALA均进行匹配，最后选择原子个数、元素组成、成键关系均与该残基相同的模板来为每个原子定义力场参数。
-力场部分
-力场部分包含了以下内容：
+In this example, the atom number and bonding relationship of ALA, CALA and NALA are different. When matching each ALA, OpenMM will try to match CALA, NALA and ALA, and finally select the template with the same number of atoms, element composition and bonding relationship as the residue to define the force field parameters for each atom.
+
+### forcefield part
 <!-- tip3p.xml -->
 <ForceField>
     ...
@@ -185,7 +200,8 @@ top.createStandardBonds() # 依照模板文件连接成键
     </NonbondedForce>
 </ForceField>
 
-其中<AtomTypes>节点定义了诸多原子类型。残基部分中每个粒子的"type"标签会与<AtomTypes>各个子节点的"name"标签匹配。对于每个原子类型，它还定义了"class"标签，用于不同的匹配场景。不同<Type>子节点的"name"必须不同，但"class"可以相同。
-<XXXForce>节点则定义了某种势函数的匹配规则，如<HarmonicBondForce>定义了Harmonic Bond、<NonbondedForce>节点则定义了分子间相互作用。具体参数细节可以查看文档：
-http://docs.openmm.org/latest/userguide/application/05_creating_ffs.html#writing-the-xml-file
-匹配过程中，OpenMM会遍历所有的atom、bond、angle、dihedral、improper，并将所有能匹配到的条目全部加入总的势函数中。匹配可以根据"type"标签进行，对应<AtomType>中每个原子的"name"；还可以根据"class"标签进行，对应<AtomType>中每个原子的"class"。这一设计适用于原子类型多但大体相同的情况，譬如小分子力场中LJ参数种类较少，但分子内作用力参数则种类繁多。我们甚至可以对特定的小分子创建单独的type用于定义intra-molecular interaction，但在LJ上则归属于相同的class，以达成小分子参数各自调优、互不影响的效果。
+The `<atomtypes>` node defines many atomic types. The `type` label of each atom in the residue part will match the `name` label of each child node of `<atomtypes>`. For each atom type, it also defines a `class` tag for different matching scenarios. The `name` of different `<type>` child nodes must be different, but the `class` can be the same.
+
+The `<*force>` node defines the matching rule of a potential function. For example, `<HarmonicBondForce>` defines harmonic bond, and the `<NonBondedForce>` node defines intermolecular interaction. You can view the document for specific parameter [details](http://docs.openmm.org/latest/userguide/application/05_creating_ffs.html#writing-the-xml-file)
+
+In the matching process, OpenMM will iterate all atom, bond, angle, dihedral and improver, and add all matching entries to the total potential function. Matching can be carried out according to the `type` tag, corresponding to the `name` of each atom in `<atomtype>`; It can also be based on the `class` tag, corresponding to the `class` of each atom in `<atomtype>`. This design is applicable to the situation that there are many types of atoms but they are roughly the same. For example, there are few kinds of LJ parameters in small molecular force field, but there are many kinds of intramolecular force parameters. We can even create a separate type for a specific small molecule to define the intra molecular interaction, but it belongs to the same class on LJ, so as to achieve the effect that the small molecule parameters can be tuned and do not affect each other.
