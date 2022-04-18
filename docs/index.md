@@ -1,17 +1,7 @@
-# Welcome to MkDocs
+# Welcome to DMFF
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+This project aims to establish a general extensible framework to support the development of organic molecular force field and the fitting of parameters in the force field. The main target of the project include: biological macromolecules (peptides, proteins, nucleic acids, etc.), organic macromolecules, organic small molecules (including organic electrolyte, small molecule drugs), etc.
 
-## Commands
+There are many factors involved in organic molecular interactions, and the behavior of organic molecular systems (such as protein folding, polymer structure, etc.) often depends on the joint influence of various interactions. The existing general organic molecular force fields (such as OPLS and amber) are mainly empirical fitting, and their portability and prediction ability are insufficient. When extended to new molecules, the parameter fitting process is cumbersome and strongly depends on error cancellation under manual intervention.
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
-
-## Project layout
-
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+In order to accurately describe organic molecular systems, we need to accurately model various interactions within and between molecules (including long-range and short-range). Therefore, it is necessary to realize a closer combination of traditional force field and AI method, and apply AI tools to short-range potential energy surface fitting, traditional force field parameter optimization and so on. We will use the automatic differential programming framework to develop the tool chain from force field calculation to molecular mechanics simulation, so as to realize the complex functions such as traditional force field / machine learning hybrid model and parameter optimization based on molecular mechanics trajectory. Based on this project, a new generation of general organic force field database is developing, and a more automatic force field development process is established.

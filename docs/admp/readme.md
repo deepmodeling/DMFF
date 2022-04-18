@@ -20,13 +20,13 @@ ADMP module depends on the following packages, install them before using ADMP:
 
 1. Install [jax](https://github.com/google/jax) (pick the correct cuda version, see more details on their installation guide):
 
-   ```bash
+   ```
    pip install jax[cuda11_cudnn82] -f https://storage.googleapis.com/jax-releases/jax_releases.html
    ```
 
 2. Install [jax-md](https://github.com/google/jax-md) :
 
-   ```bash
+   ```
    pip install jax-md --upgrade
    ```
 
@@ -36,7 +36,7 @@ ADMP module depends on the following packages, install them before using ADMP:
 
    ADMP is a pure python module, just simply put it in your $PYTHONPATH.
 
-   ```bash
+   ```
    export PYTHONPATH=$PYTHONPATH:/path/to/admp	
    ```
 
