@@ -54,6 +54,7 @@ pot_pme = potentials[1]
 ### Generator Class
 
 
+
 The generator class in charge of input file analysis, molecular topology construction, atomic classification, and expansion from force field parameter layer to atomic parameter layer. It is a middle layer link `Hamiltonian` and backend. See the following documents for the specific design logic:
 
 ![generator](../assets/generator.svg)
