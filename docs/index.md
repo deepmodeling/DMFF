@@ -1,4 +1,4 @@
-# DMFF's documentation
+# DMFF's Manual
 
 **DMFF** (**D**ifferentiable **M**olecular **F**orce **F**ield) is a package written in Python, designed to implement differentiable molecular force field calculations. This project aims to establish a general extensible framework to support the development of force fields by minimizing the effort required during the parameters fitting process. Currently, the project mainly focuses on development of force fields that describe the following systems: water, biological macromolecules (peptides, proteins, nucleic acids), organic polymers (PEG) and small organic molecules (organic electrolyte, drug-like molecules).
 
