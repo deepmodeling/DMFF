@@ -1,11 +1,12 @@
-# About development guide
+# 1. Introduction
 
-In this section, you will learn:
-    - Architecture of DMFF
-    - Code convention
-    - Easily expand a new form
-    - Write related docs
-    - Checklist before PR
+In the developer guide, you will learn:
+    
++ Architecture of DMFF
++ Code convention
++ Easily expand a new form
++ Write related docs
++ Checklist before PR
 
 DMFF aims to establish a force field calculation and parameter fitting framework supporting automatic differentiation. In order to meet various forms of force field, DMFF calculates energy and force parameters through different force field sub-modules. DMFF ensures sufficient decoupling and modularization at the beginning of the design and can easily add new modules. 
 
