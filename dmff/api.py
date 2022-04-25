@@ -1864,6 +1864,11 @@ class NonbondJaxGenerator:
                 generator.useAttributeFromResidue.append(eprm)
         for atom in element.findall("Atom"):
             generator.registerAtom(atom.attrib)
+            
+        # jax it!
+        for k in generator.params.keys():
+            generator.params[k] = jnp.array(generator.params[k])
+        generator.types = np.array(generator.types)
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
 
@@ -1944,6 +1949,7 @@ class NonbondJaxGenerator:
         map_nbfix = []
         # implement it later
         map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
+        
 
         colv_map = build_covalent_map(data, 6)
 
@@ -1962,11 +1968,11 @@ class NonbondJaxGenerator:
         else:
             r_switch = r_cut
             ifSwitch = False
-            
+        
         map_lj = jnp.array(map_lj)
         map_nbfix = jnp.array(map_nbfix)
-        map_charge = jnp.array(map_charge)
-            
+        map_charge = jnp.array(map_charge)  
+        
         ljforce = LennardJonesForce(
             r_switch,
             r_cut,
