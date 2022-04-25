@@ -1,0 +1,14 @@
+<ForceField>
+    <Info>
+        <DateGenerated>2022-01-13</DateGenerated>
+    </Info>
+    <Residues>
+        <Residue name="h2o" nametype="classical">
+            <Atom name="O" type="oh" charge="-0.8476" mass="15.999" />
+            <Atom name="H1" type="ho" charge="0.4238" mass="1.008" />
+            <Atom name="H2" type="ho" charge="0.4238" mass="1.008" />
+            <Bond atomName1="O" atomName2="H1" />
+            <Bond atomName1="O" atomName2="H2" />
+        </Residue>
+    </Residues>
+</ForceField>
