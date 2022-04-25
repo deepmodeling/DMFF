@@ -1962,6 +1962,11 @@ class NonbondJaxGenerator:
         else:
             r_switch = r_cut
             ifSwitch = False
+            
+        map_lj = jnp.array(map_lj)
+        map_nbfix = jnp.array(map_nbfix)
+        map_charge = jnp.array(map_charge)
+            
         ljforce = LennardJonesForce(
             r_switch,
             r_cut,

@@ -4,25 +4,22 @@
 
 The overall framework of DMFF can be divided into two parts: parser & typing and calculators. We usually refer to the former as the *frontend* and the latter as the *backend* for ease of description.
 
-DMFF introduces different forms of force fields in a modular way. For any form of force field, it is divided into frontend modules and backend modules. The frontend module is responsible for input file parsing, molecular topology construction, atomic typification, and unfolding from the forcefield parameter layer to the atomic parameter layer; The backend module is the calculation core, which calculates the energy & force of the system at a time by particle positions and system properties.
+DMFF introduces different forms of force fields in a modular way. We divide each potential implementation into a frontend module and a backend module. The frontend module is responsible for input file parsing, molecular topology construction, atomic typification, and unfolding from the forcefield parameter layer to the atomic parameter layer. The backend module is the calculation core, which calculates the energy and forces of the system at a time by particle positions and system properties.
 
-In the design of the front-end module, DMFF reuses the frontend parser module from OpenMM and realizes the functions of topology analysis. All frontend modules are stored in `api.py` and called by the Hamiltonian class.
-
-The backend module is usually an automatically differentiable computing module built with Jax. 
-
-The structure of frontend and backend modules will be introduced in detail in the following documents.
+In the frontend module design, DMFF reuses the frontend parser module and topology workflow from OpenMM. All the frontend modules are stored in `api.py` and called by the Hamiltonian class, while the backend modules are usually automatically differentiable computing modules built with Jax. We will introduce the structure of frontend and backend modules in detail in the following documents.
 
 ## How Frontend Works
 
-Frontend modules are stored in `api.py`. `Hamiltonian` class is the top-level class exposed to users by DMFF. `Hamiltonian` class reads the path of the XML file, parses the XML file, and calls different frontend modules according to the XML tags. The frontend module has the same form as OpenMM's generator [forcefield.py](https://github.com/openmm/openmm/blob/master/wrappers/python/openmm/app/forcefield.py). The `Generator` class takes the XML tag in and parse the parameters, initialize the backend calculator and provide the interface of energy calculation method.
+Frontend modules are implemented in `api.py`. The `Hamiltonian` class is the top-level class exposed to users by DMFF. The `Hamiltonian` class reads the path of the XML file, parses the XML file, and calls different frontend modules according to the XML tags. The frontend module has the same form as the OpenMM generators in [forcefield.py](https://github.com/openmm/openmm/blob/master/wrappers/python/openmm/app/forcefield.py). The `Generator` class takes the XML tag in, parses the parameters, initializes the backend calculator, and provides the interface of the energy calculation method.
 
-When users use the DMFF, the only thing need to do is initilize the the `Hamiltonian` class. In this process, `Hmiltonian` will automatically parse and initialize the corresponding potential function according to the tags in XML. The call logic is shown in the following chart. The box represents the command executed in Python script, and the rounded box represents the internal operation logic of OpenMM when executing the command.
+
+When users use the DMFF, the only thing needs to do is initialize the `Hamiltonian` class. In this process, `Hamiltonian` will automatically parse and initialize the corresponding potential function according to the tags in XML. The call logic is shown in the following chart. The box represents the command executed in Python script, and the rounded box represents the internal operation logic of OpenMM when executing the command.
 
 ![openmm_workflow](../assets/opemm_workflow.svg)
 
 ### Hamiltonian Class
 
-Hamiltonian class is the top-level frontend module, which inherits from the [forcefield class](https://github.com/openmm/openmm/blob/master/wrappers/python/openmm/app/forcefield.py) of OpenMM. It is responsible for parsing XML force field files and generating potential functions to calculate system energy for given topology information. First, the usage of Hamiltonian class is given:
+Hamiltonian class is the top-level frontend module, which inherits from the [forcefield class](https://github.com/openmm/openmm/blob/master/wrappers/python/openmm/app/forcefield.py) of OpenMM. It is responsible for parsing XML force field files and generating potential functions to calculate system energy for given topology information. First, the usage of the Hamiltonian class is provided:
 
 
 ```python
@@ -49,19 +46,22 @@ pot_pme = potentials[1]
 * read AtomTypes tag, store AtomType of each atom;
 * for each Force tag, call corresponding `parseElement` method in `app.forcefield.parser` to parse itself, and register `generator`.
 
-`app.forcefield.parser` is a `dict`, the keys are Force tag names, and the values are `parseElement` method of `generator`. The Hamiltonian parse XML file will use the tag name to look up the corresponding `parseElement` method—the `generator` instance stores raw data from the XML file. You can use generators by `getGenerators()` in Hamiltonian. 
+
+`app.forcefield.parser` is a `dict`. The keys are Force tag names, and the values are `parseElement` method of `Generator`. The Hamiltonian class will use the tag name to look up the corresponding `parseElement` method of the `Generator` instance and store raw data from the XML file. You can get generators by the `getGenerators()` function of Hamiltonian. 
+
 
 ### Generator Class
 
 
-The generator class in charge of input file analysis, molecular topology construction, atomic classification, and expansion from force field parameter layer to atomic parameter layer. It is a middle layer link `Hamiltonian` and backend. See the following documents for the specific design logic:
+The generator class is in charge of input file analysis, molecular topology construction, atomic classification, and expansion from the force field parameter layer to the atomic parameter layer. It is a middle layer link `Hamiltonian` and backend. See the following documents for the specific design logic:
+
 
 ![generator](../assets/generator.svg)
 
-The custom generator must define those methods:
+The custom generator must have those methods:
 
 
-* @staticmethod parseElement(element, hamiltonian): OpenMM use `element.etree` parse tag in XML file, and `element` is `Element` object. For instance, if there were a section in XML file that defines bond potential:
+* `@staticmethod parseElement(element, hamiltonian)`: OpenMM use `element.etree` parse tag in XML file, and `element` is `Element` object. For instance, if there was a section in XML file describing a harmonic bond potential:
 
 ```xml
   <HarmonicJaxBondForce>
@@ -70,12 +70,13 @@ The custom generator must define those methods:
   </HarmonicJaxBondForce>
 ```
 
-will activate `HarmonicBondJaxGenerator.parseElement` method which is the value of key `app.forcefield.parsers["HarmonicBondForce"]`. You can use `element.findall("Bond")` to get a iterator of the `Element` object of <Bond> tage. For `Element` object, you can use `.attrib` to get {'type1': 'ow} properties in `dict` format.
+It will activate `HarmonicBondJaxGenerator.parseElement` method, which is the value of key `app.forcefield.parsers["HarmonicBondForce"]`. In this function, you can use `element.findall("Bond")` to get an iterator of the `Element` objects of <Bond> tage. For `Element` object, you can use `.attrib` to get properties such as {'type1': 'ow} in `dict` format.
 
-What `parseElement` does is parse the `Element` object and initialize the generator itself. The parameters in generators can be classified into two categories. Those differentiable should store in a `dict` named `dict`, and non-differentiable static parameters can simply be set as the generator's attribute. Jax support `pytree` nested container, and `params` can be directly grad.
+
+What `parseElement` does is parsing the `Element` object and initializing the generator itself. The parameters in generators can be classified into two categories. Those differentiable parameters should store in a `dict` named `params`, and non-differentiable static parameters can simply be set as the generator's attribute. Jax support `pytree` nested container, and the values of `params` can be directly grad.
 
   
-* `createForce(self, system, data, nonbondedMethod, *args)` pre-process XML parameters, initialize calculator. `System` and `data` are given by OpenMM's forcefield class, which store topology/atomType information (For now you need to use debug tool to access). To avoid break the differentiate chain, from XML raw data to per-atom properties, we should use `data` to construct per-atom info directly. Here is an example:
+* `createForce(self, system, data, nonbondedMethod, *args)`: It pre-processes XML parameters and initializes the calculator. `system` and `data` are given by OpenMM's forcefield class, which stores topology/atomType information (For now, you need to use debug tool to access). To avoid breaking the differentiate chain, from XML raw data to per-atom properties, we should use `data` to construct per-atom info directly. Here is an example:
 
 ```python
 map_atomtype = np.zeros(n_atoms, dtype=int)
@@ -98,7 +99,7 @@ def potential_fn(positions, box, pairs, params):
 self._jaxPotential = potential_fn
 ```
 
-All parameters accepted by `potential_fn` should be differentiable. Non differentiable parameters are passed into it by closure (see code convention section). Meanwhile, if the generator need to initialize multiple calculators (e.g. `NonBondedJaxGenerator` will call `LJ` and `PME` two kinds of calculators), `potential_fn` will return the summation of two potential energy. 
+All parameters accepted by `potential_fn` should be differentiable. Non-differentiable parameters are passed into it by closure (see code convention section). Meanwhile, if the generator needs to initialize multiple calculators (e.g., `NonBondedJaxGenerator` will call `LJ` and `PME` two kinds of calculators), `potential_fn` will return the summation of two potential energy. 
 
 Here is a pseudo-code of the frontend module, demonstrating basic API and method
 
@@ -150,7 +151,7 @@ class Hamiltonian(app.ForceField):
         return [p for p in self._potentials]
 ```
 
-And here is a HarmonicBond potential implement:
+And here is a harmonic bond generator implement:
 
 ```python
 class HarmonicBondJaxGenerator:
@@ -194,7 +195,7 @@ class HarmonicBondJaxGenerator:
         self.types = np.array(self.types)
 
         n_bonds = len(data.bonds)
-        # data is the data structure built by OpenMM, saving topology information of the system.
+        # `data` is the data structure built by OpenMM, saving topology information of the system.
         # The object maintains all the bonds, angles, dihedrals and impropers.
         # And it also maintains the atomtype of each particle.
         # Use data.atoms, data.bonds, data.angles, data.dihedrals, data.impropers 
@@ -245,9 +246,7 @@ app.forcefield.parsers["HarmonicBondForce"] = HarmonicBondJaxGenerator.parseElem
 
 ### Force Class
 
-Force class is the module to build potential function. It does not require OpenMM and can 
-be very flexible. For instance, the Force class of harmonic bond potential is shown below 
-as an example of jax potential function.
+Force class is the module to build potential functions. It does not require OpenMM and can be very flexible. For instance, the Force class of harmonic bond potential is shown below as an example of the JAX potential function.
 
 ```python
 def distance(p1v, p2v):
