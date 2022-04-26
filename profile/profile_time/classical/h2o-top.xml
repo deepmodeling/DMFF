@@ -1,5 +1,0 @@
-<Residues>
-    <Residue name='h2o'>
-        <Bond from='ho' to='oh'/>
-    </Residues>
-</Residues>

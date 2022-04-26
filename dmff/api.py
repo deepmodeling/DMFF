@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from copy import deepcopy
 import openmm as mm
 import openmm.app as app
 import openmm.unit as unit
@@ -8,7 +9,7 @@ import jax.numpy as jnp
 from collections import defaultdict
 import xml.etree.ElementTree as ET
 from .admp.disp_pme import ADMPDispPmeForce
-from .admp.multipole import convert_cart2harm
+from .admp.multipole import convert_cart2harm, convert_harm2cart
 from .admp.pairwise import TT_damping_qq_c6_kernel, generate_pairwise_interaction
 from .admp.pairwise import slater_disp_damping_kernel, slater_sr_kernel, TT_damping_qq_kernel
 from .admp.pme import ADMPPmeForce
@@ -702,6 +703,7 @@ class ADMPPmeGenerator:
         generator.types = np.array(generator.types)
 
         n_atoms = len(element.findall("Atom"))
+        generator.n_atoms = n_atoms
 
         # map atom multipole moments
         if generator.lmax == 0:
@@ -1043,7 +1045,28 @@ class ADMPPmeGenerator:
         return self._jaxPotential
 
     def renderXML(self):
-        pass
+        
+        finfo = XMLNodeInfo('ADMPPmeForce')
+        finfo.addAttribute('lmax', str(self.lmax))
+        outputparams = deepcopy(self.params)
+        mScales = outputparams.pop('mScales')
+        pScales = outputparams.pop('pScales')
+        dScales = outputparams.pop('dScales')
+        for i in range(len(mScales)):
+            finfo.addAttribute(f'mScale1{i+2}', str(mScales[i]))
+        for i in range(len(pScales)):
+            finfo.addAttribute(f'pScale{i+1}', str(pScales[i]))
+        for i in range(len(dScales)):
+            finfo.addAttribute(f'dScale{i+1}', str(dScales[i]))
+                    
+        Q = outputparams['Q_local']
+        Q_global = convert_harm2cart(Q)
+        for atom in range(self.n_atoms):
+            info = {}
+            for i, key in enumerate(['c0', 'dX', 'dY', 'dZ', 'qXX', 'qXY', 'qXZ', 'qYY', 'qYZ', 'qZZ']):
+                info[key] = "%.8f" % Q_global[atom][i]
+            finfo.addElement(atom, info)
+        return finfo
 
 
 app.forcefield.parsers["ADMPPmeForce"] = ADMPPmeGenerator.parseElement
