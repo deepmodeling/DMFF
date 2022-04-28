@@ -98,4 +98,5 @@ if __name__ == '__main__':
     pairs = nbobj.pairs
     pair, mask = nbobj.pair_mask
     distance = nbobj.distance
-    print(pairs*mask)
+    pair_energy = jnp.ones(len(pairs))
+    print(pair_energy*mask)
