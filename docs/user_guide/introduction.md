@@ -1,16 +1,17 @@
 # 1. Introduction
 
-In this user guide, you will learn:
+In this user guide, you will learn how to:
 
-- Installation of DMFF
-- Computation of energy and force
-- Auto differentiate alone computation path
+- Install DMFF
+- Compute energy and force
+- Auto differentiate potential functions
 - Couple DMFF with MD engine
 
-The first thing you should know is that DMFF is not an actual force field (such as OPLS or AMBER), but a collection of various force field (or called "potential") forms:
+The first thing you should know is that DMFF is not an actual force field (such as OPLS or AMBER), but a differentiable implementation of various force field (or "potential") functional forms. It contains many modules:
 
-- Automatic Differentiable Multipolar Polarizable (ADMP)
-- Classical force field derived from GAFF
-- SGNN
+- ADMP module: Automatic Differentiable Multipolar Polarizable potential (MPID like potentials)
+- Classical module: implements classical force fields (OPLS or GAFF like potentials)
+- SGNN module: implements subgragh neural network model for intramolecular interactions
 
-Those modules can easily be combined with a specific research topic to create a force field. Each module has its usage and required parameters, and provide them in a specified XML file and then use them under a Python program. With DMFF, one can calculate the energy and force of a molecular mechanics system and even get the parameters' gradient. 
+Each module implements a particular form of force field, which takes a unique set of input parameters, usually provided in a XML file. With DMFF, one can easily compute the energy as well as energy gradients including: forces, virial tensors, and gradients with respect to force field parameters etc.
+

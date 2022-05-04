@@ -1,6 +1,6 @@
 # 2. Installation
-## 2.1 Install dependencies
-+ Install [jax](https://github.com/google/jax) (pick the correct cuda version, see more details on their installation guide):
+## 2.1 Install Dependencies
++ Install [jax](https://github.com/google/jax) (select the correct cuda version, see more details in the Jax installation guide):
 ```bash
 pip install jax[cuda11_cudnn82] -f https://storage.googleapis.com/jax-releases/jax_releases.html
 ```
@@ -12,19 +12,19 @@ pip install jax-md
 ```bash
 conda install -c conda-forge openmm
 ```
-## 2.2 Install DMFF from source code
-One can download the source code of DMFF by
+## 2.2 Install DMFF from Source Code
+One can download the DMFF source code from github:
 ```bash
 git clone https://github.com/deepmodeling/DMFF.git
 ```
-then you may install DMFF easily by:
+Then you may install DMFF using `pip`:
 ```bash
 cd dmff
 pip install . --user
 ```
 
-## 2.3 Test installation
-To test if the DMFF is correctly installed, you can run the following commands in a Python interpreter:
+## 2.3 Test Installation
+To test if DMFF is correctly installed, you can run the following commands in an interactive python session:
 ```python
 >>> import dmff
 >>> import dmff.admp
@@ -38,4 +38,4 @@ python ./run_admp.py
 cd ./examples/water_pol_1024
 python ./run_admp.py
 ```
-Note that the first run of the scripts will be a little bit slow if `DO_JIT = True` in `dmff/settings.py`. This is because the programm will try to do the jit compilation.
+Note that the scripts will run slower than expect if `DO_JIT = True` in `dmff/settings.py`. This is because the programm will do the jit compilation when a function is invoked in the first time.

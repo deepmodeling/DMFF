@@ -1,4 +1,4 @@
-# Theory background
+# Theoretical background
 
 DMFF project aims to implement organic molecular force fields using a differentiable programming framework, such that derivatives with respect to atomic positions, box shape, and force field parameters can be easily computed. It contains different modules, dealing with different types of force field terms. Currently, there are two primary modules:
 
@@ -30,39 +30,43 @@ where $Q_t^A$ represents the t-component of the multipole moment of atom A. Note
 
 $$0, 10, 1c, 1s, 20, 21c, 21s, 22c, 22s, ...$$
 
-The $$T_{tu}^{AB}$$ represents the interaction tensor between multipoles. The mathematical expression of these tensors can be found in the appendix F of Ref 1. The user can also find the conversion rule between different representations in Ref 1 & 5.
+The $T_{tu}^{AB}$ represents the interaction tensor between multipoles. The mathematical expression of these tensors can be found in the appendix F of Ref 1. The user can also find the conversion rule between different representations in Ref 1 & 5.
 
 
 ## Coordinate System for Multipoles
 
 Different to charges, the definition of multipole moments depends on the coordinate system. The exact value of the moment tensor will be rotated in accord to different coordinate systems. There are three types of frames involved in DMFF, each used in a different scenario:
 
-  - Global frame: coordinate system binds to the simulation box. It is same for all the atoms. We use this frame to calculate the charge density structure factor $$S(\vec{k})$$ in reciprocal space.
+  - Global frame: coordinate system binds to the simulation box. It is same for all the atoms. We use this frame to calculate the charge density structure factor $S(\vec{k})$ in reciprocal space.
   - Local frame: this frame is defined differently on each atom, determined by the positions of its peripheral atoms. Normally, atomic multipole moments are most stable in the local frame, so it is the most suitable frame for force field input. In DMFF API, the local frames are defined using the same way as the AMOEBA plugin in OpenMM. The details can found in the following references:
       * [OpenMM forcefield.py](https://github.com/openmm/openmm/blob/master/wrappers/python/openmm/app/forcefield.py#L4894), line 4894~4933
       * [J. Chem. Theory Comput. 2013, 9, 9, 4046–4063](https://pubs.acs.org/doi/abs/10.1021/ct4003702)
-  - Quasi internal frame, aka. QI frame: this frame is defined for each pair of interaction sites, in which the z-axis is pointing from one site to another. In this frame, the real-space interaction tensor ($$T_{tu}^{AB}$$) can be greatly simplified due to symmetry. We thus use this frame in the real space calculation of PME.
+  - Quasi internal frame, aka. QI frame: this frame is defined for each pair of interaction sites, in which the z-axis is pointing from one site to another. In this frame, the real-space interaction tensor ($T_{tu}^{AB}$) can be greatly simplified due to symmetry. We thus use this frame in the real space calculation of PME.
 
 
 ## Polarization Interaction
 
-DMFF supports polarizable force fields, in which the dipole moment of the atom can respond to the change of the external electric field. In practice, each atom has not only permanent multipoles $\hat{Q}_t$, but also induced dipoles $U_{ind}$. The induced dipole-induced dipole and induced dipole-permanent multipole interactions needs to be damped at short-range to avoid polarization catastrophe. In DMFF, we use the Thole damping scheme identical to MPID (ref 6), which introduces a damping width ($$a_i$$) for each atom $$i$$. The damping function is then computed and applied to the corresponding interaction tensor. Taking $$U_{ind}$$-permanent charge interaction as an example, the definition of damping function is:
+DMFF supports polarizable force fields, in which the dipole moment of the atom can respond to the change of the external electric field. In practice, each atom has not only permanent multipoles $\hat{Q}_t$, but also induced dipoles $U_{ind}$. The induced dipole-induced dipole and induced dipole-permanent multipole interactions needs to be damped at short-range to avoid polarization catastrophe. In DMFF, we use the Thole damping scheme identical to MPID (ref 6), which introduces a damping width ($a_i$) for each atom $i$. The damping function is then computed and applied to the corresponding interaction tensor. Taking $U_{ind}$-permanent charge interaction as an example, the definition of damping function is:
 
 $$
-1-\left(1+a u+\frac{1}{2} a^{2} u^{2}\right) e^{-a u} \\ a=a_i + a_j \\ u=r_{ij}/\left(\alpha_i \alpha_j\right)^{1/6} 
+\displaylines{
+1-\left(1+a u+\frac{1}{2} a^{2} u^{2}\right) e^{-a u} \\ 
+a=a_i + a_j \\ 
+u=r_{ij}/\left(\alpha_i \alpha_j\right)^{1/6} 
+}
 $$
 
 Other damping functions between multipole moments can be found in Ref 6, table I. 
 
-It is noted that the atomic damping parameter $$a=a_i+a_j$$ is only effective on topological neighboring pairs (with $$pscale = 0$$), while a default value of $$a_{default}$$ is set for all other pairs. In DMFF, the atomic $$a_i$$ is specified via the xml API, while $$a_{default}$$  is controlled by the `dmff.admp.pme.DEFAULT_THOLE_WIDTH` variable, which is set to 5.0 by default.
+It is noted that the atomic damping parameter $a=a_i+a_j$ is only effective on topological neighboring pairs (with $pscale = 0$), while a default value of $a_{default}$ is set for all other pairs. In DMFF, the atomic $a_i$ is specified via the xml API, while $a_{default}$  is controlled by the `dmff.admp.pme.DEFAULT_THOLE_WIDTH` variable, which is set to 5.0 by default.
 
-We solve $$U_{ind}$$ by minimizing the electrostatic energy:
+We solve $U_{ind}$ by minimizing the electrostatic energy:
 
 $$
 V=V_{perm-perm}+V_{perm-ind}+V_{ind-ind}
 $$
 
-The last two terms are related to $U_{ind}$. Without introducing the nonlinear polarization terms (e.g., some force fields introduce $$U^4$$ to avoid polarization catastrophe), the last two terms are quadratic to $$U_{ind}$$: 
+The last two terms are related to $U_{ind}$. Without introducing the nonlinear polarization terms (e.g., some force fields introduce $U^4$ to avoid polarization catastrophe), the last two terms are quadratic to $U_{ind}$: 
 
 $$
 V_{perm-ind}+V_{ind-ind}=U^TKU-FU
@@ -105,31 +109,39 @@ $$
 The first term is a short-range term, which can be calculated directly by using a simple distance cutoff in real space. The second term is a long-range term, which needs to be calculated in reciprocal space by fast Fourier transform(FFT). The total energy of charge-charge interaction is computed as:
 
 $$
-E_{real}=\sum_{ij}\frac{erfc(\kappa r_{ij})}{r_{ij}}\\E_{recip} = \sum_{\vec{k}\neq 0} {\frac{2\pi}{Vk^2}\exp\left[\frac{k^2}{4\kappa^2}\right]\left|S(\vec{k})\right|^2}\frac{1}{\left|\theta(\vec{k})\right|^2}\\E_{self}=-\frac{\kappa}{\sqrt{\pi}}\sum_i {q_i^2} \\E=E_{real}+E_{recip}+E_{self}
+\displaylines{
+E_{real} = \sum_{ij}\frac{erfc(\kappa r_{ij})}{r_{ij}}  \\
+E_{recip} = \sum_{\vec{k}\neq 0} {\frac{2\pi}{Vk^2}\exp\left[\frac{k^2}{4\kappa^2}\right]\left|S(\vec{k})\right|^2}\frac{1}{\left|\theta(\vec{k})\right|^2} \\ 
+E_{self} = -\frac{\kappa}{\sqrt{\pi}}\sum_i {q_i^2} \\
+E = E_{real}+E_{recip}+E_{self}
+}
 $$
 
 As for multipolar PME and dispersion PME, the users and developers are referred to Ref 2, 3, and 5 for mathematical details.
 
 The key parameters in PME include:
 
-  - $\kappa$: controls the separation of the long-range and the short-range. The larger $\kappa$ is, the faster the real space energy decays, the smaller the cutoff distance can be used in the real space, and more difficult it is to converge the reciprocal energy and the larger $$K_{max}$$ it needs;
+  - $\kappa$: controls the separation of the long-range and the short-range. The larger $\kappa$ is, the faster the real space energy decays, the smaller the cutoff distance can be used in the real space, and more difficult it is to converge the reciprocal energy and the larger $K_{max}$ it needs;
 
-  - $ r_{c}$: cutoff distance in real space;
+  - $r_{c}$: cutoff distance in real space;
 
-  - $ K_{max}$: controls the number of maximum k-points in all three dimensions
+  - $K_{max}$: controls the number of maximum k-points in all three dimensions
 
 
 In DMFF, we determine these parameters in the same way as in [OpenMM](http://docs.openmm.org/latest/userguide/theory/02_standard_forces.html#coulomb-interaction-with-particle-mesh-ewald):
 
 $$
-\kappa=\sqrt{-\log (2 \delta)} / r_{c} \\ K_{max}=\frac{2 \kappa d}{3 d^{1 / 5}}
+\displaylines{
+\kappa=\sqrt{-\log (2 \delta)} / r_{c} \\ 
+K_{max}=\frac{2 \kappa d}{3 d^{1 / 5}}
+}
 $$
 
 where the user needs to specify the cutoff distance $r_c$ when building the neighbor list, the width of the box in each dimension $d$ (determined from the input box matrix), and the energy accuracy $\delta$.
 
 In the current version, the dispersion PME calculator uses the same parameters as in electrostatic PME.
 
-## Short-range Interaction
+## Short-Range Interaction
 
 Short-range pair interaction refers to all interactions with the following form:
 
@@ -142,7 +154,10 @@ Some common short-range pair interactions include:
   -  The repulsive part of the Buckingham or the Lennard-Jones potential:
 
 $$
-v(r)=A\exp(-\beta r)\\v(r)=\frac{C^{12}}{r^{12}}
+\displaylines{
+v(r)=A\exp(-\beta r) \\ 
+v(r)=\frac{C^{12}}{r^{12}}
+}
 $$
 
   - Tang-Tonnies Damping: damping function for short-range electrostatic and dispersion energies.
@@ -150,14 +165,18 @@ $$
     f_n(r, \beta) = 1 - e^{-\beta r}\sum_{k=0}^n {\frac{(\beta r)^k}{k!}}
 $$
 
-In ADMP, the user can define a pairwise kernel function $$f(dr)=f(dr, m, a_i,a_j,b_i,b_j,\dots)$$ ($a_i, b_i$ are atomic parameters), then use `generate_pairwise_interaction` to raise the kernel function into an energy calculator (see details in ADMP manual).
+In ADMP, the user can define a pairwise kernel function $f(dr)=f(dr, m, a_i,a_j,b_i,b_j,\dots)$ ($a_i, b_i$ are atomic parameters), then use `generate_pairwise_interaction` to raise the kernel function into an energy calculator (see details in ADMP manual).
 
-## Combination Rule:
+## Combination Rule
 
 For most traditional force fields, pairwise parameters between interacting particles are determined by atomic parameters. This mathematical relationship is called the combination rule. For example, in the calculation of LJ potential, the following combination rule may be used:    
 
 $$
-v(r)=4\varepsilon\left[\left(\frac{\sigma}{r}\right)^{12}-\left(\frac{\sigma}{r}\right)^6\right]\\ \sigma=\frac{\sigma_i + \sigma_j}{2} \\ \varepsilon=\sqrt{\varepsilon_i \varepsilon_j}
+\displaylines{
+v(r)=4\varepsilon\left[\left(\frac{\sigma}{r}\right)^{12}-\left(\frac{\sigma}{r}\right)^6\right] \\ 
+\sigma=\frac{\sigma_i + \sigma_j}{2} \\ 
+\varepsilon=\sqrt{\varepsilon_i \varepsilon_j}
+}
 $$
 
 In ADMP module, we do not make any assumptions about the specific mathematical forms of the combination rule and $v(r)$. Users need to write them in the definition of the pairwise kernel function.
@@ -191,12 +210,16 @@ Intramolecular bonding interactions refer to all interactions that depend on int
 
   * Harmonic Bonding Terms
     The definition of the bonding term in DMFF is the same as in OpenMM. For each bond, we have:
-    $$E=\frac{1}{2}k(x-x_0)^2$$
+$$
+E=\frac{1}{2}k(x-x_0)^2
+$$
     Note prefactor $1/2$ before the force constant.
   
   * Harmonic Angle Terms
     we have: 
-    $$E=\frac{1}{2} k\left(\theta-\theta_{0}\right)^{2}$$
+$$
+E=\frac{1}{2} k\left(\theta-\theta_{0}\right)^{2}
+$$
   
   * Dihedral Terms
     1. Proper dihedral
@@ -214,11 +237,11 @@ In DMFF, the input parameters that need to be optimized are called **force field
 
 The design of the high-level DMFF API is based on the existing framework of OpenMM. DMFF needs to keep the derivation chain uninterrupted when dispatching the force field params into atomic params. Therefore, maintaining the basic design logic of OpenMM, we rewrite the typification part of OpenMM using Jax. Briefly speaking, OpenMM/DMFF requires the users to clearly define the type of each atom in each residue and the connection mode between atoms in residue templates. Then the residue templates are used to match the PDB file to typify the whole system. See the following [documents](../dev_guide/arch.MD) for details.
 
-## References：
+## References
 
 1. [Anthony's book](https://oxford.universitypressscholarship.com/view/10.1093/acprof:oso/9780199672394.001.0001/acprof-9780199672394)
 2. [The Multipolar Ewald paper in JCTC:  J. Chem. Theory Comput. 2015, 11, 2, 436–450](https://pubs.acs.org/doi/abs/10.1021/ct5007983)
 3. [The dispersion Ewald/PME](https://aip.scitation.org/doi/pdf/10.1063/1.470117)
 4. [Frenkel & Smit book](https://www.elsevier.com/books/understanding-molecular-simulation/frenkel/978-0-12-267351-1)
-5. Note: multipole ewald.pdf
+5. Note on multipole ewald. [link](multipole_pme.md)
 6. [MPID Reference](https://doi.org/10.1063/1.4984113)

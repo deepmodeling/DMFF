@@ -6,7 +6,7 @@ In this section, you will learn:
 
 ## code organization
 
-The root directory of DMFF has following sub-directory:
+The root directory of DMFF has following sub-directories:
 
     - `dmff`: source code of project
     - `docs`: documents in markdown
