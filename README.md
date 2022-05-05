@@ -6,20 +6,20 @@ The behavior of organic molecular systems (e.g., protein folding, polymer struct
 
 ## User Guide
 
-+ [1. Introduction](user_guide/introduction.md)
-+ [2. Installation](user_guide/installation.md)
-+ [3. Compute energy and forces](user_guide/compute.md)
-+ [4. Compute gradients with auto differentiable framework](user_guide/auto_diff.md)
-+ [5. Theories](user_guide/theory.md)
-+ [6. Introduction to force field xml files](user_guide/xml_spec.md)
++ [1. Introduction](docs/user_guide/introduction.md)
++ [2. Installation](docs/user_guide/installation.md)
++ [3. Compute energy and forces](docs/user_guide/compute.md)
++ [4. Compute gradients with auto differentiable framework](docs/user_guide/auto_diff.md)
++ [5. Theories](docs/user_guide/theory.md)
++ [6. Introduction to force field xml files](docs/user_guide/xml_spec.md)
 
 ## Developer Guide
-+ [1. Introduction](dev_guide/introduction.md)
-+ [2. Architecture](dev_guide/arch.md)
-+ [3. Convention](dev_guide/convention.md)
++ [1. Introduction](docs/dev_guide/introduction.md)
++ [2. Architecture](docs/dev_guide/arch.md)
++ [3. Convention](docs/dev_guide/convention.md)
 
 ## Modules
-+ [1. ADMP](modules/admp.md)
++ [1. ADMP](docs/modules/admp.md)
 
 
 ## Support and Contribution
