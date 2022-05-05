@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import numpy.testing as npt
 import pytest
-from admp.spatial import (build_quasi_internal,
+from dmff.admp.spatial import (build_quasi_internal,
                           generate_construct_local_frames, pbc_shift,
                           v_pbc_shift)
 

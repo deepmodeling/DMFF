@@ -1,0 +1,48 @@
+<ForceField>
+ <AtomTypes>
+  <Type name="1" class="OW" element="O" mass="15.99943"/>
+  <Type name="2" class="HW" element="H" mass="1.007947"/>
+  <Type name="3" class="H2W" element="H" mass="1.007947"/>
+  <Type name="4" class="MW"  mass="0"/>
+ </AtomTypes>
+ <Residues>  
+  <Residue name="HOH">
+   <Atom name="O" type="1"/>
+   <Atom name="H1" type="2"/>
+   <Atom name="H2" type="3"/>
+   <Atom name="M" type="4"/>
+   <VirtualSite type="average3" index="3" atom1="0" atom2="1" atom3="2" weight1="0.73612" weight2="0.13194" weight3="0.13194"/>
+   <Bond from="0" to="1"/>
+   <Bond from="0" to="2"/>
+  </Residue>
+ </Residues>
+ <AmoebaMultipoleForce  direct11Scale="1.0"  direct12Scale="1.0"  direct13Scale="1.0"  direct14Scale="1.0"
+    mpole12Scale="0.5"  mpole13Scale="0.5"  mpole14Scale="0.8"  mpole15Scale="0.8"  mutual11Scale="0.0"
+    mutual12Scale="0.0"  mutual13Scale="1.0"  mutual14Scale="1.0"  polar12Scale="1.0"  polar13Scale="0.0"
+    polar14Intra="0.5"  polar14Scale="1.0"  polar15Scale="1.0"  >
+     <Multipole type="1" kz="-2" kx="3" c0="-0.741706" d1="0" d2="0" d3="-0.00784325" q11="0.000366476" q21="0" q22="-0.000381799" q31="0" q32="0" q33="1.53231e-05" /> />
+     <Multipole type="2" kz="1" kx="3" c0="0.370853" d1="-0.00121713" d2="0" d3="-0.00095895" q11="6.7161e-06" q21="0" q22="-3.37874e-05" q31="1.25905e-05" q32="0" q33="2.70713e-05"  />
+     <Multipole type="3" kz="1" kx="2" c0="0.370853" d1="-0.00121713" d2="0" d3="-0.00095895" q11="6.7161e-06" q21="0" q22="-3.37874e-05" q31="1.25905e-05" q32="0" q33="2.70713e-05" />
+     <Multipole type="4" kz="0" kx="0" c0="0.0" d1="0" d2="0" d3="0" q11="0" q21="0" q22="0" q31="0" q32="0" q33="0" />
+     <Polarize type="1" polarizability="1.1249e-03" thole="0.33" pgrp1="1" />
+     <Polarize type="2" polarizability="2.6906e-04" thole="0.33" pgrp1="1" />
+     <Polarize type="3" polarizability="2.6906e-04" thole="0.33" pgrp1="1" />
+     <Polarize type="4" polarizability="0" thole="0.33" pgrp1="1" />
+</AmoebaMultipoleForce>
+ <CustomNonbondedForce bondCutoff="4"
+    energy="2625.5*A*exp(-B*18.89726878*r)+(-2625.5)*exp(-B*18.89726878*r)*(1+B*18.89726878*r)*Q/(18.89726878*r)-(1-exp(-B*18.89726878*r)*(1+B*18.89726878*r+0.5*(B*18.89726878*r)^2+(B*18.89726878*r)^3/6+(B*18.89726878*r)^4/24+(B*18.89726878*r)^5/120+(B*18.89726878*r)^6/720))*C6/(r^6) - C8/(r^8) - C10/(r^10);
+    B=sqrt(B1*B2);Q=Q1*Q2; C6=sqrt(C61*C62); C8=sqrt(C81*C82); C10=sqrt(C101*C102); A=sqrt(A1*A2)" >
+
+    <PerParticleParameter name="B"/>
+    <PerParticleParameter name="Q"/>
+    <PerParticleParameter name="C6"/>
+    <PerParticleParameter name="C8"/>
+    <PerParticleParameter name="C10"/>
+    <PerParticleParameter name="A"/>
+    <Atom class="OW"  B="2.00095977"  Q="-0.741706"  C6="1.3836E-03" C8="7.27065e-05" C10="1.8076465e-06" A="458.3777"/>
+    <Atom class="HW"  B="1.999519942" Q="0.370853" C6="5.7929E-05" C8="1.416624e-06" C10="2.26525e-08" A="0.0317"/>
+    <Atom class="H2W"  B="1.999519942" Q="0.370853" C6="5.7929E-05" C8="1.416624e-06" C10="2.26525e-08" A="0.0317"/>
+    <Atom class="MW"  B="0" Q="0" C6="0" C8="0" C10="0" A="0"/>
+ </CustomNonbondedForce>
+
+</ForceField>

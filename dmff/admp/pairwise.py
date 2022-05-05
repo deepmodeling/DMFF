@@ -1,9 +1,11 @@
 import sys
 from jax import vmap
 import jax.numpy as jnp
-from dmff.utils import jit_condition
+from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
 from dmff.admp.spatial import v_pbc_shift
 from functools import partial
+
+DIELECTRIC = 1389.35455846
 
 # for debug
 # from jax_md import partition, space
@@ -62,13 +64,17 @@ def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
     '''
 
     def pair_int(positions, box, pairs, mScales, *atomic_params):
-        pairs =  pairs[pairs[:, 0] < pairs[:, 1]]
+        pairs = regularize_pairs(pairs)
+
         ri = distribute_v3(positions, pairs[:, 0])
         rj = distribute_v3(positions, pairs[:, 1])
         # ri = positions[pairs[:, 0]]
         # rj = positions[pairs[:, 1]]
         nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
         mscales = distribute_scalar(mScales, nbonds-1)
+
+        buffer_scales = pair_buffer_scales(pairs)
+        mscales = mscales * buffer_scales
         # mscales = mScales[nbonds-1]
         box_inv = jnp.linalg.inv(box)
         dr = ri - rj
@@ -82,7 +88,7 @@ def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
             # pair_params.append(param[pairs[:, 0]])
             # pair_params.append(param[pairs[:, 1]])
 
-        energy = jnp.sum(pair_int_kernel(dr, mscales, *pair_params))
+        energy = jnp.sum(pair_int_kernel(dr, mscales, *pair_params) * buffer_scales)
         return energy
 
     return pair_int
@@ -104,10 +110,62 @@ def TT_damping_qq_c6_kernel(dr, m, ai, aj, bi, bj, qi, qj, ci, cj):
     br6 = br5 * br
     exp_br = jnp.exp(-br)
     f = 2625.5 * a * exp_br \
-        + (-2625.5) * exp_br * (1+br) * q / br \
+        + (-2625.5) * exp_br * (1+br) * q / r \
         + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720) * c / dr**6
 
     return f * m
+
+
+@vmap
+@jit_condition(static_argnums={})
+def TT_damping_qq_kernel(dr, m, bi, bj, qi, qj):
+    b = jnp.sqrt(bi * bj)
+    q = qi * qj
+    br = b * dr
+    exp_br = jnp.exp(-br)
+    f = - DIELECTRIC * exp_br * (1+br) * q / dr 
+    return f * m
+
+
+@vmap
+@jit_condition(static_argnums=())
+def slater_disp_damping_kernel(dr, m, bi, bj, c6i, c6j, c8i, c8j, c10i, c10j):
+    '''
+    Slater-ISA type damping for dispersion:
+    f(x) = -e^{-x} * \sum_{k} x^k/k!
+    x = Br - \frac{2*(Br)^2 + 3Br}{(Br)^2 + 3*Br + 3}
+    see jctc 12 3851
+    '''
+    b = jnp.sqrt(bi * bj)
+    c6 = c6i * c6j
+    c8 = c8i * c8j
+    c10 = c10i * c10j
+    br = b * dr
+    br2 = br * br
+    x = br - (2*br2 + 3*br) / (br2 + 3*br + 3)
+    s6 = 1 + x + x**2/2 + x**3/6 + x**4/24 + x**5/120 + x**6/720
+    s8 = s6 + x**7/5040 + x**8/40320
+    s10 = s8 + x**9/362880 + x**10/3628800
+    exp_x = jnp.exp(-x)
+    f6 = exp_x * s6
+    f8 = exp_x * s8
+    f10 = exp_x * s10
+    return (f6*c6/dr**6 + f8*c8/dr**8 + f10*c10/dr**10) * m
+
+
+@vmap
+@jit_condition(static_argnums=())
+def slater_sr_kernel(dr, m, ai, aj, bi, bj):
+    '''
+    Slater-ISA type short range terms
+    see jctc 12 3851
+    '''
+    b = jnp.sqrt(bi * bj)
+    a = ai * aj
+    br = b * dr
+    br2 = br * br
+    P = 1/3 * br2 + br + 1 
+    return a * P * jnp.exp(-br) * m
 
 
 def validation(pdb):

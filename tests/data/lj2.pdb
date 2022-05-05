@@ -1,0 +1,6 @@
+HETATM    1  N1  LIG A   1       0.000   1.000   0.000  1.00  0.00           N
+HETATM    2  N2  LIG A   1       1.000   0.000   1.000  1.00  0.00           N
+HETATM    3  N1  LIG A   2       2.700   1.600   0.200  1.00  0.00           N
+HETATM    4  N2  LIG A   2       3.700   0.600   1.200  1.00  0.00           N
+CONECT    1    2
+CONECT    3    4

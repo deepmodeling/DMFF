@@ -1,3 +1,10 @@
+
+# temporary
+err
+out
+sub.sh
+*.npy
+
 ### C++ ###
 # Prerequisites
 *.d
@@ -463,7 +470,6 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.iobj
-*.pdb
 *.ipdb
 *.pgc
 *.pgd
@@ -769,3 +775,4 @@ FodyWeavers.xsd
 
 ### VisualStudio Patch ###
 # Additional files built by Visual Studio
+.vscode/**
