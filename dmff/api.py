@@ -8,6 +8,8 @@ import numpy as np
 import jax.numpy as jnp
 from collections import defaultdict
 import xml.etree.ElementTree as ET
+
+from sympy import content
 from .admp.disp_pme import ADMPDispPmeForce
 from .admp.multipole import convert_cart2harm, convert_harm2cart
 from .admp.pairwise import TT_damping_qq_c6_kernel, generate_pairwise_interaction
@@ -45,12 +47,24 @@ class XMLNodeInfo:
         
         def addAttribute(self, key, value):
             self.attributes[key] = value
+            
+        def __repr__(self):
+            return f'<{self.name} {" ".join([f"{k}={v}" for k, v in self.attributes.items()])}>'
+        
+        def __getitem__(self, name):
+            return self.attributes[name]
 
 
     def __init__(self, name):
         self.name = name
         self.attributes = {}
         self.elements = []
+        
+    def __getitem__(self, name):
+        if isinstance(name, str):
+            return self.attributes[name]
+        elif isinstance(name, int):
+            return self.elements[name]
     
 
     def addAttribute(self, key, value):
@@ -61,11 +75,18 @@ class XMLNodeInfo:
         element = self.XMLElementInfo(name)
         for k, v in info.items():
             element.addAttribute(k, v)
-            self.elements.append(element)
+        self.elements.append(element)
 
 
     def modResidue(self, residue, atom, key, value):
         pass
+
+    def __repr__(self):
+        # tricy string formatting
+        left = f'<{self.name} {" ".join([f"{k}={v}" for k, v in self.attributes.items()])}> \n\t'
+        right = f'<\\{self.name}>'
+        content = '\n\t'.join([repr(e) for e in self.elements])
+        return left + content + '\n' + right
 
 
 def get_line_context(file_path, line_number):
@@ -212,9 +233,9 @@ app.forcefield.parsers["ADMPDispForce"] = ADMPDispGenerator.parseElement
 
 
 class ADMPDispPmeGenerator:
-    '''
+    r'''
     This one computes the undamped C6/C8/C10 interactions
-    u = \sum_{ij} c6/r^6 + c8/r^8 + c10/r^10
+    math:`u = \sum_{ij} c6/r^6 + c8/r^8 + c10/r^10 $$`
     '''
 
     def __init__(self, hamiltonian):
@@ -317,7 +338,7 @@ class ADMPDispPmeGenerator:
 app.forcefield.parsers["ADMPDispPmeForce"] = ADMPDispPmeGenerator.parseElement
 
 class QqTtDampingGenerator:
-    '''
+    r'''
     This one calculates the tang-tonnies damping of charge-charge interaction
     E = \sum_ij exp(-B*r)*(1+B*r)*q_i*q_j/r
     '''
@@ -393,7 +414,7 @@ app.forcefield.parsers["QqTtDampingForce"] = QqTtDampingGenerator.parseElement
 
 
 class SlaterDampingGenerator:
-    '''
+    r'''
     This one computes the slater-type damping function for c6/c8/c10 dispersion
     E = \sum_ij (f6-1)*c6/r6 + (f8-1)*c8/r8 + (f10-1)*c10/r10
     fn = f_tt(x, n)
@@ -475,7 +496,7 @@ app.forcefield.parsers["SlaterDampingForce"] = SlaterDampingGenerator.parseEleme
 
 
 class SlaterExGenerator:
-    '''
+    r'''
     This one computes the Slater-ISA type exchange interaction
     u = \sum_ij A * (1/3*(Br)^2 + Br + 1)
     '''
@@ -1046,6 +1067,8 @@ class ADMPPmeGenerator:
 
     def renderXML(self):
         
+        # <ADMPPmeForce>
+        
         finfo = XMLNodeInfo('ADMPPmeForce')
         finfo.addAttribute('lmax', str(self.lmax))
         outputparams = deepcopy(self.params)
@@ -1060,12 +1083,24 @@ class ADMPPmeGenerator:
             finfo.addAttribute(f'dScale{i+1}', str(dScales[i]))
                     
         Q = outputparams['Q_local']
-        Q_global = convert_harm2cart(Q)
+        Q_global = convert_harm2cart(Q, self.lmax)
+        
+        # <Atom>
         for atom in range(self.n_atoms):
-            info = {}
+            info = {'type': self.map_atomtype[atom]}
+            info.update({ktype:self.kStrings[ktype][atom] for ktype in ['kz', 'kx', 'ky']})
             for i, key in enumerate(['c0', 'dX', 'dY', 'dZ', 'qXX', 'qXY', 'qXZ', 'qYY', 'qYZ', 'qZZ']):
                 info[key] = "%.8f" % Q_global[atom][i]
-            finfo.addElement(atom, info)
+            finfo.addElement('Atom', info)
+            
+        # <Polarize>
+        for t in range(len(self.types)):
+            info = {
+                'type': self.types[t]
+            }
+            info.update({p: "%.8f" % self.params['pol'][t] for p in ['polarizabilityXX', 'polarizabilityYY', 'polarizabilityZZ']})
+            finfo.addElement('Polarize', info)
+            
         return finfo
 
 
@@ -1091,7 +1126,7 @@ class HarmonicBondJaxGenerator:
     @staticmethod
     def parseElement(element, hamiltonian):
 
-        """parse <HarmonicBondForce> section in XML file
+        r"""parse <HarmonicBondForce> section in XML file
         
             example: 
             
@@ -1183,7 +1218,7 @@ class HarmonicAngleJaxGenerator:
 
     @staticmethod
     def parseElement(element, hamiltonian):
-        """ parse <HarmonicAngleForce> section in XML file
+        r""" parse <HarmonicAngleForce> section in XML file
 
             example:
               <HarmonicAngleForce>
