@@ -1,12 +1,22 @@
 # How to write XML file
 
-The force field file design of openmm is quite modular and has high convenience. Unfortunately, there are few existing introductions and the documents are not clear enough. Now the format and meaning of OpenMM XML file are sorted as follows.
+The design of openmm force field file is quite modular and convenient to use. Unfortunately, only limited documentations are available right now to explain the details of the file format. Here, the format and the meaning of the OpenMM XML file are sorted in details in below.
+
+Overall speaking, the typification process is composed by the following steps:
+
+1. Build the residue topology (draw all bonds) according to the residue name. This is done by matching the residue template in the topology file.
+
+2. Match the residue topology with the right parameter template.
+
+3. Use the information in the matched parameter template to define the potential function. More specifically, go over all forces (i.e., potential components), and for each force (e.g., the bond stretching potential), match all terms (e.g., find all bonds) and register these terms in the total potential. 
+
+The files involved in this process are introduced below.
 
 ## Topology file
 
-Topology file is used to describe the bonding information of residues. For molecules with residue name matching, the topology module of openmm will add keys for atoms according to the information in the XML file.
+Topology file is used to describe the bonding information of residues. Whenever a residue name is matched, the OpenMM topology module will add keys for atoms according to the information in the topology file.
 
-Examples of XML files are as follows:
+An example of the residue topology XML file is as follows:
 ```xml
 <!-- residues.xml -->
 <Residues>
@@ -29,7 +39,7 @@ Examples of XML files are as follows:
 </Residues>
 ```
 
-Where "- C" indicates the connection with the "C" atom in the **previous** residue. During typification, all atoms in the residue with the same name will try to match. Once the typification is successful, it will be bonded, and if the matching fails, it will be skipped. Therefore, the actual number of bonds can be less than the number set in the template.
+Where "-C" indicates an external bond between the "C" atom and the **previous** residue. During typification, the code will try to match all atoms in the topology template with the actual atoms in the real structure. Once a match is successful, the matched atom will be bonded accordingly. If the match fails, this template atom will be skipped. Therefore, the actual number of bonds in the matched structure can be less than the number of bonds defined in the template. 
 
 The XML file registration method is as follows:
 
@@ -47,9 +57,11 @@ top = app.Topology()
 top.createStandardBonds() # Connect keys according to template files
 ```
 
-It should be noted that disulfide bond is not completed in this step. The OpenMM topology class will look for SG atoms in Cys that are not connected to Hg, and connect atom pairs less than 0.3nm as disulfide bonds.
+After this process, the bonding topologies are constructed in the matched residue, but the force field parameters are not yet assigned. It should be noted that disulfide bonds are not registered in this step. The OpenMM topology class will look for SG atoms in Cys that are not connected to Hg, and connect SG atom pairs within 0.3nm as disulfide bonds.
 
-## Force field parameter file
+## Force field Parameter File
+
+After all bonds are constructed using the topology file, the force field parameters will be assigned using the force field parameter file.
 
 The force field parameter file is as follows:
 ``` xml
@@ -81,9 +93,9 @@ The force field parameter file is as follows:
     </NonbondedForce>
 </ForceField>
 ```
-This document can be divided into residue part and force field part.
+This file can be further divided into the residue part and the force field part.
 
-### residue part
+### Residue Part
 ``` xml
 <!-- tip3p.xml -->
 <ForceField>
@@ -99,7 +111,7 @@ This document can be divided into residue part and force field part.
     ...
 </ForceField>
 ```
-The `<atom>` node of the residue part defines the atomtype of each atom in the residue and some parameter information of per atom, which can be called by the force field part on demand. The `<bond>` node defines the bonding information of residues. The information contained in this part is different from that in the topology file above. Take ALA as an example. For ALA, we usually need to define at least three state, N-end, C-end and in-chain. The template in the force field is as follows:
+The `<atom>` node of the residue part defines all the atoms involved in the residue and some paramemters per atom, which can be called by the force field part on demand. The `<bond>` node defines the bonding information of the residue. The information contained in this part is different from that in the topology file discussed above. Take ALA as an example, we usually have at least three states for ALA, N-end, C-end and in-chain. The corresponding parameter templates in the force field file are as follows:
 
 ``` xml
 <Residue name="ALA">
@@ -139,7 +151,7 @@ The `<atom>` node of the residue part defines the atomtype of each atom in the r
   <Atom charge="-0.8055" name="OXT" type="protein-O2"/>
   <Bond atomName1="N" atomName2="H"/>
   <Bond atomName1="N" atomName2="CA"/>
-  <Bond atomName1="CA" atomName2="HA"/>
+  <\displaylines{Bond atomName1="CA" atomName2="HA"/>
   <Bond atomName1="CA" atomName2="CB"/>
   <Bond atomName1="CA" atomName2="C"/>
   <Bond atomName1="CB" atomName2="HB1"/>
@@ -177,9 +189,11 @@ The `<atom>` node of the residue part defines the atomtype of each atom in the r
 </Residue>
 ```
 
-In this example, the atom number and bonding relationship of ALA, CALA and NALA are different. When matching each ALA, OpenMM will try to match CALA, NALA and ALA, and finally select the template with the same number of atoms, element composition and bonding relationship as the residue to define the force field parameters for each atom.
+In this example, the atom numbers and the bonding configurations of ALA, CALA and NALA are different. When matching each ALA, OpenMM will try to match CALA, NALA, and ALA separately. It will compare each parameter template with the topology of the residue, and select the one with the right number of atoms, element composition, and bonding configurations as the matched template. The parameter template contains atom type and class information, which are then used to assign force field parameters.
 
-### forcefield part
+
+### Forcefield Part
+```xml
 <!-- tip3p.xml -->
 <ForceField>
     ...
@@ -199,9 +213,10 @@ In this example, the atom number and bonding relationship of ALA, CALA and NALA 
         <Atom type="spce-H" sigma="1" epsilon="0"/>
     </NonbondedForce>
 </ForceField>
+```
 
-The `<atomtypes>` node defines many atomic types. The `type` label of each atom in the residue part will match the `name` label of each child node of `<atomtypes>`. For each atom type, it also defines a `class` tag for different matching scenarios. The `name` of different `<type>` child nodes must be different, but the `class` can be the same.
+The `<atomtypes>` node defines all atom types. The `type` label of each atom in the residue part will match the `name` label of each child node of `<atomtypes>`. For each atom type, it also defines a `class` tag for different matching scenarios. The `name` tag of different `<type>` must be different, but the `class` tag can be the same.
 
-The `<*force>` node defines the matching rule of a potential function. For example, `<HarmonicBondForce>` defines harmonic bond, and the `<NonBondedForce>` node defines intermolecular interaction. You can view the document for specific parameter [details](http://docs.openmm.org/latest/userguide/application/05_creating_ffs.html#writing-the-xml-file)
+The `<*Force>` node defines the matching rule of a potential function. For example, `<HarmonicBondForce>` defines harmonic bond, and the `<NonBondedForce>` node defines intermolecular interaction. For more information about each force, the readers are referred to this document: [details](http://docs.openmm.org/latest/userguide/application/05_creating_ffs.html#writing-the-xml-file).
 
-In the matching process, OpenMM will iterate all atom, bond, angle, dihedral and improver, and add all matching entries to the total potential function. Matching can be carried out according to the `type` tag, corresponding to the `name` of each atom in `<atomtype>`; It can also be based on the `class` tag, corresponding to the `class` of each atom in `<atomtype>`. This design is applicable to the situation that there are many types of atoms but they are roughly the same. For example, there are few kinds of LJ parameters in small molecular force field, but there are many kinds of intramolecular force parameters. We can even create a separate type for a specific small molecule to define the intra molecular interaction, but it belongs to the same class on LJ, so as to achieve the effect that the small molecule parameters can be tuned and do not affect each other.
+In the matching process, OpenMM will iterate all atoms, bonds, angles, dihedrals and impropers, and add all matched entries to the total potential function. Matching can be carried out according to the `type` tag, corresponding to the `name` of each atom defined in `<atomtype>`; It can also be based on the `class` tag, corresponding to the `class` of each atom in `<atomtype>`. This design is applicable to the situation when there are many types of atoms but they are roughly the same. For example, there are few kinds of LJ parameters in small molecular force field, but there are many kinds of intramolecular force parameters. We can even create a separate type for a specific small molecule to define the intra molecular interaction, but it belongs to the same class on LJ, so as to achieve the effect that the small molecule parameters can be tuned and do not affect each other.
