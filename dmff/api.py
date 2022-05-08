@@ -38,6 +38,18 @@ import sys
 
 
 class XMLNodeInfo:
+    
+    @staticmethod
+    def to_str(value)->str:
+        """ convert value to string if it can
+        """
+        if isinstance(value, str):
+            return value
+        elif isinstance(value, (jnp.ndarray, np.ndarray)):
+            if value.ndim == 0:
+                return str(value)
+            else:
+                return str(value[0])
 
     class XMLElementInfo:
         
@@ -46,7 +58,7 @@ class XMLNodeInfo:
             self.attributes = {}
         
         def addAttribute(self, key, value):
-            self.attributes[key] = value
+            self.attributes[key] = XMLNodeInfo.to_str(value)
             
         def __repr__(self):
             return f'<{self.name} {" ".join([f"{k}={v}" for k, v in self.attributes.items()])}>'
@@ -68,7 +80,7 @@ class XMLNodeInfo:
     
 
     def addAttribute(self, key, value):
-        self.attributes[key] = value
+        self.attributes[key] = XMLNodeInfo.to_str(value)
 
 
     def addElement(self, name, info):
@@ -1284,7 +1296,7 @@ class HarmonicAngleJaxGenerator:
 
     def renderXML(self):
         # generate xml force field file
-        pass
+        finfo = XMLNodeInfo("HarmonicAngleForce")
 
 
 # register all parsers
@@ -1923,6 +1935,8 @@ class NonbondJaxGenerator:
         for atom in element.findall("Atom"):
             generator.registerAtom(atom.attrib)
             
+        generator.n_atoms = len(element.findall("Atom"))
+            
         # jax it!
         for k in generator.params.keys():
             generator.params[k] = jnp.array(generator.params[k])
@@ -2078,7 +2092,17 @@ class NonbondJaxGenerator:
         return self._jaxPotential
 
     def renderXML(self):
-        pass
+        
+        # <NonbondedForce>
+        finfo = XMLNodeInfo('NonbondedForce')
+        finfo.addAttribute('coulomb14scale', str(self.coulomb14scale))
+        finfo.addAttribute('lj14scale', str(self.lj14scale))
+        
+        for atom in range(self.n_atoms):
+            info = {'type': self.types[atom], 'charge': self.params['charge'][atom], 'sigma': self.params['sigma'][atom], 'epsilon': self.params['epsilon'][atom]}
+            finfo.addElement('Atom', info)
+            
+        return finfo
 
 
 app.forcefield.parsers["NonbondedForce"] = NonbondJaxGenerator.parseElement

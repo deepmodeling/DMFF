@@ -10,16 +10,14 @@ import pytest
 
 class TestApiXMLRender:
     
-    @pytest.fixture(scope='class', name='generators')
-    def test_init(self):
+    def test_admp_pme(self):
+        
         rc = 4.0
         H = Hamiltonian("tests/data/admp.xml")
         pdb = app.PDBFile('tests/data/waterbox_31ang.pdb')
         system = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
         generators = H.getGenerators()
-        yield generators
-    
-    def test_admp_pme(self, generators):
+        
         xml = generators[1].renderXML()
         assert xml.name == 'ADMPPmeForce'
         assert xml.attributes['lmax'] == '2'
@@ -34,5 +32,25 @@ class TestApiXMLRender:
         
         assert xml[3]['type'] == '381'
  
-    def test_admp_disp(self):
-        pass
+    def test_nonbond(self):
+        
+        H = Hamiltonian("tests/data/coul2.xml")
+        pdb = app.PDBFile('tests/data/lj2.pdb')
+        system = H.createPotential(pdb.topology,
+                                   nonbondedMethod=app.NoCutoff,
+                                   constraints=None,
+                                   removeCMMotion=False)
+        generators = H.getGenerators()
+        xml = generators[0].renderXML()
+        assert xml.name == 'NonbondedForce'
+        assert xml.attributes['lj14scale'] == '0.5'
+        assert xml[0]['type'] == 'n1'
+        assert xml[1]['sigma'] == '1.0'
+
+    def test_HarmonicAngleJaxGenerator(self):
+        
+        H = Hamiltonian('tests/data/angle1.xml')
+        pdb = app.PDBFile('tests/data/angle1.pdb')
+        system = H.createPotential(pdb.topology)
+        generators = H.getGenerators()
+        
