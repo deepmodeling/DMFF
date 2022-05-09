@@ -50,9 +50,6 @@ def convert_cart2harm(Theta, lmax):
     if lmax > 2:
         sys.exit('l > 2 (beyond quadrupole) not supported')
 
-    # n_sites = Theta.shape[0]
-    n_harm = (lmax + 1)**2
-    # Q = jnp.zeros((n_sites, n_harm))
     Q_mono = Theta[0:1]
     
     # dipole
@@ -72,6 +69,46 @@ def convert_cart2harm(Theta, lmax):
         Q = jnp.hstack([Q_mono, Q_dip, Q_quad])
 
     return Q
+
+
+@partial(vmap, in_axes=(0, None), out_axes=0)
+@jit_condition(static_argnums=(1))
+def convert_harm2cart(Q, lmax):
+    '''
+    Convert the multipole moments in spherical representation to cartesian
+    Basically the inverse operation of convert_cart2harm
+
+    Inputs:
+        Q:
+            n * N_harm: stores the spherical harmonics moments of each site
+        lmax:
+            integer, the maximum L, currently only supports up to quadrupole
+
+    Outputs:
+        Theta:
+            n * n_cart, stores the cartesian multipoles
+    '''
+
+    if lmax > 2:
+        sys.exit('l > 2 (beyond quadrupole) not supported')
+
+    T_mono = Q[0:1]
+
+    # dipole
+    if lmax >= 1:
+        T_dip = C1_h2c.dot(Q[1:4].T).T
+    # quadrupole
+    if lmax >= 2:
+        T_quad = C2_h2c.dot(Q[4:9].T).T
+
+    if lmax == 0:
+        T = T_mono
+    elif lmax == 1:
+        T = jnp.hstack([T_mono, T_dip])
+    else:
+        T = jnp.hstack([T_mono, T_dip, T_quad])
+
+    return T
 
 
 @partial(vmap, in_axes=(0, 0), out_axes=0)

@@ -13,11 +13,9 @@ from time import time
 
 if __name__ == '__main__':
     
-    start = time()
-    
     H = Hamiltonian('forcefield.xml')
     app.Topology.loadBondDefinitions("residues.xml")
-    pdb = app.PDBFile("water1024.pdb")
+    pdb = app.PDBFile("waterbox_31ang.pdb")
     rc = 4.0
     # generator stores all force field parameters
     generator = H.getGenerators()
@@ -39,18 +37,13 @@ if __name__ == '__main__':
     displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
     neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
     nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T
-    
-    end = time()
-    
+    pairs = nbr.idx.T    
 
     # print(pot_disp(positions, box, pairs, disp_generator.params))
     # param_grad = grad(pot_disp, argnums=3)(positions, box, pairs, generator[0].params)
     # print(param_grad['mScales'])
     
     print(pot_pme(positions, box, pairs, pme_generator.params))
-    param_grad = grad(pot_pme, argnums=3)(positions, box, pairs, generator[1].params)
+    param_grad = grad(pot_pme, argnums=(3))(positions, box, pairs, pme_generator.params)
     print(param_grad['mScales'])
-
-    print(end - start)
     
