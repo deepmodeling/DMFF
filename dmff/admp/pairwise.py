@@ -112,7 +112,8 @@ def TT_damping_qq_c6_kernel(dr, m, ai, aj, bi, bj, qi, qj, ci, cj):
     f = 2625.5 * a * exp_br \
         + (-2625.5) * exp_br * (1+br) * q / r \
         + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720) * c / dr**6
-
+    #f =(-2625.5) * exp_br * (1+br) * q / r  \
+       #+ exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720) * c / dr**6
     return f * m
 
 

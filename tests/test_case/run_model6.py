@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 import sys
 from pathlib import Path
-import openmm.app as app
-import openmm.unit as unit
-from dmff.api import Hamiltonian
 admp_path = Path(__file__).parent.parent.parent
 sys.path.append(str(admp_path))
 import numpy as np
@@ -114,32 +111,8 @@ if __name__ == '__main__':
 
 
     
-    rc = 4.0
-    
-    H = Hamiltonian('forcefield.xml')
-    app.Topology.loadBondDefinitions('residues.xml')
-    pdb = app.PDBFile('waterbox_31ang.pdb')
-    
-    generator = H.getGenerators()
-    disp_generator, pme_generator = generator
-    
-    pme_generator.lpol = True
-    pme_generator.ref_dip = 'dipole_1024'
-    potentials = H.createPotential(pdb.topology, nonbondedCutoff=4.0*unit.angstrom)
-    
-    disp_pot, pme_pot = potentials
-    
-    positions = jnp.array(pdb.positions._value) * 10
-    a, b, c = pdb.topology.getPeriodicBoxVectors()
-    box = jnp.array([a._value, b._value, c._value]) * 10
-    
-    # neighbor list
-    displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
-    neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T
-
-    n_atoms = len(positions)
+    lmax = 2
+    pmax = 10
 
     # construct the C list
     c_list = np.zeros((3, n_atoms))
@@ -170,9 +143,9 @@ if __name__ == '__main__':
         b_list[b] = 1.999519942
         b_list[c] = 1.999519942
         # a, Hartree
-        a_list[a] = 72.02844
-        a_list[b] = 2.3870113
-        a_list[c] = 2.3870113
+        a_list[a] = 74.2678716
+        a_list[b] = 2.022775391
+        a_list[c] = 2.022775391
 
     c_list[0]=c6_list
     c_list = jnp.array(c_list.T)
@@ -194,7 +167,6 @@ if __name__ == '__main__':
 
     # electrostatic
     pme_force = ADMPPmeForce(box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax, lpol=True)
-    pme_force.update_env('kappa', 0.657065221219616)
     pot_pme = pme_force.get_energy
     jnp.save('mScales', mScales)
     jnp.save('Q_local', Q_local)
@@ -203,19 +175,18 @@ if __name__ == '__main__':
     jnp.save('pScales', pScales)
     jnp.save('dScales', dScales)
     jnp.save('U_ind', pme_force.U_ind)  
-    E, F = pme_force.get_forces(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales)
-    print('# Electrostatic Energy (kJ/mol)')
+    E1, F1 = pme_force.get_forces(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales)
+    #print('# Electrostatic Energy (kJ/mol)')
     #E = pme_force.get_energy(positions, box, pairs, Q_local, mScales, pScales, dScales)
-    print(E)
-    E = pot_pme(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=pme_force.U_ind)
+    #print(E)
+    #E = pot_pme(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=pme_force.U_ind)
     
-    grad_params = grad(pot_pme, argnums=(3,4,5,6,7,8,9))(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, pme_force.U_ind)
-    U_ind = pme_force.U_ind
+    #grad_params = grad(pot_pme, argnums=(3,4,5,6,7,8,9))(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, pme_force.U_ind)
+    #U_ind = pme_force.U_ind
     
     # dispersion
     disp_pme_force = ADMPDispPmeForce(box, covalent_map, rc, ethresh, pmax)
-    disp_pme_force.update_env('kappa', 0.657065221219616)
-    E, F = disp_pme_force.get_forces(positions, box, pairs, c_list, mScales)
+    E2, F2 = disp_pme_force.get_forces(positions, box, pairs, c_list, mScales)
     print('Dispersion Energy (kJ/mol)')
     #E = disp_pme_force.get_energy(positions, box, pairs, c_list.T, mScales)
     #E, F = disp_pme_force.get_forces(positions, box, pairs, c_list.T, mScales)
@@ -226,12 +197,13 @@ if __name__ == '__main__':
     TT_damping_qq_c6 = value_and_grad(generate_pairwise_interaction(TT_damping_qq_c6_kernel, covalent_map, static_args={}))
     TT_damping_qq_c6(positions, box, pairs, mScales, a_list, b_list, q_list, c6_list)
     print('Tang-Tonnies Damping (kJ/mol)')
-    E, F = TT_damping_qq_c6(positions, box, pairs, mScales, a_list, b_list, q_list, c6_list)
-    print(E)
+    E3, F3 = TT_damping_qq_c6(positions, box, pairs, mScales, a_list, b_list, q_list, c6_list)
+    print(E3)
+    #print(-F1+F2-F3)
 
     # intramolecular term
     print('Intramolecular Energy (kJ/mol)')
-    E1 = onebodyenergy(positions, box)
-    #force = grad_E1(n_atoms,positions, box)
-    print(E1)       
-
+    grad_E1 = value_and_grad(onebodyenergy,argnums=(0))
+    E4, F4 = grad_E1(positions, box)
+    print(E4)
+    

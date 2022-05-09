@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 import sys
 from pathlib import Path
-import openmm.app as app
-import openmm.unit as unit
-from dmff.api import Hamiltonian
 admp_path = Path(__file__).parent.parent.parent
 sys.path.append(str(admp_path))
 import numpy as np
@@ -114,32 +111,8 @@ if __name__ == '__main__':
 
 
     
-    rc = 4.0
-    
-    H = Hamiltonian('forcefield.xml')
-    app.Topology.loadBondDefinitions('residues.xml')
-    pdb = app.PDBFile('waterbox_31ang.pdb')
-    
-    generator = H.getGenerators()
-    disp_generator, pme_generator = generator
-    
-    pme_generator.lpol = True
-    pme_generator.ref_dip = 'dipole_1024'
-    potentials = H.createPotential(pdb.topology, nonbondedCutoff=4.0*unit.angstrom)
-    
-    disp_pot, pme_pot = potentials
-    
-    positions = jnp.array(pdb.positions._value) * 10
-    a, b, c = pdb.topology.getPeriodicBoxVectors()
-    box = jnp.array([a._value, b._value, c._value]) * 10
-    
-    # neighbor list
-    displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
-    neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T
-
-    n_atoms = len(positions)
+    lmax = 2
+    pmax = 10
 
     # construct the C list
     c_list = np.zeros((3, n_atoms))
@@ -192,26 +165,16 @@ if __name__ == '__main__':
     nbr = neighbor_list_fn.allocate(positions)
     pairs = nbr.idx.T
 
+   
     # electrostatic
-    pme_force = ADMPPmeForce(box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax, lpol=True)
+    pme_force = ADMPPmeForce(box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax)
     pme_force.update_env('kappa', 0.657065221219616)
-    pot_pme = pme_force.get_energy
-    jnp.save('mScales', mScales)
-    jnp.save('Q_local', Q_local)
-    jnp.save('pol', pol)
-    jnp.save('tholes', tholes)
-    jnp.save('pScales', pScales)
-    jnp.save('dScales', dScales)
-    jnp.save('U_ind', pme_force.U_ind)  
-    E, F = pme_force.get_forces(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales)
-    print('# Electrostatic Energy (kJ/mol)')
-    #E = pme_force.get_energy(positions, box, pairs, Q_local, mScales, pScales, dScales)
-    print(E)
-    E = pot_pme(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=pme_force.U_ind)
-    
-    grad_params = grad(pot_pme, argnums=(3,4,5,6,7,8,9))(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, pme_force.U_ind)
-    U_ind = pme_force.U_ind
-    
+    E, F = pme_force.get_forces(positions, box, pairs, Q_local, mScales)
+    print('Electrostatic Energy (kJ/mol)')
+    # E = pme_force.get_energy(positions, box, pairs, Q_local, mScales, pScales, dScales)
+    #E, F = pme_force.get_forces(positions, box, pairs, Q_local, mScales)
+    print(E) 
+    sys.exit()   
     # dispersion
     disp_pme_force = ADMPDispPmeForce(box, covalent_map, rc, ethresh, pmax)
     disp_pme_force.update_env('kappa', 0.657065221219616)
@@ -234,4 +197,3 @@ if __name__ == '__main__':
     E1 = onebodyenergy(positions, box)
     #force = grad_E1(n_atoms,positions, box)
     print(E1)       
-

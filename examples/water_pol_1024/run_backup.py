@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 import sys
 from pathlib import Path
-import openmm.app as app
-import openmm.unit as unit
-from dmff.api import Hamiltonian
 admp_path = Path(__file__).parent.parent.parent
 sys.path.append(str(admp_path))
 import numpy as np
@@ -17,7 +14,7 @@ from dmff.admp.pairwise import generate_pairwise_interaction, TT_damping_qq_c6_k
 from dmff.admp.intra import *
 from jax import grad, value_and_grad
 import time
-from dmff.admp.spatial import v_pbc_shift
+
 import linecache
 def get_line_context(file_path, line_number):
     return linecache.getline(file_path,line_number).strip()
@@ -55,34 +52,32 @@ if __name__ == '__main__':
         [(atom.c0, atom.dX*10, atom.dY*10, atom.dZ*10, atom.qXX*300, atom.qYY*300, atom.qZZ*300, atom.qXY*300, atom.qXZ*300, atom.qYZ*300) for atom in atomDicts.values()]
     )
 
-    c0 = np.zeros(n_atoms)
-    c6_list = np.zeros(n_atoms)
+    c0 = []
+    c6_list = []
     #compute geometry-dependent terms
-    box_inv = jnp.linalg.inv(box)
-    O = positions[::3]
-    H1 = positions[1::3]
-    H2 = positions[2::3]
-    ROH1 = H1 - O
-    ROH2 = H2 - O
-    ROH1 = v_pbc_shift(ROH1, box, box_inv)
-    ROH2 = v_pbc_shift(ROH2, box, box_inv)
-    dROH1 = np.linalg.norm(ROH1, axis=1)
-    dROH2 = np.linalg.norm(ROH2, axis=1)
-    costh = np.sum(ROH1 * ROH2, axis=1) / (dROH1 * dROH2)
-    angle = np.arccos(costh)*180/np.pi
-    dipole = -0.016858755+0.002287251*angle + 0.239667591*dROH1 + (-0.070483437)*dROH2
-    charge_H = dipole/dROH1
-    charge_O=charge_H*(-2)
-    C6_H = (-2.36066199 + (-0.007049238)*angle + 1.949429648*dROH1+ 2.097120784*dROH2) * 0.529**6 * 2625.5
-    C6_O = (-8.641301261 + 0.093247893*angle + 11.90395358*(dROH1+ dROH2)) * 0.529**6 * 2625.5
-    c0[::3] = charge_O
-    c0[1::3] = charge_H
-    c0[2::3] = charge_H
-    c6_list[::3] = np.sqrt(C6_O)
-    c6_list[1::3] = np.sqrt(C6_H)
-    c6_list[2::3] = np.sqrt(C6_H)
-    
-    
+    b=[np.arange(n_atoms)[i:i+3] for i in range(0,len(np.arange(n_atoms)),3)]
+    for i in b:
+        O = positions[i][0]
+        H1 = positions[i][1]
+        H2 = positions[i][2]
+        bond1_len = (np.linalg.norm(H1-O))
+        bond2_len = (np.linalg.norm(H2-O))
+        bond1 = H1-O
+        bond2 = H2-O
+        cos_angle = np.dot(bond1,bond2)/(bond1_len * bond2_len)
+        angle = np.arccos(cos_angle)*180/np.pi
+        dipole = -0.016858755+0.002287251*angle + 0.239667591*bond1_len + (-0.070483437)*bond2_len
+        charge_H = dipole/bond1_len
+        charge_O=charge_H*(-2)
+        C6_H = (-2.36066199 + (-0.007049238)*angle + 1.949429648*bond1_len + 2.097120784*bond2_len) * 0.529**6 * 2625.5
+        C6_O = (-8.641301261 + 0.093247893*angle + 11.90395358*(bond1_len+bond2_len)) * 0.529**6 * 2625.5
+        c0.append(charge_O)
+        c0.append(charge_H)
+        c0.append(charge_H)
+        c6_list.append(np.sqrt(C6_O))
+        c6_list.append(np.sqrt(C6_H))
+        c6_list.append(np.sqrt(C6_H))
+
 
     # change leading term
     Q[:,0]=c0
@@ -114,32 +109,8 @@ if __name__ == '__main__':
 
 
     
-    rc = 4.0
-    
-    H = Hamiltonian('forcefield.xml')
-    app.Topology.loadBondDefinitions('residues.xml')
-    pdb = app.PDBFile('waterbox_31ang.pdb')
-    
-    generator = H.getGenerators()
-    disp_generator, pme_generator = generator
-    
-    pme_generator.lpol = True
-    pme_generator.ref_dip = 'dipole_1024'
-    potentials = H.createPotential(pdb.topology, nonbondedCutoff=4.0*unit.angstrom)
-    
-    disp_pot, pme_pot = potentials
-    
-    positions = jnp.array(pdb.positions._value) * 10
-    a, b, c = pdb.topology.getPeriodicBoxVectors()
-    box = jnp.array([a._value, b._value, c._value]) * 10
-    
-    # neighbor list
-    displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
-    neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T
-
-    n_atoms = len(positions)
+    lmax = 2
+    pmax = 10
 
     # construct the C list
     c_list = np.zeros((3, n_atoms))
@@ -170,9 +141,9 @@ if __name__ == '__main__':
         b_list[b] = 1.999519942
         b_list[c] = 1.999519942
         # a, Hartree
-        a_list[a] = 72.02844
-        a_list[b] = 2.3870113
-        a_list[c] = 2.3870113
+        a_list[a] = 83.0733
+        a_list[b] = 1.74832
+        a_list[c] = 1.74832
 
     c_list[0]=c6_list
     c_list = jnp.array(c_list.T)
@@ -222,7 +193,6 @@ if __name__ == '__main__':
     print(E)
 
     # short range damping
-    c6_list = jnp.array(c6_list)
     TT_damping_qq_c6 = value_and_grad(generate_pairwise_interaction(TT_damping_qq_c6_kernel, covalent_map, static_args={}))
     TT_damping_qq_c6(positions, box, pairs, mScales, a_list, b_list, q_list, c6_list)
     print('Tang-Tonnies Damping (kJ/mol)')
@@ -234,4 +204,3 @@ if __name__ == '__main__':
     E1 = onebodyenergy(positions, box)
     #force = grad_E1(n_atoms,positions, box)
     print(E1)       
-
