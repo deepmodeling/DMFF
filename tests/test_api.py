@@ -40,8 +40,10 @@ class TestApiXMLRender:
         system = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
         generators = H.getGenerators()
         
-        xml = generators[1].renderXML()
-        assert xml.name == 'ADMPDispForce'        
+        xml = generators[0].renderXML()
+        assert xml.name == 'ADMPDispForce'
+        assert xml[0]['type'] == '380'
+        assert xml[1]['Q'] == '0.370853'
  
     def test_nonbond(self):
         
@@ -71,5 +73,12 @@ class TestApiXMLRender:
         
     def test_HarmonicDihedralJaxGenerator(self):
         
-        pass
+        H = Hamiltonian('tests/data/proper1.xml')
+        pdb = app.PDBFile('tests/data/proper1.pdb')
+        system = H.createPotential(pdb.topology)
+        generators = H.getGenerators()
+        xml = generators[0].renderXML()
+        assert xml.name == 'PeriodicTorsionForce'
+        assert xml[0].name == 'Proper'
+        assert xml[0]['type1'] == 'n1'
         

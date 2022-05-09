@@ -238,7 +238,18 @@ class ADMPDispGenerator:
 
     def renderXML(self):
         # generate xml force field file
-        pass
+        finfo = XMLNodeInfo('ADMPDispForce')
+        finfo.addAttribute('mScales12', self.params["mScales"][0])
+        finfo.addAttribute('mScales13', self.params["mScales"][1])
+        finfo.addAttribute('mScales14', self.params["mScales"][2])
+        finfo.addAttribute('mScales15', self.params["mScales"][3])
+        finfo.addAttribute('mScales16', self.params["mScales"][4])
+        
+        for i in range(len(self.types)):
+            ainfo = {'type': self.types[i], 'A': self.params["A"][i], 'B': self.params["B"][i], 'Q': self.params["Q"][i], 'C6': self.params["C6"][i], 'C8': self.params["C8"][i], 'C10': self.params["C10"][i]}
+            finfo.addElement('Atom', ainfo)
+        
+        return finfo
 
 # register all parsers
 app.forcefield.parsers["ADMPDispForce"] = ADMPDispGenerator.parseElement
