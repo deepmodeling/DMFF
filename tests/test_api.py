@@ -31,6 +31,17 @@ class TestApiXMLRender:
         assert xml.elements[2].attributes['polarizabilityXX'] == '0.88000000'
         
         assert xml[3]['type'] == '381'
+        
+    def test_admp_disp(self):
+        
+        rc = 4.0
+        H = Hamiltonian("tests/data/admp.xml")
+        pdb = app.PDBFile('tests/data/waterbox_31ang.pdb')
+        system = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
+        generators = H.getGenerators()
+        
+        xml = generators[1].renderXML()
+        assert xml.name == 'ADMPDispForce'        
  
     def test_nonbond(self):
         
@@ -53,4 +64,12 @@ class TestApiXMLRender:
         pdb = app.PDBFile('tests/data/angle1.pdb')
         system = H.createPotential(pdb.topology)
         generators = H.getGenerators()
+        xml = generators[0].renderXML()
+        assert xml.name == 'HarmonicAngleForce'
+        assert xml[0]['type1'] == 'n1'
+        assert xml[0]['angle'] == '1.8242181341844732'
+        
+    def test_HarmonicDihedralJaxGenerator(self):
+        
+        pass
         

@@ -1297,6 +1297,12 @@ class HarmonicAngleJaxGenerator:
     def renderXML(self):
         # generate xml force field file
         finfo = XMLNodeInfo("HarmonicAngleForce")
+        for i, type in enumerate(self.types):
+            t1, t2, t3 = type
+            ainfo = {'type1': t1, 'type2': t2, 'type3': t3, 'k': self.params['k'][i], 'angle': self.params['angle'][i]}
+            finfo.addElement('Angle', ainfo)
+        
+        return finfo
 
 
 # register all parsers
