@@ -178,7 +178,7 @@ class SimpleJAXGenerator:
         return self._jaxPotential
         
     def renderXML(self):
-        render_xml_forcefield_from_params
+        # render_xml_forcefield_from_params
         
         
 app.parsers["SimpleJAXForce"] = SimpleJAXGenerator.parseElement
@@ -289,6 +289,39 @@ class HarmonicBondJaxGenerator:
 # register all parsers
 app.forcefield.parsers["HarmonicBondForce"] = HarmonicBondJaxGenerator.parseElement
 ```
+
+    After the calculation and optimization, we need to save the optimized parameters as XML format files for the next calculation. This serialization process is implemented through the `renderXML` method. At the beginning of the `api.py` file, we provide nested helper classes called `XMLNodeInfo` and `XMLElementInfo`. In the XML file, a `<HarmonicJaxBondForce>` and its close tag is represented by XMLNodeInfo and the content element is controlled by `XMLElementInfo`
+
+```
+  <HarmonicJaxBondForce>
+    <Bond type1="ow" type2="hw" length="0.0957" k="462750.4"/>
+    <Bond type1="hw" type2="hw" length="0.1513" k="462750.4"/>
+  </HarmonicJaxBondForce>
+```
+
+    When we want to serialize optimized parameters from the generator to a new XML file, we first initialize a `XMLNodeInfo(name:str)` class with the potential name
+
+```python
+finfo = XMLNodeInfo("HarmonicBondForce")
+```
+    If necessary, you can add attributes to this tag using the `addAttribute(name:str, value:str)` method. Then we add the inner `<Bond>` tag by invoke `finfo.addElement(name:str, attrib:dict)` method. Here is an example to render `<HarmonicBondForce>`
+
+```
+    def renderXML(self):
+        # generate xml force field file
+        finfo = XMLNodeInfo("HarmonicBondForce")  # <HarmonicBondForce> and <\HarmonicBondForce>
+        for ntype in range(len(self.types)):
+            binfo = {}
+            k1, v1 = self.typetexts[ntype][0]
+            k2, v2 = self.typetexts[ntype][1]
+            binfo[k1] = v1
+            binfo[k2] = v2
+            for key in self.params.keys():
+                binfo[key] = "%.8f"%self.params[key][ntype]
+            finfo.addElement("Bond", binfo)  # <Bond binfo.key=binfo.value ...>
+        return finfo
+```
+
 
 ## How Backend Works
 
