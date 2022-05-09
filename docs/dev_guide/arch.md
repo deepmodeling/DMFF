@@ -349,4 +349,4 @@ For a typical `Force` class,  one needs to define the following methods:
   
 In ADMP, all backend calculators only take atomic parameters as input, so they can be invoked
 independently in hybrid ML/force field models. The dispatch of force field parameters is done 
-in the `potential_fn` function defined the frontend. 
+in the `potential_fn` function defined in the frontend. 
