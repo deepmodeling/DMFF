@@ -234,3 +234,4 @@ if __name__ == '__main__':
     E1 = onebodyenergy(positions, box)
     #force = grad_E1(n_atoms,positions, box)
     print(E1)       
+

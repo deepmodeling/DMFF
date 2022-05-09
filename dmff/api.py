@@ -1137,7 +1137,6 @@ class HarmonicBondJaxGenerator:
 
     @staticmethod
     def parseElement(element, hamiltonian):
-
         r"""parse <HarmonicBondForce> section in XML file
         
             example: 
