@@ -1078,8 +1078,12 @@ class HarmonicBondJaxGenerator:
               <\HarmonicBondForce>
         
         """
-        generator = HarmonicBondJaxGenerator(hamiltonian)
-        hamiltonian.registerGenerator(generator)
+        existing = [f for f in hamiltonian._forces if isinstance(f, HarmonicBondJaxGenerator)]
+        if len(existing) == 0:
+            generator = HarmonicBondJaxGenerator(hamiltonian)
+            hamiltonian.registerGenerator(generator)
+        else:
+            generator = existing[0]
         for bondtype in element.findall("Bond"):
             generator.registerBondType(bondtype.attrib)
 
@@ -1140,7 +1144,6 @@ class HarmonicBondJaxGenerator:
         return finfo
 
 
-
 # register all parsers
 app.forcefield.parsers["HarmonicBondForce"] = HarmonicBondJaxGenerator.parseElement
 
@@ -1169,8 +1172,12 @@ class HarmonicAngleJaxGenerator:
               <\HarmonicAngleForce>
 
         """
-        generator = HarmonicAngleJaxGenerator(hamiltonian)
-        hamiltonian.registerGenerator(generator)
+        existing = [f for f in hamiltonian._forces if isinstance(f, HarmonicAngleJaxGenerator)]
+        if len(existing) == 0:
+            generator = HarmonicAngleJaxGenerator(hamiltonian)
+            hamiltonian.registerGenerator(generator)
+        else:
+            generator = existing[0]
         for bondtype in element.findall("Angle"):
             generator.registerAngleType(bondtype.attrib)
 
@@ -2062,30 +2069,3 @@ class Hamiltonian(app.forcefield.ForceField):
 
         tree = ET.ElementTree(root)
         tree.write(filename)
-
-
-if __name__ == "__main__":
-    H = Hamiltonian("forcefield.xml")
-    generator = H.getGenerators()[0]
-    app.Topology.loadBondDefinitions("residues.xml")
-    pdb = app.PDBFile("../water1024.pdb")
-    rc = 4.0
-    potentials = H.createPotential(pdb.topology, nonbondedCutoff=rc * unit.angstrom)
-    pot_disp = potentials[0]
-
-    positions = jnp.array(pdb.positions._value) * 10
-    a, b, c = pdb.topology.getPeriodicBoxVectors()
-    box = jnp.array([a._value, b._value, c._value]) * 10
-
-    # neighbor list
-    displacement_fn, shift_fn = space.periodic_general(
-        box, fractional_coordinates=False
-    )
-    neighbor_list_fn = partition.neighbor_list(
-        displacement_fn, box, rc, 0, format=partition.OrderedSparse
-    )
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T
-
-    param_grad = grad(pot_disp, argnums=3)(positions, box, pairs, generator.params)
-    print(param_grad)
