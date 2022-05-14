@@ -1,0 +1,26 @@
+<ForceField>
+    <AtomTypes>
+        <Type element="O" name="oh" class="oh" mass="15.999" />
+        <Type element="H" name="ho" class="ho" mass="1.008" />
+    </AtomTypes>
+    <Residues>
+        <Residue name="h2o" nametype="classical">
+            <Atom name="O" type="oh" charge="-0.8476" mass="15.999" />
+            <Atom name="H1" type="ho" charge="0.4238" mass="1.008" />
+            <Atom name="H2" type="ho" charge="0.4238" mass="1.008" />
+            <Bond atomName1="O" atomName2="H1" />
+            <Bond atomName1="O" atomName2="H2" />
+        </Residue>
+    </Residues>
+    <HarmonicBondForce>
+        <Bond type1="ho" type2="oh" length="0.0973" k="471536.79999999993"/>
+    </HarmonicBondForce>
+    <HarmonicAngleForce>
+        <Angle type1="ho" type2="oh" type3="ho" angle="1.7229890375688022" k="519.6528000000001"/>
+    </HarmonicAngleForce>
+    <NonbondedForce coulomb14scale="0.83333333" lj14scale="0.5">
+        <UseAttributeFromResidue name="charge"/>
+        <Atom type="ho" sigma="0.053792464601313685" epsilon="0.0196648"/>  
+        <Atom type="oh" sigma="0.3242871334030835" epsilon="0.389112"/>      
+    </NonbondedForce>
+</ForceField>

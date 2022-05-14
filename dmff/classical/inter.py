@@ -17,6 +17,7 @@ from dmff.admp.pme import DIELECTRIC
 ONE_4PI_EPS0 = DIELECTRIC * 0.1
 
 
+
 class LennardJonesForce:
     def __init__(
         self,
@@ -208,6 +209,7 @@ class CoulombPMEForce:
         self.kappa, self.K1, self.K2, self.K3 = setup_ewald_parameters(rc, ethresh, box)
 
         self.covalent_map = covalent_map
+        self.pme_order = 6
         self.refresh_calculator()
 
     def generate_get_energy(self):
@@ -245,7 +247,7 @@ class CoulombPMEForce:
             Ck_1, self.kappa, False, self.pme_order, self.K1, self.K2, self.K3, lmax
         )
 
-        self.get_energy = self.genreate_get_energy()
+        self.get_energy = self.generate_get_energy()
 
         return
 
