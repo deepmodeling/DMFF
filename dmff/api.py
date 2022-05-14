@@ -8,20 +8,17 @@ import jax.numpy as jnp
 from collections import defaultdict
 import xml.etree.ElementTree as ET
 from .admp.disp_pme import ADMPDispPmeForce
-from .admp.multipole import convert_cart2harm, rot_local2global
+from .admp.multipole import convert_cart2harm
 from .admp.pairwise import TT_damping_qq_c6_kernel, generate_pairwise_interaction
 from .admp.pairwise import slater_disp_damping_kernel, slater_sr_kernel, TT_damping_qq_kernel
 from .admp.pme import ADMPPmeForce
-from .admp.spatial import generate_construct_local_frames
-from .admp.recip import Ck_1, generate_pme_recip
-from .utils import jit_condition
 from .classical.intra import (
     HarmonicBondJaxForce,
     HarmonicAngleJaxForce,
     PeriodicTorsionJaxForce,
 )
 from jax_md import space, partition
-from jax import grad, vmap
+from jax import grad
 import linecache
 import itertools
 from .classical.inter import (
@@ -30,7 +27,6 @@ from .classical.inter import (
     CoulNoCutoffForce,
     CoulReactionFieldForce,
 )
-
 import sys
 
 
@@ -1988,6 +1984,9 @@ class NonbondJaxGenerator:
         coulenergy = coulforce.generate_get_energy()
 
         def potential_fn(positions, box, pairs, params):
+            
+            positions = jnp.array(positions)
+            box = jnp.array(box)
 
             ljE = ljenergy(
                 positions,

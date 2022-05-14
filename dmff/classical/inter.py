@@ -1,4 +1,9 @@
-from dmff.admp.pairwise import distribute_scalar
+import sys
+
+from dmff.utils import pair_buffer_scales, regularize_pairs
+sys.path.append('/home/roy/work/DMFF')
+
+
 import jax.numpy as jnp
 from dmff.admp.pme import energy_pme, setup_ewald_parameters
 from dmff.admp.recip import generate_pme_recip
@@ -59,6 +64,11 @@ class LennardJonesForce:
             return E
 
         def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix, mscales):
+            
+            positions = jnp.array(positions)
+            pairs = regularize_pairs(pairs)
+            mask = pair_buffer_scales(pairs)
+            map_prm = jnp.array(self.map_prm)
 
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)), epsilon.shape[0], axis=1)
             eps_m2 = eps_m1.T
@@ -77,8 +87,8 @@ class LennardJonesForce:
             
 
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
-            prm_pair0 = self.map_prm[pairs[:, 0]]
-            prm_pair1 = self.map_prm[pairs[:, 1]]
+            prm_pair0 = map_prm[pairs[:, 0]]
+            prm_pair1 = map_prm[pairs[:, 1]]
             eps = eps_mat[prm_pair0, prm_pair1]
             sig = sig_mat[prm_pair0, prm_pair1]
 
@@ -86,7 +96,7 @@ class LennardJonesForce:
 
             E_inter = get_LJ_energy(dr_vec, sig, eps_scale, box)
 
-            return jnp.sum(E_inter)
+            return jnp.sum(E_inter * mask)
 
         return get_energy
 
@@ -110,12 +120,16 @@ class CoulNoCutoffForce:
             return E
 
         def get_energy(positions, box, pairs, charges, mscales):
+            
+            pairs = regularize_pairs(pairs)
+            mask = pair_buffer_scales(pairs)
+            map_prm = jnp.array(self.map_prm)
 
             colv_pair = self.colvmap[pairs[:,0],pairs[:,1]]
             mscale_pair = mscales[colv_pair-1]
 
-            chrg_map0 = self.map_prm[pairs[:, 0]]
-            chrg_map1 = self.map_prm[pairs[:, 1]]
+            chrg_map0 = map_prm[pairs[:, 0]]
+            chrg_map1 = map_prm[pairs[:, 1]]
             charge0 = charges[chrg_map0]
             charge1 = charges[chrg_map1]
             chrgprod = charge0 * charge1
@@ -124,7 +138,7 @@ class CoulNoCutoffForce:
 
             E_inter = get_coul_energy(dr_vec, chrgprod_scale, box)
 
-            return jnp.sum(E_inter) 
+            return jnp.sum(E_inter * mask) 
 
         return get_energy
 
