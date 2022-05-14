@@ -231,5 +231,5 @@ class TestClassical:
             E = energy(pos, box, pairs, h.getGenerators()[ne].params)
             npt.assert_almost_equal(E, values[ne], decimal=3)
             
-            E = jit(energy)(pos, box, pairs, h.getGenerators()[0].params)
+            E = jit(energy)(pos, box, pairs, h.getGenerators()[ne].params)
             npt.assert_almost_equal(E, values[ne], decimal=3)
