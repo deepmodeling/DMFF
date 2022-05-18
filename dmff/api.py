@@ -7,21 +7,20 @@ import numpy as np
 import jax.numpy as jnp
 from collections import defaultdict
 import xml.etree.ElementTree as ET
+
+from dmff.utils import isinstance_jnp
 from .admp.disp_pme import ADMPDispPmeForce
-from .admp.multipole import convert_cart2harm, rot_local2global
+from .admp.multipole import convert_cart2harm
 from .admp.pairwise import TT_damping_qq_c6_kernel, generate_pairwise_interaction
 from .admp.pairwise import slater_disp_damping_kernel, slater_sr_kernel, TT_damping_qq_kernel
 from .admp.pme import ADMPPmeForce
-from .admp.spatial import generate_construct_local_frames
-from .admp.recip import Ck_1, generate_pme_recip
-from .utils import jit_condition
 from .classical.intra import (
     HarmonicBondJaxForce,
     HarmonicAngleJaxForce,
     PeriodicTorsionJaxForce,
 )
 from jax_md import space, partition
-from jax import grad, vmap
+from jax import grad
 import linecache
 import itertools
 from .classical.inter import (
@@ -30,7 +29,6 @@ from .classical.inter import (
     CoulNoCutoffForce,
     CoulReactionFieldForce,
 )
-
 import sys
 
 
@@ -211,7 +209,7 @@ app.forcefield.parsers["ADMPDispForce"] = ADMPDispGenerator.parseElement
 
 
 class ADMPDispPmeGenerator:
-    '''
+    r'''
     This one computes the undamped C6/C8/C10 interactions
     u = \sum_{ij} c6/r^6 + c8/r^8 + c10/r^10
     '''
@@ -316,7 +314,7 @@ class ADMPDispPmeGenerator:
 app.forcefield.parsers["ADMPDispPmeForce"] = ADMPDispPmeGenerator.parseElement
 
 class QqTtDampingGenerator:
-    '''
+    r'''
     This one calculates the tang-tonnies damping of charge-charge interaction
     E = \sum_ij exp(-B*r)*(1+B*r)*q_i*q_j/r
     '''
@@ -392,7 +390,7 @@ app.forcefield.parsers["QqTtDampingForce"] = QqTtDampingGenerator.parseElement
 
 
 class SlaterDampingGenerator:
-    '''
+    r'''
     This one computes the slater-type damping function for c6/c8/c10 dispersion
     E = \sum_ij (f6-1)*c6/r6 + (f8-1)*c8/r8 + (f10-1)*c10/r10
     fn = f_tt(x, n)
@@ -474,7 +472,7 @@ app.forcefield.parsers["SlaterDampingForce"] = SlaterDampingGenerator.parseEleme
 
 
 class SlaterExGenerator:
-    '''
+    r'''
     This one computes the Slater-ISA type exchange interaction
     u = \sum_ij A * (1/3*(Br)^2 + Br + 1)
     '''
@@ -633,7 +631,7 @@ class ADMPPmeGenerator:
     @staticmethod
     def parseElement(element, hamiltonian):
 
-        """ parse admp related parameters in XML file
+        r""" parse admp related parameters in XML file
         
             example:
             
@@ -1068,7 +1066,7 @@ class HarmonicBondJaxGenerator:
     @staticmethod
     def parseElement(element, hamiltonian):
 
-        """parse <HarmonicBondForce> section in XML file
+        r"""parse <HarmonicBondForce> section in XML file
         
             example: 
             
@@ -1160,7 +1158,7 @@ class HarmonicAngleJaxGenerator:
 
     @staticmethod
     def parseElement(element, hamiltonian):
-        """ parse <HarmonicAngleForce> section in XML file
+        r""" parse <HarmonicAngleForce> section in XML file
 
             example:
               <HarmonicAngleForce>
@@ -1988,7 +1986,12 @@ class NonbondJaxGenerator:
         coulenergy = coulforce.generate_get_energy()
 
         def potential_fn(positions, box, pairs, params):
-
+            
+            # check whether args passed into potential_fn are jnp.array and differentiable
+            # note this check will be optimized away by jit
+            # it is jit-compatiable
+            isinstance_jnp(positions, box, params)
+                
             ljE = ljenergy(
                 positions,
                 box,

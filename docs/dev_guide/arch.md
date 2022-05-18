@@ -137,6 +137,7 @@ returned to users:
 ```python
             
 def potential_fn(positions, box, pairs, params):
+    isinstance_jnp(positions, box, params)
     return bforce.get_energy(
         positions, box, pairs, params["k"], params["length"]
     )
@@ -145,7 +146,7 @@ self._jaxPotential = potential_fn
 ```
 
 The `potential_fn` function only takes `(positions, box, pairs, params)` as explicit input arguments. All these arguments except
-`pairs` (neighbor list) should be differentiable. Non differentiable parameters are passed into it by closure (see code convention section). 
+`pairs` (neighbor list) should be differentiable. A helper function `isinstance_jnp` in `utils.py` can check take-in arguments whether they are `jnp.array`. Non differentiable parameters are passed into it by closure (see code convention section). 
 Meanwhile, if the generator needs to initialize multiple calculators (e.g. `NonBondedJaxGenerator` will call both `LJ` and `PME` calculators), 
 `potential_fn` should return the summation of the results of all calculators. 
 
