@@ -6,7 +6,7 @@ import numpy as np
 import numpy.testing as npt
 from dmff.api import Hamiltonian
 import pytest
-from jax import jit
+from jax import jit, make_jaxpr, grad
 from dmff import NeighborList
 
 
@@ -108,7 +108,7 @@ class TestClassical:
         energy = jit(ljE)(pos, box, pairs, h.getGenerators()[0].params)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-    def test_lj_force(self):
+    def test_lj_params_check(self):
         pdb = app.PDBFile("tests/data/lj3.pdb")
         h = Hamiltonian("tests/data/lj3.xml")
         system = h.createPotential(pdb.topology,
@@ -125,6 +125,9 @@ class TestClassical:
         ljE = h._potentials[0]
         with pytest.raises(TypeError):
             energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
+            
+        energy = jit(ljE)(pos, box, pairs, h.getGenerators()[0].params)  # jit will optimized away type check
+        force = grad(jit(ljE))(pos, box, pairs, h.getGenerators()[0].params)
         
         
     @pytest.mark.parametrize(

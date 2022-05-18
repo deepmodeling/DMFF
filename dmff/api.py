@@ -1987,10 +1987,11 @@ class NonbondJaxGenerator:
 
         def potential_fn(positions, box, pairs, params):
             
+            # check whether args passed into potential_fn are jnp.array and differentiable
+            # note this check will be optimized away by jit
+            # it is jit-compatiable
             isinstance_jnp(positions, box, params)
                 
-            box = jnp.array(box)
-
             ljE = ljenergy(
                 positions,
                 box,
