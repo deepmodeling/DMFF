@@ -25,6 +25,7 @@ def regularize_pairs(p):
 @vmap
 def pair_buffer_scales(p):
     return jnp.piecewise(
-            p[0] - p[1], 
-            (p[0] - p[1] < 0, p[0] - p[1] >= 0), 
-            (lambda x: jnp.array(1), lambda x: jnp.array(0)))
+        p[0] - p[1], 
+        (p[0] - p[1] < 0, p[0] - p[1] >= 0), 
+        (lambda x: jnp.array(1), lambda x: jnp.array(0))
+    )
