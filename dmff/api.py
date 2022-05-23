@@ -1496,6 +1496,8 @@ class PeriodicTorsionJaxGenerator(object):
         self.proper = []
         self.improper = []
         self.propersForAtomType = defaultdict(set)
+        self.n_proper = 0
+        self.n_improper = 0
 
     def registerProperTorsion(self, parameters):
         torsion = _parseTorsion(self.ff, parameters)
@@ -1863,26 +1865,27 @@ class PeriodicTorsionJaxGenerator(object):
         return self._jaxPotential
 
     def renderXML(self):
+        params = self.params
         # generate xml force field file
         finfo = XMLNodeInfo('PeriodicTorsionForce')
         for i in range(len(self.proper)):
             proper = self.proper[i]
-                    
+  
             finfo.addElement('Proper', 
                 {'type1': proper.types1, 'type2': proper.types2, 
                 'type3': proper.types3, 'type4': proper.types4,
                 'periodicity1': proper.periodicity[0],
-                'phase1': proper.phase[0],
-                'k1': proper.k[0],
+                'phase1': params['psi1_p'][i],
+                'k1': params['k1_p'][i],
                 'periodicity2': proper.periodicity[1],
-                'phase2': proper.phase[1],
-                'k2': proper.k[1],
+                'phase2': params['psi2_p'][i],
+                'k2': params['k2_p'][i],
                 'periodicity3': proper.periodicity[2],
-                'phase3': proper.phase[2],
-                'k3': proper.k[2],
+                'phase3': params['psi3_p'][2],
+                'k3': params['k3_p'][2],
                 'periodicity4': proper.periodicity[3],
-                'phase4': proper.phase[3],
-                'k4': proper.k[3],
+                'phase4': params['psi4_p'][3],
+                'k4': params['k4_p'][3],
                 }
             )
             
@@ -1894,17 +1897,17 @@ class PeriodicTorsionJaxGenerator(object):
                 {'type1': improper.types1, 'type2': improper.types2, 
                 'type3': improper.types3, 'type4': improper.types4,
                 'periodicity1': improper.periodicity[0],
-                'phase1': improper.phase[0],
-                'k1': improper.k[0],
-                'periodicity2': improper.periodicity[1],
-                'phase2': improper.phase[1],
-                'k2': improper.k[1],
-                'periodicity3': improper.periodicity[2],
-                'phase3': improper.phase[2],
-                'k3': improper.k[2],
-                'periodicity4': improper.periodicity[3],
-                'phase4': improper.phase[3],
-                'k4': improper.k[3],
+                'phase1': params['psi1_i'][i],
+                'k1': params['k1_i'][i],
+                'periodicity2': proper.periodicity[1],
+                'phase2': params['psi2_i'][i],
+                'k2': params['k2_i'][i],
+                'periodicity3': proper.periodicity[2],
+                'phase3': params['psi3_i'][2],
+                'k3': params['k3_i'][2],
+                'periodicity4': proper.periodicity[3],
+                'phase4': params['psi4_i'][3],
+                'k4': params['k4_i'][3],
                 }
             )
             
