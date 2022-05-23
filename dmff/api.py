@@ -1881,11 +1881,11 @@ class PeriodicTorsionJaxGenerator(object):
                 'phase2': params['psi2_p'][i],
                 'k2': params['k2_p'][i],
                 'periodicity3': proper.periodicity[2],
-                'phase3': params['psi3_p'][2],
-                'k3': params['k3_p'][2],
+                'phase3': params['psi3_p'][i],
+                'k3': params['k3_p'][i],
                 'periodicity4': proper.periodicity[3],
-                'phase4': params['psi4_p'][3],
-                'k4': params['k4_p'][3],
+                'phase4': params['psi4_p'][i],
+                'k4': params['k4_p'][i],
                 }
             )
             
@@ -1903,11 +1903,11 @@ class PeriodicTorsionJaxGenerator(object):
                 'phase2': params['psi2_i'][i],
                 'k2': params['k2_i'][i],
                 'periodicity3': proper.periodicity[2],
-                'phase3': params['psi3_i'][2],
-                'k3': params['k3_i'][2],
+                'phase3': params['psi3_i'][i],
+                'k3': params['k3_i'][i],
                 'periodicity4': proper.periodicity[3],
-                'phase4': params['psi4_i'][3],
-                'k4': params['k4_i'][3],
+                'phase4': params['psi4_i'][i],
+                'k4': params['k4_i'][i],
                 }
             )
             
