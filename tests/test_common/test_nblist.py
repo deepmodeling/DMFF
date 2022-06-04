@@ -38,29 +38,28 @@ class TestNeighborList:
     def test_pairs(self, nblist):
         
         pairs = nblist.pairs
-        assert pairs.shape == (18, 2)
+        assert pairs.shape == (15, 2)
         
     def test_pair_mask(self, nblist):
         
         pair, mask = nblist.pair_mask
-        assert mask.shape == (18, )
+        assert mask.shape == (15, )
         
     def test_dr(self, nblist):
         
         dr = nblist.dr
-        assert dr.shape == (18, 3)
+        assert dr.shape == (15, 3)
         
     def test_distance(self, nblist):
         
-        assert nblist.distance.shape == (18, )
+        assert nblist.distance.shape == (15, )
     
     def test_regularize_pairs(self, nblist):
         pairs = nblist.pairs
         reg_pairs = regularize_pairs(pairs)
         buf_scales = pair_buffer_scales(reg_pairs)
         nbufs = buf_scales.shape[0] - jnp.sum(buf_scales)
-        assert reg_pairs.shape == (18, 2)
-        assert buf_scales.shape == (18, )
-        assert nbufs == 3
+        assert reg_pairs.shape == (15, 2)
+        assert buf_scales.shape == (15, )
         assert jnp.sum(reg_pairs[:, 0] > reg_pairs[:, 1]) == nbufs
         
