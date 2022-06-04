@@ -1,2 +1,3 @@
-import dmff.settings
-from dmff.common.nblist import NeighborList
+from .settings import *
+from .common.nblist import NeighborList
+from .api import Hamiltonian
