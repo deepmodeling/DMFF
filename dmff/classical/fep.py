@@ -271,6 +271,7 @@ class CoulombPMEFreeEnergyForce:
         self.coupleMask = coupleMask
         
         self.useSoftCore = useSoftCore
+        assert not self.useSoftCore, "Not implemented yet" 
         if self.useSoftCore:
             self.scFuncStateA = mk_softcore_fn(sc_alpha, sc_sigma, sc_power, sc_r_power, True)
             self.scFuncStateB = mk_softcore_fn(sc_alpha, sc_sigma, sc_power, sc_r_power, False)
@@ -281,7 +282,6 @@ class CoulombPMEFreeEnergyForce:
     def generate_get_energy(self):
         
         def get_energy(positions, box, pairs, charges, mscales, lambda_): 
-  
             pairs = regularize_pairs(pairs)
             bufScales = pair_buffer_scales(pairs)
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
@@ -307,7 +307,6 @@ class CoulombPMEFreeEnergyForce:
             ene_couple_recip = pme_recip_fn(positions * 10, box * 10, jnp.reshape(atomCharges, (-1, 1)))
 
             ene_self = jnp.sum(-ONE_4PI_EPS0 * self.kappa / jnp.sqrt(jnp.pi) * jnp.sum(atomCharges ** 2))
-            # print("Self:", ene_self)
 
             if self.coupleMask is not None:
                 # Couple mode, designed for solvation free energy calculations
@@ -332,9 +331,8 @@ class CoulombPMEFreeEnergyForce:
                     box * 10,
                     jnp.reshape(atomCharges * self.coupleMask, (-1, 1))
                 )
-                # print("Corr Recip:", ene_corr_recip)
+
                 ene_recip = (1 - lambda_) * ene_couple_recip + lambda_ * (ene_decoup_recip + ene_corr_recip)
-                # print("Coul recip:", ene_recip)
 
                 if not self.useSoftCore:      
                     erf_dr = erf(self.kappa * dr_norm)

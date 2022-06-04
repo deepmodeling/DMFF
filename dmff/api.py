@@ -2065,9 +2065,7 @@ class NonbondJaxGenerator:
                 coulforce = CoulombPMEForce(r_cut, map_charge, colv_map, self.ethresh)
         else:
             assert nonbondedMethod is app.PME, "Only PME is supported for free energy"
-            kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, 1e-6, box / 10)
-            kappa = 3.458910000000000
-            K1, K2, K3 = 42, 42, 42
+            kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, 5e-4, box / 10)
             coulforce = CoulombPMEFreeEnergyForce(
                 r_cut,
                 map_charge,
