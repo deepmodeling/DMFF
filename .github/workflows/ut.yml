@@ -30,6 +30,7 @@ jobs:
           pip install .
       - name: Run Tests
         run: |
+          source $CONDA/bin/activate
           pytest -vs tests/ 
 
     
