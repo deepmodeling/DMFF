@@ -31,6 +31,4 @@ jobs:
       - name: Run Tests
         run: |
           source $CONDA/bin/activate
-          pytest -vs tests/ 
-
-    
+          pytest -vs tests/     

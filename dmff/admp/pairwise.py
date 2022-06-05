@@ -130,7 +130,7 @@ def TT_damping_qq_kernel(dr, m, bi, bj, qi, qj):
 @vmap
 @jit_condition(static_argnums=())
 def slater_disp_damping_kernel(dr, m, bi, bj, c6i, c6j, c8i, c8j, c10i, c10j):
-    '''
+    r'''
     Slater-ISA type damping for dispersion:
     f(x) = -e^{-x} * \sum_{k} x^k/k!
     x = Br - \frac{2*(Br)^2 + 3Br}{(Br)^2 + 3*Br + 3}

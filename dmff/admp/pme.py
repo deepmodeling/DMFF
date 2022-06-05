@@ -331,7 +331,7 @@ def energy_pme(positions, box, pairs,
 @jit_condition(static_argnums=(3))
 def calc_e_perm(dr, mscales, kappa, lmax=2):
 
-    '''
+    r'''
     This function calculates the ePermCoefs at once
     ePermCoefs is basically the interaction tensor between permanent multipole components
     Everything should be done in the so called quasi-internal (qi) frame
@@ -452,7 +452,7 @@ trim_val_infty = gen_trim_val_infty(1e8)
 @jit_condition(static_argnums=(7))
 def calc_e_ind(dr, thole1, thole2, dmp, pscales, dscales, kappa, lmax=2):
 
-    '''
+    r'''
     This function calculates the eUindCoefs at once
        ## compute the Thole damping factors for energies
      eUindCoefs is basically the interaction tensor between permanent multipole components and induced dipoles
