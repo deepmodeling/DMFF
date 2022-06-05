@@ -1939,7 +1939,6 @@ class NonbondJaxGenerator:
         self.ff = hamiltionian
         self.coulomb14scale = coulomb14scale
         self.lj14scale = lj14scale
-        # self.useDispersionCorrection = useDispersionCorrection
         # self.params = app.ForceField._AtomTypeParameters(hamiltionian, 'NonbondedForce', 'Atom', ('charge', 'sigma', 'epsilon'))
         self.params = {
             "sigma": [],
@@ -1953,8 +1952,6 @@ class NonbondJaxGenerator:
         self.types = []
         self.useAttributeFromResidue = []
 
-        # pre-configure constants
-        self.ethresh = 5e-4
 
     def registerAtom(self, atom):
         # use types in nb cards or resname+atomname in residue cards
@@ -2011,7 +2008,6 @@ class NonbondJaxGenerator:
         generator.types = np.array(generator.types)
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
-
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",
@@ -2024,10 +2020,6 @@ class NonbondJaxGenerator:
         if nonbondedMethod is app.NoCutoff:
             isNoCut = True
 
-        # here box is only used to setup ewald parameters, no need to be differentiable
-        a, b, c = system.getDefaultPeriodicBoxVectors()
-        box = jnp.array([a._value, b._value, c._value]) * 10
-
         # Jax prms!
         for k in self.params.keys():
             self.params[k] = jnp.array(self.params[k])
@@ -2036,7 +2028,6 @@ class NonbondJaxGenerator:
         mscales_coul = mscales_coul.at[2].set(self.params["coulomb14scale"][0])
         mscales_lj = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for LJ
         mscales_lj = mscales_lj.at[2].set(self.params["lj14scale"][0])
-
 
         # Coulomb: only support PME for now
         # set PBC
@@ -2108,6 +2099,21 @@ class NonbondJaxGenerator:
             r_switch = r_cut
             ifSwitch = False
         
+        # PME Settings
+        if nonbondedMethod is app.PME:
+            a, b, c = system.getDefaultPeriodicBoxVectors()
+            box = jnp.array([a._value, b._value, c._value])
+            self.ethresh = args.get("ethresh", 1e-6)
+            self.coeff_method = args.get("PmeCoeffMethod", "openmm")
+            self.fourier_spacing = args.get("PmeSpacing", 0.1)
+            kappa, K1, K2, K3 = setup_ewald_parameters(
+                r_cut,
+                self.ethresh,
+                box,
+                self.fourier_spacing,
+                self.coeff_method
+            )
+
         map_lj = jnp.array(map_lj)
         map_nbfix = jnp.array(map_nbfix)
         map_charge = jnp.array(map_charge)
@@ -2184,6 +2190,13 @@ class NonbondJaxGenerator:
                         countMat[i, i] = countVec[i] * (countVec[i] - 1) // 2
             assert np.sum(countMat) == len(map_lj) * (len(map_lj) - 1) // 2
 
+            colv_pairs = np.argwhere(np.logical_and(colv_map > 0, colv_map <= 3))
+            for pair in colv_pairs:
+                if pair[0] <= pair[1]:
+                    tmp = (map_lj[pair[0]], map_lj[pair[1]])
+                    t1, t2 = min(tmp), max(tmp)
+                    countMat[t1, t2] -= 1
+
             if not isFreeEnergy:
                 ljDispCorrForce = LennardJonesLongRangeForce(
                     r_cut,
@@ -2215,8 +2228,7 @@ class NonbondJaxGenerator:
             else:
                 coulforce = CoulombPMEForce(r_cut, map_charge, colv_map, self.ethresh)
         else:
-            assert nonbondedMethod is app.PME, "Only PME is supported for free energy"
-            kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, 5e-4, box / 10)
+            assert nonbondedMethod is app.PME, "Only PME is supported in free energy calculations"
             coulforce = CoulombPMEFreeEnergyForce(
                 r_cut,
                 map_charge,
