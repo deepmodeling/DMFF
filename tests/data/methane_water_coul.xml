@@ -1,0 +1,59 @@
+<ForceField>
+    <Residues>
+        <Residue name="MOL">
+            <Atom name="C1" type="C1" charge="-0.1068000000" />
+            <Atom name="H1" type="H1" charge="0.0267000000" />
+            <Atom name="H2" type="H2" charge="0.0267000000" />
+            <Atom name="H3" type="H3" charge="0.0267000000" />
+            <Atom name="H4" type="H4" charge="0.0267000000" />    
+            <Bond atomName1="C1" atomName2="H1" />
+            <Bond atomName1="C1" atomName2="H2" />
+            <Bond atomName1="C1" atomName2="H3" />
+            <Bond atomName1="C1" atomName2="H4" />
+        </Residue>
+        <Residue name="SOL">
+            <Atom name="OW" type="OW" charge="-0.834"/>
+            <Atom name="HW1" type="HW1" charge="0.417"/>
+            <Atom name="HW2" type="HW2" charge="0.417"/>
+            <Bond from="0" to="1"/>
+            <Bond from="0" to="2"/>
+        </Residue>
+    </Residues>
+    <AtomTypes>
+        <Type element="C" name="C1" class="c3" mass="12.010" />
+        <Type element="H" name="H1" class="hc" mass="1.008" />
+        <Type element="H" name="H2" class="hc" mass="1.008" />
+        <Type element="H" name="H3" class="hc" mass="1.008" />
+        <Type element="H" name="H4" class="hc" mass="1.008" />
+        <Type element="O" name="OW" class="ow" mass="15.99943" />
+        <Type element="H" name="HW1" class="hw" mass="1.007947" />
+        <Type element="H" name="HW2" class="hw" mass="1.007947" />
+    </AtomTypes>
+    <HarmonicBondForce>
+        <Bond type1="C1" type2="H1" length="0.1097000000" k="314550.0000000001" />
+        <Bond type1="C1" type2="H2" length="0.1097000000" k="314550.0000000001" />
+        <Bond type1="C1" type2="H3" length="0.1097000000" k="314550.0000000001" />
+        <Bond type1="C1" type2="H4" length="0.1097000000" k="314550.0000000001" />
+        <Bond class1="ow" class2="hw" length="0.09572" k="0.00000"/>
+    </HarmonicBondForce>
+    <HarmonicAngleForce>
+        <Angle type1="H1" type2="C1" type3="H2" angle="1.8776252093" k="326.3500000000" />
+        <Angle type1="H1" type2="C1" type3="H3" angle="1.8776252093" k="326.3500000000" />
+        <Angle type1="H1" type2="C1" type3="H4" angle="1.8776252093" k="326.3500000000" />
+        <Angle type1="H2" type2="C1" type3="H3" angle="1.8776252093" k="326.3500000000" />
+        <Angle type1="H2" type2="C1" type3="H4" angle="1.8776252093" k="326.3500000000" />
+        <Angle type1="H3" type2="C1" type3="H4" angle="1.8776252093" k="326.3500000000" />
+        <Angle class1="hw" class2="ow" class3="hw" angle="1.82421813418" k="0.00000"/>
+    </HarmonicAngleForce>
+    <PeriodicTorsionForce ordering="amber" />
+    <NonbondedForce coulomb14scale="0.83333" lj14scale="0.50000">
+        <UseAttributeFromResidue name="charge" />
+        <Atom type="C1" sigma="0.3397710000" epsilon="0.0000000000" />
+        <Atom type="H1" sigma="0.2600180000" epsilon="0.0000000000" />
+        <Atom type="H2" sigma="0.2600180000" epsilon="0.0000000000" />
+        <Atom type="H3" sigma="0.2600180000" epsilon="0.0000000000" />
+        <Atom type="H4" sigma="0.2600180000" epsilon="0.0000000000" />
+        <Atom class="ow" sigma="0.315061000000" epsilon="0.000000000000"/>
+        <Atom class="hw" sigma="0.000000000000" epsilon="0.000000000000"/>
+    </NonbondedForce>
+</ForceField>
