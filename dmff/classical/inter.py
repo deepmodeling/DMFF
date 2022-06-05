@@ -1,11 +1,10 @@
-from typing import Iterable
+from typing import Iterable, Tuple
 
 import jax.numpy as jnp
-from jax.scipy.special import erfc, erf
 import numpy as np
 
 from dmff.utils import pair_buffer_scales, regularize_pairs
-from dmff.admp.pme import energy_pme, setup_ewald_parameters, pme_real
+from dmff.admp.pme import energy_pme
 from dmff.admp.recip import generate_pme_recip
 from dmff.admp.spatial import v_pbc_shift
 from dmff.admp.recip import generate_pme_recip, Ck_1
@@ -241,106 +240,42 @@ class CoulReactionFieldForce:
 
 
 class CoulombPMEForce:
+
     def __init__(
         self,
         r_cut: float,
         map_prm: Iterable[int],
-        colv_map: np.ndarray,
-        ethresh: float,
-        pme_order: int = 6
+        cov_mat: np.ndarray,
+        kappa: float,
+        K: Tuple[int, int, int],
+        pme_order: int = 6,
     ):
         self.r_cut = r_cut
         self.map_prm = map_prm
-        self.ethresh = ethresh
-        self.pme_order = pme_order
-        self.colv_map = colv_map
+        self.cov_mat = cov_mat
         self.lmax = 0
+        self.kappa = kappa
+        self.K1, self.K2, self.K3 = K[0], K[1], K[2]
+        self.pme_order = pme_order
+        assert pme_order == 6, "PME order other than 6 is not supported"
 
     def generate_get_energy(self):
         
         def get_energy(positions, box, pairs, charges, mscales):
-            # kappa, K1, K2, K3 = setup_ewald_parameters(self.r_cut, self.ethresh, box)
-            # print(kappa, K1, K2, K3)
-            kappa = 3.458910000000000 / 10
-            K1 = 33
-            K2 = 33
-            K3 = 33
-            self.r_cut = 1.0
-
-            atomCharges = charges[self.map_prm[np.arange(positions.shape[0])]]
-            atomChargesT = atomCharges.reshape(-1, 1)
-            # # print(mscales)
-
-            bufscales = pair_buffer_scales(pairs)
-
-            # mscales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=jnp.float32) # debug
-            colv_pair = self.colv_map[pairs[:, 0], pairs[:, 1]]
-            mscale_pair = mscales[colv_pair-1]
-
-
-            
-            dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
-            dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
-            
-            dr_norm = jnp.linalg.norm(dr_vec, axis=1)
-
-            
-            # msk = dr_norm <= self.r_cut
-            
-            # dr_norm = dr_norm[msk]
-            # erfc_dr = erfc(dr_norm * kappa)
-
-            chgprod = atomCharges[pairs[:, 0]] * atomCharges[pairs[:, 1]]
-            erf_dr = erf(dr_norm * kappa * 10)
-            ene = chgprod * (mscale_pair - erf_dr) / dr_norm * bufscales * ONE_4PI_EPS0
-            print(jnp.sum(ene))
-
-            # chgprod = chgprod[msk]
-            # mscale_pair = mscale_pair[msk]
-            # ene_vec = chgprod * erfc_dr / dr_norm * ONE_4PI_EPS0 * mscale_pair
-            # short_range_ene = jnp.sum(ene_vec)
-            # print("Short Range:", short_range_ene)
-            # self_corr_ene = -ONE_4PI_EPS0 * kappa / jnp.sqrt(jnp.pi) * jnp.sum(atomCharges ** 2)
-            # # 1-2, 1-3 excl
-            # excl_msk = jnp.logical_and(
-            #     jnp.logical_or(
-            #         jnp.logical_or(colv_pair == 1, colv_pair == 2),
-            #         colv_pair == 3
-            #     ),
-            #     bufscales
-            # )
-            # excl_ene_vec = -chgprod * (1 - erfc_dr) / dr_norm * ONE_4PI_EPS0
-            # excl_ene = jnp.sum(excl_ene_vec[excl_msk])
-
-            # self_corr_ene += excl_ene
-            # print("Self Corr:", self_corr_ene)
-            # # print(jnp.mean(erfc_dr))
-
-            # # # dr_shift = erfc(kappa * self.r_cut) / self.r_cut
-            # # # ewald_shift = jnp.sum(chgprod * dr_shift * ONE_4PI_EPS0 * mscale_pair)
-            # # # print("Shift:", ewald_shift)
-            # # # short_range_ene -= ewald_shift
-            # dipole = jnp.sum(atomChargesT * positions, axis=0)
-            # # # ene_dipole = jnp.dot(dipole, dipole.T) * ONE_4PI_EPS0
-            # # # print(ene_dipole)
-            # print(-jnp.sum(dipole ** 2) * ONE_4PI_EPS0 * 3 * jnp.pi / 2 / jnp.linalg.det(box))
-            # # # print(atomCharges)
 
             pme_recip_fn = generate_pme_recip(
                 Ck_fn=Ck_1,
-                kappa=kappa,
+                kappa=self.kappa / 10,
                 gamma=False,
                 pme_order=self.pme_order,
-                K1=K1,
-                K2=K2,
-                K3=K3,
+                K1=self.K1,
+                K2=self.K2,
+                K3=self.K3,
                 lmax=self.lmax,
             )
-            # ene_recip = pme_recip_fn(positions, box, atomChargesT) * 0.1
-            # print("Coul. recip:", ene_recip)
 
-            # return short_range_ene + self_corr_ene + ene_recip
-
+            atomCharges = charges[self.map_prm[np.arange(positions.shape[0])]]
+            atomChargesT = jnp.reshape(atomCharges, (-1, 1))
 
             return energy_pme(
                 positions * 10,
@@ -353,13 +288,13 @@ class CoulombPMEForce:
                 mscales,
                 None,
                 None,
-                self.colv_map,
+                self.cov_mat,
                 None,
                 pme_recip_fn,
-                kappa,
-                K1,
-                K2,
-                K3,
+                self.kappa / 10,
+                self.K1,
+                self.K2,
+                self.K3,
                 self.lmax,
                 False,
             )

@@ -785,11 +785,8 @@ def pme_real(positions, box, pairs,
     Output:
         ene: pme realspace energy
     '''
-
-    #***debug
-    # pairs = regularize_pairs(pairs)
+    pairs = regularize_pairs(pairs)
     buffer_scales = pair_buffer_scales(pairs)
-    # buffer_scales = jnp.ones(pairs.shape[0])
     box_inv = jnp.linalg.inv(box)
     r1 = distribute_v3(positions, pairs[:, 0])
     r2 = distribute_v3(positions, pairs[:, 1])
@@ -810,14 +807,6 @@ def pme_real(positions, box, pairs,
         pscales = pscales * buffer_scales
         dscales = distribute_scalar(dScales, indices)
         dscales = dscales * buffer_scales
-        # pol1 = pol[pairs[:,0]]
-        # pol2 = pol[pairs[:,1]]
-        # thole1 = tholes[pairs[:,0]]
-        # thole2 = tholes[pairs[:,1]]
-        # Uind_extendi = Uind_global[pairs[:, 0]]
-        # Uind_extendj = Uind_global[pairs[:, 1]]
-        # pscales = pScales[nbonds-1]
-        # dscales = dScales[nbonds-1]
         dmp = get_pair_dmp(pol1, pol2)
     else:
         Uind_extendi = None
@@ -844,9 +833,23 @@ def pme_real(positions, box, pairs,
 
     # everything should be pair-specific now
     ene = jnp.sum(
-            pme_real_kernel(norm_dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscales, pscales, dscales, kappa, lmax, lpol)
-            * buffer_scales
-            )
+        pme_real_kernel(
+            norm_dr, 
+            qiQI, 
+            qiQJ, 
+            qiUindI, 
+            qiUindJ, 
+            thole1, 
+            thole2, 
+            dmp, 
+            mscales, 
+            pscales, 
+            dscales, 
+            kappa, 
+            lmax, 
+            lpol
+        ) * buffer_scales
+    )
 
     return ene
 

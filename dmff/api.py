@@ -2226,7 +2226,7 @@ class NonbondJaxGenerator:
                     # use NoCutoff
                     coulforce = CoulNoCutoffForce(map_charge, colv_map)
             else:
-                coulforce = CoulombPMEForce(r_cut, map_charge, colv_map, self.ethresh)
+                coulforce = CoulombPMEForce(r_cut, map_charge, colv_map, kappa, (K1, K2, K3))
         else:
             assert nonbondedMethod is app.PME, "Only PME is supported in free energy calculations"
             coulforce = CoulombPMEFreeEnergyForce(
