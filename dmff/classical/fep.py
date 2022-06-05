@@ -4,10 +4,10 @@ import numpy as np
 import jax.numpy as jnp
 from jax.scipy.special import erf
 
+from dmff.common.constants import DIELECTRIC
 from dmff.admp.spatial import v_pbc_shift
 from dmff.admp.recip import generate_pme_recip, Ck_1
 from dmff.utils import regularize_pairs, pair_buffer_scales
-from dmff.admp.pme import DIELECTRIC 
 
 
 ONE_4PI_EPS0 = DIELECTRIC * 0.1
