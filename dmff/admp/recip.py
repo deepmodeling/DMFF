@@ -4,10 +4,7 @@ import jax.numpy as jnp
 import jax.scipy as jsp
 from jax import jit
 from dmff.settings import DO_JIT
-from dmff.admp.pme import DIELECTRIC
-
-
-sqrt_pi = np.sqrt(np.pi)
+from dmff.common.constants import DIELECTRIC, SQRT_PI as sqrt_pi
 
 
 def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
