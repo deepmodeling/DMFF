@@ -1,9 +1,9 @@
-import sys
-from jax import vmap
-import jax.numpy as jnp
-from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
-from dmff.admp.spatial import v_pbc_shift
 from functools import partial
+
+import jax.numpy as jnp
+from dmff.admp.spatial import v_pbc_shift
+from dmff.utils import jit_condition, pair_buffer_scales, regularize_pairs
+from jax import vmap
 
 DIELECTRIC = 1389.35455846
 

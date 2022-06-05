@@ -1,13 +1,10 @@
-from dmff.utils import pair_buffer_scales, regularize_pairs
 import jax.numpy as jnp
-from dmff.admp.pme import energy_pme, setup_ewald_parameters
-from dmff.admp.recip import generate_pme_recip
-from dmff.admp.spatial import v_pbc_shift
 import numpy as np
-import jax.numpy as jnp
+from dmff.admp.pme import DIELECTRIC, energy_pme, setup_ewald_parameters
+from dmff.admp.recip import Ck_1, generate_pme_recip
+from dmff.admp.spatial import v_pbc_shift
+from dmff.utils import pair_buffer_scales, regularize_pairs
 from jax import grad
-from dmff.admp.recip import generate_pme_recip, Ck_1
-from dmff.admp.pme import DIELECTRIC 
 
 ONE_4PI_EPS0 = DIELECTRIC * 0.1
 

@@ -1,7 +1,7 @@
-from jax_md import space, partition
 import jax.numpy as jnp
 from dmff.utils import regularize_pairs
-import jax.numpy as jnp
+from jax_md import partition, space
+
 
 class NeighborList:
     

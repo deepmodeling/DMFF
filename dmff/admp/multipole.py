@@ -1,7 +1,8 @@
-import jax.numpy as jnp
-from jax import vmap
-from dmff.utils import jit_condition
 from functools import partial
+
+import jax.numpy as jnp
+from dmff.utils import jit_condition
+from jax import vmap
 
 # This module deals with the transformations and rotations of multipoles
 

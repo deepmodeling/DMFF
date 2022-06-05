@@ -1,18 +1,10 @@
 
-import numpy as np
 import jax.numpy as jnp
 import jax.scipy as jsp
-from jax import jit
-from dmff.settings import DO_JIT
+import numpy as np
 from dmff.admp.pme import DIELECTRIC
-
-# for debug
-# from admp.parser import *
-# from admp.multipole import *
-# from admp.spatial import *
-# from admp.pme import *
-# from jax.config import config
-# config.update("jax_enable_x64", True)
+from dmff.settings import DO_JIT
+from jax import jit
 
 sqrt_pi = 1.7724538509055159
 

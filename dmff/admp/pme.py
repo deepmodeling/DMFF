@@ -1,22 +1,22 @@
-import sys
-import numpy as np
-import jax
-import jax.numpy as jnp
-from jax import grad, value_and_grad, vmap, jit
-from jax.scipy.special import erf
-from dmff.settings import DO_JIT
-from dmff.admp.settings import POL_CONV, MAX_N_POL
-from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
-from dmff.admp.multipole import C1_c2h, convert_cart2harm
-from dmff.admp.multipole import rot_ind_global2local, rot_global2local, rot_local2global
-from dmff.admp.spatial import v_pbc_shift, generate_construct_local_frames, build_quasi_internal
-from dmff.admp.pairwise import distribute_scalar, distribute_v3, distribute_multipoles
 from functools import partial
+
+import jax.numpy as jnp
+import numpy as np
+from dmff.admp.multipole import (C1_c2h, convert_cart2harm, rot_global2local,
+                                 rot_ind_global2local, rot_local2global)
+from dmff.admp.pairwise import (distribute_multipoles, distribute_scalar,
+                                distribute_v3)
+from dmff.admp.settings import MAX_N_POL, POL_CONV
+from dmff.admp.spatial import (build_quasi_internal,
+                               generate_construct_local_frames, v_pbc_shift)
+from dmff.settings import DO_JIT
+from dmff.utils import jit_condition, pair_buffer_scales, regularize_pairs
+from jax import grad, jit, value_and_grad, vmap
 
 DIELECTRIC = 1389.35455846
 DEFAULT_THOLE_WIDTH = 5.0
-
-from dmff.admp.recip import generate_pme_recip, Ck_1
+import jax
+from dmff.admp.recip import Ck_1, generate_pme_recip
 
 # Functions that are related to electrostatic pme
 

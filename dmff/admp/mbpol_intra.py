@@ -1,11 +1,7 @@
-
-import sys
-import numpy as np
 import jax.numpy as jnp
-from jax import grad, value_and_grad
-from dmff.settings import DO_JIT
-from dmff.utils import jit_condition
+import numpy as np
 from dmff.admp.spatial import v_pbc_shift
+from dmff.utils import jit_condition
 from jax import vmap
 
 #const
@@ -13,14 +9,14 @@ f5z = 0.999677885
 fbasis = 0.15860145369897
 fcore = -1.6351695982132
 frest = 1.0
-reoh = 0.958649;
-thetae = 104.3475;
-b1 = 2.0;
-roh = 0.9519607159623009;
-alphaoh = 2.587949757553683;
-deohA = 42290.92019288289;
-phh1A = 16.94879431193463;
-phh2 = 12.66426998162947;
+reoh = 0.958649
+thetae = 104.3475
+b1 = 2.0
+roh = 0.9519607159623009
+alphaoh = 2.587949757553683
+deohA = 42290.92019288289
+phh1A = 16.94879431193463
+phh2 = 12.66426998162947
 
 c5zA = jnp.array([4.2278462684916e+04, 4.5859382909906e-02, 9.4804986183058e+03,
        7.5485566680955e+02, 1.9865052511496e+03, 4.3768071560862e+02,
