@@ -213,9 +213,9 @@ class ADMPPmeForce:
 def setup_ewald_parameters(
     rc: float,
     ethresh: float, 
-    box: Optional[jnp.ndarray], 
-    spacing: Optional[float],
-    method='openmm'
+    box: Optional[jnp.ndarray] = None,
+    spacing: Optional[float] = None,
+    method: str = 'openmm'
 ) -> Tuple[float, int, int, int]:
     '''
     Given the cutoff distance, and the required precision, determine the parameters used in
