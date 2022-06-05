@@ -1,31 +1,38 @@
-import sys
+from typing import Tuple, Optional
+from functools import partial
+
 import numpy as np
 import jax
 import jax.numpy as jnp
 from jax import grad, value_and_grad, vmap, jit
-from jax.scipy.special import erf
-from dmff.settings import DO_JIT
-from dmff.admp.settings import POL_CONV, MAX_N_POL
-from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
-from dmff.admp.multipole import C1_c2h, convert_cart2harm
-from dmff.admp.multipole import rot_ind_global2local, rot_global2local, rot_local2global
-from dmff.admp.spatial import v_pbc_shift, generate_construct_local_frames, build_quasi_internal
-from dmff.admp.pairwise import distribute_scalar, distribute_v3, distribute_multipoles
-from functools import partial
+from jax.scipy.special import erf, erfc
 
-DIELECTRIC = 1389.35455846
+from dmff.settings import DO_JIT
+from dmff.common.constants import DIELECTRIC
+from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
+from dmff.admp.settings import POL_CONV, MAX_N_POL
+from dmff.admp.recip import generate_pme_recip, Ck_1
+from dmff.admp.multipole import (
+    C1_c2h, 
+    convert_cart2harm,
+    rot_ind_global2local,
+    rot_global2local,
+    rot_local2global
+)
+from dmff.admp.spatial import (
+    v_pbc_shift, 
+    generate_construct_local_frames, 
+    build_quasi_internal
+)
+from dmff.admp.pairwise import (
+    distribute_scalar, 
+    distribute_v3, 
+    distribute_multipoles
+)
+
+
 DEFAULT_THOLE_WIDTH = 5.0
 
-from dmff.admp.recip import generate_pme_recip, Ck_1
-
-# for debugging use only
-# from jax_md import partition, space
-# from admp.parser import *
-
-# from jax.config import config
-# config.update("jax_enable_x64", True)
-
-# Functions that are related to electrostatic pme
 
 class ADMPPmeForce:
     '''
@@ -203,33 +210,74 @@ class ADMPPmeForce:
         return U, flag, steps_pol
 
 
-def setup_ewald_parameters(rc, ethresh, box):
+def setup_ewald_parameters(
+    rc: float,
+    ethresh: float, 
+    box: Optional[jnp.ndarray], 
+    spacing: Optional[float],
+    method='openmm'
+) -> Tuple[float, int, int, int]:
     '''
     Given the cutoff distance, and the required precision, determine the parameters used in
     Ewald sum, including: kappa, K1, K2, and K3.
-    The algorithm is exactly the same as OpenMM, see: 
-    http://docs.openmm.org/latest/userguide/theory.html
+    
 
-    Input:
-        rc:
-            float, the cutoff distance
-        ethresh:
-            float, required energy precision
-        box:
-            3*3 matrix, box size, a, b, c arranged in rows
+    Parameters:
+    ----------
+    rc: float
+        The cutoff distance, in nm
+    ethresh: float
+        Required energy precision, in kJ/mol
+    box: ndarray, optional
+        3*3 matrix, box size, a, b, c arranged in rows, used in openmm method
+    spacing: float, optional
+        fourier spacing to determine K, used in gromacs method
+    method: str
+        Method to determine ewald parameters. Valid values: "openmm" or "gromacs".
+        If openmm, the algorithm can refer to http://docs.openmm.org/latest/userguide/theory.html
+        If gromacs, the algorithm is adapted from gromacs source code
 
-    Output:
-        kappa:
-            float, the attenuation factor
-        K1, K2, K3:
-            integers, sizes of the k-points mesh
+    Returns
+    -------
+    kappa, K1, K2, K3: (float, int, int, int)
+        float, the attenuation factor
+    K1, K2, K3:
+        integers, sizes of the k-points mesh
     '''
-    kappa = jnp.sqrt(-jnp.log(2*ethresh))/rc
-    K1 = jnp.ceil(2 * kappa * box[0, 0] / 3 / ethresh**0.2)
-    K2 = jnp.ceil(2 * kappa * box[1, 1] / 3 / ethresh**0.2)
-    K3 = jnp.ceil(2 * kappa * box[2, 2] / 3 / ethresh**0.2)
+    if method == "openmm":
+        kappa = jnp.sqrt(-jnp.log(2 * ethresh)) / rc
+        K1 = jnp.ceil(2 * kappa * box[0, 0] / 3 / ethresh**0.2)
+        K2 = jnp.ceil(2 * kappa * box[1, 1] / 3 / ethresh**0.2)
+        K3 = jnp.ceil(2 * kappa * box[2, 2] / 3 / ethresh**0.2)
 
-    return kappa, int(K1), int(K2), int(K3)
+        return kappa, int(K1), int(K2), int(K3)
+    elif method == "gromacs":
+        # determine kappa
+        kappa = 5.0
+        i = 0
+        while erfc(kappa * rc) > ethresh:
+            i += 1
+            kappa *= 2
+        
+        n = i + 60
+        low = 0.0
+        high = kappa
+        for k in range(n):
+            kappa = (low + high) / 2
+            if erfc(kappa * rc) > ethresh:
+                low = kappa
+            else:
+                high = kappa
+        # determine K
+        K1 = int(jnp.ceil(box[0, 0] / spacing))
+        K2 = int(jnp.ceil(box[1, 1] / spacing))
+        K3 = int(jnp.ceil(box[2, 2] / spacing))
+        return kappa, K1, K2, K3 
+    else:
+        raise ValueError(
+            f"Invalid method: {method}."
+            "Valid methods: 'openmm', 'gromacs'"
+        )
 
 
 # @jit_condition(static_argnums=())
