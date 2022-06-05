@@ -1990,10 +1990,10 @@ class NonbondJaxGenerator:
         else:
             generator = existing[0]
 
-            # if (abs(generator.coulomb14scale - float(element.attrib['coulomb14scale'])) > NonbondedGenerator.SCALETOL
-            #     or abs(generator.lj14scale - float(element.attrib['lj14scale'])) > NonbondedGenerator.SCALETOL
-            # ):
-            #     raise ValueError('Found multiple NonbondedForce tags with different 1-4 scales')
+            if (abs(generator.coulomb14scale - float(element.attrib['coulomb14scale'])) > NonbondJaxGenerator.SCALETOL
+                or abs(generator.lj14scale - float(element.attrib['lj14scale'])) > NonbondJaxGenerator.SCALETOL
+            ):
+                raise ValueError('Found multiple NonbondedForce tags with different 1-4 scales')
         excludedParams = [
             node.attrib["name"] for node in element.findall("UseAttributeFromResidue")
         ]
@@ -2167,7 +2167,7 @@ class NonbondJaxGenerator:
         ljenergy = ljforce.generate_get_energy()
 
         # dispersion correction
-        useDispersionCorrection = args.get("useDispersionCorrection", True)
+        useDispersionCorrection = args.get("useDispersionCorrection", False)
         if useDispersionCorrection:
             numTypes = len(self.types)
             countVec = np.zeros(numTypes, dtype=int)
