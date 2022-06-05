@@ -1,4 +1,3 @@
-import sys
 import jax.numpy as jnp
 from jax import vmap
 from dmff.utils import jit_condition
@@ -48,7 +47,7 @@ def convert_cart2harm(Theta, lmax):
             n * (l+1)^2, stores the spherical multipoles
     '''
     if lmax > 2:
-        sys.exit('l > 2 (beyond quadrupole) not supported')
+        raise ValueError('l > 2 (beyond quadrupole) not supported')
 
     Q_mono = Theta[0:1]
     
@@ -90,7 +89,7 @@ def convert_harm2cart(Q, lmax):
     '''
 
     if lmax > 2:
-        sys.exit('l > 2 (beyond quadrupole) not supported')
+        raise ValueError('l > 2 (beyond quadrupole) not supported')
 
     T_mono = Q[0:1]
 

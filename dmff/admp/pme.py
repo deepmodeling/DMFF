@@ -18,13 +18,6 @@ DEFAULT_THOLE_WIDTH = 5.0
 
 from dmff.admp.recip import generate_pme_recip, Ck_1
 
-# for debugging use only
-# from jax_md import partition, space
-# from admp.parser import *
-
-# from jax.config import config
-# config.update("jax_enable_x64", True)
-
 # Functions that are related to electrostatic pme
 
 class ADMPPmeForce:
@@ -853,79 +846,3 @@ def pol_penalty(U_ind, pol):
     pol_pi = trim_val_0(pol)
     # pol_pi = pol/(jnp.exp((-pol+1e-08)*1e10)+1) + 1e-08/(jnp.exp((pol-1e-08)*1e10)+1)
     return jnp.sum(0.5/pol_pi*(U_ind**2).T) * DIELECTRIC
-
-
-def validation(pdb):
-    xml = 'mpidwater.xml'
-    pdbinfo = read_pdb(pdb)
-    serials = pdbinfo['serials']
-    names = pdbinfo['names']
-    resNames = pdbinfo['resNames']
-    resSeqs = pdbinfo['resSeqs']
-    positions = pdbinfo['positions']
-    box = pdbinfo['box'] # a, b, c, α, β, γ
-    charges = pdbinfo['charges']
-    positions = jnp.asarray(positions)
-    lx, ly, lz, _, _, _ = box
-    box = jnp.eye(3)*jnp.array([lx, ly, lz])
-
-    mScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    pScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    dScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-
-    rc = 4  # in Angstrom
-    ethresh = 1e-4
-
-    n_atoms = len(serials)
-
-    atomTemplate, residueTemplate = read_xml(xml)
-    atomDicts, residueDicts = init_residues(serials, names, resNames, resSeqs, positions, charges, atomTemplate, residueTemplate)
-
-    Q = np.vstack(
-        [(atom.c0, atom.dX*10, atom.dY*10, atom.dZ*10, atom.qXX*300, atom.qYY*300, atom.qZZ*300, atom.qXY*300, atom.qXZ*300, atom.qYZ*300) for atom in atomDicts.values()]
-    )
-    Q = jnp.array(Q)
-    Q_local = convert_cart2harm(Q, 2)
-    axis_type = np.array(
-        [atom.axisType for atom in atomDicts.values()]
-    )
-    axis_indices = np.vstack(
-        [atom.axis_indices for atom in atomDicts.values()]
-    )
-    covalent_map = assemble_covalent(residueDicts, n_atoms)
-
-    
-    displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
-    neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T
-    # pairs = pairs[pairs[:, 0] < pairs[:, 1]]
-
-    lmax = 2
-
-
-    # Finish data preparation
-    # -------------------------------------------------------------------------------------
-    # kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
-    # # for debugging
-    # kappa = 0.657065221219616
-    # construct_local_frames_fn = generate_construct_local_frames(axis_type, axis_indices)
-    # energy_force_pme = value_and_grad(energy_pme)
-    # e, f = energy_force_pme(positions, box, pairs, Q_local, mScales, pScales, dScales, covalent_map, construct_local_frames_fn, kappa, K1, K2, K3, lmax)
-    # print('ok')
-    # e, f = energy_force_pme(positions, box, pairs, Q_local, mScales, pScales, dScales, covalent_map, construct_local_frames_fn, kappa, K1, K2, K3, lmax)
-    # print(e)
-
-    pme_force = ADMPPmeForce(box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax)
-    pme_force.update_env('kappa', 0.657065221219616)
-
-    E, F = pme_force.get_forces(positions, box, pairs, Q_local, mScales)
-    print('ok')
-    E, F = pme_force.get_forces(positions, box, pairs, Q_local, mScales)
-    print(E)
-    return
-
-
-# below is the validation code
-if __name__ == '__main__':
-    validation(sys.argv[1])

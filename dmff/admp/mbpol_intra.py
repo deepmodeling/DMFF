@@ -6,12 +6,7 @@ from jax import grad, value_and_grad
 from dmff.settings import DO_JIT
 from dmff.utils import jit_condition
 from dmff.admp.spatial import v_pbc_shift
-from dmff.admp.pme import ADMPPmeForce
-from dmff.admp.parser import *
 from jax import vmap
-import time
-#from admp.multipole import convert_cart2harm
-#from jax_md import partition, space
 
 #const
 f5z = 0.999677885
@@ -488,42 +483,3 @@ def onebody_kernel(x1, x2, x3, Va, Vb, efac):
     e1 *= cm1_kcalmol 
     e1 *= cal2joule # conver cal 2 j
     return e1
-
-
-def validation(pdb):
-    xml = 'mpidwater.xml'
-    pdbinfo = read_pdb(pdb)
-    serials = pdbinfo['serials']
-    names = pdbinfo['names']
-    resNames = pdbinfo['resNames']
-    resSeqs = pdbinfo['resSeqs']
-    positions = pdbinfo['positions']
-    box = pdbinfo['box'] # a, b, c, α, β, γ
-    charges = pdbinfo['charges']
-    positions = jnp.asarray(positions)
-    lx, ly, lz, _, _, _ = box
-    box = jnp.eye(3)*jnp.array([lx, ly, lz])
-
-    mScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    pScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    dScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-
-    rc = 4  # in Angstrom
-    ethresh = 1e-4
-
-    n_atoms = len(serials)
-
-    # compute intra
-    
-
-    grad_E1 = value_and_grad(onebodyenergy,argnums=(0))
-    ene, force = grad_E1(positions, box)
-    print(ene,force)
-    return
-
-
-# below is the validation code
-if __name__ == '__main__':
-    validation(sys.argv[1])
- 
-
