@@ -2,7 +2,6 @@ import pytest
 import jax.numpy as jnp
 
 from dmff import NeighborList
-from dmff.utils import regularize_pairs, pair_buffer_scales
 
 
 class TestNeighborList:
