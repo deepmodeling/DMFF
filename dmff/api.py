@@ -1,40 +1,65 @@
-#!/usr/bin/env python
+import sys
+import linecache
+import itertools
+from collections import defaultdict
+import xml.etree.ElementTree as ET
+from copy import deepcopy
+
+import numpy as np
+import jax.numpy as jnp
+
 import openmm as mm
 import openmm.app as app
 import openmm.unit as unit
 import openmm.app.element as elem
-import numpy as np
-import jax.numpy as jnp
-from collections import defaultdict
-import xml.etree.ElementTree as ET
-from .admp.disp_pme import ADMPDispPmeForce
-from .admp.multipole import convert_cart2harm, rot_local2global
-from .admp.pairwise import TT_damping_qq_c6_kernel, generate_pairwise_interaction
-from .admp.pairwise import slater_disp_damping_kernel, slater_sr_kernel, TT_damping_qq_kernel
-from .admp.pme import ADMPPmeForce
-from .admp.spatial import generate_construct_local_frames
-from .admp.recip import Ck_1, generate_pme_recip
-from .utils import jit_condition
-from .classical.intra import (
+
+from dmff.admp.disp_pme import ADMPDispPmeForce
+from dmff.admp.multipole import convert_cart2harm, convert_harm2cart
+from dmff.admp.pairwise import (
+    TT_damping_qq_c6_kernel, 
+    generate_pairwise_interaction,
+    slater_disp_damping_kernel, 
+    slater_sr_kernel, 
+    TT_damping_qq_kernel
+)
+from dmff.admp.pme import ADMPPmeForce, setup_ewald_parameters
+from dmff.classical.intra import (
     HarmonicBondJaxForce,
     HarmonicAngleJaxForce,
     PeriodicTorsionJaxForce,
 )
-from jax_md import space, partition
-from jax import grad, vmap
-import linecache
-import itertools
-from .classical.inter import (
-    CoulombPMEForce,
+from dmff.classical.inter import (
     LennardJonesForce,
+    LennardJonesLongRangeForce,
+    CoulombPMEForce,
     CoulNoCutoffForce,
     CoulReactionFieldForce,
 )
-
-import sys
+from dmff.classical.fep import (
+    LennardJonesFreeEnergyForce,
+    LennardJonesLongRangeFreeEnergyForce,
+    CoulombPMEFreeEnergyForce
+)
+from dmff.utils import jit_condition, isinstance_jnp
 
 
 class XMLNodeInfo:
+    
+    @staticmethod
+    def to_str(value)->str:
+        """ convert value to string if it can
+        """
+        if isinstance(value, str):
+            return value
+        elif isinstance(value, (jnp.ndarray, np.ndarray)):
+            if value.ndim == 0:
+                return str(value)
+            else:
+                return str(value[0])
+        elif isinstance(value, list):
+            return value[0]  # strip [] of value
+        else:
+            return str(value)
 
     class XMLElementInfo:
         
@@ -43,28 +68,45 @@ class XMLNodeInfo:
             self.attributes = {}
         
         def addAttribute(self, key, value):
-            self.attributes[key] = value
-
+            self.attributes[key] = XMLNodeInfo.to_str(value)
+            
+        def __repr__(self):
+            return f'<{self.name} {" ".join([f"{k}={v}" for k, v in self.attributes.items()])}>'
+        
+        def __getitem__(self, name):
+            return self.attributes[name]
 
     def __init__(self, name):
         self.name = name
         self.attributes = {}
         self.elements = []
+        
+    def __getitem__(self, name):
+        if isinstance(name, str):
+            return self.attributes[name]
+        elif isinstance(name, int):
+            return self.elements[name]
     
 
     def addAttribute(self, key, value):
-        self.attributes[key] = value
-
+        self.attributes[key] = XMLNodeInfo.to_str(value)
 
     def addElement(self, name, info):
         element = self.XMLElementInfo(name)
         for k, v in info.items():
             element.addAttribute(k, v)
-            self.elements.append(element)
-
+        self.elements.append(element)
 
     def modResidue(self, residue, atom, key, value):
         pass
+
+    def __repr__(self):
+        # tricy string formatting
+        left = f'<{self.name} {" ".join([f"{k}={v}" for k, v in self.attributes.items()])}> \n\t'
+        right = f'<\\{self.name}>'
+        content = '\n\t'.join([repr(e) for e in self.elements])
+        return left + content + '\n' + right
+
 
 
 def get_line_context(file_path, line_number):
@@ -100,6 +142,7 @@ def findAtomTypeTexts(attribs, num):
                 typetxt.append((key, attribs[key]))
                 break
     return typetxt
+
 
 class ADMPDispGenerator:
     def __init__(self, hamiltonian):
@@ -204,14 +247,25 @@ class ADMPDispGenerator:
 
     def renderXML(self):
         # generate xml force field file
-        pass
+        finfo = XMLNodeInfo('ADMPDispForce')
+        finfo.addAttribute('mScale12', self.params["mScales"][0])
+        finfo.addAttribute('mScale13', self.params["mScales"][1])
+        finfo.addAttribute('mScale14', self.params["mScales"][2])
+        finfo.addAttribute('mScale15', self.params["mScales"][3])
+        finfo.addAttribute('mScale16', self.params["mScales"][4])
+        
+        for i in range(len(self.types)):
+            ainfo = {'type': self.types[i], 'A': self.params["A"][i], 'B': self.params["B"][i], 'Q': self.params["Q"][i], 'C6': self.params["C6"][i], 'C8': self.params["C8"][i], 'C10': self.params["C10"][i]}
+            finfo.addElement('Atom', ainfo)
+        
+        return finfo
 
 # register all parsers
 app.forcefield.parsers["ADMPDispForce"] = ADMPDispGenerator.parseElement
 
 
 class ADMPDispPmeGenerator:
-    '''
+    r'''
     This one computes the undamped C6/C8/C10 interactions
     u = \sum_{ij} c6/r^6 + c8/r^8 + c10/r^10
     '''
@@ -316,7 +370,7 @@ class ADMPDispPmeGenerator:
 app.forcefield.parsers["ADMPDispPmeForce"] = ADMPDispPmeGenerator.parseElement
 
 class QqTtDampingGenerator:
-    '''
+    r'''
     This one calculates the tang-tonnies damping of charge-charge interaction
     E = \sum_ij exp(-B*r)*(1+B*r)*q_i*q_j/r
     '''
@@ -392,7 +446,7 @@ app.forcefield.parsers["QqTtDampingForce"] = QqTtDampingGenerator.parseElement
 
 
 class SlaterDampingGenerator:
-    '''
+    r'''
     This one computes the slater-type damping function for c6/c8/c10 dispersion
     E = \sum_ij (f6-1)*c6/r6 + (f8-1)*c8/r8 + (f10-1)*c10/r10
     fn = f_tt(x, n)
@@ -474,7 +528,7 @@ app.forcefield.parsers["SlaterDampingForce"] = SlaterDampingGenerator.parseEleme
 
 
 class SlaterExGenerator:
-    '''
+    r'''
     This one computes the Slater-ISA type exchange interaction
     u = \sum_ij A * (1/3*(Br)^2 + Br + 1)
     '''
@@ -634,7 +688,7 @@ class ADMPPmeGenerator:
     @staticmethod
     def parseElement(element, hamiltonian):
 
-        """ parse admp related parameters in XML file
+        r""" parse admp related parameters in XML file
         
             example:
             
@@ -703,6 +757,7 @@ class ADMPPmeGenerator:
         generator.types = np.array(generator.types)
 
         n_atoms = len(element.findall("Atom"))
+        generator.n_atoms = n_atoms
 
         # map atom multipole moments
         if generator.lmax == 0:
@@ -1047,7 +1102,41 @@ class ADMPPmeGenerator:
         return self._jaxPotential
 
     def renderXML(self):
-        pass
+        # <ADMPPmeForce>
+        
+        finfo = XMLNodeInfo('ADMPPmeForce')
+        finfo.addAttribute('lmax', str(self.lmax))
+        outputparams = deepcopy(self.params)
+        mScales = outputparams.pop('mScales')
+        pScales = outputparams.pop('pScales')
+        dScales = outputparams.pop('dScales')
+        for i in range(len(mScales)):
+            finfo.addAttribute(f'mScale1{i+2}', str(mScales[i]))
+        for i in range(len(pScales)):
+            finfo.addAttribute(f'pScale{i+1}', str(pScales[i]))
+        for i in range(len(dScales)):
+            finfo.addAttribute(f'dScale{i+1}', str(dScales[i]))
+                    
+        Q = outputparams['Q_local']
+        Q_global = convert_harm2cart(Q, self.lmax)
+        
+        # <Atom>
+        for atom in range(self.n_atoms):
+            info = {'type': self.map_atomtype[atom]}
+            info.update({ktype:self.kStrings[ktype][atom] for ktype in ['kz', 'kx', 'ky']})
+            for i, key in enumerate(['c0', 'dX', 'dY', 'dZ', 'qXX', 'qXY', 'qXZ', 'qYY', 'qYZ', 'qZZ']):
+                info[key] = "%.8f" % Q_global[atom][i]
+            finfo.addElement('Atom', info)
+            
+        # <Polarize>
+        for t in range(len(self.types)):
+            info = {
+                'type': self.types[t]
+            }
+            info.update({p: "%.8f" % self.params['pol'][t] for p in ['polarizabilityXX', 'polarizabilityYY', 'polarizabilityZZ']})
+            finfo.addElement('Polarize', info)
+            
+        return finfo
 
 
 app.forcefield.parsers["ADMPPmeForce"] = ADMPPmeGenerator.parseElement
@@ -1072,7 +1161,7 @@ class HarmonicBondJaxGenerator:
     @staticmethod
     def parseElement(element, hamiltonian):
 
-        """parse <HarmonicBondForce> section in XML file
+        r"""parse <HarmonicBondForce> section in XML file
         
             example: 
             
@@ -1082,8 +1171,12 @@ class HarmonicBondJaxGenerator:
               <\HarmonicBondForce>
         
         """
-        generator = HarmonicBondJaxGenerator(hamiltonian)
-        hamiltonian.registerGenerator(generator)
+        existing = [f for f in hamiltonian._forces if isinstance(f, HarmonicBondJaxGenerator)]
+        if len(existing) == 0:
+            generator = HarmonicBondJaxGenerator(hamiltonian)
+            hamiltonian.registerGenerator(generator)
+        else:
+            generator = existing[0]
         for bondtype in element.findall("Bond"):
             generator.registerBondType(bondtype.attrib)
 
@@ -1144,7 +1237,6 @@ class HarmonicBondJaxGenerator:
         return finfo
 
 
-
 # register all parsers
 app.forcefield.parsers["HarmonicBondForce"] = HarmonicBondJaxGenerator.parseElement
 
@@ -1164,7 +1256,7 @@ class HarmonicAngleJaxGenerator:
 
     @staticmethod
     def parseElement(element, hamiltonian):
-        """ parse <HarmonicAngleForce> section in XML file
+        r""" parse <HarmonicAngleForce> section in XML file
 
             example:
               <HarmonicAngleForce>
@@ -1175,8 +1267,8 @@ class HarmonicAngleJaxGenerator:
         """
         generator = HarmonicAngleJaxGenerator(hamiltonian)
         hamiltonian.registerGenerator(generator)
-        for bondtype in element.findall("Angle"):
-            generator.registerAngleType(bondtype.attrib)
+        for angletype in element.findall("Angle"):
+            generator.registerAngleType(angletype.attrib)
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
 
@@ -1230,11 +1322,18 @@ class HarmonicAngleJaxGenerator:
 
     def renderXML(self):
         # generate xml force field file
-        pass
+        finfo = XMLNodeInfo("HarmonicAngleForce")
+        for i, type in enumerate(self.types):
+            t1, t2, t3 = type
+            ainfo = {'type1': t1, 'type2': t2, 'type3': t3, 'k': self.params['k'][i], 'angle': self.params['angle'][i]}
+            finfo.addElement('Angle', ainfo)
+        
+        return finfo
 
 
 # register all parsers
 app.forcefield.parsers["HarmonicAngleForce"] = HarmonicAngleJaxGenerator.parseElement
+
 
 
 def _matchImproper(data, torsion, generator):
@@ -1412,6 +1511,8 @@ class PeriodicTorsionJaxGenerator(object):
         self.proper = []
         self.improper = []
         self.propersForAtomType = defaultdict(set)
+        self.n_proper = 0
+        self.n_improper = 0
 
     def registerProperTorsion(self, parameters):
         torsion = _parseTorsion(self.ff, parameters)
@@ -1443,7 +1544,7 @@ class PeriodicTorsionJaxGenerator(object):
             
               <PeriodicTorsionForce ordering="amber">
                 <Proper type1="" type2="c" type3="c" type4="" periodicity1="2" phase1="3.141592653589793" k1="1.2552"/>
-                <Proper type1="" type2="c" type3="c1" type4="" periodicity1="2" phase1="3.141592653589793" k1="0.0"/>
+                <Improper type1="" type2="c" type3="c1" type4="" periodicity1="2" phase1="3.141592653589793" k1="0.0"/>
             </PeriodicTorsionForce>
 
         """
@@ -1779,8 +1880,53 @@ class PeriodicTorsionJaxGenerator(object):
         return self._jaxPotential
 
     def renderXML(self):
+        params = self.params
         # generate xml force field file
-        pass
+        finfo = XMLNodeInfo('PeriodicTorsionForce')
+        for i in range(len(self.proper)):
+            proper = self.proper[i]
+  
+            finfo.addElement('Proper', 
+                {'type1': proper.types1, 'type2': proper.types2, 
+                'type3': proper.types3, 'type4': proper.types4,
+                'periodicity1': proper.periodicity[0],
+                'phase1': params['psi1_p'][i],
+                'k1': params['k1_p'][i],
+                'periodicity2': proper.periodicity[1],
+                'phase2': params['psi2_p'][i],
+                'k2': params['k2_p'][i],
+                'periodicity3': proper.periodicity[2],
+                'phase3': params['psi3_p'][i],
+                'k3': params['k3_p'][i],
+                'periodicity4': proper.periodicity[3],
+                'phase4': params['psi4_p'][i],
+                'k4': params['k4_p'][i],
+                }
+            )
+            
+        for i in range(len(self.improper)):
+            
+            improper = self.improper[i]
+            
+            finfo.addElement('Improper', 
+                {'type1': improper.types1, 'type2': improper.types2, 
+                'type3': improper.types3, 'type4': improper.types4,
+                'periodicity1': improper.periodicity[0],
+                'phase1': params['psi1_i'][i],
+                'k1': params['k1_i'][i],
+                'periodicity2': proper.periodicity[1],
+                'phase2': params['psi2_i'][i],
+                'k2': params['k2_i'][i],
+                'periodicity3': proper.periodicity[2],
+                'phase3': params['psi3_i'][i],
+                'k3': params['k3_i'][i],
+                'periodicity4': proper.periodicity[3],
+                'phase4': params['psi4_i'][i],
+                'k4': params['k4_i'][i],
+                }
+            )
+            
+        return finfo
 
 
 app.forcefield.parsers[
@@ -1797,7 +1943,6 @@ class NonbondJaxGenerator:
         self.ff = hamiltionian
         self.coulomb14scale = coulomb14scale
         self.lj14scale = lj14scale
-        # self.useDispersionCorrection = useDispersionCorrection
         # self.params = app.ForceField._AtomTypeParameters(hamiltionian, 'NonbondedForce', 'Atom', ('charge', 'sigma', 'epsilon'))
         self.params = {
             "sigma": [],
@@ -1811,8 +1956,6 @@ class NonbondJaxGenerator:
         self.types = []
         self.useAttributeFromResidue = []
 
-        # pre-configure constants
-        self.ethresh = 5e-4
 
     def registerAtom(self, atom):
         # use types in nb cards or resname+atomname in residue cards
@@ -1837,8 +1980,6 @@ class NonbondJaxGenerator:
         """
         existing = [f for f in ff._forces if isinstance(f, NonbondJaxGenerator)]
 
-        # TODO: useDispersionCorrection
-
         if len(existing) == 0:
             generator = NonbondJaxGenerator(
                 ff,
@@ -1850,16 +1991,10 @@ class NonbondJaxGenerator:
         else:
             generator = existing[0]
 
-            # if (abs(generator.coulomb14scale - float(element.attrib['coulomb14scale'])) > NonbondedGenerator.SCALETOL
-            #     or abs(generator.lj14scale - float(element.attrib['lj14scale'])) > NonbondedGenerator.SCALETOL
-            # ):
-            #     raise ValueError('Found multiple NonbondedForce tags with different 1-4 scales')
-            # if (
-            #         generator.useDispersionCorrection is not None
-            #         and useDispersionCorrection is not None
-            #         and generator.useDispersionCorrection != useDispersionCorrection
-            # ):
-            #     raise ValueError('Found multiple NonbondedForce tags with different useDispersionCorrection settings.')
+            if (abs(generator.coulomb14scale - float(element.attrib['coulomb14scale'])) > NonbondJaxGenerator.SCALETOL
+                or abs(generator.lj14scale - float(element.attrib['lj14scale'])) > NonbondJaxGenerator.SCALETOL
+            ):
+                raise ValueError('Found multiple NonbondedForce tags with different 1-4 scales')
         excludedParams = [
             node.attrib["name"] for node in element.findall("UseAttributeFromResidue")
         ]
@@ -1868,9 +2003,15 @@ class NonbondJaxGenerator:
                 generator.useAttributeFromResidue.append(eprm)
         for atom in element.findall("Atom"):
             generator.registerAtom(atom.attrib)
+            
+        generator.n_atoms = len(element.findall("Atom"))
+            
+        # jax it!
+        for k in generator.params.keys():
+            generator.params[k] = jnp.array(generator.params[k])
+        generator.types = np.array(generator.types)
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
-
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",
@@ -1883,10 +2024,6 @@ class NonbondJaxGenerator:
         if nonbondedMethod is app.NoCutoff:
             isNoCut = True
 
-        # here box is only used to setup ewald parameters, no need to be differentiable
-        a, b, c = system.getDefaultPeriodicBoxVectors()
-        box = jnp.array([a._value, b._value, c._value]) * 10
-
         # Jax prms!
         for k in self.params.keys():
             self.params[k] = jnp.array(self.params[k])
@@ -1895,7 +2032,6 @@ class NonbondJaxGenerator:
         mscales_coul = mscales_coul.at[2].set(self.params["coulomb14scale"][0])
         mscales_lj = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for LJ
         mscales_lj = mscales_lj.at[2].set(self.params["lj14scale"][0])
-
 
         # Coulomb: only support PME for now
         # set PBC
@@ -1918,7 +2054,7 @@ class NonbondJaxGenerator:
                 raise mm.OpenMMException(
                     "AtomType of %s mismatched in NonbondedForce" % (str(atom))
                 )
-        map_lj = np.array(map_lj, dtype=int)
+        map_lj = jnp.array(map_lj, dtype=int)
 
         self.ifChargeFromResidue = False
         if "charge" in self.useAttributeFromResidue:
@@ -1944,10 +2080,10 @@ class NonbondJaxGenerator:
         else:
             map_charge = map_lj
 
-        # nbfix!
+        # TODO: implement NBFIX
         map_nbfix = []
-        # implement it later
         map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
+        
 
         colv_map = build_covalent_map(data, 6)
 
@@ -1966,57 +2102,251 @@ class NonbondJaxGenerator:
         else:
             r_switch = r_cut
             ifSwitch = False
-        ljforce = LennardJonesForce(
-            r_switch,
-            r_cut,
-            map_lj,
-            map_nbfix,
-            colv_map,
-            isSwitch=ifSwitch,
-            isPBC=ifPBC,
-            isNoCut=isNoCut,
-        )
+        
+        # PME Settings
+        if nonbondedMethod is app.PME:
+            a, b, c = system.getDefaultPeriodicBoxVectors()
+            box = jnp.array([a._value, b._value, c._value])
+            self.ethresh = args.get("ethresh", 1e-6)
+            self.coeff_method = args.get("PmeCoeffMethod", "openmm")
+            self.fourier_spacing = args.get("PmeSpacing", 0.1)
+            kappa, K1, K2, K3 = setup_ewald_parameters(
+                r_cut,
+                self.ethresh,
+                box,
+                self.fourier_spacing,
+                self.coeff_method
+            )
+
+        map_lj = jnp.array(map_lj)
+        map_nbfix = jnp.array(map_nbfix)
+        map_charge = jnp.array(map_charge)
+
+        # Free Energy Settings #
+        isFreeEnergy = args.get("isFreeEnergy", False)
+        if isFreeEnergy:
+            vdwLambda = args.get("vdwLambda", 0.0)
+            coulLambda = args.get("coulLambda", 0.0)
+            ifStateA = args.get("ifStateA", True)
+
+            # soft-cores
+            vdwSoftCore = args.get("vdwSoftCore", False)
+            coulSoftCore = args.get("coulSoftCore", False)
+            scAlpha = args.get("scAlpha", 0.0)
+            scSigma = args.get("scSigma", 0.0)
+
+            # couple
+            coupleIndex = args.get("coupleIndex", [])
+            if len(coupleIndex) > 0:
+                coupleMask = [False for _ in range(len(data.atoms))]
+                for atomIndex in coupleIndex:
+                    coupleMask[atomIndex] = True
+                coupleMask = jnp.array(coupleMask, dtype=bool)
+            else:
+                coupleMask = None
+
+        if not isFreeEnergy:
+            ljforce = LennardJonesForce(
+                r_switch,
+                r_cut,
+                map_lj,
+                map_nbfix,
+                colv_map,
+                isSwitch=ifSwitch,
+                isPBC=ifPBC,
+                isNoCut=isNoCut
+            )
+        else:
+            ljforce = LennardJonesFreeEnergyForce(
+                r_switch,
+                r_cut,
+                map_lj,
+                map_nbfix,
+                colv_map,
+                isSwitch=ifSwitch,
+                isPBC=ifPBC,
+                isNoCut=isNoCut,
+                feLambda=vdwLambda,
+                coupleMask=coupleMask,
+                useSoftCore=vdwSoftCore,
+                ifStateA=ifStateA,
+                sc_alpha=scAlpha,
+                sc_sigma=scSigma
+            )
+
         ljenergy = ljforce.generate_get_energy()
 
-        if nonbondedMethod is not app.PME:
-            # do not use PME
-            if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
-                # use Reaction Field
-                coulforce = CoulReactionFieldForce(r_cut, map_charge, colv_map, isPBC=ifPBC)
-            if nonbondedMethod is app.NoCutoff:
-                # use NoCutoff
-                coulforce = CoulNoCutoffForce(map_charge, colv_map)
+        # dispersion correction
+        useDispersionCorrection = args.get("useDispersionCorrection", False)
+        if useDispersionCorrection:
+            numTypes = len(self.types)
+            countVec = np.zeros(numTypes, dtype=int)
+            countMat = np.zeros((numTypes, numTypes), dtype=int)
+            types, count = np.unique(map_lj, return_counts=True)
+
+            for typ, cnt in zip(types, count):
+                countVec[typ] += cnt
+            for i in range(numTypes):
+                for j in range(i, numTypes):
+                    if i != j:
+                        countMat[i, j] = countVec[i] * countVec[j]
+                    else:
+                        countMat[i, i] = countVec[i] * (countVec[i] - 1) // 2
+            assert np.sum(countMat) == len(map_lj) * (len(map_lj) - 1) // 2
+
+            colv_pairs = np.argwhere(np.logical_and(colv_map > 0, colv_map <= 3))
+            for pair in colv_pairs:
+                if pair[0] <= pair[1]:
+                    tmp = (map_lj[pair[0]], map_lj[pair[1]])
+                    t1, t2 = min(tmp), max(tmp)
+                    countMat[t1, t2] -= 1
+
+            if not isFreeEnergy:
+                ljDispCorrForce = LennardJonesLongRangeForce(
+                    r_cut,
+                    map_lj,
+                    map_nbfix,
+                    countMat
+                )
+            else:
+                ljDispCorrForce = LennardJonesLongRangeFreeEnergyForce(
+                    r_cut,
+                    map_lj,
+                    map_nbfix,
+                    countMat,
+                    vdwLambda,
+                    ifStateA,
+                    coupleMask
+                )
+            ljDispEnergyFn = ljDispCorrForce.generate_get_energy()
+        
+        if not isFreeEnergy:
+            if nonbondedMethod is not app.PME:
+                # do not use PME
+                if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
+                    # use Reaction Field
+                    coulforce = CoulReactionFieldForce(r_cut, map_charge, colv_map, isPBC=ifPBC)
+                if nonbondedMethod is app.NoCutoff:
+                    # use NoCutoff
+                    coulforce = CoulNoCutoffForce(map_charge, colv_map)
+            else:
+                coulforce = CoulombPMEForce(r_cut, map_charge, colv_map, kappa, (K1, K2, K3))
         else:
-            coulforce = CoulombPMEForce(box, r_cut, self.ethresh, colv_map)
+            assert nonbondedMethod is app.PME, "Only PME is supported in free energy calculations"
+            coulforce = CoulombPMEFreeEnergyForce(
+                r_cut,
+                map_charge,
+                colv_map,
+                kappa,
+                (K1, K2, K3),
+                coulLambda,
+                ifStateA=ifStateA,
+                coupleMask=coupleMask,
+                useSoftCore=coulSoftCore,
+                sc_alpha=scAlpha,
+                sc_sigma=scSigma
+            )
 
         coulenergy = coulforce.generate_get_energy()
 
-        def potential_fn(positions, box, pairs, params):
+        if not isFreeEnergy:
+            def potential_fn(positions, box, pairs, params):
 
-            ljE = ljenergy(
-                positions,
-                box,
-                pairs,
-                params["epsilon"],
-                params["sigma"],
-                params["epsfix"],
-                params["sigfix"],
-                mscales_lj
-            )
-            coulE = coulenergy(positions, box, pairs, params["charge"], mscales_coul)
+                # check whether args passed into potential_fn are jnp.array and differentiable
+                # note this check will be optimized away by jit
+                # it is jit-compatiable
+                isinstance_jnp(positions, box, params)
 
-            return ljE + coulE
+                ljE = ljenergy(
+                    positions,
+                    box,
+                    pairs,
+                    params["epsilon"],
+                    params["sigma"],
+                    params["epsfix"],
+                    params["sigfix"],
+                    mscales_lj
+                )
+                coulE = coulenergy(
+                    positions, 
+                    box, 
+                    pairs, 
+                    params["charge"], 
+                    mscales_coul
+                )
 
-        self._jaxPotential = potential_fn
+                if useDispersionCorrection:
+                    ljDispEnergy = ljDispEnergyFn(
+                        box, 
+                        params['epsilon'], 
+                        params['sigma'], 
+                        params['epsfix'], 
+                        params['sigfix']
+                    )
+
+                    return ljE + coulE + ljDispEnergy
+                else:    
+                    return ljE + coulE
+
+            self._jaxPotential = potential_fn
+        else:
+            # Free Energy
+            @jit_condition()
+            def potential_fn(positions, box, pairs, params, vdwLambda, coulLambda):
+                ljE = ljenergy(
+                    positions,
+                    box,
+                    pairs,
+                    params["epsilon"],
+                    params["sigma"],
+                    params["epsfix"],
+                    params["sigfix"],
+                    mscales_lj,
+                    vdwLambda
+                )
+                coulE = coulenergy(
+                    positions, 
+                    box, 
+                    pairs, 
+                    params["charge"], 
+                    mscales_coul,
+                    coulLambda
+                )
+
+                if useDispersionCorrection:
+                    ljDispEnergy = ljDispEnergyFn(
+                        box, 
+                        params['epsilon'], 
+                        params['sigma'], 
+                        params['epsfix'], 
+                        params['sigfix'],
+                        vdwLambda
+                    )
+                    return ljE + coulE + ljDispEnergy
+                else:    
+                    return ljE + coulE
+
+            self._jaxPotential = potential_fn
 
     def getJaxPotential(self):
         return self._jaxPotential
 
     def renderXML(self):
-        pass
+        
+        # <NonbondedForce>
+        finfo = XMLNodeInfo('NonbondedForce')
+        finfo.addAttribute('coulomb14scale', str(self.coulomb14scale))
+        finfo.addAttribute('lj14scale', str(self.lj14scale))
+        
+        for atom in range(self.n_atoms):
+            info = {'type': self.types[atom], 'charge': self.params['charge'][atom], 'sigma': self.params['sigma'][atom], 'epsilon': self.params['epsilon'][atom]}
+            finfo.addElement('Atom', info)
+            
+        return finfo
 
 
 app.forcefield.parsers["NonbondedForce"] = NonbondJaxGenerator.parseElement
+
 
 
 class Hamiltonian(app.forcefield.ForceField):
@@ -2046,7 +2376,8 @@ class Hamiltonian(app.forcefield.ForceField):
             try:
                 potentialImpl = generator.getJaxPotential()
                 self._potentials.append(potentialImpl)
-            except:
+            except Exception as e:
+                print(e)
                 pass
         return [p for p in self._potentials]
 
@@ -2066,30 +2397,3 @@ class Hamiltonian(app.forcefield.ForceField):
 
         tree = ET.ElementTree(root)
         tree.write(filename)
-
-
-if __name__ == "__main__":
-    H = Hamiltonian("forcefield.xml")
-    generator = H.getGenerators()[0]
-    app.Topology.loadBondDefinitions("residues.xml")
-    pdb = app.PDBFile("../water1024.pdb")
-    rc = 4.0
-    potentials = H.createPotential(pdb.topology, nonbondedCutoff=rc * unit.angstrom)
-    pot_disp = potentials[0]
-
-    positions = jnp.array(pdb.positions._value) * 10
-    a, b, c = pdb.topology.getPeriodicBoxVectors()
-    box = jnp.array([a._value, b._value, c._value]) * 10
-
-    # neighbor list
-    displacement_fn, shift_fn = space.periodic_general(
-        box, fractional_coordinates=False
-    )
-    neighbor_list_fn = partition.neighbor_list(
-        displacement_fn, box, rc, 0, format=partition.OrderedSparse
-    )
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T
-
-    param_grad = grad(pot_disp, argnums=3)(positions, box, pairs, generator.params)
-    print(param_grad)

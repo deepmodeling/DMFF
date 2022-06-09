@@ -38,7 +38,7 @@ class TestSpatial:
     def test_build_quasi_internal(self, r1, r2, dr, norm_dr, expected):
 
         local_frames = build_quasi_internal(r1, r2, dr, norm_dr)
-        npt.assert_allclose(local_frames, expected)
+        npt.assert_allclose(local_frames, expected, rtol=1e-5)
 
     @pytest.mark.parametrize(
         "drvecs, box, box_inv, expected",
@@ -138,6 +138,6 @@ class TestSpatial:
         )
         assert construct_local_frame_fn
         npt.assert_allclose(
-            construct_local_frame_fn(positions, box), expected_local_frames, rtol=1e-6
+            construct_local_frame_fn(positions, box), expected_local_frames, rtol=1e-5
         )
 
