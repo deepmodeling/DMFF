@@ -4,19 +4,20 @@ nav:
   - User Guide:
     - 1. Introduction: user_guide/introduction.md
     - 2. Installation: user_guide/installation.md
-    - 3. Compute energy and force: user_guide/compute.md
-    - 4. Auto-diff: user_guide/auto_diff.md
-    - 5. Theory: user_guide/theory.md
-    - 6. couple with MD: user_guide/couple.md
-    - 7. Introduction to force field xml file: user_guide/xml_spec.md
+    - 3. Theory: user_guide/theory.md
+    - 4. Get Started: user_guide/tutorial.md
+    - 5. HOW TO - xml file: user_guide/xml_spec.md
     
   - Developer Guide:
     - 1. Introduction: dev_guide/introduction.md
     - 2. Architecture: dev_guide/arch.md
     - 3. Convention: dev_guide/convention.md
+    - 4. Write Docs: dev_guide/write_docs.md
+
   - Modules:
     - ADMP: 
       - Introduction: admp/readme.md
+      - Theory: user_guide/multipole_pme.md
       - Frontends: admp/frontend.md
   - About: about.md
 
@@ -25,6 +26,9 @@ theme: readthedocs
 markdown_extensions:
   - pymdownx.arithmatex:
       generic: true
+
+plugins:
+- mkdocstrings:
 
 extra_javascript:
   - javascripts/mathjax.js
