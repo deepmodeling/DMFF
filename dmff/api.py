@@ -1067,7 +1067,7 @@ class ADMPPmeGenerator:
             self.lmax,
             self.lpol,
             self.lpme,
-            self.steps_pol
+            self.step_pol
         )
         self.pme_force = pme_force
 
