@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import jax.lax as lax
 from jax import vmap, value_and_grad
 import dmff
-from dmff.sgnn.gnn import MolGNN
+from dmff.sgnn.gnn import MolGNNForce
 from dmff.utils import jit_condition
 from dmff.sgnn.graph import MAX_VALENCE
 from dmff.sgnn.graph import TopGraph, from_pdb
@@ -18,7 +18,7 @@ from functools import partial
 if __name__ == '__main__':
     # params = load_params('benchmark/model1.pickle')
     G = from_pdb('peg4.pdb')
-    model = MolGNN(G, nn=1)
+    model = MolGNNForce(G, nn=1)
     model.load_params('model1.pickle')
     E = model.forward(G.positions, G.box, model.params)
 
