@@ -45,27 +45,6 @@ if __name__ == '__main__':
     pos_A0 = pos_AB0[:n_atoms_A]
     pos_B0 = pos_AB0[n_atoms_A: n_atoms]
 
-    # dr = np.average(pos_B0) - np.average(pos_A0)
-    # dn = dr / np.linalg.norm(dr)
-
-    # for dz in np.arange(0, 4, 0.1):
-    #     pos_A = pos_A0
-    #     pos_B = pos_B0 + dz * dn
-    #     pos_AB = np.vstack((pos_A, pos_B))
-    #     simulation_AB.context.setPositions(pos_AB * angstrom)
-    #     simulation_A.context.setPositions(pos_A * angstrom)
-    #     simulation_B.context.setPositions(pos_B * angstrom)
-    
-    #     state_AB = simulation_AB.context.getState(getEnergy=True)
-    #     state_A = simulation_A.context.getState(getEnergy=True)
-    #     state_B = simulation_B.context.getState(getEnergy=True)
-
-    #     E_AB = state_AB.getPotentialEnergy()._value
-    #     E_A = state_A.getPotentialEnergy()._value
-    #     E_B = state_B.getPotentialEnergy()._value
-
-    #     print(dz, E_AB - E_A - E_B)
-
     with open('data.pickle', 'rb') as ifile:
         data = pickle.load(ifile)
 

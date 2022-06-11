@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import openmm.app as app
 import openmm.unit as unit
 from dmff.api import Hamiltonian
-from jax_md import space, partition
+from dmff.common import nblist
 from jax import value_and_grad
 import pickle
 
@@ -24,10 +24,9 @@ if __name__ == '__main__':
     a, b, c = pdb.topology.getPeriodicBoxVectors()
     box = jnp.array([a._value, b._value, c._value]) * 10
     # neighbor list
-    displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
-    neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T    
+    nbl = nblist.NeighborList(box, rc)
+    nbl.allocate(positions)
+    pairs = nbl.pairs
 
    
     E_disp, F_disp = value_and_grad(pot_disp)(positions, box, pairs, disp_generator.params)

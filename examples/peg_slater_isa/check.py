@@ -163,7 +163,7 @@ if __name__ == '__main__':
 
     # run test
     # for sid in sids:
-    for sid in [sys.argv[1]]:
+    for sid in ['000']:
         scan_res = data[sid]
         scan_res_sr = data_sr[sid]
         scan_res_lr = data_lr[sid]
@@ -252,11 +252,3 @@ if __name__ == '__main__':
             E_tot_lr = E_es + E_pol + E_disp
 
             print(ipt, E_tot, E_tot_ref)
-            # print(ipt, E_tot, E_tot_ref, E_tot_sr, data_sr[sid]['tot'][ipt], E_tot_lr, data[sid]['tot'][ipt]-data_sr[sid]['tot'][ipt])
-            # print(ipt, E_tot_lr, scan_res_lr['tot'][ipt])
-            # print(ipt, E_tot_sr, scan_res_sr['tot'][ipt], scan_res['tot'][ipt])
-            # if scan_res['tot'][ipt] < 25:
-            #     print(scan_res_sr['tot'][ipt], scan_res_sr['tot'][ipt], E_tot_sr)
-            #     # print(scan_res['tot'][ipt], scan_res['tot'][ipt], E_tot)
-            #     sys.stdout.flush()
-
