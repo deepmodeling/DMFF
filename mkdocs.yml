@@ -1,6 +1,7 @@
 site_name: DMFF
 nav:
-  - Home: index.md
+  - Home: 
+    - Introduction: index.md
   - User Guide:
     - 1. Introduction: user_guide/introduction.md
     - 2. Installation: user_guide/installation.md
@@ -14,12 +15,10 @@ nav:
     - 3. Convention: dev_guide/convention.md
     - 4. Write Docs: dev_guide/write_docs.md
 
-  - Modules:
-    - ADMP: 
-      - Introduction: admp/readme.md
-      - Theory: user_guide/multipole_pme.md
-      - Frontends: admp/frontend.md
-  - About: about.md
+  - Modules: refs/
+
+  - About: 
+    - Maintainer: about.md
 
 theme: readthedocs
 
@@ -28,7 +27,14 @@ markdown_extensions:
       generic: true
 
 plugins:
+- search
+- gen-files:
+    scripts:
+    - docs/gen_ref_pages.py
+- literate-nav:
+    nav_file: SUMMARY.md
 - mkdocstrings:
+
 
 extra_javascript:
   - javascripts/mathjax.js
