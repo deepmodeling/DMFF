@@ -1,24 +1,38 @@
+from typing import Tuple, Optional
 from functools import partial
 
-import jax.numpy as jnp
 import numpy as np
-from dmff.admp.multipole import (C1_c2h, convert_cart2harm, rot_global2local,
-                                 rot_ind_global2local, rot_local2global)
-from dmff.admp.pairwise import (distribute_multipoles, distribute_scalar,
-                                distribute_v3)
-from dmff.admp.settings import MAX_N_POL, POL_CONV
-from dmff.admp.spatial import (build_quasi_internal,
-                               generate_construct_local_frames, v_pbc_shift)
-from dmff.settings import DO_JIT
-from dmff.utils import jit_condition, pair_buffer_scales, regularize_pairs
-from jax import grad, jit, value_and_grad, vmap
-
-DIELECTRIC = 1389.35455846
-DEFAULT_THOLE_WIDTH = 5.0
 import jax
-from dmff.admp.recip import Ck_1, generate_pme_recip
+import jax.numpy as jnp
+from jax import grad, value_and_grad, vmap, jit
+from jax.scipy.special import erf, erfc
 
-# Functions that are related to electrostatic pme
+from dmff.settings import DO_JIT
+from dmff.common.constants import DIELECTRIC
+from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
+from dmff.admp.settings import POL_CONV, MAX_N_POL
+from dmff.admp.recip import generate_pme_recip, Ck_1
+from dmff.admp.multipole import (
+    C1_c2h, 
+    convert_cart2harm,
+    rot_ind_global2local,
+    rot_global2local,
+    rot_local2global
+)
+from dmff.admp.spatial import (
+    v_pbc_shift, 
+    generate_construct_local_frames, 
+    build_quasi_internal
+)
+from dmff.admp.pairwise import (
+    distribute_scalar, 
+    distribute_v3, 
+    distribute_multipoles
+)
+
+
+DEFAULT_THOLE_WIDTH = 5.0
+
 
 class ADMPPmeForce:
     '''
@@ -196,33 +210,74 @@ class ADMPPmeForce:
         return U, flag, steps_pol
 
 
-def setup_ewald_parameters(rc, ethresh, box):
+def setup_ewald_parameters(
+    rc: float,
+    ethresh: float, 
+    box: Optional[jnp.ndarray] = None,
+    spacing: Optional[float] = None,
+    method: str = 'openmm'
+) -> Tuple[float, int, int, int]:
     '''
     Given the cutoff distance, and the required precision, determine the parameters used in
     Ewald sum, including: kappa, K1, K2, and K3.
-    The algorithm is exactly the same as OpenMM, see: 
-    http://docs.openmm.org/latest/userguide/theory.html
+    
 
-    Input:
-        rc:
-            float, the cutoff distance
-        ethresh:
-            float, required energy precision
-        box:
-            3*3 matrix, box size, a, b, c arranged in rows
+    Parameters:
+    ----------
+    rc: float
+        The cutoff distance, in nm
+    ethresh: float
+        Required energy precision, in kJ/mol
+    box: ndarray, optional
+        3*3 matrix, box size, a, b, c arranged in rows, used in openmm method
+    spacing: float, optional
+        fourier spacing to determine K, used in gromacs method
+    method: str
+        Method to determine ewald parameters. Valid values: "openmm" or "gromacs".
+        If openmm, the algorithm can refer to http://docs.openmm.org/latest/userguide/theory.html
+        If gromacs, the algorithm is adapted from gromacs source code
 
-    Output:
-        kappa:
-            float, the attenuation factor
-        K1, K2, K3:
-            integers, sizes of the k-points mesh
+    Returns
+    -------
+    kappa, K1, K2, K3: (float, int, int, int)
+        float, the attenuation factor
+    K1, K2, K3:
+        integers, sizes of the k-points mesh
     '''
-    kappa = jnp.sqrt(-jnp.log(2*ethresh))/rc
-    K1 = jnp.ceil(2 * kappa * box[0, 0] / 3 / ethresh**0.2)
-    K2 = jnp.ceil(2 * kappa * box[1, 1] / 3 / ethresh**0.2)
-    K3 = jnp.ceil(2 * kappa * box[2, 2] / 3 / ethresh**0.2)
+    if method == "openmm":
+        kappa = jnp.sqrt(-jnp.log(2 * ethresh)) / rc
+        K1 = jnp.ceil(2 * kappa * box[0, 0] / 3 / ethresh**0.2)
+        K2 = jnp.ceil(2 * kappa * box[1, 1] / 3 / ethresh**0.2)
+        K3 = jnp.ceil(2 * kappa * box[2, 2] / 3 / ethresh**0.2)
 
-    return kappa, int(K1), int(K2), int(K3)
+        return kappa, int(K1), int(K2), int(K3)
+    elif method == "gromacs":
+        # determine kappa
+        kappa = 5.0
+        i = 0
+        while erfc(kappa * rc) > ethresh:
+            i += 1
+            kappa *= 2
+        
+        n = i + 60
+        low = 0.0
+        high = kappa
+        for k in range(n):
+            kappa = (low + high) / 2
+            if erfc(kappa * rc) > ethresh:
+                low = kappa
+            else:
+                high = kappa
+        # determine K
+        K1 = int(jnp.ceil(box[0, 0] / spacing))
+        K2 = int(jnp.ceil(box[1, 1] / spacing))
+        K3 = int(jnp.ceil(box[2, 2] / spacing))
+        return kappa, K1, K2, K3 
+    else:
+        raise ValueError(
+            f"Invalid method: {method}."
+            "Valid methods: 'openmm', 'gromacs'"
+        )
 
 
 # @jit_condition(static_argnums=())
@@ -304,7 +359,6 @@ def energy_pme(positions, box, pairs,
 
     if lpme:
         ene_recip = pme_recip_fn(positions, box, Q_global_tot)
-
         ene_self = pme_self(Q_global_tot, kappa, lmax)
 
         if lpol:
@@ -681,7 +735,7 @@ def pme_real_kernel(dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscal
         Vij = jnp.stack((Vij0, Vij1, Vij2, Vij3, Vij4, Vij5, Vij6, Vij7, Vij8))
         Vji = jnp.stack((Vji0, Vji1, Vji2, Vji3, Vji4, Vji5, Vji6, Vji7, Vji8))
     else:
-        print('Error: Lmax must <= 2')
+        raise ValueError(f"Invalid lmax {lmax}. Valid values are 0, 1, 2")
 
     if lpol:
         return jnp.array(0.5) * (jnp.sum(qiQJ*Vij) + jnp.sum(qiQI*Vji)) + jnp.array(0.5) * (jnp.sum(qiUindJ*Vijdd) + jnp.sum(qiUindI*Vjidd))
@@ -731,26 +785,17 @@ def pme_real(positions, box, pairs,
     Output:
         ene: pme realspace energy
     '''
-
-    # expand pairwise parameters, from atomic parameters
-    # debug
-    # pairs = pairs[pairs[:, 0] < pairs[:, 1]]
     pairs = regularize_pairs(pairs)
     buffer_scales = pair_buffer_scales(pairs)
     box_inv = jnp.linalg.inv(box)
     r1 = distribute_v3(positions, pairs[:, 0])
     r2 = distribute_v3(positions, pairs[:, 1])
-    # r1 = positions[pairs[:, 0]]
-    # r2 = positions[pairs[:, 1]]
     Q_extendi = distribute_multipoles(Q_global, pairs[:, 0])
     Q_extendj = distribute_multipoles(Q_global, pairs[:, 1])
-    # Q_extendi = Q_global[pairs[:, 0]]
-    # Q_extendj = Q_global[pairs[:, 1]]
     nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
     indices = nbonds-1
     mscales = distribute_scalar(mScales, indices)
     mscales = mscales * buffer_scales
-    # mscales = mScales[nbonds-1]
     if lpol:
         pol1 = distribute_scalar(pol, pairs[:, 0])
         pol2 = distribute_scalar(pol, pairs[:, 1])
@@ -762,14 +807,6 @@ def pme_real(positions, box, pairs,
         pscales = pscales * buffer_scales
         dscales = distribute_scalar(dScales, indices)
         dscales = dscales * buffer_scales
-        # pol1 = pol[pairs[:,0]]
-        # pol2 = pol[pairs[:,1]]
-        # thole1 = tholes[pairs[:,0]]
-        # thole2 = tholes[pairs[:,1]]
-        # Uind_extendi = Uind_global[pairs[:, 0]]
-        # Uind_extendj = Uind_global[pairs[:, 1]]
-        # pscales = pScales[nbonds-1]
-        # dscales = dScales[nbonds-1]
         dmp = get_pair_dmp(pol1, pol2)
     else:
         Uind_extendi = None
@@ -796,9 +833,23 @@ def pme_real(positions, box, pairs,
 
     # everything should be pair-specific now
     ene = jnp.sum(
-            pme_real_kernel(norm_dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscales, pscales, dscales, kappa, lmax, lpol)
-            * buffer_scales
-            )
+        pme_real_kernel(
+            norm_dr, 
+            qiQI, 
+            qiQJ, 
+            qiUindI, 
+            qiUindJ, 
+            thole1, 
+            thole2, 
+            dmp, 
+            mscales, 
+            pscales, 
+            dscales, 
+            kappa, 
+            lmax, 
+            lpol
+        ) * buffer_scales
+    )
 
     return ene
 

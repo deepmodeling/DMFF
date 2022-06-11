@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from jax import value_and_grad, vmap
+from jax import grad, value_and_grad, vmap
 
 
 def distance(p1v, p2v):

@@ -1,12 +1,10 @@
 
 import jax.numpy as jnp
 import jax.scipy as jsp
-import numpy as np
-from dmff.admp.pme import DIELECTRIC
-from dmff.settings import DO_JIT
 from jax import jit
+from dmff.settings import DO_JIT
+from dmff.common.constants import DIELECTRIC, SQRT_PI as sqrt_pi
 
-sqrt_pi = 1.7724538509055159
 
 def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
 
@@ -41,7 +39,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             """
             Nj_Aji_star = (N.reshape((1, 3)) * jnp.linalg.inv(box)).T
             return Nj_Aji_star
-        
+     
         
         def u_reference(R_a, Nj_Aji_star):
             """
@@ -72,19 +70,25 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             Computes the cardinal B-spline function
             """
             if order == 6:
-                return jnp.piecewise(u, 
-                                [jnp.logical_and(u>=0, u<1.), 
-                                jnp.logical_and(u>=1, u<2.), 
-                                jnp.logical_and(u>=2, u<3.), 
-                                jnp.logical_and(u>=3, u<4.), 
-                                jnp.logical_and(u>=4, u<5.), 
-                                jnp.logical_and(u>=5, u<6.)],
-                                [lambda u: u**5/120,
-                                lambda u: u**5/120 - (u - 1)**5/20,
-                                lambda u: u**5/120 + (u - 2)**5/8 - (u - 1)**5/20,
-                                lambda u: u**5/120 - (u - 3)**5/6 + (u - 2)**5/8 - (u - 1)**5/20,
-                                lambda u: u**5/24 - u**4 + 19*u**3/2 - 89*u**2/2 + 409*u/4 - 1829/20,
-                                lambda u: -u**5/120 + u**4/4 - 3*u**3 + 18*u**2 - 54*u + 324/5] )
+                return jnp.piecewise(
+                    u, 
+                    [
+                        jnp.logical_and(u >= 0., u < 1.), 
+                        jnp.logical_and(u >= 1., u < 2.), 
+                        jnp.logical_and(u >= 2., u < 3.), 
+                        jnp.logical_and(u >= 3., u < 4.), 
+                        jnp.logical_and(u >= 4., u < 5.), 
+                        jnp.logical_and(u >= 5., u < 6.)
+                    ],
+                    [
+                        lambda u: u ** 5 / 120,
+                        lambda u: u ** 5 / 120 - (u - 1) ** 5 / 20,
+                        lambda u: u ** 5 / 120 + (u - 2) ** 5 / 8 - (u - 1) ** 5 / 20,
+                        lambda u: u ** 5 / 120 - (u - 3) ** 5 / 6 + (u - 2) ** 5 / 8 - (u - 1) ** 5 / 20,
+                        lambda u: u ** 5 / 24 - u ** 4 + 19 * u ** 3 / 2 - 89 * u ** 2 / 2 + 409 * u / 4 - 1829 / 20,
+                        lambda u: -u ** 5 / 120 + u ** 4 / 4 - 3 * u ** 3 + 18 * u ** 2 - 54 * u + 324 / 5
+                    ]
+                )
         
         
         def bspline_prime(u, order=pme_order):
@@ -92,19 +96,25 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             Computes first derivative of the cardinal B-spline function
             """
             if order == 6:
-                return jnp.piecewise(u, 
-                                [jnp.logical_and(u>=0., u<1.), 
-                                jnp.logical_and(u>=1., u<2.), 
-                                jnp.logical_and(u>=2., u<3.), 
-                            jnp.logical_and(u>=3., u<4.), 
-                            jnp.logical_and(u>=4., u<5.), 
-                            jnp.logical_and(u>=5., u<6.)],
-                            [lambda u: u**4/24,
-                            lambda u: u**4/24 - (u - 1)**4/4,
-                            lambda u: u**4/24 + 5*(u - 2)**4/8 - (u - 1)**4/4,
-                            lambda u: -5*u**4/12 + 6*u**3 - 63*u**2/2 + 71*u - 231/4,
-                            lambda u: 5*u**4/24 - 4*u**3 + 57*u**2/2 - 89*u + 409/4,
-                            lambda u: -u**4/24 + u**3 - 9*u**2 + 36*u - 54] )
+                return jnp.piecewise(
+                    u, 
+                    [
+                        jnp.logical_and(u >= 0., u < 1.), 
+                        jnp.logical_and(u >= 1., u < 2.), 
+                        jnp.logical_and(u >= 2., u < 3.), 
+                        jnp.logical_and(u >= 3., u < 4.), 
+                        jnp.logical_and(u >= 4., u < 5.), 
+                        jnp.logical_and(u >= 5., u < 6.)
+                    ],
+                    [
+                        lambda u: u ** 4 / 24,
+                        lambda u: u ** 4 / 24 - (u - 1) ** 4 / 4,
+                        lambda u: u ** 4 / 24 + 5 * (u - 2) ** 4 / 8 - (u - 1) ** 4 / 4,
+                        lambda u: -5 * u ** 4 / 12 + 6 * u ** 3 - 63 * u ** 2 / 2 + 71 * u - 231 / 4,
+                        lambda u: 5 * u ** 4 / 24 - 4 * u ** 3 + 57 * u ** 2 / 2 - 89 * u + 409 / 4,
+                        lambda u: -u ** 4 / 24 + u ** 3 - 9 * u ** 2 + 36 * u - 54
+                    ] 
+                )
 
 
         def bspline_prime2(u, order=pme_order):
@@ -112,19 +122,25 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             Computes second derivate of the cardinal B-spline function
             """
             if order == 6:
-                return jnp.piecewise(u, 
-                                [jnp.logical_and(u>=0., u<1.), 
-                                jnp.logical_and(u>=1., u<2.), 
-                                jnp.logical_and(u>=2., u<3.), 
-                                jnp.logical_and(u>=3., u<4.), 
-                                jnp.logical_and(u>=4., u<5.), 
-                                jnp.logical_and(u>=5., u<6.)],
-                                [lambda u: u**3/6,
-                                lambda u: u**3/6 - (u - 1)**3,
-                                lambda u: 5*u**3/3 - 12*u**2 + 27*u - 19,
-                                lambda u: -5*u**3/3 + 18*u**2 - 63*u + 71,
-                                lambda u: 5*u**3/6 - 12*u**2 + 57*u - 89,
-                                lambda u: -u**3/6 + 3*u**2 - 18*u + 36,] )
+                return jnp.piecewise(
+                    u, 
+                    [
+                        jnp.logical_and(u >= 0., u < 1.), 
+                        jnp.logical_and(u >= 1., u < 2.), 
+                        jnp.logical_and(u >= 2., u < 3.), 
+                        jnp.logical_and(u >= 3., u < 4.), 
+                        jnp.logical_and(u >= 4., u < 5.), 
+                        jnp.logical_and(u >= 5., u < 6.)
+                    ],
+                    [
+                        lambda u: u ** 3 / 6,
+                        lambda u: u ** 3 / 6 - (u - 1) ** 3,
+                        lambda u: 5 * u ** 3 / 3 - 12 * u ** 2 + 27 * u - 19,
+                        lambda u: -5 * u ** 3 / 3 + 18 * u ** 2 - 63 * u + 71,
+                        lambda u: 5 * u ** 3 / 6 - 12 * u ** 2 + 57 * u - 89,
+                        lambda u: -u ** 3 / 6 + 3 * u ** 2 - 18 * u + 36
+                    ]
+                )
         
         
         def theta_eval(u, M_u):

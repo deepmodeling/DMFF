@@ -1,6 +1,7 @@
 import jax.numpy as jnp
+from jax_md import space, partition
+from dmff.utils import jit_condition
 from dmff.utils import regularize_pairs
-from jax_md import partition, space
 
 
 class NeighborList:
@@ -16,6 +17,7 @@ class NeighborList:
         self.rc = rc
         self.displacement_fn, self.shift_fn = space.periodic_general(box, fractional_coordinates=False)
         self.neighborlist_fn = partition.neighbor_list(self.displacement_fn, box, rc, 0, format=partition.OrderedSparse)
+        self.nblist = None
         
     def allocate(self, positions: jnp.ndarray):
         """ A function to allocate a new neighbor list. This function cannot be compiled, since it uses the values of positions to infer the shapes.
@@ -26,7 +28,10 @@ class NeighborList:
         Returns:
             jax_md.partition.NeighborList
         """
-        self.nblist = self.neighborlist_fn.allocate(positions)
+        if self.nblist is None:
+            self.nblist = self.neighborlist_fn.allocate(positions)
+        else:
+            self.update(positions)
         return self.nblist
     
     def update(self, positions: jnp.ndarray):
@@ -38,7 +43,8 @@ class NeighborList:
         Returns:
             jax_md.partition.NeighborList
         """
-        self.nblist.update(positions)
+        jit_deco = jit_condition()
+        jit_deco(self.nblist.update)(positions)
         
         return self.nblist
     

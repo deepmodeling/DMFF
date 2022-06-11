@@ -1,6 +1,8 @@
 import pytest
 import jax.numpy as jnp
+
 from dmff import NeighborList
+
 
 class TestNeighborList:
     
@@ -29,7 +31,7 @@ class TestNeighborList:
             [14.216,   1.424,   1.103],
             [14.246,   1.144,   2.054],
             [15.155,   1.542,   0.910]
-        ])
+        ])   
         nblist.update(positions)
         
     def test_pairs(self, nblist):
@@ -49,4 +51,4 @@ class TestNeighborList:
         
     def test_distance(self, nblist):
         
-        assert nblist.distance.shape == (18, )
+        assert nblist.distance.shape == (15, )

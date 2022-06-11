@@ -1,32 +1,36 @@
-import itertools
-import linecache
 import sys
-import xml.etree.ElementTree as ET
+import linecache
+import itertools
 from collections import defaultdict
+import xml.etree.ElementTree as ET
 from copy import deepcopy
 
-import jax.numpy as jnp
 import numpy as np
+import jax.numpy as jnp
+
 import openmm as mm
 import openmm.app as app
 import openmm.app.element as elem
-import openmm.unit as unit
-from jax import grad
-from jax_md import partition, space
 
-from dmff.utils import isinstance_jnp
-
-from .admp.disp_pme import ADMPDispPmeForce
-from .admp.multipole import convert_cart2harm, convert_harm2cart
-from .admp.pairwise import (
-    TT_damping_qq_c6_kernel,
-    TT_damping_qq_kernel,
+from dmff.admp.disp_pme import ADMPDispPmeForce
+from dmff.admp.multipole import convert_cart2harm, convert_harm2cart
+from dmff.admp.pairwise import (
+    TT_damping_qq_c6_kernel, 
     generate_pairwise_interaction,
-    slater_disp_damping_kernel,
-    slater_sr_kernel,
+    slater_disp_damping_kernel, 
+    slater_sr_kernel, 
+    TT_damping_qq_kernel
 )
-from .admp.pme import ADMPPmeForce
-from .classical.inter import (
+from dmff.admp.pme import ADMPPmeForce, setup_ewald_parameters
+from dmff.classical.intra import (
+    HarmonicBondJaxForce,
+    HarmonicAngleJaxForce,
+    PeriodicTorsionJaxForce,
+)
+from dmff.classical.inter import (
+    LennardJonesForce,
+    LennardJonesLongRangeForce,
+    CoulombPMEForce,
     CoulNoCutoffForce,
     CoulombPMEForce,
     CoulReactionFieldForce,
@@ -37,6 +41,12 @@ from .classical.intra import (
     HarmonicBondJaxForce,
     PeriodicTorsionJaxForce,
 )
+from dmff.classical.fep import (
+    LennardJonesFreeEnergyForce,
+    LennardJonesLongRangeFreeEnergyForce,
+    CoulombPMEFreeEnergyForce
+)
+from dmff.utils import jit_condition, isinstance_jnp
 
 
 class XMLNodeInfo:
@@ -677,6 +687,7 @@ class ADMPPmeGenerator:
         self._jaxPotential = None
         self.types = []
         self.ethresh = 5e-4
+        self.step_pol = None
         self.lpol = False
         self.ref_dip = ""
 
@@ -1063,6 +1074,8 @@ class ADMPPmeGenerator:
 
         if "ethresh" in args:
             self.ethresh = args["ethresh"]
+        if "step_pol" in args:
+            self.step_pol = args["step_pol"]
 
         pme_force = ADMPPmeForce(
             box,
@@ -1073,7 +1086,8 @@ class ADMPPmeGenerator:
             self.ethresh,
             self.lmax,
             self.lpol,
-            lpme=self.lpme,
+            self.lpme,
+            self.step_pol
         )
         self.pme_force = pme_force
 
@@ -1188,8 +1202,12 @@ class HarmonicBondJaxGenerator:
           <\HarmonicBondForce>
 
         """
-        generator = HarmonicBondJaxGenerator(hamiltonian)
-        hamiltonian.registerGenerator(generator)
+        existing = [f for f in hamiltonian._forces if isinstance(f, HarmonicBondJaxGenerator)]
+        if len(existing) == 0:
+            generator = HarmonicBondJaxGenerator(hamiltonian)
+            hamiltonian.registerGenerator(generator)
+        else:
+            generator = existing[0]
         for bondtype in element.findall("Bond"):
             generator.registerBondType(bondtype.attrib)
 
@@ -1969,7 +1987,6 @@ class NonbondJaxGenerator:
         self.ff = hamiltionian
         self.coulomb14scale = coulomb14scale
         self.lj14scale = lj14scale
-        # self.useDispersionCorrection = useDispersionCorrection
         # self.params = app.ForceField._AtomTypeParameters(hamiltionian, 'NonbondedForce', 'Atom', ('charge', 'sigma', 'epsilon'))
         self.params = {
             "sigma": [],
@@ -1983,8 +2000,6 @@ class NonbondJaxGenerator:
         self.types = []
         self.useAttributeFromResidue = []
 
-        # pre-configure constants
-        self.ethresh = 5e-4
 
     def registerAtom(self, atom):
         # use types in nb cards or resname+atomname in residue cards
@@ -2009,8 +2024,6 @@ class NonbondJaxGenerator:
         """
         existing = [f for f in ff._forces if isinstance(f, NonbondJaxGenerator)]
 
-        # TODO: useDispersionCorrection
-
         if len(existing) == 0:
             generator = NonbondJaxGenerator(
                 ff,
@@ -2022,16 +2035,10 @@ class NonbondJaxGenerator:
         else:
             generator = existing[0]
 
-            # if (abs(generator.coulomb14scale - float(element.attrib['coulomb14scale'])) > NonbondedGenerator.SCALETOL
-            #     or abs(generator.lj14scale - float(element.attrib['lj14scale'])) > NonbondedGenerator.SCALETOL
-            # ):
-            #     raise ValueError('Found multiple NonbondedForce tags with different 1-4 scales')
-            # if (
-            #         generator.useDispersionCorrection is not None
-            #         and useDispersionCorrection is not None
-            #         and generator.useDispersionCorrection != useDispersionCorrection
-            # ):
-            #     raise ValueError('Found multiple NonbondedForce tags with different useDispersionCorrection settings.')
+            if (abs(generator.coulomb14scale - float(element.attrib['coulomb14scale'])) > NonbondJaxGenerator.SCALETOL
+                or abs(generator.lj14scale - float(element.attrib['lj14scale'])) > NonbondJaxGenerator.SCALETOL
+            ):
+                raise ValueError('Found multiple NonbondedForce tags with different 1-4 scales')
         excludedParams = [
             node.attrib["name"] for node in element.findall("UseAttributeFromResidue")
         ]
@@ -2049,7 +2056,6 @@ class NonbondJaxGenerator:
         generator.types = np.array(generator.types)
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
-
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",
@@ -2061,10 +2067,6 @@ class NonbondJaxGenerator:
         isNoCut = False
         if nonbondedMethod is app.NoCutoff:
             isNoCut = True
-
-        # here box is only used to setup ewald parameters, no need to be differentiable
-        a, b, c = system.getDefaultPeriodicBoxVectors()
-        box = jnp.array([a._value, b._value, c._value]) * 10
 
         # Jax prms!
         for k in self.params.keys():
@@ -2096,7 +2098,7 @@ class NonbondJaxGenerator:
                 raise mm.OpenMMException(
                     "AtomType of %s mismatched in NonbondedForce" % (str(atom))
                 )
-        map_lj = np.array(map_lj, dtype=int)
+        map_lj = jnp.array(map_lj, dtype=int)
 
         self.ifChargeFromResidue = False
         if "charge" in self.useAttributeFromResidue:
@@ -2122,9 +2124,8 @@ class NonbondJaxGenerator:
         else:
             map_charge = map_lj
 
-        # nbfix!
+        # TODO: implement NBFIX
         map_nbfix = []
-        # implement it later
         map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
 
         colv_map = build_covalent_map(data, 6)
@@ -2144,60 +2145,231 @@ class NonbondJaxGenerator:
         else:
             r_switch = r_cut
             ifSwitch = False
+        
+        # PME Settings
+        if nonbondedMethod is app.PME:
+            a, b, c = system.getDefaultPeriodicBoxVectors()
+            box = jnp.array([a._value, b._value, c._value])
+            self.ethresh = args.get("ethresh", 1e-6)
+            self.coeff_method = args.get("PmeCoeffMethod", "openmm")
+            self.fourier_spacing = args.get("PmeSpacing", 0.1)
+            kappa, K1, K2, K3 = setup_ewald_parameters(
+                r_cut,
+                self.ethresh,
+                box,
+                self.fourier_spacing,
+                self.coeff_method
+            )
 
         map_lj = jnp.array(map_lj)
         map_nbfix = jnp.array(map_nbfix)
         map_charge = jnp.array(map_charge)
 
-        ljforce = LennardJonesForce(
-            r_switch,
-            r_cut,
-            map_lj,
-            map_nbfix,
-            colv_map,
-            isSwitch=ifSwitch,
-            isPBC=ifPBC,
-            isNoCut=isNoCut,
-        )
+        # Free Energy Settings #
+        isFreeEnergy = args.get("isFreeEnergy", False)
+        if isFreeEnergy:
+            vdwLambda = args.get("vdwLambda", 0.0)
+            coulLambda = args.get("coulLambda", 0.0)
+            ifStateA = args.get("ifStateA", True)
+
+            # soft-cores
+            vdwSoftCore = args.get("vdwSoftCore", False)
+            coulSoftCore = args.get("coulSoftCore", False)
+            scAlpha = args.get("scAlpha", 0.0)
+            scSigma = args.get("scSigma", 0.0)
+
+            # couple
+            coupleIndex = args.get("coupleIndex", [])
+            if len(coupleIndex) > 0:
+                coupleMask = [False for _ in range(len(data.atoms))]
+                for atomIndex in coupleIndex:
+                    coupleMask[atomIndex] = True
+                coupleMask = jnp.array(coupleMask, dtype=bool)
+            else:
+                coupleMask = None
+
+        if not isFreeEnergy:
+            ljforce = LennardJonesForce(
+                r_switch,
+                r_cut,
+                map_lj,
+                map_nbfix,
+                colv_map,
+                isSwitch=ifSwitch,
+                isPBC=ifPBC,
+                isNoCut=isNoCut
+            )
+        else:
+            ljforce = LennardJonesFreeEnergyForce(
+                r_switch,
+                r_cut,
+                map_lj,
+                map_nbfix,
+                colv_map,
+                isSwitch=ifSwitch,
+                isPBC=ifPBC,
+                isNoCut=isNoCut,
+                feLambda=vdwLambda,
+                coupleMask=coupleMask,
+                useSoftCore=vdwSoftCore,
+                ifStateA=ifStateA,
+                sc_alpha=scAlpha,
+                sc_sigma=scSigma
+            )
+
         ljenergy = ljforce.generate_get_energy()
 
-        if nonbondedMethod is not app.PME:
-            # do not use PME
-            if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
-                # use Reaction Field
-                coulforce = CoulReactionFieldForce(
-                    r_cut, map_charge, colv_map, isPBC=ifPBC
+        # dispersion correction
+        useDispersionCorrection = args.get("useDispersionCorrection", False)
+        if useDispersionCorrection:
+            numTypes = len(self.types)
+            countVec = np.zeros(numTypes, dtype=int)
+            countMat = np.zeros((numTypes, numTypes), dtype=int)
+            types, count = np.unique(map_lj, return_counts=True)
+
+            for typ, cnt in zip(types, count):
+                countVec[typ] += cnt
+            for i in range(numTypes):
+                for j in range(i, numTypes):
+                    if i != j:
+                        countMat[i, j] = countVec[i] * countVec[j]
+                    else:
+                        countMat[i, i] = countVec[i] * (countVec[i] - 1) // 2
+            assert np.sum(countMat) == len(map_lj) * (len(map_lj) - 1) // 2
+
+            colv_pairs = np.argwhere(np.logical_and(colv_map > 0, colv_map <= 3))
+            for pair in colv_pairs:
+                if pair[0] <= pair[1]:
+                    tmp = (map_lj[pair[0]], map_lj[pair[1]])
+                    t1, t2 = min(tmp), max(tmp)
+                    countMat[t1, t2] -= 1
+
+            if not isFreeEnergy:
+                ljDispCorrForce = LennardJonesLongRangeForce(
+                    r_cut,
+                    map_lj,
+                    map_nbfix,
+                    countMat
                 )
-            if nonbondedMethod is app.NoCutoff:
-                # use NoCutoff
-                coulforce = CoulNoCutoffForce(map_charge, colv_map)
+            else:
+                ljDispCorrForce = LennardJonesLongRangeFreeEnergyForce(
+                    r_cut,
+                    map_lj,
+                    map_nbfix,
+                    countMat,
+                    vdwLambda,
+                    ifStateA,
+                    coupleMask
+                )
+            ljDispEnergyFn = ljDispCorrForce.generate_get_energy()
+        
+        if not isFreeEnergy:
+            if nonbondedMethod is not app.PME:
+                # do not use PME
+                if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
+                    # use Reaction Field
+                    coulforce = CoulReactionFieldForce(r_cut, map_charge, colv_map, isPBC=ifPBC)
+                if nonbondedMethod is app.NoCutoff:
+                    # use NoCutoff
+                    coulforce = CoulNoCutoffForce(map_charge, colv_map)
+            else:
+                coulforce = CoulombPMEForce(r_cut, map_charge, colv_map, kappa, (K1, K2, K3))
         else:
-            coulforce = CoulombPMEForce(box, r_cut, self.ethresh, colv_map)
+            assert nonbondedMethod is app.PME, "Only PME is supported in free energy calculations"
+            coulforce = CoulombPMEFreeEnergyForce(
+                r_cut,
+                map_charge,
+                colv_map,
+                kappa,
+                (K1, K2, K3),
+                coulLambda,
+                ifStateA=ifStateA,
+                coupleMask=coupleMask,
+                useSoftCore=coulSoftCore,
+                sc_alpha=scAlpha,
+                sc_sigma=scSigma
+            )
 
         coulenergy = coulforce.generate_get_energy()
 
-        def potential_fn(positions, box, pairs, params):
+        if not isFreeEnergy:
+            def potential_fn(positions, box, pairs, params):
 
-            # check whether args passed into potential_fn are jnp.array and differentiable
-            # note this check will be optimized away by jit
-            # it is jit-compatiable
-            isinstance_jnp(positions, box, params)
+                # check whether args passed into potential_fn are jnp.array and differentiable
+                # note this check will be optimized away by jit
+                # it is jit-compatiable
+                isinstance_jnp(positions, box, params)
 
-            ljE = ljenergy(
-                positions,
-                box,
-                pairs,
-                params["epsilon"],
-                params["sigma"],
-                params["epsfix"],
-                params["sigfix"],
-                mscales_lj,
-            )
-            coulE = coulenergy(positions, box, pairs, params["charge"], mscales_coul)
+                ljE = ljenergy(
+                    positions,
+                    box,
+                    pairs,
+                    params["epsilon"],
+                    params["sigma"],
+                    params["epsfix"],
+                    params["sigfix"],
+                    mscales_lj
+                )
+                coulE = coulenergy(
+                    positions, 
+                    box, 
+                    pairs, 
+                    params["charge"], 
+                    mscales_coul
+                )
 
-            return ljE + coulE
+                if useDispersionCorrection:
+                    ljDispEnergy = ljDispEnergyFn(
+                        box, 
+                        params['epsilon'], 
+                        params['sigma'], 
+                        params['epsfix'], 
+                        params['sigfix']
+                    )
 
-        self._jaxPotential = potential_fn
+                    return ljE + coulE + ljDispEnergy
+                else:    
+                    return ljE + coulE
+
+            self._jaxPotential = potential_fn
+        else:
+            # Free Energy
+            @jit_condition()
+            def potential_fn(positions, box, pairs, params, vdwLambda, coulLambda):
+                ljE = ljenergy(
+                    positions,
+                    box,
+                    pairs,
+                    params["epsilon"],
+                    params["sigma"],
+                    params["epsfix"],
+                    params["sigfix"],
+                    mscales_lj,
+                    vdwLambda
+                )
+                coulE = coulenergy(
+                    positions, 
+                    box, 
+                    pairs, 
+                    params["charge"], 
+                    mscales_coul,
+                    coulLambda
+                )
+
+                if useDispersionCorrection:
+                    ljDispEnergy = ljDispEnergyFn(
+                        box, 
+                        params['epsilon'], 
+                        params['sigma'], 
+                        params['epsfix'], 
+                        params['sigfix'],
+                        vdwLambda
+                    )
+                    return ljE + coulE + ljDispEnergy
+                else:    
+                    return ljE + coulE
+
+            self._jaxPotential = potential_fn
 
     def getJaxPotential(self):
         return self._jaxPotential
@@ -2251,7 +2423,8 @@ class Hamiltonian(app.forcefield.ForceField):
             try:
                 potentialImpl = generator.getJaxPotential()
                 self._potentials.append(potentialImpl)
-            except:
+            except Exception as e:
+                print(e)
                 pass
         return [p for p in self._potentials]
 

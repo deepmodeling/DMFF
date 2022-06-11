@@ -4,8 +4,8 @@ import openmm.unit as unit
 import numpy as np
 from jax_md import space, partition
 import sys
-sys.path.append('/home/lijichen/work/DMFF/')
 from dmff.api import Hamiltonian
+from jax import jit
 
 def forcegroupify(system):
     forcegroups = {}
