@@ -4,17 +4,8 @@ import jax.numpy as jnp
 import jax.scipy as jsp
 from jax import jit
 from dmff.settings import DO_JIT
-from dmff.admp.pme import DIELECTRIC
+from dmff.common.constants import DIELECTRIC, SQRT_PI as sqrt_pi
 
-# for debug
-# from admp.parser import *
-# from admp.multipole import *
-# from admp.spatial import *
-# from admp.pme import *
-# from jax.config import config
-# config.update("jax_enable_x64", True)
-
-sqrt_pi = 1.7724538509055159
 
 def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
 
@@ -49,7 +40,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             """
             Nj_Aji_star = (N.reshape((1, 3)) * jnp.linalg.inv(box)).T
             return Nj_Aji_star
-        
+     
         
         def u_reference(R_a, Nj_Aji_star):
             """
@@ -80,19 +71,25 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             Computes the cardinal B-spline function
             """
             if order == 6:
-                return jnp.piecewise(u, 
-                                [jnp.logical_and(u>=0, u<1.), 
-                                jnp.logical_and(u>=1, u<2.), 
-                                jnp.logical_and(u>=2, u<3.), 
-                                jnp.logical_and(u>=3, u<4.), 
-                                jnp.logical_and(u>=4, u<5.), 
-                                jnp.logical_and(u>=5, u<6.)],
-                                [lambda u: u**5/120,
-                                lambda u: u**5/120 - (u - 1)**5/20,
-                                lambda u: u**5/120 + (u - 2)**5/8 - (u - 1)**5/20,
-                                lambda u: u**5/120 - (u - 3)**5/6 + (u - 2)**5/8 - (u - 1)**5/20,
-                                lambda u: u**5/24 - u**4 + 19*u**3/2 - 89*u**2/2 + 409*u/4 - 1829/20,
-                                lambda u: -u**5/120 + u**4/4 - 3*u**3 + 18*u**2 - 54*u + 324/5] )
+                return jnp.piecewise(
+                    u, 
+                    [
+                        jnp.logical_and(u >= 0., u < 1.), 
+                        jnp.logical_and(u >= 1., u < 2.), 
+                        jnp.logical_and(u >= 2., u < 3.), 
+                        jnp.logical_and(u >= 3., u < 4.), 
+                        jnp.logical_and(u >= 4., u < 5.), 
+                        jnp.logical_and(u >= 5., u < 6.)
+                    ],
+                    [
+                        lambda u: u ** 5 / 120,
+                        lambda u: u ** 5 / 120 - (u - 1) ** 5 / 20,
+                        lambda u: u ** 5 / 120 + (u - 2) ** 5 / 8 - (u - 1) ** 5 / 20,
+                        lambda u: u ** 5 / 120 - (u - 3) ** 5 / 6 + (u - 2) ** 5 / 8 - (u - 1) ** 5 / 20,
+                        lambda u: u ** 5 / 24 - u ** 4 + 19 * u ** 3 / 2 - 89 * u ** 2 / 2 + 409 * u / 4 - 1829 / 20,
+                        lambda u: -u ** 5 / 120 + u ** 4 / 4 - 3 * u ** 3 + 18 * u ** 2 - 54 * u + 324 / 5
+                    ]
+                )
         
         
         def bspline_prime(u, order=pme_order):
@@ -100,19 +97,25 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             Computes first derivative of the cardinal B-spline function
             """
             if order == 6:
-                return jnp.piecewise(u, 
-                                [jnp.logical_and(u>=0., u<1.), 
-                                jnp.logical_and(u>=1., u<2.), 
-                                jnp.logical_and(u>=2., u<3.), 
-                            jnp.logical_and(u>=3., u<4.), 
-                            jnp.logical_and(u>=4., u<5.), 
-                            jnp.logical_and(u>=5., u<6.)],
-                            [lambda u: u**4/24,
-                            lambda u: u**4/24 - (u - 1)**4/4,
-                            lambda u: u**4/24 + 5*(u - 2)**4/8 - (u - 1)**4/4,
-                            lambda u: -5*u**4/12 + 6*u**3 - 63*u**2/2 + 71*u - 231/4,
-                            lambda u: 5*u**4/24 - 4*u**3 + 57*u**2/2 - 89*u + 409/4,
-                            lambda u: -u**4/24 + u**3 - 9*u**2 + 36*u - 54] )
+                return jnp.piecewise(
+                    u, 
+                    [
+                        jnp.logical_and(u >= 0., u < 1.), 
+                        jnp.logical_and(u >= 1., u < 2.), 
+                        jnp.logical_and(u >= 2., u < 3.), 
+                        jnp.logical_and(u >= 3., u < 4.), 
+                        jnp.logical_and(u >= 4., u < 5.), 
+                        jnp.logical_and(u >= 5., u < 6.)
+                    ],
+                    [
+                        lambda u: u ** 4 / 24,
+                        lambda u: u ** 4 / 24 - (u - 1) ** 4 / 4,
+                        lambda u: u ** 4 / 24 + 5 * (u - 2) ** 4 / 8 - (u - 1) ** 4 / 4,
+                        lambda u: -5 * u ** 4 / 12 + 6 * u ** 3 - 63 * u ** 2 / 2 + 71 * u - 231 / 4,
+                        lambda u: 5 * u ** 4 / 24 - 4 * u ** 3 + 57 * u ** 2 / 2 - 89 * u + 409 / 4,
+                        lambda u: -u ** 4 / 24 + u ** 3 - 9 * u ** 2 + 36 * u - 54
+                    ] 
+                )
 
 
         def bspline_prime2(u, order=pme_order):
@@ -120,19 +123,25 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             Computes second derivate of the cardinal B-spline function
             """
             if order == 6:
-                return jnp.piecewise(u, 
-                                [jnp.logical_and(u>=0., u<1.), 
-                                jnp.logical_and(u>=1., u<2.), 
-                                jnp.logical_and(u>=2., u<3.), 
-                                jnp.logical_and(u>=3., u<4.), 
-                                jnp.logical_and(u>=4., u<5.), 
-                                jnp.logical_and(u>=5., u<6.)],
-                                [lambda u: u**3/6,
-                                lambda u: u**3/6 - (u - 1)**3,
-                                lambda u: 5*u**3/3 - 12*u**2 + 27*u - 19,
-                                lambda u: -5*u**3/3 + 18*u**2 - 63*u + 71,
-                                lambda u: 5*u**3/6 - 12*u**2 + 57*u - 89,
-                                lambda u: -u**3/6 + 3*u**2 - 18*u + 36,] )
+                return jnp.piecewise(
+                    u, 
+                    [
+                        jnp.logical_and(u >= 0., u < 1.), 
+                        jnp.logical_and(u >= 1., u < 2.), 
+                        jnp.logical_and(u >= 2., u < 3.), 
+                        jnp.logical_and(u >= 3., u < 4.), 
+                        jnp.logical_and(u >= 4., u < 5.), 
+                        jnp.logical_and(u >= 5., u < 6.)
+                    ],
+                    [
+                        lambda u: u ** 3 / 6,
+                        lambda u: u ** 3 / 6 - (u - 1) ** 3,
+                        lambda u: 5 * u ** 3 / 3 - 12 * u ** 2 + 27 * u - 19,
+                        lambda u: -5 * u ** 3 / 3 + 18 * u ** 2 - 63 * u + 71,
+                        lambda u: 5 * u ** 3 / 6 - 12 * u ** 2 + 57 * u - 89,
+                        lambda u: -u ** 3 / 6 + 3 * u ** 2 - 18 * u + 36
+                    ]
+                )
         
         
         def theta_eval(u, M_u):
@@ -458,93 +467,3 @@ def Ck_10(ksq, kappa, V):
     exp_x2 = jnp.exp(-x2)
     f = (15 - 6*x2 + 4*x4 - 8*x6)*exp_x2 + 8*x7*sqrt_pi*jsp.special.erfc(x)
     return sqrt_pi*jnp.pi/2/V*kappa**7 * f / 1260
-
-
-# def validation(pdb):
-#     jnp.set_printoptions(precision=32, suppress=True)
-#     xml = 'mpidwater.xml'
-#     pdbinfo = read_pdb(pdb)
-#     serials = pdbinfo['serials']
-#     names = pdbinfo['names']
-#     resNames = pdbinfo['resNames']
-#     resSeqs = pdbinfo['resSeqs']
-#     positions = pdbinfo['positions']
-#     box = pdbinfo['box'] # a, b, c, α, β, γ
-#     charges = pdbinfo['charges']
-#     positions = jnp.asarray(positions)
-#     lx, ly, lz, _, _, _ = box
-#     box = jnp.eye(3)*jnp.array([lx, ly, lz])
-
-#     rc = 4  # in Angstrom
-#     ethresh = 1e-4
-
-#     n_atoms = len(serials)
-
-#     atomTemplate, residueTemplate = read_xml(xml)
-#     atomDicts, residueDicts = init_residues(serials, names, resNames, resSeqs, positions, charges, atomTemplate, residueTemplate)
-
-#     Q = np.vstack(
-#         [(atom.c0, atom.dX*10, atom.dY*10, atom.dZ*10, atom.qXX*300, atom.qYY*300, atom.qZZ*300, atom.qXY*300, atom.qXZ*300, atom.qYZ*300) for atom in atomDicts.values()]
-#     )
-#     Q = jnp.array(Q)
-#     Q_local = convert_cart2harm(Q, 2)
-#     axis_type = np.array(
-#         [atom.axisType for atom in atomDicts.values()]
-#     )
-#     axis_indices = np.vstack(
-#         [atom.axis_indices for atom in atomDicts.values()]
-#     )
-#     covalent_map = assemble_covalent(residueDicts, n_atoms)
-
-
-#     # invoke pme energy calculator
-#     # energy_pme(positions, box, Q_local, axis_type, axis_indices, nbr.idx, 2)
-#     lmax = 2
-#     kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
-#     # for debugging
-#     kappa = 0.657065221219616
-#     construct_local_frames_fn = generate_construct_local_frames(axis_type, axis_indices)
-#     local_frames = construct_local_frames_fn(positions, box)
-#     Q_global = rot_local2global(Q_local, local_frames, lmax)
-
-#     pme_order = 6
-#     energy_force_pme_recip = value_and_grad(generate_pme_recip(Ck_1, kappa, False, pme_order, K1, K2, K3, lmax))
-#     energy_force_pme_recip(positions, box, Q_global)
-#     print('ok')
-#     E, F = energy_force_pme_recip(positions, box, Q_global)
-#     print(E)
-
-#     # construct the C list
-#     c_list = np.zeros((3,n_atoms))
-#     nmol=int(n_atoms/3)
-#     for i in range(nmol):
-#         a = i*3
-#         b = i*3+1
-#         c = i*3+2
-#         c_list[0][a]=37.19677405
-#         c_list[0][b]=7.6111103
-#         c_list[0][c]=7.6111103
-#         c_list[1][a]=85.26810658
-#         c_list[1][b]=11.90220148
-#         c_list[1][c]=11.90220148
-#         c_list[2][a]=134.44874488
-#         c_list[2][b]=15.05074749
-#         c_list[2][c]=15.05074749
-#     energy_force_d6_recip = value_and_grad(generate_pme_recip(Ck_6, kappa, True, pme_order, K1, K2, K3, 0))
-#     energy_force_d8_recip = value_and_grad(generate_pme_recip(Ck_8, kappa, True, pme_order, K1, K2, K3, 0))
-#     energy_force_d10_recip = value_and_grad(generate_pme_recip(Ck_10, kappa, True, pme_order, K1, K2, K3, 0))
-#     E6, F6 = energy_force_d6_recip(positions, box, c_list[0, :, jnp.newaxis])
-#     E8, F6 = energy_force_d8_recip(positions, box, c_list[1, :, jnp.newaxis])
-#     E10, F10 = energy_force_d10_recip(positions, box, c_list[2, :, jnp.newaxis])
-#     print('ok')
-#     E6, F6 = energy_force_d6_recip(positions, box, c_list[0, :, jnp.newaxis])
-#     E8, F6 = energy_force_d8_recip(positions, box, c_list[1, :, jnp.newaxis])
-#     E10, F10 = energy_force_d10_recip(positions, box, c_list[2, :, jnp.newaxis])
-#     print(E6, E8, E10)
-#     print(E6 + E8 + E10)
-#     return
-
-
-# # validation code
-# if __name__ == '__main__':
-#     validation(sys.argv[1])
