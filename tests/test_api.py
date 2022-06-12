@@ -1,75 +1,153 @@
-import jax.numpy as jnp
-import openmm as mm
 import openmm.app as app
 import openmm.unit as unit
 import numpy as np
+import jax.numpy as jnp
 import numpy.testing as npt
-from dmff.api import Hamiltonian
-import dmff.api as api
 import pytest
+from dmff import Hamiltonian
 
-class TestApiXMLRender:
+class TestADMPAPI:
     
-    def test_admp_pme(self):
-        
+    """ Test ADMP related generators
+    """
+    
+    @pytest.fixture(scope='class', name='generators')
+    def test_init(self):
+        """load generators from XML file
+
+        Yields:
+            Tuple: (
+                ADMPDispForce,
+                ADMPPmeForce, # polarized
+            )
+        """
         rc = 4.0
-        H = Hamiltonian("tests/data/admp.xml")
-        pdb = app.PDBFile('tests/data/waterbox_31ang.pdb')
-        system = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
-        generators = H.getGenerators()
+        H = Hamiltonian('tests/data/admp.xml')
+        pdb = app.PDBFile('tests/data/water_dimer.pdb')
+        H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
         
-        xml = generators[1].renderXML()
+        yield H.getGenerators()
+        
+    def test_ADMPDispForce_parseXML(self, generators):
+        
+        gen = generators[0]
+        params = gen.params
+        
+        npt.assert_allclose(params['mScales'], [0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+        npt.assert_allclose(params['A'], [1203470.743, 83.2283563])
+        npt.assert_allclose(params['B'], [37.81265679, 37.78544799])
+        
+    def test_ADMPDispForce_renderXML(self, generators):
+        
+        gen = generators[0]
+        xml = gen.renderXML()
+        
+        assert xml.name == 'ADMPDispForce'
+        npt.assert_allclose(float(xml[0]['type']), 380)
+        npt.assert_allclose(float(xml[0]['A']), 1203470.743)
+        npt.assert_allclose(float(xml[1]['B']), 37.78544799)
+        npt.assert_allclose(float(xml[1]['Q']), 0.370853)
+        
+    def test_ADMPPmeForce_parseXML(self, generators):
+        
+        gen = generators[1]
+        params = gen.params
+        
+        npt.assert_allclose(params['mScales'], [0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+        npt.assert_allclose(params['pScales'], [0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+        npt.assert_allclose(params['dScales'], [0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+        # Q_local is already converted to local frame
+        # npt.assert_allclose(params['Q_local'][0][:4], [-1.0614, 0.0, 0.0, -0.023671684])
+        npt.assert_allclose(params['pol'], [0.88000005, 0])
+        npt.assert_allclose(params['tholes'], [8., 0.])
+        
+    def test_ADMPPmeForce_renderXML(self, generators):
+        
+        gen = generators[1]
+        xml = gen.renderXML()
+        
         assert xml.name == 'ADMPPmeForce'
         assert xml.attributes['lmax'] == '2'
         assert xml.attributes['mScale12'] == '0.0'
         assert xml.attributes['mScale15'] == '1.0'
-        
         assert xml.elements[0].name == 'Atom'
         assert xml.elements[0].attributes['qXZ'] == '-0.07141020'
-        
         assert xml.elements[2].name == 'Polarize'
-        assert xml.elements[2].attributes['polarizabilityXX'] == '0.88000000'
-        
+        assert xml.elements[2].attributes['polarizabilityXX'][:6] == '0.8800'
         assert xml[3]['type'] == '381'
         
-    def test_admp_disp(self):
-        
+class TestClassicalAPI:
+    
+    """ Test classical forcefield generators
+    """
+    
+    @pytest.fixture(scope='class', name='generators')
+    def test_init(self):
+        """load generators from XML file
+
+        Yields:
+            Tuple: (
+                NonBondJaxGenerator,
+                HarmonicAngle,
+                PeriodicTorsionForce,
+            )
+        """
         rc = 4.0
-        H = Hamiltonian("tests/data/admp.xml")
-        pdb = app.PDBFile('tests/data/waterbox_31ang.pdb')
-        system = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
-        generators = H.getGenerators()
+        H = Hamiltonian('tests/data/classical.xml')
+        pdb = app.PDBFile('tests/data/linear.pdb')
+        H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
         
-        xml = generators[1].renderXML()
-        assert xml.name == 'ADMPDispForce'        
- 
-    def test_nonbond(self):
+        yield H.getGenerators()
         
-        H = Hamiltonian("tests/data/coul2.xml")
-        pdb = app.PDBFile('tests/data/lj2.pdb')
-        system = H.createPotential(pdb.topology,
-                                   nonbondedMethod=app.NoCutoff,
-                                   constraints=None,
-                                   removeCMMotion=False)
-        generators = H.getGenerators()
-        xml = generators[0].renderXML()
+    def test_NonBond_parseXML(self, generators):
+        
+        gen = generators[0]
+        params = gen.params
+        npt.assert_allclose(params['sigma'], [1.0, 1.0, -1.0, -1.0])
+
+        
+    def test_NonBond_renderXML(self, generators):
+        
+        gen = generators[0]
+        xml = gen.renderXML()
+        
         assert xml.name == 'NonbondedForce'
         assert xml.attributes['lj14scale'] == '0.5'
         assert xml[0]['type'] == 'n1'
         assert xml[1]['sigma'] == '1.0'
-
-    def test_HarmonicAngleJaxGenerator(self):
         
-        H = Hamiltonian('tests/data/angle1.xml')
-        pdb = app.PDBFile('tests/data/angle1.pdb')
-        system = H.createPotential(pdb.topology)
-        generators = H.getGenerators()
-        xml = generators[0].renderXML()
+    def test_HarmonicAngle_parseXML(self, generators):
+        
+        gen = generators[1]
+        params = gen.params
+        npt.assert_allclose(params['k'], 836.8)
+        npt.assert_allclose(params['angle'], 1.8242181341844732)
+
+    def test_HarmonicAngle_renderXML(self, generators):
+        
+        gen = generators[1]
+        xml = gen.renderXML()
+        
         assert xml.name == 'HarmonicAngleForce'
         assert xml[0]['type1'] == 'n1'
-        assert xml[0]['angle'] == '1.8242181341844732'
+        assert xml[0]['type2'] == 'n2'
+        assert xml[0]['type3'] == 'n3'
+        assert xml[0]['angle'][:7] == '1.82421'
+        assert xml[0]['k'] == '836.8'
         
-    def test_HarmonicDihedralJaxGenerator(self):
+    def test_PeriodicTorsion_parseXML(self, generators):
         
-        pass
+        gen = generators[2]
+        params = gen.params
+        npt.assert_allclose(params['psi1_p'], 0)
+        npt.assert_allclose(params['k1_p'], 2.092)
         
+    def test_PeriodicTorsion_renderXML(self, generators):
+        
+        gen = generators[2]
+        xml = gen.renderXML()
+        assert xml.name == 'PeriodicTorsionForce'
+        assert xml[0].name == 'Proper'
+        assert xml[0]['type1'] == 'n1'
+        assert xml[1].name == 'Improper'
+        assert xml[1]['type1'] == 'n1'

@@ -153,6 +153,18 @@ nbr = neighbor_list_fn.allocate(positions)
 pairs = nbr.idx.T  
 ```
 
+Also, we provide a wrapper to simplify neighborList construction:
+
+```
+from dmff import NeighborList
+nblist = NeighborList(box, rc)
+nblist.allocate(positions)
+pairs = nblist.pairs  # equivalent to nbr.idx.T
+distance = nblist.distance  # distance between pairs
+dr = nblist.dr  # distance vector
+
+```
+
 `pairs` is a `(N, 2)` shape array, which indicates the index of atom i and atom j. ATTENTION: pairs array contains many **invalid** index. For example, in this case, we only have 6 atoms and pairs' shape maybe `(18, 2)`. And even there are three `[6, 6]` pairs which are obviously out of range. Because `jax-md` takes advantage of the feature of Jax.numpy, which will not throw an error when the index out of range, and return the [last element](https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html#out-of-bounds-indexing).
 
 Finally, we can calculate energy and force using the aforementioned potential:
@@ -180,4 +192,3 @@ for i_epoch in range(n_epochs):
     with open('params.pickle', 'wb') as ofile:
         pickle.dump(params, ofile)
 ```
-

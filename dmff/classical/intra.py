@@ -1,9 +1,6 @@
-import sys
-import numpy as np
-import jax
 import jax.numpy as jnp
-from jax import grad, value_and_grad, vmap, jit
-from jax.scipy.special import erf
+from jax import grad, value_and_grad, vmap
+
 
 
 def distance(p1v, p2v):
