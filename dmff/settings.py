@@ -2,7 +2,7 @@ from jax.config import config
 
 PRECISION = 'float'  # 'double'
 
-DO_JIT = False
+DO_JIT = True
 
 DEBUG = False
 
