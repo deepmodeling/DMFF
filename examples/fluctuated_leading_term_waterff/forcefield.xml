@@ -1,6 +1,5 @@
 <!-- Note that the atom types "name" are numeric - this is because of how AMOEBA/MPID assign anchor atoms -->
 <ForceField>
-
  <AtomTypes>
   <Type name="380" class="OW" element="O" mass="15.999"/>
   <Type name="381" class="HW" element="H" mass="1.008"/>
@@ -16,29 +15,26 @@
  </Residues>
 
  <ADMPDispForce mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00">
-   <Dispcoeff type="380" A="458.3777" B="2.00095977" Q="-0.741706" C6="37.19677405" C8="85.26810658" C10="134.44874488"/>
-   <Dispcoeff type="381" A="0.0317" B="1.999519942"  Q="0.370853" C6="7.6111103" C8="11.90220148" C10="15.05074749"/>
+   <Atom type="380" A="1203470.743" B="37.81265679" Q="-0.741706" C6="0.001383816" C8="7.27065e-05" C10="1.8076465e-6"/>
+   <Atom type="381" A="83.2283563" B="37.78544799"  Q="0.370853" C6="5.7929e-05" C8="1.416624e-06" C10="2.26525e-08"/>
  </ADMPDispForce>
 
- <ADMPPmeForce lmax="2" mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00" pScale12="0.00" pScale13="0.00" pScale14="0.00" pScale15="1.00" pScale16="1.00" dScale12="0.00" dScale13="0.00" dScale14="0.00" dScale15="1.00" dScale16="1.00">
-   <Multipole type="380" kz="-381" kx="-381"
-             c0="-1.0614"
-             dX="0.0" dY="0.0"  dZ="-0.023671684"
-             qXX="0.000150963" qXY="0.0" qYY="0.00008707" qXZ="0.0" qYZ="0.0" qZZ="-0.000238034"
-             oXXX="0.0" oXXY="0.0" oXYY="0.0" oYYY="0.0" oXXZ="0.0000" oXYZ="0.0" oYYZ="0.00000" oXZZ="0.0" oYZZ="0.0" oZZZ="-0.0000"
+ <ADMPPmeForce lmax="2" 
+     mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00" 
+     pScale12="0.00" pScale13="0.00" pScale14="0.00" pScale15="1.00" pScale16="1.00" 
+     dScale12="1.00" dScale13="1.00" dScale14="1.00" dScale15="1.00" dScale16="1.00">
+   <Atom type="380" kz="381" kx="-381"
+             c0="-0.803721"
+             dX="0.0" dY="0.0"  dZ="-0.00784325"
+             qXX="0.000366476" qXY="0.0" qYY="-0.000381799" qXZ="0.0" qYZ="0.0" qZZ="1.53231e-05"
              />
-   <Multipole type="381" kz="380" kx="381"
-             c0="0.5307"
-             dX="0.0" dY="0.0"  dZ="0.0"
-             qXX="0.0" qXY="0.0" qYY="0.0" qXZ="0.0" qYZ="0.0" qZZ="0.0"
-             oXXX="0.0" oXXY="0.0" oXYY="0.0" oYYY="0.0" oXXZ="0.0" oXYZ="0.0" oYYZ="0.0" oXZZ="0.0" oYZZ="0.0" oZZZ="0.0"
-             /> 
-   <Polarize type="380" polarizabilityXX="0.00088" polarizabilityYY="0.00088" polarizabilityZZ="0.00088" thole="8.0"/>
-   <Polarize type="381" polarizabilityXX="0.000" polarizabilityYY="0.000" polarizabilityZZ="0.000" thole="0.0"/>
+   <Atom type="381" kz="380" kx="381"
+             c0="0.401876"
+             dX="-0.00121713" dY="0.0"  dZ="-0.00095895"
+             qXX="6.7161e-06" qXY="0.0" qYY="-3.37874e-05" qXZ="1.25905e-05" qYZ="0.0" qZZ="2.70713e-05"
+             />
+   <Polarize type="380" polarizabilityXX="1.1249e-03" polarizabilityYY="1.1249e-03" polarizabilityZZ="1.1249e-03" thole="0.33"/>
+   <Polarize type="381" polarizabilityXX="2.6906e-04" polarizabilityYY="2.6906e-04" polarizabilityZZ="2.6906e-04" thole="0.33"/>
  </ADMPPmeForce>
-
 </ForceField>
 
-<!--  Dump unwanted parameters here!
-  <Atom type="380" charge="-0.0" sigma="0.31983264" epsilon="0.677808"/>
--->

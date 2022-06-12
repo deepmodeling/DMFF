@@ -3,8 +3,6 @@ from xml.dom import minidom
 import numpy as np
 import warnings
 from collections import defaultdict
-import jax.numpy as jnp
-from dmff.admp.multipole import convert_cart2harm
 
 def read_atom_line(line_full):
     """
@@ -329,6 +327,105 @@ def read_xml(fileobj):
 
     return atomTemplates, residueTemplates
 
+def read_admp_xml(fileobj):
+
+    fileobj = minidom.parse(fileobj)
+
+    disp_coef = fileobj.getElementsByTagName("Dispcoeff")
+    multipoles = fileobj.getElementsByTagName("Multipole")
+
+    residueTemplates = []
+    atomTemplates = []
+
+    for r in fileobj.getElementsByTagName('Residue'):
+
+        resName = r.getAttribute("name")
+        residueTemplate = {'resName': resName, 'atoms': [], }
+
+
+        for a in r.getElementsByTagName('Atom'):
+            atomName = a.getAttribute('name')
+            atomType = a.getAttribute('type')
+            atomTemplate = {'name': atomName, 'type': atomType}
+
+            residueTemplate['atoms'].append(atomTemplate)
+            atomTemplates.append(atomTemplate)
+
+        topo = defaultdict(list)
+        for b in r.getElementsByTagName('Bond'):
+
+            from_ = b.getAttribute('from')
+            to_ = b.getAttribute('to')
+            topo[from_].append(to_)
+            # topo[to_].append(from_)
+
+        residueTemplate['topo'] = dict(topo)
+        residueTemplates.append(residueTemplate)
+
+    for i, dispcoeff in enumerate(disp_coef):
+        
+        dispDict = {
+            "A": float(dispcoeff.getAttribute("A")),
+            "B": float(dispcoeff.getAttribute("B")),
+            "Q": float(dispcoeff.getAttribute("Q")),
+            "C6": float(dispcoeff.getAttribute("C6")),
+            "C8": float(dispcoeff.getAttribute("C8")),
+            "C10": float(dispcoeff.getAttribute("C10")),    
+        }   
+        
+        for template in atomTemplates:
+            if template['type'] == dispcoeff.getAttribute("type"):
+                template.update(dispDict)
+
+    for i, multipole in enumerate(multipoles):
+
+        multiDict = {
+            "c0": float(multipole.getAttribute("c0")),
+            "dX": float(multipole.getAttribute("dX")),
+            "dY": float(multipole.getAttribute("dY")),
+            "dZ": float(multipole.getAttribute("dZ")),
+            "qXX": float(multipole.getAttribute("qXX")),
+            "qXY": float(multipole.getAttribute("qXY")),
+            "qYY": float(multipole.getAttribute("qYY")),
+            "qXZ": float(multipole.getAttribute("qXZ")),
+            "qYZ": float(multipole.getAttribute("qYZ")),
+            "qZZ": float(multipole.getAttribute("qZZ")),
+            "oXXX": float(multipole.getAttribute("oXXX")),
+            "oXXY": float(multipole.getAttribute("oXXY")),
+            "oXYY": float(multipole.getAttribute("oXYY")),
+            "oYYY": float(multipole.getAttribute("oYYY")),
+            "oXXZ": float(multipole.getAttribute("oXXZ")),
+            "oXYZ": float(multipole.getAttribute("oXYZ")),
+            "oYYZ": float(multipole.getAttribute("oYYZ")),
+            "oXZZ": float(multipole.getAttribute("oXZZ")),
+            "oYZZ": float(multipole.getAttribute("oYZZ")),
+            "oZZZ": float(multipole.getAttribute("oZZZ")),
+            "kx": multipole.getAttribute("kx"),
+            "kz": multipole.getAttribute("kz"),
+            "ky": multipole.getAttribute("ky")
+        }
+
+        for template in atomTemplates:
+            if template['type'] == multipole.getAttribute("type"):
+                template.update(multiDict)
+
+
+    for p in fileobj.getElementsByTagName('Polarize'):
+
+        pxx = p.getAttribute('polarizabilityXX')
+        pyy = p.getAttribute('polarizabilityYY')
+        pzz = p.getAttribute('polarizabilityZZ')
+        thole = p.getAttribute('thole')
+        polarDict = {'polarizabilityXX': pxx, 'polarizabilityYY': pyy, 'polarizabilityZZ':pzz, 'thole': thole}
+
+        for template in atomTemplates:
+            if template['type'] == p.getAttribute('type'):
+                template.update(polarDict)
+
+    set_axis_type(atomTemplates)
+
+    return atomTemplates, residueTemplates        
+
 
 class Atom:
     
@@ -477,4 +574,4 @@ def assemble_covalent(residueDicts, natoms):
                 covalent_map[c][pp] = dr
                 
     return covalent_map
-   
+    
