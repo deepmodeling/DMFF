@@ -49,26 +49,28 @@ def compute_leading_terms(positions,box):
     c6_list = c6_list.at[2::3].set(jnp.sqrt(C6_H))
     return c0, c6_list
 
-def admp_calculator(positions, box, pairs):
-    c0, c6_list = compute_leading_terms(positions,box) # compute fluctuated leading terms
-    Q_local = pme_generator.params["Q_local"][pme_generator.map_atomtype]
-    Q_local = Q_local.at[:,0].set(c0)  # change fixed charge into fluctuated one
-    pol=pme_generator.params["pol"][pme_generator.map_atomtype]
-    tholes=pme_generator.params["tholes"][pme_generator.map_atomtype]
-    c8_list = jnp.sqrt(disp_generator.params["C8"][disp_generator.map_atomtype]*1e8)
-    c10_list = jnp.sqrt(disp_generator.params["C10"][disp_generator.map_atomtype]*1e10)
-    c_list = jnp.vstack((c6_list, c8_list, c10_list))
-    covalent_map = disp_generator.disp_pme_force.covalent_map    
-    a_list = (disp_generator.params["A"][disp_generator.map_atomtype] / 2625.5)
-    b_list=disp_generator.params["B"][disp_generator.map_atomtype] * 0.0529177249 
-    q_list = disp_generator.params["Q"][disp_generator.map_atomtype]
+def generate_calculator(pot_disp, pot_pme, pot_sr, disp_generator, pme_generator):
+    def admp_calculator(positions, box, pairs):
+        c0, c6_list = compute_leading_terms(positions,box) # compute fluctuated leading terms
+        Q_local = pme_generator.params["Q_local"][pme_generator.map_atomtype]
+        Q_local = Q_local.at[:,0].set(c0)  # change fixed charge into fluctuated one
+        pol=pme_generator.params["pol"][pme_generator.map_atomtype]
+        tholes=pme_generator.params["tholes"][pme_generator.map_atomtype]
+        c8_list = jnp.sqrt(disp_generator.params["C8"][disp_generator.map_atomtype]*1e8)
+        c10_list = jnp.sqrt(disp_generator.params["C10"][disp_generator.map_atomtype]*1e10)
+        c_list = jnp.vstack((c6_list, c8_list, c10_list))
+        covalent_map = disp_generator.disp_pme_force.covalent_map    
+        a_list = (disp_generator.params["A"][disp_generator.map_atomtype] / 2625.5)
+        b_list=disp_generator.params["B"][disp_generator.map_atomtype] * 0.0529177249 
+        q_list = disp_generator.params["Q"][disp_generator.map_atomtype]
 
-    E_pme = pme_generator.pme_force.get_energy(
-            positions, box, pairs, Q_local, pol, tholes, pme_generator.params["mScales"], pme_generator.params["pScales"], pme_generator.params["dScales"]
-            )    
-    E_disp = disp_generator.disp_pme_force.get_energy(positions, box, pairs, c_list.T, disp_generator.params["mScales"])
-    E_sr = pot_sr(positions, box, pairs, disp_generator.params["mScales"], a_list, b_list, q_list, c_list[0])
-    return E_pme + E_sr - E_disp
+        E_pme = pme_generator.pme_force.get_energy(
+                positions, box, pairs, Q_local, pol, tholes, pme_generator.params["mScales"], pme_generator.params["pScales"], pme_generator.params["dScales"]
+                )    
+        E_disp = disp_generator.disp_pme_force.get_energy(positions, box, pairs, c_list.T, disp_generator.params["mScales"])
+        E_sr = pot_sr(positions, box, pairs, disp_generator.params["mScales"], a_list, b_list, q_list, c_list[0])
+        return E_pme + E_sr - E_disp
+    return jit(value_and_grad(admp_calculator,argnums=(0)))
 
 if __name__ == '__main__':
     
@@ -92,7 +94,8 @@ if __name__ == '__main__':
     nbr = neighbor_list_fn.allocate(positions)
     pairs = nbr.idx.T    
 
-    admp_calc = jit(value_and_grad(admp_calculator,argnums=(0)))
+    
+    admp_calc = generate_calculator(pot_disp, pot_pme, pot_sr, disp_generator, pme_generator)
     tot_ene, tot_force = admp_calc(positions, box, pairs)
     print('# Tot Interaction Energy:')
     print('#', tot_ene, 'kJ/mol')
