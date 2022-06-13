@@ -22,7 +22,7 @@ from dmff.admp.pairwise import (
     slater_sr_kernel, 
     TT_damping_qq_kernel
 )
-from dmff.admp.pme import ADMPPmeForce, setup_ewald_parameters, trim_val_0
+from dmff.admp.pme import ADMPPmeForce, setup_ewald_parameters
 from dmff.classical.intra import (
     HarmonicBondJaxForce,
     HarmonicAngleJaxForce,
@@ -41,7 +41,7 @@ from dmff.classical.fep import (
     CoulombPMEFreeEnergyForce
 )
 from dmff.utils import jit_condition, isinstance_jnp
-from dmff.admp.spatial import v_pbc_shift
+
 
 class XMLNodeInfo:
     
@@ -202,7 +202,6 @@ class ADMPDispGenerator:
         self.map_atomtype = map_atomtype
         # build covalent map
         covalent_map = build_covalent_map(data, 6)
-
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
         box = jnp.array([a._value, b._value, c._value]) * 10
@@ -227,8 +226,8 @@ class ADMPDispGenerator:
                 params["A"][map_atomtype] / 2625.5
             )  # kj/mol to au, as expected by TT_damping kernel
             b_list = params["B"][map_atomtype] * 0.0529177249  # nm^-1 to au
-            c0, c6_list = compute_leading_terms(positions, box) #compute fluctuated leading terms
-            q_list = c0
+            q_list = params["Q"][map_atomtype]
+            c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)
             c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
             c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
             c_list = jnp.vstack((c6_list, c8_list, c10_list))
@@ -346,11 +345,12 @@ class ADMPDispPmeGenerator:
 
         def potential_fn(positions, box, pairs, params):
             mScales = params["mScales"]
+            C6_list = params["C6"][map_atomtype] * 1e6 # to kj/mol * A**6
             C8_list = params["C8"][map_atomtype] * 1e8
             C10_list = params["C10"][map_atomtype] * 1e10
+            c6_list = jnp.sqrt(C6_list)
             c8_list = jnp.sqrt(C8_list)
             c10_list = jnp.sqrt(C10_list)
-            c0, c6_list = compute_leading_terms(positions, box)
             c_list = jnp.vstack((c6_list, c8_list, c10_list))
             E_lr = pot_fn_lr(positions, box, pairs, c_list.T, mScales)
             return - E_lr
@@ -425,8 +425,7 @@ class QqTtDampingGenerator:
         def potential_fn(positions, box, pairs, params):
             mScales = params["mScales"]
             b_list = params["B"][map_atomtype] / 10 # convert to A^-1
-            c0, c6_list = compute_leading_terms(positions, box) #compute fluctuated leading terms
-            q_list = c0
+            q_list = params["Q"][map_atomtype]
 
             E_sr = pot_fn_sr(positions, box, pairs, mScales, b_list, q_list)
             return E_sr
@@ -508,7 +507,7 @@ class SlaterDampingGenerator:
         def potential_fn(positions, box, pairs, params):
             mScales = params["mScales"]
             b_list = params["B"][map_atomtype] / 10 # convert to A^-1
-            c0, c6_list = compute_leading_terms(positions, box) #compute fluctuated leading terms
+            c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6) # to kj/mol * A**6
             c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
             c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
             E_sr = pot_fn_sr(positions, box, pairs, mScales, b_list, c6_list, c8_list, c10_list)
@@ -1075,8 +1074,6 @@ class ADMPPmeGenerator:
 
             mScales = params["mScales"]
             Q_local = params["Q_local"][map_atomtype]
-            c0, c6_list = compute_leading_terms(positions, box)
-            Q_local = Q_local.at[:,0].set(c0) 
             if self.lpol:
                 pScales = params["pScales"]
                 dScales = params["dScales"]
@@ -2399,33 +2396,3 @@ class Hamiltonian(app.forcefield.ForceField):
 
         tree = ET.ElementTree(root)
         tree.write(filename)
-
-def compute_leading_terms(positions,box):
-    n_atoms = len(positions)
-    c0 = jnp.zeros(n_atoms)
-    c6_list = jnp.zeros(n_atoms)
-    box_inv = jnp.linalg.inv(box)
-    O = positions[::3]
-    H1 = positions[1::3]
-    H2 = positions[2::3]
-    ROH1 = H1 - O
-    ROH2 = H2 - O
-    ROH1 = v_pbc_shift(ROH1, box, box_inv)
-    ROH2 = v_pbc_shift(ROH2, box, box_inv)
-    dROH1 = jnp.linalg.norm(ROH1, axis=1)
-    dROH2 = jnp.linalg.norm(ROH2, axis=1)
-    costh = jnp.sum(ROH1 * ROH2, axis=1) / (dROH1 * dROH2)
-    angle = jnp.arccos(costh)*180/jnp.pi
-    dipole = -0.016858755+0.002287251*angle + 0.239667591*dROH1 + (-0.070483437)*dROH2
-    charge_H = dipole/dROH1
-    charge_O=charge_H*(-2)
-    C6_H = (-2.36066199 + (-0.007049238)*angle + 1.949429648*dROH1+ 2.097120784*dROH2) * 0.529**6 * 2625.5
-    C6_O = (-8.641301261 + 0.093247893*angle + 11.90395358*(dROH1+ dROH2)) * 0.529**6 * 2625.5
-    C6_H = trim_val_0(C6_H)
-    c0 = c0.at[::3].set(charge_O)
-    c0 = c0.at[1::3].set(charge_H)
-    c0 = c0.at[2::3].set(charge_H)
-    c6_list = c6_list.at[::3].set(jnp.sqrt(C6_O))
-    c6_list = c6_list.at[1::3].set(jnp.sqrt(C6_H))
-    c6_list = c6_list.at[2::3].set(jnp.sqrt(C6_H))
-    return c0, c6_list  
