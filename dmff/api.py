@@ -40,7 +40,7 @@ from dmff.classical.fep import (
     LennardJonesLongRangeFreeEnergyForce,
     CoulombPMEFreeEnergyForce
 )
-from dmff.utils import jit_condition, isinstance_jnp
+from dmff.utils import jit_condition, isinstance_jnp, DMFFException
 
 
 class XMLNodeInfo:
@@ -152,6 +152,7 @@ class ADMPDispGenerator:
         self.types = []
         self.ethresh = 5e-4
         self.pmax = 10
+        self.name = "ADMPDisp"
 
     def registerAtomType(self, atom):
         self.types.append(atom["type"])
@@ -281,6 +282,7 @@ class ADMPDispPmeGenerator:
         self.types = []
         self.ethresh = 5e-4
         self.pmax = 10
+        self.name = "ADMPDispPme"
 
     def registerAtomType(self, atom):
         self.types.append(atom["type"])
@@ -382,6 +384,7 @@ class QqTtDampingGenerator:
         }
         self._jaxPotential = None
         self.types = []
+        self.name = "QqTtDamping"
 
     def registerAtomType(self, atom):
         self.types.append(atom["type"])
@@ -462,6 +465,7 @@ class SlaterDampingGenerator:
         }
         self._jaxPotential = None
         self.types = []
+        self.name = "SlaterDamping"
 
     def registerAtomType(self, atom):
         self.types.append(atom["type"])
@@ -541,6 +545,7 @@ class SlaterExGenerator:
                 }
         self._jaxPotential = None
         self.types = []
+        self.name = "SlaterEx"
 
     def registerAtomType(self, atom):
         self.types.append(atom["type"])
@@ -606,15 +611,19 @@ app.forcefield.parsers["SlaterExForce"] = SlaterExGenerator.parseElement
 class SlaterSrEsGenerator(SlaterExGenerator):
     def __init__(self):
         super().__init__(self)
+        self.name = "SlaterSrEs"
 class SlaterSrPolGenerator(SlaterExGenerator):
     def __init__(self):
         super().__init__(self)
+        self.name = "SlaterSrPol"
 class SlaterSrDispGenerator(SlaterExGenerator):
     def __init__(self):
         super().__init__(self)
+        self.name = "SlaterSrDisp"
 class SlaterDhfGenerator(SlaterExGenerator):
     def __init__(self):
         super().__init__(self)
+        self.name = "SlaterDhf"
 
 # register all parsers
 app.forcefield.parsers["SlaterSrEsForce"] = SlaterSrEsGenerator.parseElement
@@ -670,6 +679,7 @@ class ADMPPmeGenerator:
         self.step_pol = None
         self.lpol = False
         self.ref_dip = ""
+        self.name = "ADMPPme"
 
     def registerAtomType(self, atom: dict):
 
@@ -1149,6 +1159,7 @@ class HarmonicBondJaxGenerator:
         self._jaxPotential = None
         self.types = []
         self.typetexts = []
+        self.name = "HarmonicBond"
 
     def registerBondType(self, bond):
         typetxt = findAtomTypeTexts(bond, 2)
@@ -1247,6 +1258,7 @@ class HarmonicAngleJaxGenerator:
         self.params = {"k": [], "angle": []}
         self._jaxPotential = None
         self.types = []
+        self.name = "HarmonicAngle"
 
     def registerAngleType(self, angle):
         types = self.ff._findAtomTypes(angle, 3)
@@ -1277,13 +1289,14 @@ class HarmonicAngleJaxGenerator:
             self.params[k] = jnp.array(self.params[k])
         self.types = np.array(self.types)
 
-        n_angles = len(data.angles)
+        max_angles = len(data.angles)
+        n_angles = 0
         # build map
-        map_atom1 = np.zeros(n_angles, dtype=int)
-        map_atom2 = np.zeros(n_angles, dtype=int)
-        map_atom3 = np.zeros(n_angles, dtype=int)
-        map_param = np.zeros(n_angles, dtype=int)
-        for i in range(n_angles):
+        map_atom1 = np.zeros(max_angles, dtype=int)
+        map_atom2 = np.zeros(max_angles, dtype=int)
+        map_atom3 = np.zeros(max_angles, dtype=int)
+        map_param = np.zeros(max_angles, dtype=int)
+        for i in range(max_angles):
             idx1 = data.angles[i][0]
             idx2 = data.angles[i][1]
             idx3 = data.angles[i][2]
@@ -1296,17 +1309,23 @@ class HarmonicAngleJaxGenerator:
                     if (type1 in self.types[ii][0] and type3 in self.types[ii][2]) or (
                         type1 in self.types[ii][2] and type3 in self.types[ii][0]
                     ):
-                        map_atom1[i] = idx1
-                        map_atom2[i] = idx2
-                        map_atom3[i] = idx3
-                        map_param[i] = ii
+                        map_atom1[n_angles] = idx1
+                        map_atom2[n_angles] = idx2
+                        map_atom3[n_angles] = idx3
+                        map_param[n_angles] = ii
                         ifFound = True
+                        n_angles += 1
                         break
             if not ifFound:
-                raise BaseException(
+                print(
                     "No parameter for angle %i - %i - %i" % (idx1, idx2, idx3)
                 )
 
+        map_atom1 = map_atom1[:n_angles]
+        map_atom2 = map_atom2[:n_angles]
+        map_atom3 = map_atom3[:n_angles]
+        map_param = map_param[:n_angles]
+        
         aforce = HarmonicAngleJaxForce(map_atom1, map_atom2, map_atom3, map_param)
 
         def potential_fn(positions, box, pairs, params):
@@ -1513,6 +1532,7 @@ class PeriodicTorsionJaxGenerator(object):
         self.propersForAtomType = defaultdict(set)
         self.n_proper = 0
         self.n_improper = 0
+        self.name = "PeriodicTorsion"
 
     def registerProperTorsion(self, parameters):
         torsion = _parseTorsion(self.ff, parameters)
@@ -1955,6 +1975,7 @@ class NonbondJaxGenerator:
         }
         self.types = []
         self.useAttributeFromResidue = []
+        self.name = "Nonbond"
 
 
     def registerAtom(self, atom):
@@ -2397,3 +2418,25 @@ class Hamiltonian(app.forcefield.ForceField):
 
         tree = ET.ElementTree(root)
         tree.write(filename)
+
+    def getPotentialFunc(self):
+        if len(self._potentials) == 0:
+            raise DMFFException("Hamiltonian need to be initialized.")
+        efuncs = {}
+        for gen in self.getGenerators():
+            efuncs[gen.name] = gen._jaxPotential
+
+        def totalPE(positions, box, pairs, params):
+            totale = sum([
+                efuncs[k](positions, box, pairs, params[k])
+                for k in efuncs.keys()
+            ])
+            return totale
+
+        return totalPE
+
+    def getParameters(self):
+        params = {}
+        for gen in self.getGenerators():
+            params[gen.name] = gen.params
+        return params
