@@ -1,4 +1,4 @@
-# Theoretical background
+# 5. Theory
 
 DMFF project aims to implement organic molecular force fields using a differentiable programming framework, such that derivatives with respect to atomic positions, box shape, and force field parameters can be easily computed. It contains different modules, dealing with different types of force field terms. Currently, there are two primary modules:
 
