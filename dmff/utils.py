@@ -3,6 +3,9 @@ import jax.numpy as jnp
 from dmff.settings import DO_JIT
 
 
+class DMFFException(BaseException):
+    pass
+
 def jit_condition(*args, **kwargs):
     def jit_deco(func):
         if DO_JIT:
