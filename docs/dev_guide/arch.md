@@ -1,4 +1,4 @@
-# Architecture of DMFF
+# 2. Software architecture
 
 ![arch](../assets/arch.png)
 
@@ -19,7 +19,7 @@ The backend module is usually an automatically differentiable calculator built w
 
 The structures of the frontend and the backend modules will be introduced in detail in below.
 
-## How Frontend Works
+## 2.1 Frontend
 
 Frontend modules are stored in `api.py`. `Hamiltonian` class is the top-level class exposed to users by DMFF. 
 `Hamiltonian` class reads the path of the XML file, parses the XML file, and calls different frontend modules 
@@ -38,7 +38,7 @@ and the rounded box represents the internal operation logic of OpenMM when execu
 
 ![openmm_workflow](../assets/opemm_workflow.svg)
 
-### Hamiltonian Class
+### 2.1.1 Hamiltonian Class
 
 The `Hamiltonian` class is the top-level frontend module, which inherits the 
 [forcefield class](https://github.com/openmm/openmm/blob/master/wrappers/python/openmm/app/forcefield.py) in OpenMM. 
@@ -74,7 +74,7 @@ corresponding `parseElement` method, then calls it to initialize the `generator`
 parameters from the XML file. You can access all the generators by the `getGenerators()` method in Hamiltonian. 
 
 
-### Generator Class
+### 2.1.2 Generator Class
 
 
 The generator class is in charge of input file analysis, molecular topology construction, atom classification, 
@@ -324,9 +324,9 @@ finfo = XMLNodeInfo("HarmonicBondForce")
 ```
 
 
-## How Backend Works
+## 2.2 Backend
 
-### Force Class
+### 2.2.1 Force Class
 
 Force class is the backend module that wraps the calculator function. 
 It does not rely on OpenMM and can be very flexible. For instance, 

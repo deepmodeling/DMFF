@@ -1,4 +1,4 @@
-# Theoretical background
+# 5. Theory
 
 DMFF project aims to implement organic molecular force fields using a differentiable programming framework, such that derivatives with respect to atomic positions, box shape, and force field parameters can be easily computed. It contains different modules, dealing with different types of force field terms. Currently, there are two primary modules:
 
@@ -23,7 +23,7 @@ where $q_i$ is the charge of atom $i$.
 More complex (and supposedly more accurate) force field can be obtained by including more multipoles with higher orders. Some force fields, such as MPID, goes as high as octupoles. Currently in DMFF, we support up to quadrupoles:
 
 $$
-V=\sum_{tu} \hat{Q}_t^A T^{AB}_{tu} \hat{Q}_u^B
+V=\sum_{tu} Q_t^A T^{AB}_{tu} Q_u^B
 $$
 
 where $Q_t^A$ represents the t-component of the multipole moment of atom A. Note there are two (equivalent) ways to define multipole moments: cartesian and spherical harmonics. Cartesian representation is over-complete but with a simpler definition, while spherical harmonics are easier to use in real calculations. In the user API, we use cartesian representation, in consistent with the AMOEBA and the MPID plugins in OpenMM. However, spherical harmonics are always used in the computation kernel, and we assume all components are arranged in the following order:
@@ -46,7 +46,7 @@ Different to charges, the definition of multipole moments depends on the coordin
 
 ## Polarization Interaction
 
-DMFF supports polarizable force fields, in which the dipole moment of the atom can respond to the change of the external electric field. In practice, each atom has not only permanent multipoles $\hat{Q}_t$, but also induced dipoles $U_{ind}$. The induced dipole-induced dipole and induced dipole-permanent multipole interactions needs to be damped at short-range to avoid polarization catastrophe. In DMFF, we use the Thole damping scheme identical to MPID (ref 6), which introduces a damping width ($a_i$) for each atom $i$. The damping function is then computed and applied to the corresponding interaction tensor. Taking $U_{ind}$-permanent charge interaction as an example, the definition of damping function is:
+DMFF supports polarizable force fields, in which the dipole moment of the atom can respond to the change of the external electric field. In practice, each atom has not only permanent multipoles $Q_t$, but also induced dipoles $U_{ind}$. The induced dipole-induced dipole and induced dipole-permanent multipole interactions needs to be damped at short-range to avoid polarization catastrophe. In DMFF, we use the Thole damping scheme identical to MPID (ref 6), which introduces a damping width ($a_i$) for each atom $i$. The damping function is then computed and applied to the corresponding interaction tensor. Taking $U_{ind}$-permanent charge interaction as an example, the definition of damping function is:
 
 $$
 \displaylines{

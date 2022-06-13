@@ -1,4 +1,4 @@
-# How to write XML file
+# 4. XML format force field
 
 The design of openmm force field file is quite modular and convenient to use. Unfortunately, only limited documentations are available right now to explain the details of the file format. Here, the format and the meaning of the OpenMM XML file are sorted in details in below.
 
