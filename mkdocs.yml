@@ -23,7 +23,7 @@ nav:
   - API: refs/
 
   - About: 
-    - Maintainer: about.md
+    - License: license.md
 
 theme: readthedocs
 

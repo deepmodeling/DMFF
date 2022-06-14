@@ -1,3 +1,0 @@
-# Lisense
-
-# Contributor
