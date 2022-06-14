@@ -10,8 +10,8 @@ import jax.numpy as jnp
 
 import openmm as mm
 import openmm.app as app
-import openmm.unit as unit
 import openmm.app.element as elem
+import openmm.unit as unit
 
 from dmff.admp.disp_pme import ADMPDispPmeForce
 from dmff.admp.multipole import convert_cart2harm, convert_harm2cart
@@ -33,7 +33,14 @@ from dmff.classical.inter import (
     LennardJonesLongRangeForce,
     CoulombPMEForce,
     CoulNoCutoffForce,
+    CoulombPMEForce,
     CoulReactionFieldForce,
+    LennardJonesForce,
+)
+from .classical.intra import (
+    HarmonicAngleJaxForce,
+    HarmonicBondJaxForce,
+    PeriodicTorsionJaxForce,
 )
 from dmff.classical.fep import (
     LennardJonesFreeEnergyForce,
@@ -44,11 +51,9 @@ from dmff.utils import jit_condition, isinstance_jnp, DMFFException
 
 
 class XMLNodeInfo:
-    
     @staticmethod
-    def to_str(value)->str:
-        """ convert value to string if it can
-        """
+    def to_str(value) -> str:
+        """convert value to string if it can"""
         if isinstance(value, str):
             return value
         elif isinstance(value, (jnp.ndarray, np.ndarray)):
@@ -62,17 +67,16 @@ class XMLNodeInfo:
             return str(value)
 
     class XMLElementInfo:
-        
         def __init__(self, name):
             self.name = name
             self.attributes = {}
-        
+
         def addAttribute(self, key, value):
             self.attributes[key] = XMLNodeInfo.to_str(value)
-            
+
         def __repr__(self):
             return f'<{self.name} {" ".join([f"{k}={v}" for k, v in self.attributes.items()])}>'
-        
+
         def __getitem__(self, name):
             return self.attributes[name]
 
@@ -80,13 +84,12 @@ class XMLNodeInfo:
         self.name = name
         self.attributes = {}
         self.elements = []
-        
+
     def __getitem__(self, name):
         if isinstance(name, str):
             return self.attributes[name]
         elif isinstance(name, int):
             return self.elements[name]
-    
 
     def addAttribute(self, key, value):
         self.attributes[key] = XMLNodeInfo.to_str(value)
@@ -103,10 +106,9 @@ class XMLNodeInfo:
     def __repr__(self):
         # tricy string formatting
         left = f'<{self.name} {" ".join([f"{k}={v}" for k, v in self.attributes.items()])}> \n\t'
-        right = f'<\\{self.name}>'
-        content = '\n\t'.join([repr(e) for e in self.elements])
-        return left + content + '\n' + right
-
+        right = f"<\\{self.name}>"
+        content = "\n\t".join([repr(e) for e in self.elements])
+        return left + content + "\n" + right
 
 
 def get_line_context(file_path, line_number):
@@ -136,8 +138,8 @@ def build_covalent_map(data, max_neighbor):
 
 def findAtomTypeTexts(attribs, num):
     typetxt = []
-    for n in range(1, num+1):
-        for key in ["type%i"%n, "class%i"%n]:
+    for n in range(1, num + 1):
+        for key in ["type%i" % n, "class%i" % n]:
             if key in attribs:
                 typetxt.append((key, attribs[key]))
                 break
@@ -213,8 +215,9 @@ class ADMPDispGenerator:
         if "ethresh" in args:
             self.ethresh = args["ethresh"]
 
-        Force_DispPME = ADMPDispPmeForce(box, covalent_map, rc, self.ethresh,
-                                         self.pmax, lpme=self.lpme)
+        Force_DispPME = ADMPDispPmeForce(
+            box, covalent_map, rc, self.ethresh, self.pmax, lpme=self.lpme
+        )
         self.disp_pme_force = Force_DispPME
         pot_fn_lr = Force_DispPME.get_energy
         pot_fn_sr = generate_pairwise_interaction(
@@ -247,36 +250,41 @@ class ADMPDispGenerator:
 
     def renderXML(self):
         # generate xml force field file
-        finfo = XMLNodeInfo('ADMPDispForce')
-        finfo.addAttribute('mScale12', self.params["mScales"][0])
-        finfo.addAttribute('mScale13', self.params["mScales"][1])
-        finfo.addAttribute('mScale14', self.params["mScales"][2])
-        finfo.addAttribute('mScale15', self.params["mScales"][3])
-        finfo.addAttribute('mScale16', self.params["mScales"][4])
-        
+        finfo = XMLNodeInfo("ADMPDispForce")
+        finfo.addAttribute("mScale12", self.params["mScales"][0])
+        finfo.addAttribute("mScale13", self.params["mScales"][1])
+        finfo.addAttribute("mScale14", self.params["mScales"][2])
+        finfo.addAttribute("mScale15", self.params["mScales"][3])
+        finfo.addAttribute("mScale16", self.params["mScales"][4])
+
         for i in range(len(self.types)):
-            ainfo = {'type': self.types[i], 'A': self.params["A"][i], 'B': self.params["B"][i], 'Q': self.params["Q"][i], 'C6': self.params["C6"][i], 'C8': self.params["C8"][i], 'C10': self.params["C10"][i]}
-            finfo.addElement('Atom', ainfo)
-        
+            ainfo = {
+                "type": self.types[i],
+                "A": self.params["A"][i],
+                "B": self.params["B"][i],
+                "Q": self.params["Q"][i],
+                "C6": self.params["C6"][i],
+                "C8": self.params["C8"][i],
+                "C10": self.params["C10"][i],
+            }
+            finfo.addElement("Atom", ainfo)
+
         return finfo
+
 
 # register all parsers
 app.forcefield.parsers["ADMPDispForce"] = ADMPDispGenerator.parseElement
 
 
 class ADMPDispPmeGenerator:
-    r'''
+    r"""
     This one computes the undamped C6/C8/C10 interactions
     u = \sum_{ij} c6/r^6 + c8/r^8 + c10/r^10
-    '''
+    """
 
     def __init__(self, hamiltonian):
         self.ff = hamiltonian
-        self.params = {
-                "C6": [],
-                "C8": [],
-                "C10": []
-                }
+        self.params = {"C6": [], "C8": [], "C10": []}
         self._jaxPotential = None
         self.types = []
         self.ethresh = 5e-4
@@ -306,8 +314,7 @@ class ADMPDispPmeGenerator:
             generator.params[k] = jnp.array(generator.params[k])
         generator.types = np.array(generator.types)
 
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
-                    args):
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
         methodMap = {
             app.CutoffPeriodic: "CutoffPeriodic",
             app.NoCutoff: "NoCutoff",
@@ -337,17 +344,18 @@ class ADMPDispPmeGenerator:
         rc = nonbondedCutoff.value_in_unit(unit.angstrom)
 
         # get calculator
-        if 'ethresh' in args:
-            self.ethresh = args['ethresh']
+        if "ethresh" in args:
+            self.ethresh = args["ethresh"]
 
-        disp_force = ADMPDispPmeForce(box, covalent_map, rc, self.ethresh,
-                                         self.pmax, self.lpme)
+        disp_force = ADMPDispPmeForce(
+            box, covalent_map, rc, self.ethresh, self.pmax, self.lpme
+        )
         self.disp_force = disp_force
         pot_fn_lr = disp_force.get_energy
 
         def potential_fn(positions, box, pairs, params):
             mScales = params["mScales"]
-            C6_list = params["C6"][map_atomtype] * 1e6 # to kj/mol * A**6
+            C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
             C8_list = params["C8"][map_atomtype] * 1e8
             C10_list = params["C10"][map_atomtype] * 1e10
             c6_list = jnp.sqrt(C6_list)
@@ -355,7 +363,7 @@ class ADMPDispPmeGenerator:
             c10_list = jnp.sqrt(C10_list)
             c_list = jnp.vstack((c6_list, c8_list, c10_list))
             E_lr = pot_fn_lr(positions, box, pairs, c_list.T, mScales)
-            return - E_lr
+            return -E_lr
 
         self._jaxPotential = potential_fn
         # self._top_data = data
@@ -367,14 +375,17 @@ class ADMPDispPmeGenerator:
         # generate xml force field file
         pass
 
+
 # register all parsers
 app.forcefield.parsers["ADMPDispPmeForce"] = ADMPDispPmeGenerator.parseElement
 
+
 class QqTtDampingGenerator:
-    r'''
+    r"""
     This one calculates the tang-tonnies damping of charge-charge interaction
     E = \sum_ij exp(-B*r)*(1+B*r)*q_i*q_j/r
-    '''
+    """
+
     def __init__(self, hamiltonian):
         self.ff = hamiltonian
         self.params = {
@@ -408,8 +419,7 @@ class QqTtDampingGenerator:
         generator.types = np.array(generator.types)
 
     # on working
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
-                    args):
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
 
         n_atoms = len(data.atoms)
         # build index map
@@ -421,13 +431,13 @@ class QqTtDampingGenerator:
         # build covalent map
         covalent_map = build_covalent_map(data, 6)
 
-        pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel,
-                                                  covalent_map,
-                                                  static_args={})
+        pot_fn_sr = generate_pairwise_interaction(
+            TT_damping_qq_kernel, covalent_map, static_args={}
+        )
 
         def potential_fn(positions, box, pairs, params):
             mScales = params["mScales"]
-            b_list = params["B"][map_atomtype] / 10 # convert to A^-1
+            b_list = params["B"][map_atomtype] / 10  # convert to A^-1
             q_list = params["Q"][map_atomtype]
 
             E_sr = pot_fn_sr(positions, box, pairs, mScales, b_list, q_list)
@@ -443,17 +453,19 @@ class QqTtDampingGenerator:
         # generate xml force field file
         pass
 
+
 # register all parsers
 app.forcefield.parsers["QqTtDampingForce"] = QqTtDampingGenerator.parseElement
 
 
 class SlaterDampingGenerator:
-    r'''
+    r"""
     This one computes the slater-type damping function for c6/c8/c10 dispersion
     E = \sum_ij (f6-1)*c6/r6 + (f8-1)*c8/r8 + (f10-1)*c10/r10
     fn = f_tt(x, n)
     x = br - (2*br2 + 3*br) / (br2 + 3*br + 3)
-    '''
+    """
+
     def __init__(self, hamiltonian):
         self.ff = hamiltonian
         self.params = {
@@ -490,8 +502,7 @@ class SlaterDampingGenerator:
             generator.params[k] = jnp.array(generator.params[k])
         generator.types = np.array(generator.types)
 
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
-                    args):
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
 
         n_atoms = len(data.atoms)
         # build index map
@@ -504,22 +515,24 @@ class SlaterDampingGenerator:
         covalent_map = build_covalent_map(data, 6)
 
         # WORKING
-        pot_fn_sr = generate_pairwise_interaction(slater_disp_damping_kernel,
-                                                  covalent_map,
-                                                  static_args={})
+        pot_fn_sr = generate_pairwise_interaction(
+            slater_disp_damping_kernel, covalent_map, static_args={}
+        )
 
         def potential_fn(positions, box, pairs, params):
             mScales = params["mScales"]
-            b_list = params["B"][map_atomtype] / 10 # convert to A^-1
-            c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6) # to kj/mol * A**6
+            b_list = params["B"][map_atomtype] / 10  # convert to A^-1
+            c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)  # to kj/mol * A**6
             c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
             c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
-            E_sr = pot_fn_sr(positions, box, pairs, mScales, b_list, c6_list, c8_list, c10_list)
+            E_sr = pot_fn_sr(
+                positions, box, pairs, mScales, b_list, c6_list, c8_list, c10_list
+            )
             return E_sr
 
         self._jaxPotential = potential_fn
         # self._top_data = data
-    
+
     def getJaxPotential(self):
         return self._jaxPotential
 
@@ -527,21 +540,22 @@ class SlaterDampingGenerator:
         # generate xml force field file
         pass
 
+
 app.forcefield.parsers["SlaterDampingForce"] = SlaterDampingGenerator.parseElement
 
 
 class SlaterExGenerator:
-    r'''
+    r"""
     This one computes the Slater-ISA type exchange interaction
     u = \sum_ij A * (1/3*(Br)^2 + Br + 1)
-    '''
+    """
 
     def __init__(self, hamiltonian):
         self.ff = hamiltonian
         self.params = {
-                "A": [],
-                "B": [],
-                }
+            "A": [],
+            "B": [],
+        }
         self._jaxPotential = None
         self.types = []
         self.name = "SlaterEx"
@@ -568,8 +582,7 @@ class SlaterExGenerator:
             generator.params[k] = jnp.array(generator.params[k])
         generator.types = np.array(generator.types)
 
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
-                    args):
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
 
         n_atoms = len(data.atoms)
         # build index map
@@ -581,14 +594,14 @@ class SlaterExGenerator:
         # build covalent map
         covalent_map = build_covalent_map(data, 6)
 
-        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
-                                                  covalent_map,
-                                                  static_args={})
+        pot_fn_sr = generate_pairwise_interaction(
+            slater_sr_kernel, covalent_map, static_args={}
+        )
 
         def potential_fn(positions, box, pairs, params):
             mScales = params["mScales"]
             a_list = params["A"][map_atomtype]
-            b_list = params["B"][map_atomtype] / 10   # nm^-1 to A^-1
+            b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
 
             return pot_fn_sr(positions, box, pairs, mScales, a_list, b_list)
 
@@ -601,6 +614,7 @@ class SlaterExGenerator:
     def renderXML(self):
         # generate xml force field file
         pass
+
 
 app.forcefield.parsers["SlaterExForce"] = SlaterExGenerator.parseElement
 
@@ -623,6 +637,7 @@ class SlaterDhfGenerator(SlaterExGenerator):
     def __init__(self):
         super().__init__(self)
         self.name = "SlaterDhf"
+
 
 # register all parsers
 app.forcefield.parsers["SlaterSrEsForce"] = SlaterSrEsGenerator.parseElement
@@ -697,33 +712,33 @@ class ADMPPmeGenerator:
     @staticmethod
     def parseElement(element, hamiltonian):
 
-        r""" parse admp related parameters in XML file
-        
-            example:
-            
-            <ADMPDispForce mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00">
-              <Atom type="380" A="1203470.743" B="37.81265679" Q="-0.741706" C6="0.001383816" C8="7.27065e-05" C10="1.8076465e-6"/>
-              <Atom type="381" A="83.2283563" B="37.78544799"  Q="0.370853" C6="5.7929e-05" C8="1.416624e-06" C10="2.26525e-08"/>
-            </ADMPDispForce>
+        r"""parse admp related parameters in XML file
 
-            <ADMPPmeForce lmax="2" mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00" pScale12="0.00" pScale13="0.00" pScale14="0.00" pScale15="1.00" pScale16="1.00" dScale12="0.00" dScale13="0.00" dScale14="0.00" dScale15="1.00" dScale16="1.00">
-            
-              <Atom type="380" kz="-381" kx="-381"
-                            c0="-1.0614"
-                            dX="0.0" dY="0.0"  dZ="-0.023671684"
-                            qXX="0.000150963" qXY="0.0" qYY="0.00008707" qXZ="0.0" qYZ="0.0" qZZ="-0.000238034"
-                            oXXX="0.0" oXXY="0.0" oXYY="0.0" oYYY="0.0" oXXZ="0.0000" oXYZ="0.0" oYYZ="0.00000" oXZZ="0.0" oYZZ="0.0" oZZZ="-0.0000"
-                            />
-              <Atom type="381" kz="380" kx="381"
-                            c0="0.5307"
-                            dX="0.0" dY="0.0"  dZ="0.0"
-                            qXX="0.0" qXY="0.0" qYY="0.0" qXZ="0.0" qYZ="0.0" qZZ="0.0"
-                            oXXX="0.0" oXXY="0.0" oXYY="0.0" oYYY="0.0" oXXZ="0.0" oXYZ="0.0" oYYZ="0.0" oXZZ="0.0" oYZZ="0.0" oZZZ="0.0"
-                            /> 
-              <Polarize type="380" polarizabilityXX="0.00088" polarizabilityYY="0.00088" polarizabilityZZ="0.00088" thole="8.0"/>
-              <Polarize type="381" polarizabilityXX="0.000" polarizabilityYY="0.000" polarizabilityZZ="0.000" thole="0.0"/>
-            </ADMPPmeForce>
-        
+        example:
+
+        <ADMPDispForce mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00">
+          <Atom type="380" A="1203470.743" B="37.81265679" Q="-0.741706" C6="0.001383816" C8="7.27065e-05" C10="1.8076465e-6"/>
+          <Atom type="381" A="83.2283563" B="37.78544799"  Q="0.370853" C6="5.7929e-05" C8="1.416624e-06" C10="2.26525e-08"/>
+        </ADMPDispForce>
+
+        <ADMPPmeForce lmax="2" mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00" pScale12="0.00" pScale13="0.00" pScale14="0.00" pScale15="1.00" pScale16="1.00" dScale12="0.00" dScale13="0.00" dScale14="0.00" dScale15="1.00" dScale16="1.00">
+
+          <Atom type="380" kz="-381" kx="-381"
+                        c0="-1.0614"
+                        dX="0.0" dY="0.0"  dZ="-0.023671684"
+                        qXX="0.000150963" qXY="0.0" qYY="0.00008707" qXZ="0.0" qYZ="0.0" qZZ="-0.000238034"
+                        oXXX="0.0" oXXY="0.0" oXYY="0.0" oYYY="0.0" oXXZ="0.0000" oXYZ="0.0" oYYZ="0.00000" oXZZ="0.0" oYZZ="0.0" oZZZ="-0.0000"
+                        />
+          <Atom type="381" kz="380" kx="381"
+                        c0="0.5307"
+                        dX="0.0" dY="0.0"  dZ="0.0"
+                        qXX="0.0" qXY="0.0" qYY="0.0" qXZ="0.0" qYZ="0.0" qZZ="0.0"
+                        oXXX="0.0" oXXY="0.0" oXYY="0.0" oYYY="0.0" oXXZ="0.0" oXYZ="0.0" oYYZ="0.0" oXZZ="0.0" oYZZ="0.0" oZZZ="0.0"
+                        />
+          <Polarize type="380" polarizabilityXX="0.00088" polarizabilityYY="0.00088" polarizabilityZZ="0.00088" thole="8.0"/>
+          <Polarize type="381" polarizabilityXX="0.000" polarizabilityYY="0.000" polarizabilityZZ="0.000" thole="0.0"/>
+        </ADMPPmeForce>
+
         """
 
         generator = ADMPPmeGenerator(hamiltonian)
@@ -1112,39 +1127,50 @@ class ADMPPmeGenerator:
 
     def renderXML(self):
         # <ADMPPmeForce>
-        
-        finfo = XMLNodeInfo('ADMPPmeForce')
-        finfo.addAttribute('lmax', str(self.lmax))
+
+        finfo = XMLNodeInfo("ADMPPmeForce")
+        finfo.addAttribute("lmax", str(self.lmax))
         outputparams = deepcopy(self.params)
-        mScales = outputparams.pop('mScales')
-        pScales = outputparams.pop('pScales')
-        dScales = outputparams.pop('dScales')
+        mScales = outputparams.pop("mScales")
+        pScales = outputparams.pop("pScales")
+        dScales = outputparams.pop("dScales")
         for i in range(len(mScales)):
-            finfo.addAttribute(f'mScale1{i+2}', str(mScales[i]))
+            finfo.addAttribute(f"mScale1{i+2}", str(mScales[i]))
         for i in range(len(pScales)):
-            finfo.addAttribute(f'pScale{i+1}', str(pScales[i]))
+            finfo.addAttribute(f"pScale{i+1}", str(pScales[i]))
         for i in range(len(dScales)):
-            finfo.addAttribute(f'dScale{i+1}', str(dScales[i]))
-                    
-        Q = outputparams['Q_local']
+            finfo.addAttribute(f"dScale{i+1}", str(dScales[i]))
+
+        Q = outputparams["Q_local"]
         Q_global = convert_harm2cart(Q, self.lmax)
-        
+
         # <Atom>
         for atom in range(self.n_atoms):
-            info = {'type': self.map_atomtype[atom]}
-            info.update({ktype:self.kStrings[ktype][atom] for ktype in ['kz', 'kx', 'ky']})
-            for i, key in enumerate(['c0', 'dX', 'dY', 'dZ', 'qXX', 'qXY', 'qXZ', 'qYY', 'qYZ', 'qZZ']):
+            info = {"type": self.map_atomtype[atom]}
+            info.update(
+                {ktype: self.kStrings[ktype][atom] for ktype in ["kz", "kx", "ky"]}
+            )
+            for i, key in enumerate(
+                ["c0", "dX", "dY", "dZ", "qXX", "qXY", "qXZ", "qYY", "qYZ", "qZZ"]
+            ):
                 info[key] = "%.8f" % Q_global[atom][i]
-            finfo.addElement('Atom', info)
-            
+            finfo.addElement("Atom", info)
+
         # <Polarize>
         for t in range(len(self.types)):
-            info = {
-                'type': self.types[t]
-            }
-            info.update({p: "%.8f" % self.params['pol'][t] for p in ['polarizabilityXX', 'polarizabilityYY', 'polarizabilityZZ']})
-            finfo.addElement('Polarize', info)
-            
+            info = {"type": self.types[t]}
+            info.update(
+                {
+                    p: "%.8f" % self.params["pol"][t]
+                    for p in [
+                        "polarizabilityXX",
+                        "polarizabilityYY",
+                        "polarizabilityZZ",
+                    ]
+                }
+            )
+            finfo.addElement("Polarize", info)
+
         return finfo
 
 
@@ -1172,14 +1198,14 @@ class HarmonicBondJaxGenerator:
     def parseElement(element, hamiltonian):
 
         r"""parse <HarmonicBondForce> section in XML file
-        
-            example: 
-            
-              <HarmonicBondForce>
-                <Bond type1="ow" type2="hw" length="0.09572000000000001" k="462750.3999999999"/>
-                <Bond type1="hw" type2="hw" length="0.15136000000000002" k="462750.3999999999"/>
-              <\HarmonicBondForce>
-        
+
+        example:
+
+          <HarmonicBondForce>
+            <Bond type1="ow" type2="hw" length="0.09572000000000001" k="462750.3999999999"/>
+            <Bond type1="hw" type2="hw" length="0.15136000000000002" k="462750.3999999999"/>
+          <\HarmonicBondForce>
+
         """
         existing = [f for f in hamiltonian._forces if isinstance(f, HarmonicBondJaxGenerator)]
         if len(existing) == 0:
@@ -1242,7 +1268,7 @@ class HarmonicBondJaxGenerator:
             binfo[k1] = v1
             binfo[k2] = v2
             for key in self.params.keys():
-                binfo[key] = "%.8f"%self.params[key][ntype]
+                binfo[key] = "%.8f" % self.params[key][ntype]
             finfo.addElement("Bond", binfo)
         return finfo
 
@@ -1267,13 +1293,13 @@ class HarmonicAngleJaxGenerator:
 
     @staticmethod
     def parseElement(element, hamiltonian):
-        r""" parse <HarmonicAngleForce> section in XML file
+        r"""parse <HarmonicAngleForce> section in XML file
 
-            example:
-              <HarmonicAngleForce>
-                <Angle type1="hw" type2="ow" type3="hw" angle="1.8242181341844732" k="836.8000000000001"/>
-                <Angle type1="hw" type2="hw" type3="ow" angle="2.2294835864975564" k="0.0"/>
-              <\HarmonicAngleForce>
+        example:
+          <HarmonicAngleForce>
+            <Angle type1="hw" type2="ow" type3="hw" angle="1.8242181341844732" k="836.8000000000001"/>
+            <Angle type1="hw" type2="hw" type3="ow" angle="2.2294835864975564" k="0.0"/>
+          <\HarmonicAngleForce>
 
         """
         generator = HarmonicAngleJaxGenerator(hamiltonian)
@@ -1343,15 +1369,20 @@ class HarmonicAngleJaxGenerator:
         finfo = XMLNodeInfo("HarmonicAngleForce")
         for i, type in enumerate(self.types):
             t1, t2, t3 = type
-            ainfo = {'type1': t1, 'type2': t2, 'type3': t3, 'k': self.params['k'][i], 'angle': self.params['angle'][i]}
-            finfo.addElement('Angle', ainfo)
-        
+            ainfo = {
+                "type1": t1,
+                "type2": t2,
+                "type3": t3,
+                "k": self.params["k"][i],
+                "angle": self.params["angle"][i],
+            }
+            finfo.addElement("Angle", ainfo)
+
         return finfo
 
 
 # register all parsers
 app.forcefield.parsers["HarmonicAngleForce"] = HarmonicAngleJaxGenerator.parseElement
-
 
 
 def _matchImproper(data, torsion, generator):
@@ -1557,14 +1588,14 @@ class PeriodicTorsionJaxGenerator(object):
 
     @staticmethod
     def parseElement(element, ff):
-        """ parse <PeriodicTorsionForce> section in XML file
-        
-            example: 
-            
-              <PeriodicTorsionForce ordering="amber">
-                <Proper type1="" type2="c" type3="c" type4="" periodicity1="2" phase1="3.141592653589793" k1="1.2552"/>
-                <Improper type1="" type2="c" type3="c1" type4="" periodicity1="2" phase1="3.141592653589793" k1="0.0"/>
-            </PeriodicTorsionForce>
+        """parse <PeriodicTorsionForce> section in XML file
+
+        example:
+
+          <PeriodicTorsionForce ordering="amber">
+            <Proper type1="" type2="c" type3="c" type4="" periodicity1="2" phase1="3.141592653589793" k1="1.2552"/>
+            <Improper type1="" type2="c" type3="c1" type4="" periodicity1="2" phase1="3.141592653589793" k1="0.0"/>
+        </PeriodicTorsionForce>
 
         """
         existing = [f for f in ff._forces if isinstance(f, PeriodicTorsionJaxGenerator)]
@@ -1901,50 +1932,58 @@ class PeriodicTorsionJaxGenerator(object):
     def renderXML(self):
         params = self.params
         # generate xml force field file
-        finfo = XMLNodeInfo('PeriodicTorsionForce')
+        finfo = XMLNodeInfo("PeriodicTorsionForce")
         for i in range(len(self.proper)):
             proper = self.proper[i]
-  
-            finfo.addElement('Proper', 
-                {'type1': proper.types1, 'type2': proper.types2, 
-                'type3': proper.types3, 'type4': proper.types4,
-                'periodicity1': proper.periodicity[0],
-                'phase1': params['psi1_p'][i],
-                'k1': params['k1_p'][i],
-                'periodicity2': proper.periodicity[1],
-                'phase2': params['psi2_p'][i],
-                'k2': params['k2_p'][i],
-                'periodicity3': proper.periodicity[2],
-                'phase3': params['psi3_p'][i],
-                'k3': params['k3_p'][i],
-                'periodicity4': proper.periodicity[3],
-                'phase4': params['psi4_p'][i],
-                'k4': params['k4_p'][i],
-                }
+
+            finfo.addElement(
+                "Proper",
+                {
+                    "type1": proper.types1,
+                    "type2": proper.types2,
+                    "type3": proper.types3,
+                    "type4": proper.types4,
+                    "periodicity1": proper.periodicity[0],
+                    "phase1": params["psi1_p"][i],
+                    "k1": params["k1_p"][i],
+                    "periodicity2": proper.periodicity[1],
+                    "phase2": params["psi2_p"][i],
+                    "k2": params["k2_p"][i],
+                    "periodicity3": proper.periodicity[2],
+                    "phase3": params["psi3_p"][i],
+                    "k3": params["k3_p"][i],
+                    "periodicity4": proper.periodicity[3],
+                    "phase4": params["psi4_p"][i],
+                    "k4": params["k4_p"][i],
+                },
             )
-            
+
         for i in range(len(self.improper)):
-            
+
             improper = self.improper[i]
-            
-            finfo.addElement('Improper', 
-                {'type1': improper.types1, 'type2': improper.types2, 
-                'type3': improper.types3, 'type4': improper.types4,
-                'periodicity1': improper.periodicity[0],
-                'phase1': params['psi1_i'][i],
-                'k1': params['k1_i'][i],
-                'periodicity2': proper.periodicity[1],
-                'phase2': params['psi2_i'][i],
-                'k2': params['k2_i'][i],
-                'periodicity3': proper.periodicity[2],
-                'phase3': params['psi3_i'][i],
-                'k3': params['k3_i'][i],
-                'periodicity4': proper.periodicity[3],
-                'phase4': params['psi4_i'][i],
-                'k4': params['k4_i'][i],
-                }
+
+            finfo.addElement(
+                "Improper",
+                {
+                    "type1": improper.types1,
+                    "type2": improper.types2,
+                    "type3": improper.types3,
+                    "type4": improper.types4,
+                    "periodicity1": improper.periodicity[0],
+                    "phase1": params["psi1_i"][i],
+                    "k1": params["k1_i"][i],
+                    "periodicity2": proper.periodicity[1],
+                    "phase2": params["psi2_i"][i],
+                    "k2": params["k2_i"][i],
+                    "periodicity3": proper.periodicity[2],
+                    "phase3": params["psi3_i"][i],
+                    "k3": params["k3_i"][i],
+                    "periodicity4": proper.periodicity[3],
+                    "phase4": params["psi4_i"][i],
+                    "k4": params["k4_i"][i],
+                },
             )
-            
+
         return finfo
 
 
@@ -1989,9 +2028,9 @@ class NonbondJaxGenerator:
     @staticmethod
     def parseElement(element, ff):
         """parse <NonbondedForce> section in XML file
-        
+
         example:
-        
+
           <NonbondedForce coulomb14scale="0.8333333333333334" lj14scale="0.5">
               <UseAttributeFromResidue name="charge"/>
               <Atom type="c" sigma="0.3315212309943831" epsilon="0.4133792"/>
@@ -2023,9 +2062,9 @@ class NonbondJaxGenerator:
                 generator.useAttributeFromResidue.append(eprm)
         for atom in element.findall("Atom"):
             generator.registerAtom(atom.attrib)
-            
+
         generator.n_atoms = len(element.findall("Atom"))
-            
+
         # jax it!
         for k in generator.params.keys():
             generator.params[k] = jnp.array(generator.params[k])
@@ -2103,7 +2142,6 @@ class NonbondJaxGenerator:
         # TODO: implement NBFIX
         map_nbfix = []
         map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
-        
 
         colv_map = build_covalent_map(data, 6)
 
@@ -2352,21 +2390,25 @@ class NonbondJaxGenerator:
         return self._jaxPotential
 
     def renderXML(self):
-        
+
         # <NonbondedForce>
-        finfo = XMLNodeInfo('NonbondedForce')
-        finfo.addAttribute('coulomb14scale', str(self.coulomb14scale))
-        finfo.addAttribute('lj14scale', str(self.lj14scale))
-        
+        finfo = XMLNodeInfo("NonbondedForce")
+        finfo.addAttribute("coulomb14scale", str(self.coulomb14scale))
+        finfo.addAttribute("lj14scale", str(self.lj14scale))
+
         for atom in range(self.n_atoms):
-            info = {'type': self.types[atom], 'charge': self.params['charge'][atom], 'sigma': self.params['sigma'][atom], 'epsilon': self.params['epsilon'][atom]}
-            finfo.addElement('Atom', info)
-            
+            info = {
+                "type": self.types[atom],
+                "charge": self.params["charge"][atom],
+                "sigma": self.params["sigma"][atom],
+                "epsilon": self.params["epsilon"][atom],
+            }
+            finfo.addElement("Atom", info)
+
         return finfo
 
 
 app.forcefield.parsers["NonbondedForce"] = NonbondJaxGenerator.parseElement
-
 
 
 class Hamiltonian(app.forcefield.ForceField):
@@ -2382,13 +2424,13 @@ class Hamiltonian(app.forcefield.ForceField):
         topology,
         nonbondedMethod=app.NoCutoff,
         nonbondedCutoff=1.0 * unit.nanometer,
-        **args
+        **args,
     ):
         system = self.createSystem(
             topology,
             nonbondedMethod=nonbondedMethod,
             nonbondedCutoff=nonbondedCutoff,
-            **args
+            **args,
         )
         # load_constraints_from_system_if_needed
         # create potentials

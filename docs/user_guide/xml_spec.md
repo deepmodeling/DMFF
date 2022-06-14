@@ -151,7 +151,7 @@ The `<atom>` node of the residue part defines all the atoms involved in the resi
   <Atom charge="-0.8055" name="OXT" type="protein-O2"/>
   <Bond atomName1="N" atomName2="H"/>
   <Bond atomName1="N" atomName2="CA"/>
-  <\displaylines{Bond atomName1="CA" atomName2="HA"/>
+  <Bond atomName1="CA" atomName2="HA"/>
   <Bond atomName1="CA" atomName2="CB"/>
   <Bond atomName1="CA" atomName2="C"/>
   <Bond atomName1="CB" atomName2="HB1"/>
