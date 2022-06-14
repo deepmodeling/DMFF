@@ -1,11 +1,10 @@
-import sys
+
 import numpy as np
 import jax.numpy as jnp
 import numpy as np
 from dmff.admp.spatial import v_pbc_shift
 from dmff.utils import jit_condition
 from jax import vmap
-import time
 
 #const
 f5z = 0.999677885
@@ -484,7 +483,3 @@ def onebody_kernel(x1, x2, x3, Va, Vb, efac):
     e1 *= cm1_kcalmol 
     e1 *= cal2joule # conver cal 2 j
     return e1
-<<<<<<< HEAD
-
-=======
->>>>>>> cicd
