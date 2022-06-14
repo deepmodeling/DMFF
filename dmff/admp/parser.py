@@ -3,6 +3,8 @@ from xml.dom import minidom
 import numpy as np
 import warnings
 from collections import defaultdict
+import jax.numpy as jnp
+from dmff.admp.multipole import convert_cart2harm
 
 def read_atom_line(line_full):
     """
@@ -326,7 +328,8 @@ def read_xml(fileobj):
     set_axis_type(atomTemplates)
 
     return atomTemplates, residueTemplates
-        
+
+
 class Atom:
     
     def __init__(self, serial, name, resName, resSeq, position, charge, ) -> None:
@@ -474,4 +477,4 @@ def assemble_covalent(residueDicts, natoms):
                 covalent_map[c][pp] = dr
                 
     return covalent_map
-    
+   

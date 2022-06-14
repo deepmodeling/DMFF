@@ -148,10 +148,7 @@ if __name__ == '__main__':
     # E = pme_force.get_energy(positions, box, pairs, Q_local, mScales, pScales, dScales)
     E = pot_pme(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, U_init=pme_force.U_ind)
     grad_params = grad(pot_pme, argnums=(3,4,5,6,7,8,9))(positions, box, pairs, Q_local, pol, tholes, mScales, pScales, dScales, pme_force.U_ind)
-    # print(E)
+    print(E)
     U_ind = pme_force.U_ind
     # compare U_ind with reference
-    for i in range(1024):
-        for j in range(3):
-            print(Uind_global[i*3, j], Uind_global[i*3, j], U_ind[i*3, j])
 

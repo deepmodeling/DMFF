@@ -36,7 +36,7 @@ if __name__ == '__main__':
     print('#', E_pme, 'kJ/mol')
     print('# Dispersion+Damping Energy:')
     print('#', E_disp, 'kJ/mol')
-
+    sys.exit()
     # compare induced dipole with mpid
     with open('mpid_dip.pickle', 'rb') as ifile:
         U_ind_mpid = pickle.load(ifile) * 10

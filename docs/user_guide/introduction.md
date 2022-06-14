@@ -1,13 +1,13 @@
 # 1. Introduction
 
-In this user guide, you will learn how to:
+In this user guide, you will learn:
 
-- Install DMFF
-- Compute energy and force
-- Auto differentiate potential functions
-- Couple DMFF with MD engine
+- [DMFF Installation](./installation.md) 
+- [Basic usage](./usage.md) of DMFF, including how to compute energy, forces and parametric gradients
+- [How to write XML format force field](./xml_spec.md)
+- [Theoretical background](./theory.md) of various force field models 
 
-The first thing you should know is that DMFF is not an actual force field (such as OPLS or AMBER), but a differentiable implementation of various force field (or "potential") functional forms. It contains many modules:
+The first thing you should know is that DMFF is not an actual force field model (such as OPLS or AMBER), but a differentiable implementation of various force field (or "potential") functional forms. It contains following modules:
 
 - ADMP module: Automatic Differentiable Multipolar Polarizable potential (MPID like potentials)
 - Classical module: implements classical force fields (OPLS or GAFF like potentials)

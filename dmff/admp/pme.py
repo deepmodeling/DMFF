@@ -27,7 +27,8 @@ from dmff.admp.spatial import (
 from dmff.admp.pairwise import (
     distribute_scalar, 
     distribute_v3, 
-    distribute_multipoles
+    distribute_multipoles,
+    distribute_matrix
 )
 
 
@@ -792,7 +793,8 @@ def pme_real(positions, box, pairs,
     r2 = distribute_v3(positions, pairs[:, 1])
     Q_extendi = distribute_multipoles(Q_global, pairs[:, 0])
     Q_extendj = distribute_multipoles(Q_global, pairs[:, 1])
-    nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
+    nbonds = distribute_matrix(covalent_map,pairs[:, 0],pairs[:, 1])
+    #nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
     indices = nbonds-1
     mscales = distribute_scalar(mScales, indices)
     mscales = mscales * buffer_scales
