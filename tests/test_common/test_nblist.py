@@ -37,17 +37,17 @@ class TestNeighborList:
     def test_pairs(self, nblist):
         
         pairs = nblist.pairs
-        assert pairs.shape == (15, 2)
+        assert pairs.shape == (18, 2)
         
     def test_pair_mask(self, nblist):
         
         pair, mask = nblist.pair_mask
-        assert mask.shape == (15, )
+        assert mask.shape == (18, )
         
     def test_dr(self, nblist):
         
         dr = nblist.dr
-        assert dr.shape == (15, 3)
+        assert dr.shape == (18, 3)
         
     def test_distance(self, nblist):
         
