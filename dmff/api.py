@@ -203,7 +203,6 @@ class ADMPDispGenerator:
         self.map_atomtype = map_atomtype
         # build covalent map
         covalent_map = build_covalent_map(data, 6)
-
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
         box = jnp.array([a._value, b._value, c._value]) * 10

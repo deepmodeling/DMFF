@@ -40,6 +40,9 @@ def distribute_multipoles(multipoles, index):
 def distribute_dispcoeff(c_list, index):
     return c_list[index]
 
+@jit_condition(static_argnums=())
+def distribute_matrix(multipoles,index1,index2):
+    return multipoles[index1,index2]
 
 def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
     '''
