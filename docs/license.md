@@ -1,3 +1,3 @@
 # Lisense
 
-The project DeePMD-kit is licensed under [GNU LGPLv3.0](https://github.com/deepmodeling/deepmd-kit/blob/master/LICENSE).
+The project DMFF is licensed under [GNU LGPLv3.0](https://github.com/deepmodeling/DMFF/blob/master/LICENSE).
