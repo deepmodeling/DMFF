@@ -8,15 +8,15 @@ The behavior of organic molecular systems (e.g., protein folding, polymer struct
 
 + [1. Introduction](docs/user_guide/introduction.md)
 + [2. Installation](docs/user_guide/installation.md)
-+ [3. Compute energy and forces](docs/user_guide/compute.md)
-+ [4. Compute gradients with auto differentiable framework](docs/user_guide/auto_diff.md)
-+ [5. Theories](docs/user_guide/theory.md)
-+ [6. Introduction to force field xml files](docs/user_guide/xml_spec.md)
++ [3. Basic usage](docs/user_guide/usage.md)
++ [4. XML format force field](docs/user_guide/xml_spec.md)
++ [5. Theory](docs/user_guide/theory.md)
 
 ## Developer Guide
 + [1. Introduction](docs/dev_guide/introduction.md)
-+ [2. Architecture](docs/dev_guide/arch.md)
-+ [3. Convention](docs/dev_guide/convention.md)
++ [2. Software architecture](docs/dev_guide/arch.md)
++ [3. Coding conventions](docs/dev_guide/convention.md)
++ [4. Document writing](docs/dev_guide/write_docs.md)
 
 ## Modules
 + [1. ADMP](docs/modules/admp.md)

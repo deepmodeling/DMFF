@@ -1,4 +1,4 @@
-# Architecture of DMFF
+# 2. Software architecture
 
 ![arch](../assets/arch.png)
 
@@ -19,7 +19,7 @@ The backend module is usually an automatically differentiable calculator built w
 
 The structures of the frontend and the backend modules will be introduced in detail in below.
 
-## How Frontend Works
+## 2.1 Frontend
 
 Frontend modules are stored in `api.py`. `Hamiltonian` class is the top-level class exposed to users by DMFF. 
 `Hamiltonian` class reads the path of the XML file, parses the XML file, and calls different frontend modules 
@@ -38,7 +38,7 @@ and the rounded box represents the internal operation logic of OpenMM when execu
 
 ![openmm_workflow](../assets/opemm_workflow.svg)
 
-### Hamiltonian Class
+### 2.1.1 Hamiltonian Class
 
 The `Hamiltonian` class is the top-level frontend module, which inherits the 
 [forcefield class](https://github.com/openmm/openmm/blob/master/wrappers/python/openmm/app/forcefield.py) in OpenMM. 
@@ -74,7 +74,7 @@ corresponding `parseElement` method, then calls it to initialize the `generator`
 parameters from the XML file. You can access all the generators by the `getGenerators()` method in Hamiltonian. 
 
 
-### Generator Class
+### 2.1.2 Generator Class
 
 
 The generator class is in charge of input file analysis, molecular topology construction, atom classification, 
@@ -137,6 +137,7 @@ returned to users:
 ```python
             
 def potential_fn(positions, box, pairs, params):
+    isinstance_jnp(positions, box, params)
     return bforce.get_energy(
         positions, box, pairs, params["k"], params["length"]
     )
@@ -145,7 +146,7 @@ self._jaxPotential = potential_fn
 ```
 
 The `potential_fn` function only takes `(positions, box, pairs, params)` as explicit input arguments. All these arguments except
-`pairs` (neighbor list) should be differentiable. Non differentiable parameters are passed into it by closure (see code convention section). 
+`pairs` (neighbor list) should be differentiable. A helper function `isinstance_jnp` in `utils.py` can check take-in arguments whether they are `jnp.array`. Non differentiable parameters are passed into it by closure (see code convention section). 
 Meanwhile, if the generator needs to initialize multiple calculators (e.g. `NonBondedJaxGenerator` will call both `LJ` and `PME` calculators), 
 `potential_fn` should return the summation of the results of all calculators. 
 
@@ -178,7 +179,7 @@ class SimpleJAXGenerator:
         return self._jaxPotential
         
     def renderXML(self):
-        render_xml_forcefield_from_params
+        # render_xml_forcefield_from_params
         
         
 app.parsers["SimpleJAXForce"] = SimpleJAXGenerator.parseElement
@@ -290,9 +291,42 @@ class HarmonicBondJaxGenerator:
 app.forcefield.parsers["HarmonicBondForce"] = HarmonicBondJaxGenerator.parseElement
 ```
 
-## How Backend Works
+    After the calculation and optimization, we need to save the optimized parameters as XML format files for the next calculation. This serialization process is implemented through the `renderXML` method. At the beginning of the `api.py` file, we provide nested helper classes called `XMLNodeInfo` and `XMLElementInfo`. In the XML file, a `<HarmonicJaxBondForce>` and its close tag is represented by XMLNodeInfo and the content element is controlled by `XMLElementInfo`
 
-### Force Class
+```
+  <HarmonicJaxBondForce>
+    <Bond type1="ow" type2="hw" length="0.0957" k="462750.4"/>
+    <Bond type1="hw" type2="hw" length="0.1513" k="462750.4"/>
+  </HarmonicJaxBondForce>
+```
+
+    When we want to serialize optimized parameters from the generator to a new XML file, we first initialize a `XMLNodeInfo(name:str)` class with the potential name
+
+```python
+finfo = XMLNodeInfo("HarmonicBondForce")
+```
+    If necessary, you can add attributes to this tag using the `addAttribute(name:str, value:str)` method. Then we add the inner `<Bond>` tag by invoke `finfo.addElement(name:str, attrib:dict)` method. Here is an example to render `<HarmonicBondForce>`
+
+```
+    def renderXML(self):
+        # generate xml force field file
+        finfo = XMLNodeInfo("HarmonicBondForce")  # <HarmonicBondForce> and <\HarmonicBondForce>
+        for ntype in range(len(self.types)):
+            binfo = {}
+            k1, v1 = self.typetexts[ntype][0]
+            k2, v2 = self.typetexts[ntype][1]
+            binfo[k1] = v1
+            binfo[k2] = v2
+            for key in self.params.keys():
+                binfo[key] = "%.8f"%self.params[key][ntype]
+            finfo.addElement("Bond", binfo)  # <Bond binfo.key=binfo.value ...>
+        return finfo
+```
+
+
+## 2.2 Backend
+
+### 2.2.1 Force Class
 
 Force class is the backend module that wraps the calculator function. 
 It does not rely on OpenMM and can be very flexible. For instance, 
@@ -302,7 +336,6 @@ the Force class of harmonic bond potential is shown below as an example.
 def distance(p1v, p2v):
     return jnp.sqrt(jnp.sum(jnp.power(p1v - p2v, 2), axis=1))
     
-
 class HarmonicBondJaxForce:
     def __init__(self, p1idx, p2idx, prmidx):
         self.p1idx = p1idx
@@ -312,12 +345,17 @@ class HarmonicBondJaxForce:
 
     def generate_get_energy(self):
         def get_energy(positions, box, pairs, k, length):
+
+            # NOTE: pairs array from jax-md has invalid index
+            pairs = regularize_pairs(pairs)  
+            buffer_scales = pair_buffer_scales(pairs)            
+
             p1 = positions[self.p1idx]
             p2 = positions[self.p2idx]
             kprm = k[self.prmidx]
             b0prm = length[self.prmidx]
             dist = distance(p1, p2)
-            return jnp.sum(0.5 * kprm * jnp.power(dist - b0prm, 2))
+            return jnp.sum(0.5 * kprm * jnp.power(dist - b0prm, 2) * buffer_scales)  # mask invalid pairs
 
         return get_energy
 
@@ -336,7 +374,7 @@ class HarmonicBondJaxForce:
         self.get_forces = value_and_grad(self.get_energy)
 ```
 
-The design logic for the `Force` class is: it saves the *static* variables inside the class as
+The design logic for the `Force` class is: it saves the *static* variables inside the class as 
 the *environment* of the real calculators. Examples of the static environment variables include:
 the $\kappa$ and $K_{max}$ in PME calculators, the covalent_map in real-space calculators etc.
 For a typical `Force` class,  one needs to define the following methods:
@@ -350,3 +388,11 @@ For a typical `Force` class,  one needs to define the following methods:
 In ADMP, all backend calculators only take atomic parameters as input, so they can be invoked
 independently in hybrid ML/force field models. The dispatch of force field parameters is done 
 in the `potential_fn` function defined in the frontend. 
+
+Please note that the `pairs` array accepted by `get_energy` potential compute kernel is **directly** construct from `jax-md`'s neighborList. 
+To keep the shape of array neat and tidy, prevent JIT the code every time `get_genergy` is called, the `pairs` array is padded. It has 
+some invalid index in the padding area, say, those `pair_index==len(positions)` is invalid padding pair index. That means there are many 
+`[len(positions), len(positions)]` pairs in the `pairs` array, resulting in the distance equl to 0. The solution is we first call `regularize_pairs` 
+helper function to replace `[len(positions), len(positions)]` with `[len(positions)-2, len(positions)-1]`, so the distance is always non-zeros. Due 
+to we compute additional invalid pairs, we need to compute a `buffer_scales` to mask out those invalid pairs. We need to use `pair_buffer_scales(pairs)` 
+to get the mask, and apply it in the pair energy array before we sum it up. 

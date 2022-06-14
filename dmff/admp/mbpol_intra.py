@@ -1,31 +1,24 @@
 
-import sys
 import numpy as np
 import jax.numpy as jnp
-from jax import grad, value_and_grad
-from dmff.settings import DO_JIT
-from dmff.utils import jit_condition
+import numpy as np
 from dmff.admp.spatial import v_pbc_shift
-from dmff.admp.pme import ADMPPmeForce
-from dmff.admp.parser import *
+from dmff.utils import jit_condition
 from jax import vmap
-import time
-#from admp.multipole import convert_cart2harm
-#from jax_md import partition, space
 
 #const
 f5z = 0.999677885
 fbasis = 0.15860145369897
 fcore = -1.6351695982132
 frest = 1.0
-reoh = 0.958649;
-thetae = 104.3475;
-b1 = 2.0;
-roh = 0.9519607159623009;
-alphaoh = 2.587949757553683;
-deohA = 42290.92019288289;
-phh1A = 16.94879431193463;
-phh2 = 12.66426998162947;
+reoh = 0.958649
+thetae = 104.3475
+b1 = 2.0
+roh = 0.9519607159623009
+alphaoh = 2.587949757553683
+deohA = 42290.92019288289
+phh1A = 16.94879431193463
+phh2 = 12.66426998162947
 
 c5zA = jnp.array([4.2278462684916e+04, 4.5859382909906e-02, 9.4804986183058e+03,
        7.5485566680955e+02, 1.9865052511496e+03, 4.3768071560862e+02,
@@ -467,12 +460,14 @@ def onebodyenergy(positions, box):
 
 @vmap
 @jit_condition(static_argnums={})
-def onebody_kernel(x1, x2, x3, Va, Vb, efac):      
+def onebody_kernel(x1, x2, x3, Va, Vb, efac):
+    a = jnp.arange(-1,15)
+    a = a.at[0].set(0)  
     const = jnp.array([0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
     CONST = jnp.array([const,const,const])
-    list1 = jnp.array([x1**i for i in range(-1, 15)])
-    list2 = jnp.array([x2**i for i in range(-1, 15)])
-    list3 = jnp.array([x3**i for i in range(-1, 15)])
+    list1 = jnp.array([x1**i for i in a])
+    list2 = jnp.array([x2**i for i in a])
+    list3 = jnp.array([x3**i for i in a])
     fmat = jnp.array([list1, list2, list3])
     fmat *= CONST
     F1 = jnp.sum(fmat[0].T * matrix1, axis=1) # fmat[0][inI] 1*245
@@ -488,42 +483,3 @@ def onebody_kernel(x1, x2, x3, Va, Vb, efac):
     e1 *= cm1_kcalmol 
     e1 *= cal2joule # conver cal 2 j
     return e1
-
-
-def validation(pdb):
-    xml = 'mpidwater.xml'
-    pdbinfo = read_pdb(pdb)
-    serials = pdbinfo['serials']
-    names = pdbinfo['names']
-    resNames = pdbinfo['resNames']
-    resSeqs = pdbinfo['resSeqs']
-    positions = pdbinfo['positions']
-    box = pdbinfo['box'] # a, b, c, α, β, γ
-    charges = pdbinfo['charges']
-    positions = jnp.asarray(positions)
-    lx, ly, lz, _, _, _ = box
-    box = jnp.eye(3)*jnp.array([lx, ly, lz])
-
-    mScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    pScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    dScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-
-    rc = 4  # in Angstrom
-    ethresh = 1e-4
-
-    n_atoms = len(serials)
-
-    # compute intra
-    
-
-    grad_E1 = value_and_grad(onebodyenergy,argnums=(0))
-    ene, force = grad_E1(positions, box)
-    print(ene,force)
-    return
-
-
-# below is the validation code
-if __name__ == '__main__':
-    validation(sys.argv[1])
- 
-

@@ -1,24 +1,29 @@
 site_name: DMFF
 nav:
+nav:
   - Home: index.md
   - User Guide:
     - 1. Introduction: user_guide/introduction.md
     - 2. Installation: user_guide/installation.md
-    - 3. Compute energy and force: user_guide/compute.md
-    - 4. Auto-diff: user_guide/auto_diff.md
-    - 5. Theory: user_guide/theory.md
-    - 6. couple with MD: user_guide/couple.md
-    - 7. Introduction to force field xml file: user_guide/xml_spec.md
-    
+    - 3. Basic usage: user_guide/usage.md
+    - 4. XML format force field: user_guide/xml_spec.md
+    - 5. Theory: user_guide/theory.md  
+
   - Developer Guide:
     - 1. Introduction: dev_guide/introduction.md
-    - 2. Architecture: dev_guide/arch.md
-    - 3. Convention: dev_guide/convention.md
+    - 2. Software architecture: dev_guide/arch.md
+    - 3. Coding conventions: dev_guide/convention.md
+    - 4. Document Writing: dev_guide/write_docs.md
+
   - Modules:
     - ADMP: 
       - Introduction: admp/readme.md
       - Frontends: admp/frontend.md
-  - About: about.md
+
+  - API: refs/
+
+  - About: 
+    - License: license.md
 
 theme: readthedocs
 
@@ -26,7 +31,17 @@ markdown_extensions:
   - pymdownx.arithmatex:
       generic: true
 
+plugins:
+- search
+- gen-files:
+    scripts:
+    - docs/gen_ref_pages.py
+- literate-nav:
+    nav_file: SUMMARY.md
+- mkdocstrings:
+
+
 extra_javascript:
-  - javascripts/mathjax.js
+  - assets/js/mathjax.js
   - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
