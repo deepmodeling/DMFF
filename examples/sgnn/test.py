@@ -6,7 +6,7 @@ from jax import grad, value_and_grad, jit
 import numpy as np
 import dmff
 from dmff.utils import jit_condition
-from dmff.sgnn.gnn import MolGNN
+from dmff.sgnn.gnn import MolGNNForce
 from dmff.sgnn.graph import TopGraph, from_pdb
 import optax
 import pickle
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     # Graph and model
     G = from_pdb('peg4.pdb')
-    model = MolGNN(G, nn=1)
+    model = MolGNNForce(G, nn=1)
     model.batch_forward = jax.vmap(model.forward, in_axes=(0, None, None), out_axes=(0))
     model.load_params(sys.argv[1])
 
