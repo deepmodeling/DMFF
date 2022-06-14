@@ -11,6 +11,7 @@ import jax.numpy as jnp
 import openmm as mm
 import openmm.app as app
 import openmm.app.element as elem
+import openmm.unit as unit
 
 from dmff.admp.disp_pme import ADMPDispPmeForce
 from dmff.admp.multipole import convert_cart2harm, convert_harm2cart
