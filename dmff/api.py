@@ -1190,10 +1190,11 @@ class HarmonicBondJaxGenerator:
     def registerBondType(self, bond):
         typetxt = findAtomTypeTexts(bond, 2)
         types = self.ff._findAtomTypes(bond, 2)
-        self.types.append(types)
-        self.typetexts.append(typetxt)
-        self.params["k"].append(float(bond["k"]))
-        self.params["length"].append(float(bond["length"]))  # length := r0
+        if None not in types:
+            self.types.append(types)
+            self.typetexts.append(typetxt)
+            self.params["k"].append(float(bond["k"]))
+            self.params["length"].append(float(bond["length"]))  # length := r0
 
     @staticmethod
     def parseElement(element, hamiltonian):
@@ -1288,9 +1289,10 @@ class HarmonicAngleJaxGenerator:
 
     def registerAngleType(self, angle):
         types = self.ff._findAtomTypes(angle, 3)
-        self.types.append(types)
-        self.params["k"].append(float(angle["k"]))
-        self.params["angle"].append(float(angle["angle"]))
+        if None not in types:
+            self.types.append(types)
+            self.params["k"].append(float(angle["k"]))
+            self.params["angle"].append(float(angle["angle"]))
 
     @staticmethod
     def parseElement(element, hamiltonian):
@@ -2024,7 +2026,8 @@ class NonbondJaxGenerator:
     def registerAtom(self, atom):
         # use types in nb cards or resname+atomname in residue cards
         types = self.ff._findAtomTypes(atom, 1)[0]
-        self.types.append(types)
+        if None not in types:
+            self.types.append(types)
 
         for key in ["sigma", "epsilon", "charge"]:
             if key not in self.useAttributeFromResidue:
