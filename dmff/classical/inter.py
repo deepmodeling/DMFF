@@ -41,11 +41,6 @@ class LennardJonesForce:
             if self.ifPBC:
                 dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
-            if not self.ifNoCut:
-                msk = dr_norm <= self.r_cut
-                sig = sig[msk]
-                eps = eps[msk]
-                dr_norm = dr_norm[msk]
 
             dr_inv = 1.0 / dr_norm
             sig_dr = sig * dr_inv
