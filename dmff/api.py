@@ -4,6 +4,7 @@ import itertools
 from collections import defaultdict
 import xml.etree.ElementTree as ET
 from copy import deepcopy
+import warnings
 
 import numpy as np
 import jax.numpy as jnp
@@ -1189,10 +1190,11 @@ class HarmonicBondJaxGenerator:
     def registerBondType(self, bond):
         typetxt = findAtomTypeTexts(bond, 2)
         types = self.ff._findAtomTypes(bond, 2)
-        self.types.append(types)
-        self.typetexts.append(typetxt)
-        self.params["k"].append(float(bond["k"]))
-        self.params["length"].append(float(bond["length"]))  # length := r0
+        if None not in types:
+            self.types.append(types)
+            self.typetexts.append(typetxt)
+            self.params["k"].append(float(bond["k"]))
+            self.params["length"].append(float(bond["length"]))  # length := r0
 
     @staticmethod
     def parseElement(element, hamiltonian):
@@ -1287,9 +1289,10 @@ class HarmonicAngleJaxGenerator:
 
     def registerAngleType(self, angle):
         types = self.ff._findAtomTypes(angle, 3)
-        self.types.append(types)
-        self.params["k"].append(float(angle["k"]))
-        self.params["angle"].append(float(angle["angle"]))
+        if None not in types:
+            self.types.append(types)
+            self.params["k"].append(float(angle["k"]))
+            self.params["angle"].append(float(angle["angle"]))
 
     @staticmethod
     def parseElement(element, hamiltonian):
@@ -1302,8 +1305,12 @@ class HarmonicAngleJaxGenerator:
           <\HarmonicAngleForce>
 
         """
-        generator = HarmonicAngleJaxGenerator(hamiltonian)
-        hamiltonian.registerGenerator(generator)
+        existing = [f for f in hamiltonian._forces if isinstance(f, HarmonicAngleJaxGenerator)]
+        if len(existing) == 0:
+            generator = HarmonicAngleJaxGenerator(hamiltonian)
+            hamiltonian.registerGenerator(generator)
+        else:
+            generator = existing[0]
         for angletype in element.findall("Angle"):
             generator.registerAngleType(angletype.attrib)
 
@@ -1342,7 +1349,7 @@ class HarmonicAngleJaxGenerator:
                         n_angles += 1
                         break
             if not ifFound:
-                print(
+                warnings.warn(
                     "No parameter for angle %i - %i - %i" % (idx1, idx2, idx3)
                 )
 
@@ -1994,7 +2001,7 @@ app.forcefield.parsers[
 
 class NonbondJaxGenerator:
 
-    SCALETOL = 1e-5
+    SCALETOL = 1e-3
 
     def __init__(self, hamiltionian, coulomb14scale, lj14scale):
 
@@ -2019,7 +2026,8 @@ class NonbondJaxGenerator:
     def registerAtom(self, atom):
         # use types in nb cards or resname+atomname in residue cards
         types = self.ff._findAtomTypes(atom, 1)[0]
-        self.types.append(types)
+        if None not in types:
+            self.types.append(types)
 
         for key in ["sigma", "epsilon", "charge"]:
             if key not in self.useAttributeFromResidue:
@@ -2064,11 +2072,6 @@ class NonbondJaxGenerator:
             generator.registerAtom(atom.attrib)
 
         generator.n_atoms = len(element.findall("Atom"))
-
-        # jax it!
-        for k in generator.params.keys():
-            generator.params[k] = jnp.array(generator.params[k])
-        generator.types = np.array(generator.types)
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
         methodMap = {

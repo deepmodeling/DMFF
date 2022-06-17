@@ -1,0 +1,44 @@
+<ForceField>
+    <Residues>
+        <Residue name="MOL">
+            <Atom name="C1" type="C1" />
+            <Atom name="H1" type="H1" />
+            <Atom name="H2" type="H2" />
+            <Atom name="H3" type="H3" />
+            <Atom name="H4" type="H4" />
+            <Bond atomName1="C1" atomName2="H1" />
+            <Bond atomName1="C1" atomName2="H2" />
+            <Bond atomName1="C1" atomName2="H3" />
+            <Bond atomName1="C1" atomName2="H4" />
+        </Residue>
+    </Residues>
+    <AtomTypes>
+        <Type element="C" name="C1" class="c3" mass="12.010" />
+        <Type element="H" name="H1" class="hc" mass="1.008" />
+        <Type element="H" name="H2" class="hc" mass="1.008" />
+        <Type element="H" name="H3" class="hc" mass="1.008" />
+        <Type element="H" name="H4" class="hc" mass="1.008" />
+    </AtomTypes>
+    <HarmonicBondForce>
+        <Bond type1="C1" type2="H1" length="0.1097000000" k="314550.0000000001" />
+        <Bond type1="C1" type2="H2" length="0.1097000000" k="314550.0000000001" />
+        <Bond type1="C1" type2="H3" length="0.1097000000" k="314550.0000000001" />
+        <Bond type1="C1" type2="H4" length="0.1097000000" k="314550.0000000001" />
+    </HarmonicBondForce>
+    <HarmonicAngleForce>
+        <Angle type1="H1" type2="C1" type3="H2" angle="1.8776252093" k="326.3500000000" />
+        <Angle type1="H1" type2="C1" type3="H3" angle="1.8776252093" k="326.3500000000" />
+        <Angle type1="H1" type2="C1" type3="H4" angle="1.8776252093" k="326.3500000000" />
+        <Angle type1="H2" type2="C1" type3="H3" angle="1.8776252093" k="326.3500000000" />
+        <Angle type1="H2" type2="C1" type3="H4" angle="1.8776252093" k="326.3500000000" />
+        <Angle type1="H3" type2="C1" type3="H4" angle="1.8776252093" k="326.3500000000" />
+    </HarmonicAngleForce>
+    <PeriodicTorsionForce ordering="amber" />
+    <NonbondedForce coulomb14scale="0.83333" lj14scale="0.50000">
+        <Atom type="C1" sigma="0.3397710000" epsilon="0.4510350000" charge="-0.1068000000" />
+        <Atom type="H1" sigma="0.2600180000" epsilon="0.0870272000" charge="0.0267000000" />
+        <Atom type="H2" sigma="0.2600180000" epsilon="0.0870272000" charge="0.0267000000" />
+        <Atom type="H3" sigma="0.2600180000" epsilon="0.0870272000" charge="0.0267000000" />
+        <Atom type="H4" sigma="0.2600180000" epsilon="0.0870272000" charge="0.0267000000" />
+    </NonbondedForce>
+</ForceField>
