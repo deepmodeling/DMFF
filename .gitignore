@@ -779,3 +779,6 @@ FodyWeavers.xsd
 
 # acpype cache
 *.acpype/
+
+*/_date.py
+*/_version.py
