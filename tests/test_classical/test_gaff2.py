@@ -28,11 +28,11 @@ class TestGaff2:
             for jj in range(ii + 1, pos.shape[0]):
                 pairs.append((ii, jj))
         pairs = jnp.array(pairs, dtype=int)
-        ljE = h._potentials[0]
-        energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
+        ljE = h.getPotentialFunc()
+        energy = ljE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(ljE)(pos, box, pairs, h.getGenerators()[0].params)
+        energy = jax.jit(ljE)(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
 
     @pytest.mark.parametrize(
@@ -66,10 +66,10 @@ class TestGaff2:
                 pairs.append((ii, jj))
         pairs = np.array(pairs, dtype=int)
         for ne, energy in enumerate(h._potentials):
-            E = energy(pos, box, pairs, h.getGenerators()[ne].params)
+            E = energy(pos, box, pairs, h.paramtree)
             npt.assert_almost_equal(E, values[ne], decimal=3)
             
-            E = jax.jit(energy)(pos, box, pairs, h.getGenerators()[ne].params)
+            E = jax.jit(energy)(pos, box, pairs, h.paramtree)
             npt.assert_almost_equal(E, values[ne], decimal=3)
 
     @pytest.mark.parametrize(

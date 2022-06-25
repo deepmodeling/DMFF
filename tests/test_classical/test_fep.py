@@ -56,7 +56,7 @@ class TestFreeEnergy:
                 positions, 
                 box, 
                 pairs,
-                h.getGenerators()[-1].params,
+                h.paramtree,
                 0.0,
                 lambdas[i]
             )
@@ -111,7 +111,7 @@ class TestFreeEnergy:
                 positions, 
                 box, 
                 pairs,
-                h.getGenerators()[-1].params,
+                h.paramtree,
                 lambdas[i],
                 0.0
             )

@@ -28,11 +28,11 @@ class TestBonded:
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
         pairs = np.array([[]], dtype=int)
-        bondE = h._potentials[0]
-        energy = bondE(pos, box, pairs, h.getGenerators()[0].params)
+        bondE = h.getPotentialFunc(names=["HarmonicBondForce"])
+        energy = bondE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(bondE)(pos, box, pairs, h.getGenerators()[0].params)
+        energy = jax.jit(bondE)(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
 
     @pytest.mark.parametrize(
@@ -57,9 +57,9 @@ class TestBonded:
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
         pairs = np.array([[]], dtype=int)
-        bondE = h._potentials[0]
-        energy = bondE(pos, box, pairs, h.getGenerators()[0].params)
+        bondE = h.getPotentialFunc()
+        energy = bondE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
-
-        energy = jax.jit(bondE)(pos, box, pairs, h.getGenerators()[0].params)
+        
+        energy = jax.jit(bondE)(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)

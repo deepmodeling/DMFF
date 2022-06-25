@@ -11,10 +11,10 @@
             <Bond atomName1="C1" atomName2="H3" />
             <Bond atomName1="C1" atomName2="H4" />
         </Residue>
-        <Residue name="SOL">
-            <Atom name="OW" type="OW" charge="0.0000000"/>
-            <Atom name="HW1" type="HW1" charge="0.000000"/>
-            <Atom name="HW2" type="HW2" charge="0.000000"/>
+        <Residue name="HOH">
+            <Atom name="O" type="OW" charge="0.0000000"/>
+            <Atom name="H1" type="HW1" charge="0.000000"/>
+            <Atom name="H2" type="HW2" charge="0.000000"/>
             <Bond from="0" to="1"/>
             <Bond from="0" to="2"/>
         </Residue>
