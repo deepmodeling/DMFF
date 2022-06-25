@@ -38,8 +38,8 @@ class HarmonicBondJaxForce:
 
     def generate_get_energy(self):
         def get_energy(positions, box, pairs, k, length):
-            p1 = positions[self.p1idx]
-            p2 = positions[self.p2idx]
+            p1 = positions[self.p1idx,:]
+            p2 = positions[self.p2idx,:]
             kprm = k[self.prmidx]
             b0prm = length[self.prmidx]
             dist = distance(p1, p2)
@@ -72,9 +72,9 @@ class HarmonicAngleJaxForce:
 
     def generate_get_energy(self):
         def get_energy(positions, box, pairs, k, theta0):
-            p1 = positions[self.p1idx]
-            p2 = positions[self.p2idx]
-            p3 = positions[self.p3idx]
+            p1 = positions[self.p1idx,:]
+            p2 = positions[self.p2idx,:]
+            p3 = positions[self.p3idx,:]
             kprm = k[self.prmidx]
             theta0prm = theta0[self.prmidx]
             ang = angle(p1, p2, p3)
@@ -109,10 +109,10 @@ class PeriodicTorsionJaxForce:
 
     def generate_get_energy(self):
         def get_energy(positions, box, pairs, k, psi):
-            p1 = positions[self.p1idx]
-            p2 = positions[self.p2idx]
-            p3 = positions[self.p3idx]
-            p4 = positions[self.p4idx]
+            p1 = positions[self.p1idx,:]
+            p2 = positions[self.p2idx,:]
+            p3 = positions[self.p3idx,:]
+            p4 = positions[self.p4idx,:]
             kp = k[self.prmidx]
             psip = psi[self.prmidx]
             dih = dihedral(p1, p2, p3, p4)
