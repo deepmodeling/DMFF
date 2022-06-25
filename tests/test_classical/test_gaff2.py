@@ -17,7 +17,7 @@ class TestGaff2:
         app.Topology.loadBondDefinitions("tests/data/lig-top.xml")
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        system = h.createPotential(pdb.topology,
+        potential = h.createPotential(pdb.topology,
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
@@ -28,7 +28,7 @@ class TestGaff2:
             for jj in range(ii + 1, pos.shape[0]):
                 pairs.append((ii, jj))
         pairs = jnp.array(pairs, dtype=int)
-        ljE = h.getPotentialFunc()
+        ljE = potential.getPotentialFunc()
         energy = ljE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
@@ -52,7 +52,7 @@ class TestGaff2:
         app.Topology.loadBondDefinitions("tests/data/lig-top.xml")
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(*prm)
-        system = h.createPotential(
+        potential = h.createPotential(
             pdb.topology,
             nonbondedMethod=app.NoCutoff,
             constraints=None,
@@ -65,7 +65,7 @@ class TestGaff2:
             for jj in range(ii + 1, pos.shape[0]):
                 pairs.append((ii, jj))
         pairs = np.array(pairs, dtype=int)
-        for ne, energy in enumerate(h._potentials):
+        for ne, energy in enumerate(potential.dmff_potentials.values()):
             E = energy(pos, box, pairs, h.paramtree)
             npt.assert_almost_equal(E, values[ne], decimal=3)
             
@@ -89,7 +89,7 @@ class TestGaff2:
         app.Topology.loadBondDefinitions("tests/data/lig-top.xml")
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(*prm)
-        system = h.createPotential(
+        potential = h.createPotential(
             pdb.topology,
             nonbondedMethod=app.NoCutoff,
             constraints=None,
@@ -102,8 +102,7 @@ class TestGaff2:
             for jj in range(ii + 1, pos.shape[0]):
                 pairs.append((ii, jj))
         pairs = np.array(pairs, dtype=int)
-        efunc = h.getPotentialFunc()
-        params = h.getParameters()
+        efunc = potential.getPotentialFunc()
         Eref = sum(values)
-        Ecalc = efunc(pos, box, pairs, params)
+        Ecalc = efunc(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(Ecalc, Eref, decimal=3)

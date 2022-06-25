@@ -16,7 +16,7 @@ class TestCoulomb:
     def test_coul_force(self, pdb, prm, value):
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        system = h.createPotential(pdb.topology,
+        potential = h.createPotential(pdb.topology,
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
@@ -24,7 +24,7 @@ class TestCoulomb:
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
         pairs = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]],
                          dtype=int)
-        coulE = h.getPotentialFunc(names="NonbondedForce")
+        coulE = potential.getPotentialFunc(names="NonbondedForce")
         energy = coulE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
@@ -37,7 +37,7 @@ class TestCoulomb:
     def test_coul_large_force(self, pdb, prm, value):
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        system = h.createPotential(pdb.topology,
+        potential = h.createPotential(pdb.topology,
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
@@ -48,7 +48,7 @@ class TestCoulomb:
             for jj in range(ii + 1, 10):
                 pairs.append((ii, jj))
         pairs = np.array(pairs, dtype=int)
-        coulE = h.getPotentialFunc()
+        coulE = potential.getPotentialFunc()
         energy = coulE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
@@ -61,7 +61,7 @@ class TestCoulomb:
     def test_coul_res_large_force(self, pdb, prm, value):
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        system = h.createPotential(pdb.topology,
+        potential = h.createPotential(pdb.topology,
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
@@ -72,7 +72,7 @@ class TestCoulomb:
             for jj in range(ii + 1, 10):
                 pairs.append((ii, jj))
         pairs = np.array(pairs, dtype=int)
-        coulE = h.getPotentialFunc()
+        coulE = potential.getPotentialFunc()
         energy = coulE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
@@ -92,14 +92,13 @@ class TestCoulomb:
     def test_coul_pme(self, pdb, prm, value):
         rcut = 0.5 # nanometers
         pdb = app.PDBFile(pdb)
-        for a in pdb.topology.atoms():
-            print(a)
         h = Hamiltonian(prm)
-        potentials = h.createPotential(
+        potential = h.createPotential(
             pdb.topology, 
             nonbondedMethod=app.PME, 
             constraints=app.HBonds, 
             removeCMMotion=False, 
+            rigidWater=False,
             nonbondedCutoff=rcut * unit.nanometers,
             useDispersionCorrection=False,
             PmeCoeffMethod="gromacs",
@@ -116,7 +115,8 @@ class TestCoulomb:
         nbList = NeighborList(box, rc=rcut)
         nbList.allocate(positions)
         pairs = nbList.pairs
-        func = h.getPotentialFunc(names=["NonbondedForce"])
+        func = potential.getPotentialFunc(names=["NonbondedForce"])
+        #func = potential.dmff_potentials["NonbondedForce"]
         ene = func(
             positions, 
             box, 
