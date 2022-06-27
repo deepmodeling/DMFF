@@ -25,7 +25,7 @@ class TestFreeEnergy:
         rcut = 0.5 # nanometers
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        potentials = h.createPotential(
+        potential = h.createPotential(
             pdb.topology, 
             nonbondedMethod=app.PME, 
             constraints=app.HBonds, 
@@ -50,13 +50,13 @@ class TestFreeEnergy:
         nbList = NeighborList(box, rc=rcut)
         nbList.allocate(positions)
         pairs = nbList.pairs
-        func = jax.value_and_grad(potentials[-1], argnums=-1)
+        func = jax.value_and_grad(potential.dmff_potentials["NonbondedForce"], argnums=-1)
         for i in range(len(lambdas)):
             ene, dvdl = func(
                 positions, 
                 box, 
                 pairs,
-                h.getGenerators()[-1].params,
+                h.paramtree,
                 0.0,
                 lambdas[i]
             )
@@ -80,7 +80,7 @@ class TestFreeEnergy:
         rcut = 0.5 # nanometers
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        potentials = h.createPotential(
+        potential = h.createPotential(
             pdb.topology, 
             nonbondedMethod=app.PME, 
             constraints=app.HBonds, 
@@ -105,13 +105,13 @@ class TestFreeEnergy:
         nbList = NeighborList(box, rc=rcut)
         nbList.allocate(positions)
         pairs = nbList.pairs
-        func = jax.value_and_grad(potentials[-1], argnums=-2)
+        func = jax.value_and_grad(potential.dmff_potentials["NonbondedForce"], argnums=-2)
         for i in range(len(lambdas)):
             ene, dvdl = func(
                 positions, 
                 box, 
                 pairs,
-                h.getGenerators()[-1].params,
+                h.paramtree,
                 lambdas[i],
                 0.0
             )
