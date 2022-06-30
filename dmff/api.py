@@ -1513,6 +1513,7 @@ class Hamiltonian(app.forcefield.ForceField):
         return potObj
 
     def render(self, filename):
+        self.overwriteParameterTree()
         self.xmlparser.write(filename)
 
     def getParameters(self):
