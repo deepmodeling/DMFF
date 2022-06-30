@@ -54,7 +54,7 @@ class ForcefieldTree(Node):
 
         super().__init__(tag, **attrs)
 
-    def get_node(self, parser):
+    def get_nodes(self, parser):
         steps = parser.split("/")
         val = self
         for nstep, step in enumerate(steps):
@@ -69,13 +69,20 @@ class ForcefieldTree(Node):
                 val = val[0]
         return val
 
-    def get_attrib(self, parser, attrname):
-        sel = self.get_node(parser)
-        attrs = [convertStr2Float(n.attrs[attrname]) for n in sel]
-        return attrs
+    def get_attribs(self, parser, attrname):
+        sel = self.get_nodes(parser)
+        if isinstance(attrname, list):
+            ret = []
+            for item in sel:
+                vals = [convertStr2Float(item.attrs[an]) if an in item.attrs else None for an in attrname]
+                ret.append(vals)
+            return ret
+        else:
+            attrs = [convertStr2Float(n.attrs[attrname]) for n in sel]
+            return attrs
 
     def set_node(self, parser, values):
-        nodes = self.get_node(parser)
+        nodes = self.get_nodes(parser)
         for nit in range(len(values)):
             for key in values[nit]:
                 nodes[nit].attrs[key] = f"{values[nit][key]}"
@@ -148,15 +155,15 @@ class TypeMatcher:
         """
         Freeze type matching list.
         """
-        atypes = fftree.get_attrib("AtomTypes/Type", "name")
-        aclasses = fftree.get_attrib("AtomTypes/Type", "class")
+        atypes = fftree.get_attribs("AtomTypes/Type", "name")
+        aclasses = fftree.get_attribs("AtomTypes/Type", "class")
         self.class2type = {}
         for nline in range(len(atypes)):
             if aclasses[nline] not in self.class2type:
                 self.class2type[aclasses[nline]] = []
             self.class2type[aclasses[nline]].append(atypes[nline])
         self.class2type[""] = atypes
-        funcs = fftree.get_node(parser)
+        funcs = fftree.get_nodes(parser)
         self.functions = []
         for node in funcs:
             tmp = []
