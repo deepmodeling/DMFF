@@ -21,12 +21,12 @@
  </ADMPDispForce>
 
  <ADMPPmeForce lmax="2" mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00" pScale12="0.00" pScale13="0.00" pScale14="0.00" pScale15="1.00" pScale16="1.00" dScale12="0.00" dScale13="0.00" dScale14="0.00" dScale15="1.00" dScale16="1.00">
-   <Atom type="380" kz="-381" kx="-381"
+   <Atom type="380" kz="-381" kx="-381" ky='0'
              c0="-1.0614"
              dX="0.0" dY="0.0"  dZ="-0.023671684"
              qXX="0.000150963" qXY="0.0" qYY="0.00008707" qXZ="0.0" qYZ="0.0" qZZ="-0.000238034"
              />
-   <Atom type="381" kz="380" kx="381"
+   <Atom type="381" kz="380" kx="381" ky='0'
              c0="0.5307"
              dX="0.0" dY="0.0"  dZ="0.0"
              qXX="0.0" qXY="0.0" qYY="0.0" qXZ="0.0" qYZ="0.0" qZZ="0.0"

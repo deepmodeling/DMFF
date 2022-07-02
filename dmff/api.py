@@ -1034,13 +1034,21 @@ class ADMPPmeGenerator:
         self.fftree = ff.fftree
         self.paramtree = ff.paramtree
 
+        # default params
+        self._jaxPotential = None
+        self.types = []
+        self.ethresh = 5e-4
+        self.step_pol = None
+        self.lpol = False
+        self.ref_dip = ""
+
     def extract(self):
 
         self.lmax = self.fftree.get_attrib(f'{self.name}', 'lmax')[0]  # return [lmax]
 
-        mScales = [self.fftree.get_attrib(f'{self.name}', f'mScale1{i}') for i in range(2, 7)]
-        pScales = [self.fftree.get_attrib(f'{self.name}', f'mScale1{i}') for i in range(2, 7)]
-        dScales = [self.fftree.get_attrib(f'{self.name}', f'mScale1{i}') for i in range(2, 7)]
+        mScales = [self.fftree.get_attrib(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
+        pScales = [self.fftree.get_attrib(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
+        dScales = [self.fftree.get_attrib(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
 
         # make sure the last digit is 1.0
         mScales.append(1.0)
@@ -1048,9 +1056,9 @@ class ADMPPmeGenerator:
         dScales.append(1.0)
 
         self.paramtree[self.name] = {}
-        self.paramtree[self.name]['mScales'] = mScales
-        self.paramtree[self.name]['pScales'] = pScales
-        self.paramtree[self.name]['dScales'] = dScales
+        self.paramtree[self.name]['mScales'] = jnp.array(mScales)
+        self.paramtree[self.name]['pScales'] = jnp.array(pScales)
+        self.paramtree[self.name]['dScales'] = jnp.array(dScales)
 
         # check if polarize
         polarize = self.fftree.get_node(f'{self.name}/Polarize')
@@ -1061,9 +1069,20 @@ class ADMPPmeGenerator:
 
         atomTypes = self.fftree.get_attrib(f'{self.name}/Atom', 'type')
         self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
-        # kx = self.fftree.get_attrib(f'{self.name}/Atom', 'kx')
-        # ky = self.fftree.get_attrib(f'{self.name}/Atom', 'ky')
-        # kz = self.fftree.get_attrib(f'{self.name}/Atom', 'kz')
+        kx = self.fftree.get_attrib(f'{self.name}/Atom', 'kx')
+        ky = self.fftree.get_attrib(f'{self.name}/Atom', 'ky')
+        kz = self.fftree.get_attrib(f'{self.name}/Atom', 'kz')
+
+        kx = [ 0 if kx_ is None else int(kx_) for kx_ in kx  ]
+        ky = [ 0 if ky_ is None else int(ky_) for ky_ in ky  ]
+        kz = [ 0 if kz_ is None else int(kz_) for kz_ in kz  ]
+
+        # invoke by `self.kStrings["kz"][itype]`
+        self.kStrings = {}
+        self.kStrings['kx'] = kx
+        self.kStrings['ky'] = ky
+        self.kStrings['kz'] = kz
+
         c0 = self.fftree.get_attrib(f'{self.name}/Atom', 'c0')
         dX = self.fftree.get_attrib(f'{self.name}/Atom', 'dX')
         dY = self.fftree.get_attrib(f'{self.name}/Atom', 'dY')
@@ -1463,6 +1482,9 @@ class Hamiltonian(app.forcefield.ForceField):
         # hook generators to self._forces
         for jaxGen in self._jaxGenerators:
             self._forces.append(jaxGen)
+
+    def getGenerators(self):
+        return self._jaxGenerators
 
     def extractParameterTree(self):
         # load Force info
