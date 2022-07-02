@@ -28,29 +28,29 @@ class TestADMPAPI:
         
         yield H.getGenerators()
         
-    # def test_ADMPDispForce_parseXML(self, generators):
+    def test_ADMPDispForce_parseXML(self, generators):
         
-    #     gen = generators[0]
-    #     params = gen.params
+        gen = generators[0]
+        params = gen.paramtree['ADMPDispForce']
         
-    #     npt.assert_allclose(params['mScales'], [0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
-    #     npt.assert_allclose(params['A'], [1203470.743, 83.2283563])
-    #     npt.assert_allclose(params['B'], [37.81265679, 37.78544799])
+        npt.assert_allclose(params['mScales'], [0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+        npt.assert_allclose(params['A'], [1203470.743, 83.2283563])
+        npt.assert_allclose(params['B'], [37.81265679, 37.78544799])
         
-    # def test_ADMPDispForce_renderXML(self, generators):
+    def test_ADMPDispForce_renderXML(self, generators):
         
-    #     gen = generators[0]
-    #     xml = gen.renderXML()
+        gen = generators[0]
+        xml = gen.renderXML()
         
-    #     assert xml.name == 'ADMPDispForce'
-    #     npt.assert_allclose(float(xml[0]['type']), 380)
-    #     npt.assert_allclose(float(xml[0]['A']), 1203470.743)
-    #     npt.assert_allclose(float(xml[1]['B']), 37.78544799)
-    #     npt.assert_allclose(float(xml[1]['Q']), 0.370853)
+        assert xml.name == 'ADMPDispForce'
+        npt.assert_allclose(float(xml[0]['type']), 380)
+        npt.assert_allclose(float(xml[0]['A']), 1203470.743)
+        npt.assert_allclose(float(xml[1]['B']), 37.78544799)
+        npt.assert_allclose(float(xml[1]['Q']), 0.370853)
         
     def test_ADMPPmeForce_parseXML(self, generators):
         
-        gen = generators[0]
+        gen = generators[1]
         tree = gen.paramtree['ADMPPmeForce']
         
         npt.assert_allclose(tree['mScales'], [0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
@@ -63,7 +63,7 @@ class TestADMPAPI:
         
     def test_ADMPPmeForce_renderXML(self, generators):
         
-        gen = generators[0]
+        gen = generators[1]
         xml = gen.renderXML()
         
         assert xml.name == 'ADMPPmeForce'

@@ -78,7 +78,7 @@ class ForcefieldTree(Node):
                 ret.append(vals)
             return ret
         else:
-            attrs = [convertStr2Float(n.attrs[attrname]) for n in sel]
+            attrs = [convertStr2Float(n.attrs[attrname]) if attrname in n.attrs else None for n in sel]
             return attrs
 
     def set_node(self, parser, values):

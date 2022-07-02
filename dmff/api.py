@@ -200,6 +200,132 @@ class ADMPDispGenerator:
 # register all parsers
 # app.forcefield.parsers["ADMPDispForce"] = ADMPDispGenerator.parseElement
 
+class ADMPDispGenerator:
+    def __init__(self, ff):
+
+        self.name = "ADMPDispForce"
+        self.ff = ff
+        self.fftree = ff.fftree
+        self.paramtree = ff.paramtree
+
+        # default params
+        self._jaxPotential = None
+        self.types = []
+        self.ethresh = 5e-4
+        self.pmax = 10
+
+    def extract(self):
+
+        mScales = [self.fftree.get_attribs(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
+        mScales.append(1.0)
+        self.paramtree[self.name] = {}
+        self.paramtree[self.name]['mScales'] = jnp.array(mScales)
+
+        ABQC = self.fftree.get_attribs(f'{self.name}/Atom', ['A', 'B', 'Q', 'C6', 'C8', 'C10'])
+
+        ABQC = np.array(ABQC)
+        A = ABQC[:, 0]
+        B = ABQC[:, 1]
+        Q = ABQC[:, 2]
+        C6 = ABQC[:, 3]
+        C8 = ABQC[:, 4]
+        C10 = ABQC[:, 5]
+
+        self.paramtree[self.name]['A'] = jnp.array(A)
+        self.paramtree[self.name]['B'] = jnp.array(B)
+        self.paramtree[self.name]['Q'] = jnp.array(Q)
+        self.paramtree[self.name]['C6'] = jnp.array(C6)
+        self.paramtree[self.name]['C8'] = jnp.array(C8)
+        self.paramtree[self.name]['C10'] = jnp.array(C10)
+
+        atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', f'type')
+        self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
+
+        methodMap = {
+            app.CutoffPeriodic: "CutoffPeriodic",
+            app.NoCutoff: "NoCutoff",
+            app.PME: "PME",
+        }
+        if nonbondedMethod not in methodMap:
+            raise ValueError("Illegal nonbonded method for ADMPDispForce")
+        if nonbondedMethod is app.CutoffPeriodic:
+            self.lpme = False
+        else:
+            self.lpme = True
+
+        n_atoms = len(data.atoms)
+        # build index map
+        map_atomtype = np.zeros(n_atoms, dtype=int)
+        for i in range(n_atoms):
+            atype = data.atomType[data.atoms[i]]
+            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
+        self.map_atomtype = map_atomtype
+        # build covalent map
+        covalent_map = build_covalent_map(data, 6)
+        # here box is only used to setup ewald parameters, no need to be differentiable
+        a, b, c = system.getDefaultPeriodicBoxVectors()
+        box = jnp.array([a._value, b._value, c._value]) * 10
+        # get the admp calculator
+        rc = nonbondedCutoff.value_in_unit(unit.angstrom)
+
+        # get calculator
+        if "ethresh" in args:
+            self.ethresh = args["ethresh"]
+
+        Force_DispPME = ADMPDispPmeForce(box,
+                                         covalent_map,
+                                         rc,
+                                         self.ethresh,
+                                         self.pmax,
+                                         lpme=self.lpme)
+        self.disp_pme_force = Force_DispPME
+        pot_fn_lr = Force_DispPME.get_energy
+        pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_c6_kernel,
+                                                  covalent_map,
+                                                  static_args={})
+
+        def potential_fn(positions, box, pairs, params):
+            mScales = params["mScales"]
+            a_list = (params["A"][map_atomtype] / 2625.5
+                      )  # kj/mol to au, as expected by TT_damping kernel
+            b_list = params["B"][map_atomtype] * 0.0529177249  # nm^-1 to au
+            q_list = params["Q"][map_atomtype]
+            c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)
+            c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
+            c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
+            c_list = jnp.vstack((c6_list, c8_list, c10_list))
+
+            E_sr = pot_fn_sr(positions, box, pairs, mScales, a_list, b_list,
+                             q_list, c_list[0])
+            E_lr = pot_fn_lr(positions, box, pairs, c_list.T, mScales)
+            return E_sr - E_lr
+
+        self._jaxPotential = potential_fn
+        # self._top_data = data
+
+    def overwrite(self):
+
+        self.fftree.set_attrib(f'{self.name}', 'mScale12', self.paramtree[self.name]['mScales'][0])
+        self.fftree.set_attrib(f'{self.name}', 'mScale13', self.paramtree[self.name]['mScales'][1])
+        self.fftree.set_attrib(f'{self.name}', 'mScale14', self.paramtree[self.name]['mScales'][2])
+        self.fftree.set_attrib(f'{self.name}', 'mScale15', self.paramtree[self.name]['mScales'][3])
+        self.fftree.set_attrib(f'{self.name}', 'mScale16', self.paramtree[self.name]['mScales'][4])
+
+        self.fftree.set_attrib(f'{self.name}/Atom', 'A', self.paramtree[self.name]['A'])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'B', self.paramtree[self.name]['B'])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'Q', self.paramtree[self.name]['Q'])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C6', self.paramtree[self.name]['C6'])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C8', self.paramtree[self.name]['C8'])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C10', self.paramtree[self.name]['C10'])
+
+
+    def getJaxPotential(self):
+        return self._jaxPotential
+
+jaxGenerators['ADMPDispForce'] = ADMPDispGenerator
 
 class ADMPDispPmeGenerator:
     r"""
@@ -298,6 +424,114 @@ class ADMPDispPmeGenerator:
 
 # register all parsers
 # app.forcefield.parsers["ADMPDispPmeForce"] = ADMPDispPmeGenerator.parseElement
+
+class ADMPDispPmeGenerator:
+    r"""
+    This one computes the undamped C6/C8/C10 interactions
+    u = \sum_{ij} c6/r^6 + c8/r^8 + c10/r^10
+    """
+    def __init__(self, ff):
+        self.ff = ff
+        self.fftree = ff.fftree
+        self.paramtree = ff.paramtree
+
+        self.params = {"C6": [], "C8": [], "C10": []}
+        self._jaxPotential = None
+        self.atomTypes = None
+        self.ethresh = 5e-4
+        self.pmax = 10
+        self.name = "ADMPDispPmeForce"
+
+    def extract(self):
+
+        mScales = [self.fftree.get_attribs(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
+        mScales.append(1.0)
+
+        self.paramtree[self.name] = {}
+        self.paramtree[self.name]['mScales'] = jnp.array(mScales)
+
+        C6 = self.fftree.get_attribs(f'{self.name}/Atom', f'C6')
+        C8 = self.fftree.get_attribs(f'{self.name}/Atom', f'C8')
+        C10 = self.fftree.get_attribs(f'{self.name}/Atom', f'C10')
+
+        self.paramtree[self.name]['C6'] = jnp.array(C6)
+        self.paramtree[self.name]['C8'] = jnp.array(C8)
+        self.paramtree[self.name]['C10'] = jnp.array(C10)
+
+        atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', f'type')
+        self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+
+    def overwrite(self):
+
+        self.fftree.set_attrib(f'{self.name}', 'mScale12', self.paramtree[self.name]['mScales'][0])
+        self.fftree.set_attrib(f'{self.name}', 'mScale13', self.paramtree[self.name]['mScales'][1])
+        self.fftree.set_attrib(f'{self.name}', 'mScale14', self.paramtree[self.name]['mScales'][2])
+        self.fftree.set_attrib(f'{self.name}', 'mScale15', self.paramtree[self.name]['mScales'][3])
+        self.fftree.set_attrib(f'{self.name}', 'mScale16', self.paramtree[self.name]['mScales'][4])
+
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C6', self.paramtree[self.name]['C6'])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C8', self.paramtree[self.name]['C8'])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C10', self.paramtree[self.name]['C10'])
+
+
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
+        methodMap = {
+            app.CutoffPeriodic: "CutoffPeriodic",
+            app.NoCutoff: "NoCutoff",
+            app.PME: "PME",
+        }
+        if nonbondedMethod not in methodMap:
+            raise ValueError("Illegal nonbonded method for ADMPDispPmeForce")
+        if nonbondedMethod is app.CutoffPeriodic:
+            self.lpme = False
+        else:
+            self.lpme = True
+
+        n_atoms = len(data.atoms)
+        # build index map
+        map_atomtype = np.zeros(n_atoms, dtype=int)
+        for i in range(n_atoms):
+            atype = data.atomType[data.atoms[i]]
+            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
+        self.map_atomtype = map_atomtype
+        # build covalent map
+        covalent_map = build_covalent_map(data, 6)
+
+        # here box is only used to setup ewald parameters, no need to be differentiable
+        a, b, c = system.getDefaultPeriodicBoxVectors()
+        box = jnp.array([a._value, b._value, c._value]) * 10
+        # get the admp calculator
+        rc = nonbondedCutoff.value_in_unit(unit.angstrom)
+
+        # get calculator
+        if "ethresh" in args:
+            self.ethresh = args["ethresh"]
+
+        disp_force = ADMPDispPmeForce(box, covalent_map, rc, self.ethresh,
+                                      self.pmax, self.lpme)
+        self.disp_force = disp_force
+        pot_fn_lr = disp_force.get_energy
+
+        def potential_fn(positions, box, pairs, params):
+            mScales = params["mScales"]
+            C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
+            C8_list = params["C8"][map_atomtype] * 1e8
+            C10_list = params["C10"][map_atomtype] * 1e10
+            c6_list = jnp.sqrt(C6_list)
+            c8_list = jnp.sqrt(C8_list)
+            c10_list = jnp.sqrt(C10_list)
+            c_list = jnp.vstack((c6_list, c8_list, c10_list))
+            E_lr = pot_fn_lr(positions, box, pairs, c_list.T, mScales)
+            return -E_lr
+
+        self._jaxPotential = potential_fn
+        # self._top_data = data
+
+    def getJaxPotential(self):
+        return self._jaxPotential
+
+jaxGenerators['ADMPDispPmeForce'] = ADMPDispPmeGenerator
 
 
 class QqTtDampingGenerator:
@@ -1044,11 +1278,11 @@ class ADMPPmeGenerator:
 
     def extract(self):
 
-        self.lmax = self.fftree.get_attrib(f'{self.name}', 'lmax')[0]  # return [lmax]
+        self.lmax = self.fftree.get_attribs(f'{self.name}', 'lmax')[0]  # return [lmax]
 
-        mScales = [self.fftree.get_attrib(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
-        pScales = [self.fftree.get_attrib(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
-        dScales = [self.fftree.get_attrib(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
+        mScales = [self.fftree.get_attribs(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
+        pScales = [self.fftree.get_attribs(f'{self.name}', f'pScale1{i}')[0] for i in range(2, 7)]
+        dScales = [self.fftree.get_attribs(f'{self.name}', f'dScale1{i}')[0] for i in range(2, 7)]
 
         # make sure the last digit is 1.0
         mScales.append(1.0)
@@ -1061,17 +1295,17 @@ class ADMPPmeGenerator:
         self.paramtree[self.name]['dScales'] = jnp.array(dScales)
 
         # check if polarize
-        polarize = self.fftree.get_node(f'{self.name}/Polarize')
+        polarize = self.fftree.get_nodes(f'{self.name}/Polarize')
         if polarize:
             self.lpol = True
         else:
             self.lpol = False
 
-        atomTypes = self.fftree.get_attrib(f'{self.name}/Atom', 'type')
+        atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', 'type')
         self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
-        kx = self.fftree.get_attrib(f'{self.name}/Atom', 'kx')
-        ky = self.fftree.get_attrib(f'{self.name}/Atom', 'ky')
-        kz = self.fftree.get_attrib(f'{self.name}/Atom', 'kz')
+        kx = self.fftree.get_attribs(f'{self.name}/Atom', 'kx')
+        ky = self.fftree.get_attribs(f'{self.name}/Atom', 'ky')
+        kz = self.fftree.get_attribs(f'{self.name}/Atom', 'kz')
 
         kx = [ 0 if kx_ is None else int(kx_) for kx_ in kx  ]
         ky = [ 0 if ky_ is None else int(ky_) for ky_ in ky  ]
@@ -1083,21 +1317,21 @@ class ADMPPmeGenerator:
         self.kStrings['ky'] = ky
         self.kStrings['kz'] = kz
 
-        c0 = self.fftree.get_attrib(f'{self.name}/Atom', 'c0')
-        dX = self.fftree.get_attrib(f'{self.name}/Atom', 'dX')
-        dY = self.fftree.get_attrib(f'{self.name}/Atom', 'dY')
-        dZ = self.fftree.get_attrib(f'{self.name}/Atom', 'dZ')
-        qXX = self.fftree.get_attrib(f'{self.name}/Atom', 'qXX')
-        qYY = self.fftree.get_attrib(f'{self.name}/Atom', 'qYY')
-        qZZ = self.fftree.get_attrib(f'{self.name}/Atom', 'qZZ')
-        qXY = self.fftree.get_attrib(f'{self.name}/Atom', 'qXY')
-        qYZ = self.fftree.get_attrib(f'{self.name}/Atom', 'qYZ')
+        c0 = self.fftree.get_attribs(f'{self.name}/Atom', 'c0')
+        dX = self.fftree.get_attribs(f'{self.name}/Atom', 'dX')
+        dY = self.fftree.get_attribs(f'{self.name}/Atom', 'dY')
+        dZ = self.fftree.get_attribs(f'{self.name}/Atom', 'dZ')
+        qXX = self.fftree.get_attribs(f'{self.name}/Atom', 'qXX')
+        qYY = self.fftree.get_attribs(f'{self.name}/Atom', 'qYY')
+        qZZ = self.fftree.get_attribs(f'{self.name}/Atom', 'qZZ')
+        qXY = self.fftree.get_attribs(f'{self.name}/Atom', 'qXY')
+        qYZ = self.fftree.get_attribs(f'{self.name}/Atom', 'qYZ')
 
         # assume that polarize tag match the per atom type
-        polarizabilityXX = self.fftree.get_attrib(f'{self.name}/Polarize', 'polarizabilityXX')
-        polarizabilityYY = self.fftree.get_attrib(f'{self.name}/Polarize', 'polarizabilityYY')
-        polarizabilityZZ = self.fftree.get_attrib(f'{self.name}/Polarize', 'polarizabilityZZ')
-        thole = self.fftree.get_attrib(f'{self.name}/Polarize', 'thole')
+        polarizabilityXX = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityXX')
+        polarizabilityYY = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityYY')
+        polarizabilityZZ = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityZZ')
+        thole = self.fftree.get_attribs(f'{self.name}/Polarize', 'thole')
 
         n_atoms = len(atomTypes)
         assert n_atoms == len(polarizabilityXX), "Number of polarizabilityXX does not match number of atoms!"
@@ -1143,6 +1377,50 @@ class ADMPPmeGenerator:
         else:
             pol = None
             tholes = None
+
+    def overwrite(self):
+
+        self.fftree.set_attrib(f'{self.name}', 'mScale12', self.paramtree[self.name]['mScales'][0])
+        self.fftree.set_attrib(f'{self.name}', 'mScale13', self.paramtree[self.name]['mScales'][1])
+        self.fftree.set_attrib(f'{self.name}', 'mScale14', self.paramtree[self.name]['mScales'][2])
+        self.fftree.set_attrib(f'{self.name}', 'mScale15', self.paramtree[self.name]['mScales'][3])
+        self.fftree.set_attrib(f'{self.name}', 'mScale16', self.paramtree[self.name]['mScales'][4])
+
+        self.fftree.set_attrib(f'{self.name}', 'pScale12', self.paramtree[self.name]['pScales'][0])
+        self.fftree.set_attrib(f'{self.name}', 'pScale13', self.paramtree[self.name]['pScales'][1])
+        self.fftree.set_attrib(f'{self.name}', 'pScale14', self.paramtree[self.name]['pScales'][2])
+        self.fftree.set_attrib(f'{self.name}', 'pScale15', self.paramtree[self.name]['pScales'][3])
+        self.fftree.set_attrib(f'{self.name}', 'pScale16', self.paramtree[self.name]['pScales'][4])
+
+        self.fftree.set_attrib(f'{self.name}', 'dScale12', self.paramtree[self.name]['dScales'][0])
+        self.fftree.set_attrib(f'{self.name}', 'dScale13', self.paramtree[self.name]['dScales'][1])
+        self.fftree.set_attrib(f'{self.name}', 'dScale14', self.paramtree[self.name]['dScales'][2])
+        self.fftree.set_attrib(f'{self.name}', 'dScale15', self.paramtree[self.name]['dScales'][3])
+        self.fftree.set_attrib(f'{self.name}', 'dScale16', self.paramtree[self.name]['dScales'][4])
+
+        Q_global = convert_harm2cart(self.paramtree[self.name]['Q_local'], self.lmax)
+
+
+        self.fftree.set_attrib(f'{self.name}/Atom', 'c0', Q_global[:, 0])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'dX', Q_global[:, 1])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'dY', Q_global[:, 2])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'dZ', Q_global[:, 3])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'qXX', Q_global[:, 4])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'qYY', Q_global[:, 5])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'qZZ', Q_global[:, 6])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'qXY', Q_global[:, 7])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'qYZ', Q_global[:, 8])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'qYZ', Q_global[:, 9])
+
+        if self.lpol:
+            self.fftree.set_attrib(f'{self.name}/Polarize', 'polarizabilityXX', self.paramtree[self.name]['pol'][:, 0])
+            self.fftree.set_attrib(f'{self.name}/Polarize', 'polarizabilityYY', self.paramtree[self.name]['pol'][:, 1])
+            self.fftree.set_attrib(f'{self.name}/Polarize', 'polarizabilityZZ', self.paramtree[self.name]['pol'][:, 2])
+            self.fftree.set_attrib(f'{self.name}/Polarize', 'thole', self.paramtree[self.name]['tholes'])
+
+
+
+
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
                     args):
