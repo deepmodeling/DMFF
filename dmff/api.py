@@ -1550,8 +1550,8 @@ class HarmonicBondJaxGenerator:
         self.paramtree = ff.paramtree
 
     def extract(self):
-        lengths = self.fftree.get_attrib(f"{self.name}/Bond", "length")
-        ks = self.fftree.get_attrib(f"{self.name}/Bond", "k")
+        lengths = self.fftree.get_attribs(f"{self.name}/Bond", "length")
+        ks = self.fftree.get_attribs(f"{self.name}/Bond", "k")
         self.paramtree[self.name] = {}
         self.paramtree[self.name]["length"] = jnp.array(lengths)
         self.paramtree[self.name]["k"] = jnp.array(ks)
@@ -1611,8 +1611,8 @@ class HarmonicAngleJaxGenerator:
         self.paramtree = ff.paramtree
 
     def extract(self):
-        angles = self.fftree.get_attrib(f"{self.name}/Angle", "angle")
-        ks = self.fftree.get_attrib(f"{self.name}/Angle", "k")
+        angles = self.fftree.get_attribs(f"{self.name}/Angle", "angle")
+        ks = self.fftree.get_attribs(f"{self.name}/Angle", "k")
         self.paramtree[self.name] = {}
         self.paramtree[self.name]["angle"] = jnp.array(angles)
         self.paramtree[self.name]["k"] = jnp.array(ks)
@@ -1687,8 +1687,8 @@ class PeriodicTorsionJaxGenerator:
         self.max_pred_impr = 0
 
     def extract(self):
-        propers = self.fftree.get_node("PeriodicTorsionForce/Proper")
-        impropers = self.fftree.get_node("PeriodicTorsionForce/Improper")
+        propers = self.fftree.get_nodes("PeriodicTorsionForce/Proper")
+        impropers = self.fftree.get_nodes("PeriodicTorsionForce/Improper")
         self.paramtree[self.name] = {}
         # propers
         prop_phase = defaultdict(list)
@@ -1741,8 +1741,8 @@ class PeriodicTorsionJaxGenerator:
                 impr_k[f"{npred}"])
 
     def overwrite(self):
-        propers = self.fftree.get_node("PeriodicTorsionForce/Proper")
-        impropers = self.fftree.get_node("PeriodicTorsionForce/Improper")
+        propers = self.fftree.get_nodes("PeriodicTorsionForce/Proper")
+        impropers = self.fftree.get_nodes("PeriodicTorsionForce/Improper")
         prop_data = [{} for _ in propers]
         impr_data = [{} for _ in impropers]
         # make propers
@@ -1805,7 +1805,7 @@ class PeriodicTorsionJaxGenerator:
         impr_matcher = TypeMatcher(self.fftree,
                                    "PeriodicTorsionForce/Improper")
         try:
-            ordering = self.fftree.get_attrib("PeriodicTorsionForce",
+            ordering = self.fftree.get_attribs("PeriodicTorsionForce",
                                               "ordering")[0]
         except KeyError as e:
             ordering = "default"
@@ -1910,7 +1910,7 @@ class NonbondedJaxGenerator:
         self.idx2rai = {}
 
     def extract(self):
-        self.from_residue = self.fftree.get_attrib(
+        self.from_residue = self.fftree.get_attribs(
             "NonbondedForce/UseAttributeFromResidue", "name")
         self.from_force = [
             i for i in ["charge", "sigma", "epsilon"]
@@ -1918,31 +1918,29 @@ class NonbondedJaxGenerator:
         ]
         # Build per-atom array for from_force
         for prm in self.from_force:
-            vals = self.fftree.get_attrib("NonbondedForce/Atom", prm)
+            vals = self.fftree.get_attribs("NonbondedForce/Atom", prm)
             self.paramtree[self.name][prm] = jnp.array(vals)
         # Build per-atom array for from_residue
-        residues = self.fftree.get_node("Residues/Residue")
+        residues = self.fftree.get_nodes("Residues/Residue")
         resvals = {k: [] for k in self.from_residue}
         for resnode in residues:
             resname = resnode.attrs["name"]
             resvals[resname] = []
-            atomname = resnode.get_attrib("Atom", "name")
+            atomname = resnode.get_attribs("Atom", "name")
             shift = len(self.ra2idx)
             for natom, aname in enumerate(atomname):
                 self.ra2idx[(resname, aname)] = shift + natom
                 self.idx2rai[shift + natom] = (resname, atomname, natom)
             for prm in self.from_residue:
-                atomval = resnode.get_attrib("Atom", prm)
+                atomval = resnode.get_attribs("Atom", prm)
                 resvals[prm].extend(atomval)
         for prm in self.from_residue:
             self.paramtree[self.name][prm] = jnp.array(resvals[prm])
-        # Build coulomb14scale
-        coulomb14scale = self.fftree.get_attrib("NonbondedForce",
-                                                "coulomb14scale")
-        self.paramtree[self.name]["coulomb14scale"] = jnp.array(coulomb14scale)
-        # Build lj14scale
-        lj14scale = self.fftree.get_attrib("NonbondedForce", "lj14scale")
-        self.paramtree[self.name]["lj14scale"] = jnp.array(lj14scale)
+        # Build coulomb14scale and lj14scale
+        coulomb14scale, lj14scale = self.fftree.get_attribs("NonbondedForce",
+                                                ["coulomb14scale", "lj14scale"])[0]
+        self.paramtree[self.name]["coulomb14scale"] = jnp.array([coulomb14scale])
+        self.paramtree[self.name]["lj14scale"] = jnp.array([lj14scale])
 
     def overwrite(self):
         # write coulomb14scale
@@ -1956,7 +1954,7 @@ class NonbondedJaxGenerator:
             self.fftree.set_attrib("NonbondedForce/Atom", prm,
                                    self.paramtree[self.name][prm])
         # write prm from residue
-        residues = self.fftree.get_node("Residues/Residue")
+        residues = self.fftree.get_nodes("Residues/Residue")
         for prm in self.from_residue:
             vals = self.paramtree[self.name][prm]
             data = []
