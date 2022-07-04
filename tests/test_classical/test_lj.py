@@ -74,7 +74,7 @@ class TestVdW:
         pairs = np.array(pairs, dtype=int)                                        
         ljE = potential.getPotentialFunc()
         with pytest.raises(TypeError):
-            energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
+            energy = ljE(pos, box, pairs, h.getGenerators()[0].paramtree)
             
         energy = jax.jit(ljE)(pos, box, pairs, h.paramtree)  # jit will optimized away type check
         force = jax.grad(jax.jit(ljE))(pos, box, pairs, h.paramtree)

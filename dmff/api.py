@@ -308,18 +308,18 @@ class ADMPDispGenerator:
 
     def overwrite(self):
 
-        self.fftree.set_attrib(f'{self.name}', 'mScale12', self.paramtree[self.name]['mScales'][0])
-        self.fftree.set_attrib(f'{self.name}', 'mScale13', self.paramtree[self.name]['mScales'][1])
-        self.fftree.set_attrib(f'{self.name}', 'mScale14', self.paramtree[self.name]['mScales'][2])
-        self.fftree.set_attrib(f'{self.name}', 'mScale15', self.paramtree[self.name]['mScales'][3])
-        self.fftree.set_attrib(f'{self.name}', 'mScale16', self.paramtree[self.name]['mScales'][4])
+        self.fftree.set_attrib(f'{self.name}', 'mScale12', [self.paramtree[self.name]['mScales'][0]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale13', [self.paramtree[self.name]['mScales'][1]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale14', [self.paramtree[self.name]['mScales'][2]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale15', [self.paramtree[self.name]['mScales'][3]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale16', [self.paramtree[self.name]['mScales'][4]])
 
-        self.fftree.set_attrib(f'{self.name}/Atom', 'A', self.paramtree[self.name]['A'])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'B', self.paramtree[self.name]['B'])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'Q', self.paramtree[self.name]['Q'])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'C6', self.paramtree[self.name]['C6'])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'C8', self.paramtree[self.name]['C8'])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'C10', self.paramtree[self.name]['C10'])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'A', [self.paramtree[self.name]['A']])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'B', [self.paramtree[self.name]['B']])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'Q', [self.paramtree[self.name]['Q']])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C6', [self.paramtree[self.name]['C6']])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C8', [self.paramtree[self.name]['C8']])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C10', [self.paramtree[self.name]['C10']])
 
 
     def getJaxPotential(self):
@@ -463,11 +463,11 @@ class ADMPDispPmeGenerator:
 
     def overwrite(self):
 
-        self.fftree.set_attrib(f'{self.name}', 'mScale12', self.paramtree[self.name]['mScales'][0])
-        self.fftree.set_attrib(f'{self.name}', 'mScale13', self.paramtree[self.name]['mScales'][1])
-        self.fftree.set_attrib(f'{self.name}', 'mScale14', self.paramtree[self.name]['mScales'][2])
-        self.fftree.set_attrib(f'{self.name}', 'mScale15', self.paramtree[self.name]['mScales'][3])
-        self.fftree.set_attrib(f'{self.name}', 'mScale16', self.paramtree[self.name]['mScales'][4])
+        self.fftree.set_attrib(f'{self.name}', 'mScale12', [self.paramtree[self.name]['mScales'][0]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale13', [self.paramtree[self.name]['mScales'][1]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale14', [self.paramtree[self.name]['mScales'][2]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale15', [self.paramtree[self.name]['mScales'][3]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale16', [self.paramtree[self.name]['mScales'][4]])
 
         self.fftree.set_attrib(f'{self.name}/Atom', 'C6', self.paramtree[self.name]['C6'])
         self.fftree.set_attrib(f'{self.name}/Atom', 'C8', self.paramtree[self.name]['C8'])
@@ -1380,23 +1380,23 @@ class ADMPPmeGenerator:
 
     def overwrite(self):
 
-        self.fftree.set_attrib(f'{self.name}', 'mScale12', self.paramtree[self.name]['mScales'][0])
-        self.fftree.set_attrib(f'{self.name}', 'mScale13', self.paramtree[self.name]['mScales'][1])
-        self.fftree.set_attrib(f'{self.name}', 'mScale14', self.paramtree[self.name]['mScales'][2])
-        self.fftree.set_attrib(f'{self.name}', 'mScale15', self.paramtree[self.name]['mScales'][3])
-        self.fftree.set_attrib(f'{self.name}', 'mScale16', self.paramtree[self.name]['mScales'][4])
+        self.fftree.set_attrib(f'{self.name}', 'mScale12', [self.paramtree[self.name]['mScales'][0]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale13', [self.paramtree[self.name]['mScales'][1]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale14', [self.paramtree[self.name]['mScales'][2]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale15', [self.paramtree[self.name]['mScales'][3]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale16', [self.paramtree[self.name]['mScales'][4]])
 
-        self.fftree.set_attrib(f'{self.name}', 'pScale12', self.paramtree[self.name]['pScales'][0])
-        self.fftree.set_attrib(f'{self.name}', 'pScale13', self.paramtree[self.name]['pScales'][1])
-        self.fftree.set_attrib(f'{self.name}', 'pScale14', self.paramtree[self.name]['pScales'][2])
-        self.fftree.set_attrib(f'{self.name}', 'pScale15', self.paramtree[self.name]['pScales'][3])
-        self.fftree.set_attrib(f'{self.name}', 'pScale16', self.paramtree[self.name]['pScales'][4])
+        self.fftree.set_attrib(f'{self.name}', 'pScale12', [self.paramtree[self.name]['pScales'][0]])
+        self.fftree.set_attrib(f'{self.name}', 'pScale13', [self.paramtree[self.name]['pScales'][1]])
+        self.fftree.set_attrib(f'{self.name}', 'pScale14', [self.paramtree[self.name]['pScales'][2]])
+        self.fftree.set_attrib(f'{self.name}', 'pScale15', [self.paramtree[self.name]['pScales'][3]])
+        self.fftree.set_attrib(f'{self.name}', 'pScale16', [self.paramtree[self.name]['pScales'][4]])
 
-        self.fftree.set_attrib(f'{self.name}', 'dScale12', self.paramtree[self.name]['dScales'][0])
-        self.fftree.set_attrib(f'{self.name}', 'dScale13', self.paramtree[self.name]['dScales'][1])
-        self.fftree.set_attrib(f'{self.name}', 'dScale14', self.paramtree[self.name]['dScales'][2])
-        self.fftree.set_attrib(f'{self.name}', 'dScale15', self.paramtree[self.name]['dScales'][3])
-        self.fftree.set_attrib(f'{self.name}', 'dScale16', self.paramtree[self.name]['dScales'][4])
+        self.fftree.set_attrib(f'{self.name}', 'dScale12', [self.paramtree[self.name]['dScales'][0]])
+        self.fftree.set_attrib(f'{self.name}', 'dScale13', [self.paramtree[self.name]['dScales'][1]])
+        self.fftree.set_attrib(f'{self.name}', 'dScale14', [self.paramtree[self.name]['dScales'][2]])
+        self.fftree.set_attrib(f'{self.name}', 'dScale15', [self.paramtree[self.name]['dScales'][3]])
+        self.fftree.set_attrib(f'{self.name}', 'dScale16', [self.paramtree[self.name]['dScales'][4]])
 
         Q_global = convert_harm2cart(self.paramtree[self.name]['Q_local'], self.lmax)
 
@@ -1413,9 +1413,12 @@ class ADMPPmeGenerator:
         self.fftree.set_attrib(f'{self.name}/Atom', 'qYZ', Q_global[:, 9])
 
         if self.lpol:
-            self.fftree.set_attrib(f'{self.name}/Polarize', 'polarizabilityXX', self.paramtree[self.name]['pol'][:, 0])
-            self.fftree.set_attrib(f'{self.name}/Polarize', 'polarizabilityYY', self.paramtree[self.name]['pol'][:, 1])
-            self.fftree.set_attrib(f'{self.name}/Polarize', 'polarizabilityZZ', self.paramtree[self.name]['pol'][:, 2])
+            # self.paramtree[self.name]['pol']: every element is the mean value of XX YY ZZ
+            # get the number of polarize element
+            n_pol = len(self.paramtree[self.name]['pol'])
+            self.fftree.set_attrib(f'{self.name}/Polarize', 'polarizabilityXX', [self.paramtree[self.name]['pol'][0]] * n_pol)
+            self.fftree.set_attrib(f'{self.name}/Polarize', 'polarizabilityYY', [self.paramtree[self.name]['pol'][1]] * n_pol)
+            self.fftree.set_attrib(f'{self.name}/Polarize', 'polarizabilityZZ', [self.paramtree[self.name]['pol'][2]] * n_pol)
             self.fftree.set_attrib(f'{self.name}/Polarize', 'thole', self.paramtree[self.name]['tholes'])
 
 
@@ -1672,7 +1675,7 @@ class ADMPPmeGenerator:
         self.pme_force = pme_force
 
         def potential_fn(positions, box, pairs, params):
-
+            params = params['ADMPPmeForce']
             mScales = params["mScales"]
             Q_local = params["Q_local"][map_atomtype]
             if self.lpol:
@@ -1727,10 +1730,11 @@ class Potential:
             raise DMFFException("No DMFF function in this potential object.")
 
         def totalPE(positions, box, pairs, params):
-            totale = sum([
+            totale_list = [
                 self.dmff_potentials[k](positions, box, pairs, params)
                 for k in self.dmff_potentials.keys() if (len(names) == 0 or k in names)
-            ])
+            ]
+            totale = jnp.sum(jnp.array(totale_list))
             return totale
 
         return totalPE

@@ -12,7 +12,7 @@ class TestADMPAPI:
     """ Test ADMP related generators
     """
     
-    @pytest.fixture(scope='class', name='potentials')
+    @pytest.fixture(scope='class', name='generators')
     def test_init(self):
         """load generators from XML file
 
@@ -26,10 +26,11 @@ class TestADMPAPI:
         H = Hamiltonian('tests/data/admp.xml')
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         potential = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
+        generators = H.getGenerators()
         
-        yield potential
+        yield generators
 
-    def test_ADMPPmeForce(self, potentials):
+    def test_ADMPPmeForce(self, generators):
 
         rc = 4.0
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
@@ -41,8 +42,9 @@ class TestADMPAPI:
         nblist.allocate(positions)
         pairs = nblist.pairs
         
-        pot = potentials.getPotentialFunc(names=['ADMPPmeForce'])
-        energy = pot(positions, box, pairs, potentials.params)
+        gen = generators[1]
+        pot = gen.getJaxPotential()
+        energy = pot(positions, box, pairs, gen.paramtree)
 
         
     def test_ADMPPmeForce_jit(self, generators):
@@ -57,8 +59,8 @@ class TestADMPAPI:
         nblist = NeighborList(box, rc)
         nblist.allocate(positions)
         pairs = nblist.pairs
-        
-        pot_pme = gen.getJaxPotential()
-        j_pot_pme = jit(value_and_grad(pot_pme))
-        
-        E_pme, F_pme = j_pot_pme(positions, box, pairs, gen.params)
+
+        gen = generators[1]
+        pot = gen.getJaxPotential()
+        j_pot_pme = jit(value_and_grad(pot))
+        energy = j_pot_pme(positions, box, pairs, gen.paramtree)

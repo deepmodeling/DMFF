@@ -1,9 +1,10 @@
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
 from dmff.utils import convertStr2Float, DMFFException
-from typing import List
+from typing import Dict, List, Union, TypeVar
 from itertools import permutations
 
+value = TypeVar('value')  # generic type: interpreted as either a number or str
 
 class SelectError(BaseException):
     pass
@@ -54,7 +55,25 @@ class ForcefieldTree(Node):
 
         super().__init__(tag, **attrs)
 
-    def get_nodes(self, parser):
+    def get_nodes(self, parser:str)->List[Node]:
+        """
+        get all nodes of a certain path
+
+        Examples
+        --------
+        >>> fftree.get_nodes('HarmonicBondForce/Bond')
+        >>> [<Bond 1>, <Bond 2>, ...]
+
+        Parameters
+        ----------
+        parser : str
+            a path to locate nodes
+
+        Returns
+        -------
+        List[Node]
+            a list of Node
+        """
         steps = parser.split("/")
         val = self
         for nstep, step in enumerate(steps):
@@ -69,7 +88,29 @@ class ForcefieldTree(Node):
                 val = val[0]
         return val
 
-    def get_attribs(self, parser, attrname):
+    def get_attribs(self, parser:str, attrname:Union[str, List[str]])->List[Union[value, List[value]]]:
+        """
+        get all values of attributes of nodes which nodes matching certain path
+
+        Examples:
+        ---------
+        >>> fftree.get_attribs('HarmonicBondForce/Bond', 'k')
+        >>> [2.0, 2.0, 2.0, 2.0, 2.0, ...]
+        >>> fftree.get_attribs('HarmonicBondForce/Bond', ['k', 'r0'])
+        >>> [[2.0, 1.53], [2.0, 1.53], ...]
+
+        Parameters
+        ----------
+        parser : str
+            a path to locate nodes
+        attrname : _type_
+            attribute name or a list of attribute names of a node
+
+        Returns
+        -------
+        List[Union[float, str]]
+            a list of values of attributes
+        """
         sel = self.get_nodes(parser)
         if isinstance(attrname, list):
             ret = []
@@ -81,14 +122,51 @@ class ForcefieldTree(Node):
             attrs = [convertStr2Float(n.attrs[attrname]) if attrname in n.attrs else None for n in sel]
             return attrs
 
-    def set_node(self, parser, values):
+    def set_node(self, parser:str, values:List[Dict[str, value]])->None:
+        """
+        set attributes of nodes which nodes matching certain path
+
+        Parameters
+        ----------
+        parser : str
+            path to locate nodes
+        values : List[Dict[str, value]]
+            a list of Dict[str, value], where value is any type can be convert to str of a number.
+
+        Examples
+        --------
+        >>> fftree.set_node('HarmonicBondForce/Bond', 
+                            [{'k': 2.0, 'r0': 1.53}, 
+                             {'k': 2.0, 'r0': 1.53}])
+        """
         nodes = self.get_nodes(parser)
         for nit in range(len(values)):
             for key in values[nit]:
                 nodes[nit].attrs[key] = f"{values[nit][key]}"
 
-    def set_attrib(self, parser, attrname, values):
-        valdicts = [{attrname: i} for i in values]
+    def set_attrib(self, parser:str, attrname:str, values:Union[value, List[value]])->None:
+        """
+        set ONE Attribute of nodes which nodes matching certain path
+
+        Parameters
+        ----------
+        parser : str
+            path to locate nodes
+        attrname : str
+            attribute name
+        values : Union[float, str, List[float, str]]
+            attribute value or a list of attribute values of a node
+
+        Examples
+        --------
+        >>> fftree.set_attrib('HarmonicBondForce/Bond', 'k', 2.0)
+        >>> fftree.set_attrib('HarmonicBondForce/Bond', 'k', [2.0, 2.0, 2.0, 2.0, 2.0])
+
+        """
+        if len(values) == 0:
+            valdicts = [{attrname: values}]
+        else:
+            valdicts = [{attrname: i} for i in values]
         self.set_node(parser, valdicts)
 
 
