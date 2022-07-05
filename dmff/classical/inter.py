@@ -198,8 +198,6 @@ class CoulReactionFieldForce:
             if self.ifPBC:
                 dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
-            chrgprod = chrgprod[dr_norm <= self.r_cut]
-            dr_norm = dr_norm[dr_norm <= self.r_cut]
 
             dr_inv = 1.0 / dr_norm
             E = (
