@@ -1823,6 +1823,16 @@ class Hamiltonian(app.forcefield.ForceField):
     def getParameters(self):
         return self.paramtree
 
+    def updateParameters(self, paramtree):
+        def update_iter(node, ref):
+            for key in ref:
+                if isinstance(ref[key], dict):
+                    update_iter(node[key], ref[key])
+                else:
+                    node[key] = ref[key]
+
+        update_iter(self.paramtree, paramtree)
+
 
 class HarmonicBondJaxGenerator:
     def __init__(self, ff):
@@ -1996,6 +2006,9 @@ class PeriodicTorsionJaxGenerator:
                 prop_phase[f"{npred}"])
             self.paramtree[self.name]["prop_k"][f"{npred}"] = jnp.array(
                 prop_k[f"{npred}"])
+        if self.max_pred_prop == 0:
+            del self.paramtree[self.name]["prop_phase"]
+            del self.paramtree[self.name]["prop_k"]
 
         # impropers
         impr_phase = defaultdict(list)
@@ -2021,6 +2034,9 @@ class PeriodicTorsionJaxGenerator:
                 impr_phase[f"{npred}"])
             self.paramtree[self.name]["impr_k"][f"{npred}"] = jnp.array(
                 impr_k[f"{npred}"])
+        if self.max_pred_impr == 0:
+            del self.paramtree[self.name]["impr_phase"]
+            del self.paramtree[self.name]["impr_k"]
 
     def overwrite(self):
         propers = self.fftree.get_nodes("PeriodicTorsionForce/Proper")
@@ -2028,7 +2044,7 @@ class PeriodicTorsionJaxGenerator:
         prop_data = [{} for _ in propers]
         impr_data = [{} for _ in impropers]
         # make propers
-        for periodicity in range(1, self.max_pred_prop):
+        for periodicity in range(1, self.max_pred_prop+1):
             nterms = len(
                 self.paramtree[self.name][f"prop_phase"][f"{periodicity}"])
             for nitem in range(nterms):
@@ -2040,10 +2056,11 @@ class PeriodicTorsionJaxGenerator:
                 order = self.meta[f"prop_order"][f"{periodicity}"][nitem]
                 prop_data[nodeidx][f"phase{order}"] = phase
                 prop_data[nodeidx][f"k{order}"] = k
-        self.fftree.set_node("PeriodicTorsionForce/Proper", prop_data)
+        if "prop_phase" in self.paramtree[self.name]:
+            self.fftree.set_node("PeriodicTorsionForce/Proper", prop_data)
 
         # make impropers
-        for periodicity in range(1, self.max_pred_impr):
+        for periodicity in range(1, self.max_pred_impr+1):
             nterms = len(
                 self.paramtree[self.name][f"impr_phase"][f"{periodicity}"])
             for nitem in range(nterms):
@@ -2055,7 +2072,8 @@ class PeriodicTorsionJaxGenerator:
                 order = self.meta[f"impr_order"][f"{periodicity}"][nitem]
                 impr_data[nodeidx][f"phase{order}"] = phase
                 impr_data[nodeidx][f"k{order}"] = k
-        self.fftree.set_node("PeriodicTorsionForce/Improper", impr_data)
+        if "impr_phase" in self.paramtree[self.name]:
+            self.fftree.set_node("PeriodicTorsionForce/Improper", impr_data)
 
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
         proper_matcher = TypeMatcher(self.fftree,
