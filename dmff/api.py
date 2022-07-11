@@ -2,6 +2,7 @@ import sys
 import linecache
 import itertools
 from collections import defaultdict
+from typing import Dict
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 import warnings
@@ -1835,26 +1836,46 @@ class Hamiltonian(app.forcefield.ForceField):
 
 
 class HarmonicBondJaxGenerator:
-    def __init__(self, ff):
+    def __init__(self, ff:Hamiltonian):
         self.name = "HarmonicBondForce"
-        self.ff = ff
-        self.fftree = ff.fftree
-        self.paramtree = ff.paramtree
+        self.ff:Hamiltonian = ff
+        self.fftree:ForcefieldTree = ff.fftree
+        self.paramtree:Dict = ff.paramtree
 
     def extract(self):
+        """
+        extract forcefield paramters from ForcefieldTree. 
+        """
         lengths = self.fftree.get_attribs(f"{self.name}/Bond", "length")
+        # get_attribs will return a list of list. 
         ks = self.fftree.get_attribs(f"{self.name}/Bond", "k")
         self.paramtree[self.name] = {}
         self.paramtree[self.name]["length"] = jnp.array(lengths)
         self.paramtree[self.name]["k"] = jnp.array(ks)
 
     def overwrite(self):
+        """
+        update parameters in the fftree by using paramtree of this generator.
+        """
         self.fftree.set_attrib(f"{self.name}/Bond", "length",
                                self.paramtree[self.name]["length"])
         self.fftree.set_attrib(f"{self.name}/Bond", "k",
                                self.paramtree[self.name]["k"])
 
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
+        """
+        This method will create a potential calculation kernel. It usually should do the following:
+        
+        1. Match the corresponding bond parameters according to the atomic types at both ends of each bond.
+
+        2. Create a potential calculation kernel, and pass those mapped parameters to the kernel.
+
+        3. assign the jax potential to the _jaxPotential.
+
+        Args:
+            Those args are the same as those in createSystem.
+        """
+
         # initialize typemap
         matcher = TypeMatcher(self.fftree, "HarmonicBondForce/Bond")
 
