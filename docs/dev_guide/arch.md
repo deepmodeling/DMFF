@@ -88,7 +88,7 @@ class HarmonicBondJaxGenerator:
         self.paramtree:Dict = ff.paramtree
 ```
 
-The name must correspond to the tag to be parsed in the XML file. In the snippet, the name of  `HarmonicBondJaxGenerator` is `HarmonicBondForce` to parse the tag in the XML file and store those parameters. The `ff` is the `Hamiltonian` class, which is the top-level class of DMFF， it manages all the generators. The `fftree` is the `ForcefieldTree` class, which is the tree-like storage of ALL force field parameters. The `paramtree` is the `Dict` class, and it stores differentiable parameters of this generator. 
+The name must correspond to the tag to be parsed in the XML file. In the snippet, the name of  `HarmonicBondJaxGenerator` is `HarmonicBondForce` to parse the tag in the XML file and store those parameters. The `ff` is the `Hamiltonian` class, which is the top-level class of DMFF and manages all the generators. The `fftree` is the `ForcefieldTree` class, which is the tree-like storage of ALL force field parameters. The `paramtree` is the `Dict` class, and it stores differentiable parameters of this generator. 
 
 The generator also should implement the dual methods, `extract` and `overwrite`. `extract` method extracts the paramters needed by the generator from the `fftree` and `overwrite` method overwrites(updates) the `fftree` by using the parameters in the `paramtree`. This process will be completed using the API of `ForcefieldTree`, which will be described later. In this example, we need to get `length` and `k` from XML file and update `fftree`:
 
@@ -310,7 +310,7 @@ jaxGenerators["HarmonicBondForce"] = HarmonicBondJaxGenerator
 
 ### 2.1.3 fftree
 
-We orgnize the forcefield parameters in a ForcefieldTree. This class provides four method to read and write the parameters in XML file. Once you need to develop a new generator in DMFF, the only way you access and modify the parameters is through the ForcefieldTree.
+We organize the forcefield parameters in a ForcefieldTree. This class provides four method to read and write the parameters in XML file. Once you need to develop a new generator in DMFF, the only way you access and modify the parameters is through the ForcefieldTree.
 
 ```python
 class ForcefieldTree(Node):
