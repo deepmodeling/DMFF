@@ -125,7 +125,11 @@ class ADMPDispGenerator:
         self.paramtree[self.name]['C10'] = jnp.array(C10)
 
         atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', f'type')
-        self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+        if type(atomTypes[0]) != str:
+            self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+        else:
+            self.atomTypes = np.array(atomTypes)
+
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
                     args):
@@ -249,7 +253,10 @@ class ADMPDispPmeGenerator:
         self.paramtree[self.name]['C10'] = jnp.array(C10)
 
         atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', f'type')
-        self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+        if type(atomTypes[0]) != str:
+            self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+        else:
+            self.atomTypes = np.array(atomTypes)
 
     def overwrite(self):
 
@@ -285,6 +292,7 @@ class ADMPDispPmeGenerator:
             atype = data.atomType[data.atoms[i]]
             map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
         self.map_atomtype = map_atomtype
+
         # build covalent map
         covalent_map = build_covalent_map(data, 6)
 
@@ -330,37 +338,43 @@ class QqTtDampingGenerator:
     This one calculates the tang-tonnies damping of charge-charge interaction
     E = \sum_ij exp(-B*r)*(1+B*r)*q_i*q_j/r
     """
-    def __init__(self, hamiltonian):
-        self.ff = hamiltonian
-        self.params = {
-            "B": [],
-            "Q": [],
-        }
+    def __init__(self, ff):
+        self.ff = ff
+        self.fftree = ff.fftree
         self._jaxPotential = None
-        self.types = []
-        self.name = "QqTtDamping"
+        self.paramtree = ff.paramtree
+        self._jaxPotnetial = None
+        self.name = "QqTtDampingForce"
 
-    def registerAtomType(self, atom):
-        self.types.append(atom["type"])
-        self.params["B"].append(float(atom["B"]))
-        self.params["Q"].append(float(atom["Q"]))
-
-    @staticmethod
-    def parseElement(element, hamiltonian):
-        generator = QqTtDampingGenerator(hamiltonian)
-        hamiltonian.registerGenerator(generator)
-        # covalent scales
-        mScales = []
-        for i in range(2, 7):
-            mScales.append(float(element.attrib["mScale1%d" % i]))
+    def extract(self):
+        # get mscales
+        mScales = [self.fftree.get_attribs(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
         mScales.append(1.0)
-        generator.params["mScales"] = mScales
-        for atomtype in element.findall("Atom"):
-            generator.registerAtomType(atomtype.attrib)
-        # jax it!
-        for k in generator.params.keys():
-            generator.params[k] = jnp.array(generator.params[k])
-        generator.types = np.array(generator.types)
+        self.paramtree[self.name] = {}
+        self.paramtree[self.name]['mScales'] = jnp.array(mScales)
+        # get atomtypes
+        atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', f'type')
+        if type(atomTypes[0]) != str:
+            self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+        else:
+            self.atomTypes = np.array(atomTypes)
+        # get atomic parameters
+        B = self.fftree.get_attribs(f'{self.name}/Atom', f'B')
+        Q = self.fftree.get_attribs(f'{self.name}/Atom', f'Q')
+        self.paramtree[self.name]['B'] = jnp.array(B)
+        self.paramtree[self.name]['Q'] = jnp.array(Q)
+
+
+    def overwrite(self):
+
+        self.fftree.set_attrib(f'{self.name}', 'mScale12', [self.paramtree[self.name]['mScales'][0]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale13', [self.paramtree[self.name]['mScales'][1]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale14', [self.paramtree[self.name]['mScales'][2]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale15', [self.paramtree[self.name]['mScales'][3]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale16', [self.paramtree[self.name]['mScales'][4]])
+
+        self.fftree.set_attrib(f'{self.name}/Atom', 'B', self.paramtree[self.name]['B'])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'Q', self.paramtree[self.name]['Q'])
 
     # on working
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
@@ -371,8 +385,9 @@ class QqTtDampingGenerator:
         map_atomtype = np.zeros(n_atoms, dtype=int)
         for i in range(n_atoms):
             atype = data.atomType[data.atoms[i]]
-            map_atomtype[i] = np.where(self.types == atype)[0][0]
+            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
         self.map_atomtype = map_atomtype
+
         # build covalent map
         covalent_map = build_covalent_map(data, 6)
 
@@ -381,6 +396,7 @@ class QqTtDampingGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            params = params[self.name]
             mScales = params["mScales"]
             b_list = params["B"][map_atomtype] / 10  # convert to A^-1
             q_list = params["Q"][map_atomtype]
@@ -389,14 +405,12 @@ class QqTtDampingGenerator:
             return E_sr
 
         self._jaxPotential = potential_fn
-        # self._top_data = data
 
     def getJaxPotential(self):
         return self._jaxPotential
 
-
 # register all parsers
-# app.forcefield.parsers["QqTtDampingForce"] = QqTtDampingGenerator.parseElement
+jaxGenerators['QqTtDampingForce'] = QqTtDampingGenerator
 
 
 class SlaterDampingGenerator:
@@ -406,41 +420,49 @@ class SlaterDampingGenerator:
     fn = f_tt(x, n)
     x = br - (2*br2 + 3*br) / (br2 + 3*br + 3)
     """
-    def __init__(self, hamiltonian):
-        self.ff = hamiltonian
-        self.params = {
-            "B": [],
-            "C6": [],
-            "C8": [],
-            "C10": [],
-        }
+    def __init__(self, ff):
+        self.name = "SlaterDampingForce"
+        self.ff = ff
+        self.fftree = ff.fftree
+        self.paramtree = ff.paramtree
         self._jaxPotential = None
-        self.types = []
-        self.name = "SlaterDamping"
 
-    def registerAtomType(self, atom):
-        self.types.append(atom["type"])
-        self.params["B"].append(float(atom["B"]))
-        self.params["C6"].append(float(atom["C6"]))
-        self.params["C8"].append(float(atom["C8"]))
-        self.params["C10"].append(float(atom["C10"]))
-
-    @staticmethod
-    def parseElement(element, hamiltonian):
-        generator = SlaterDampingGenerator(hamiltonian)
-        hamiltonian.registerGenerator(generator)
-        # covalent scales
-        mScales = []
-        for i in range(2, 7):
-            mScales.append(float(element.attrib["mScale1%d" % i]))
+    def extract(self):
+        # get mscales
+        mScales = [self.fftree.get_attribs(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
         mScales.append(1.0)
-        generator.params["mScales"] = mScales
-        for atomtype in element.findall("Atom"):
-            generator.registerAtomType(atomtype.attrib)
-        # jax it!
-        for k in generator.params.keys():
-            generator.params[k] = jnp.array(generator.params[k])
-        generator.types = np.array(generator.types)
+        self.paramtree[self.name] = {}
+        self.paramtree[self.name]['mScales'] = jnp.array(mScales)
+        # get atomtypes
+        atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', f'type')
+        if type(atomTypes[0]) != str:
+            self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+        else:
+            self.atomTypes = np.array(atomTypes)
+        # get atomic parameters
+        B = self.fftree.get_attribs(f'{self.name}/Atom', f'B')
+        C6 = self.fftree.get_attribs(f'{self.name}/Atom', f'C6')
+        C8 = self.fftree.get_attribs(f'{self.name}/Atom', f'C8')
+        C10 = self.fftree.get_attribs(f'{self.name}/Atom', f'C10')
+        self.paramtree[self.name]['B'] = jnp.array(B)
+        self.paramtree[self.name]['C6'] = jnp.array(C6)
+        self.paramtree[self.name]['C8'] = jnp.array(C8)
+        self.paramtree[self.name]['C10'] = jnp.array(C10)
+
+
+    def overwrite(self):
+
+        self.fftree.set_attrib(f'{self.name}', 'mScale12', [self.paramtree[self.name]['mScales'][0]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale13', [self.paramtree[self.name]['mScales'][1]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale14', [self.paramtree[self.name]['mScales'][2]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale15', [self.paramtree[self.name]['mScales'][3]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale16', [self.paramtree[self.name]['mScales'][4]])
+
+        self.fftree.set_attrib(f'{self.name}/Atom', 'B', [self.paramtree[self.name]['B']])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C6', [self.paramtree[self.name]['C6']])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C8', [self.paramtree[self.name]['C8']])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'C10', [self.paramtree[self.name]['C10']])
+
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
                     args):
@@ -450,7 +472,7 @@ class SlaterDampingGenerator:
         map_atomtype = np.zeros(n_atoms, dtype=int)
         for i in range(n_atoms):
             atype = data.atomType[data.atoms[i]]
-            map_atomtype[i] = np.where(self.types == atype)[0][0]
+            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
         self.map_atomtype = map_atomtype
         # build covalent map
         covalent_map = build_covalent_map(data, 6)
@@ -461,6 +483,7 @@ class SlaterDampingGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            params = params[self.name]
             mScales = params["mScales"]
             b_list = params["B"][map_atomtype] / 10  # convert to A^-1
             c6_list = jnp.sqrt(params["C6"][map_atomtype] *
@@ -477,8 +500,8 @@ class SlaterDampingGenerator:
     def getJaxPotential(self):
         return self._jaxPotential
 
+jaxGenerators['SlaterDampingForce'] = SlaterDampingGenerator
 
-# app.forcefield.parsers["SlaterDampingForce"] = SlaterDampingGenerator.parseElement
 
 
 class SlaterExGenerator:
@@ -486,37 +509,44 @@ class SlaterExGenerator:
     This one computes the Slater-ISA type exchange interaction
     u = \sum_ij A * (1/3*(Br)^2 + Br + 1)
     """
-    def __init__(self, hamiltonian):
-        self.ff = hamiltonian
-        self.params = {
-            "A": [],
-            "B": [],
-        }
+    def __init__(self, ff):
+        self.name = "SlaterExForce"
+        self.ff = ff
+        self.fftree = ff.fftree
+        self.paramtree = ff.paramtree
         self._jaxPotential = None
-        self.types = []
-        self.name = "SlaterEx"
 
-    def registerAtomType(self, atom):
-        self.types.append(atom["type"])
-        self.params["A"].append(float(atom["A"]))
-        self.params["B"].append(float(atom["B"]))
 
-    @staticmethod
-    def parseElement(element, hamiltonian):
-        generator = SlaterExGenerator(hamiltonian)
-        hamiltonian.registerGenerator(generator)
-        # covalent scales
-        mScales = []
-        for i in range(2, 7):
-            mScales.append(float(element.attrib["mScale1%d" % i]))
+    def extract(self):
+        # get mscales
+        mScales = [self.fftree.get_attribs(f'{self.name}', f'mScale1{i}')[0] for i in range(2, 7)]
         mScales.append(1.0)
-        generator.params["mScales"] = mScales
-        for atomtype in element.findall("Atom"):
-            generator.registerAtomType(atomtype.attrib)
-        # jax it!
-        for k in generator.params.keys():
-            generator.params[k] = jnp.array(generator.params[k])
-        generator.types = np.array(generator.types)
+        self.paramtree[self.name] = {}
+        self.paramtree[self.name]['mScales'] = jnp.array(mScales)
+        # get atomtypes
+        atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', f'type')
+        if type(atomTypes[0]) != str:
+            self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+        else:
+            self.atomTypes = np.array(atomTypes)
+        # get atomic parameters
+        A = self.fftree.get_attribs(f'{self.name}/Atom', f'A')
+        B = self.fftree.get_attribs(f'{self.name}/Atom', f'B')
+        self.paramtree[self.name]['A'] = jnp.array(A)
+        self.paramtree[self.name]['B'] = jnp.array(B)
+
+
+    def overwrite(self):
+
+        self.fftree.set_attrib(f'{self.name}', 'mScale12', [self.paramtree[self.name]['mScales'][0]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale13', [self.paramtree[self.name]['mScales'][1]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale14', [self.paramtree[self.name]['mScales'][2]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale15', [self.paramtree[self.name]['mScales'][3]])
+        self.fftree.set_attrib(f'{self.name}', 'mScale16', [self.paramtree[self.name]['mScales'][4]])
+
+        self.fftree.set_attrib(f'{self.name}/Atom', 'A', [self.paramtree[self.name]['A']])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'B', [self.paramtree[self.name]['B']])
+
 
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
                     args):
@@ -526,7 +556,7 @@ class SlaterExGenerator:
         map_atomtype = np.zeros(n_atoms, dtype=int)
         for i in range(n_atoms):
             atype = data.atomType[data.atoms[i]]
-            map_atomtype[i] = np.where(self.types == atype)[0][0]
+            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
         self.map_atomtype = map_atomtype
         # build covalent map
         covalent_map = build_covalent_map(data, 6)
@@ -536,6 +566,7 @@ class SlaterExGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            params = params[self.name]
             mScales = params["mScales"]
             a_list = params["A"][map_atomtype]
             b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
@@ -549,40 +580,40 @@ class SlaterExGenerator:
         return self._jaxPotential
 
 
-# app.forcefield.parsers["SlaterExForce"] = SlaterExGenerator.parseElement
+jaxGenerators["SlaterExForce"] = SlaterExGenerator
 
 
 # Here are all the short range "charge penetration" terms
 # They all have the exchange form
 class SlaterSrEsGenerator(SlaterExGenerator):
-    def __init__(self):
-        super().__init__(self)
-        self.name = "SlaterSrEs"
+    def __init__(self, ff):
+        super().__init__(ff)
+        self.name = "SlaterSrEsForce"
 
 
 class SlaterSrPolGenerator(SlaterExGenerator):
-    def __init__(self):
-        super().__init__(self)
-        self.name = "SlaterSrPol"
+    def __init__(self, ff):
+        super().__init__(ff)
+        self.name = "SlaterSrPolForce"
 
 
 class SlaterSrDispGenerator(SlaterExGenerator):
-    def __init__(self):
-        super().__init__(self)
-        self.name = "SlaterSrDisp"
+    def __init__(self, ff):
+        super().__init__(ff)
+        self.name = "SlaterSrDispForce"
 
 
 class SlaterDhfGenerator(SlaterExGenerator):
-    def __init__(self):
-        super().__init__(self)
-        self.name = "SlaterDhf"
+    def __init__(self, ff):
+        super().__init__(ff)
+        self.name = "SlaterDhfForce"
 
 
 # register all parsers
-# app.forcefield.parsers["SlaterSrEsForce"] = SlaterSrEsGenerator.parseElement
-# app.forcefield.parsers["SlaterSrPolForce"] = SlaterSrPolGenerator.parseElement
-# app.forcefield.parsers["SlaterSrDispForce"] = SlaterSrDispGenerator.parseElement
-# app.forcefield.parsers["SlaterDhfForce"] = SlaterDhfGenerator.parseElement
+jaxGenerators["SlaterSrEsForce"] = SlaterSrEsGenerator
+jaxGenerators["SlaterSrPolForce"] = SlaterSrPolGenerator
+jaxGenerators["SlaterSrDispForce"] = SlaterSrDispGenerator
+jaxGenerators["SlaterDhfForce"] = SlaterDhfGenerator
 
 
 class ADMPPmeGenerator:
@@ -1093,7 +1124,10 @@ class ADMPPmeGenerator:
             self.lpol = False
 
         atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', 'type')
-        self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+        if type(atomTypes[0]) != str:
+            self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
+        else:
+            self.atomTypes = np.array(atomTypes)
         kx = self.fftree.get_attribs(f'{self.name}/Atom', 'kx')
         ky = self.fftree.get_attribs(f'{self.name}/Atom', 'ky')
         kz = self.fftree.get_attribs(f'{self.name}/Atom', 'kz')
@@ -1119,13 +1153,25 @@ class ADMPPmeGenerator:
         qYZ = self.fftree.get_attribs(f'{self.name}/Atom', 'qYZ')
 
         # assume that polarize tag match the per atom type
+        # pol_XX = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityXX')
+        # pol_YY = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityYY')
+        # pol_ZZ = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityZZ')
+        # thole_0 = self.fftree.get_attribs(f'{self.name}/Polarize', 'thole')
         polarizabilityXX = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityXX')
         polarizabilityYY = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityYY')
         polarizabilityZZ = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityZZ')
         thole = self.fftree.get_attribs(f'{self.name}/Polarize', 'thole')
+        polarize_types = self.fftree.get_attribs(f'{self.name}/Polarize', 'type')
+        if type(polarize_types[0]) != str:
+            polarize_types = np.array(polarize_types, dtype=int).astype(str)
+        else:
+            polarize_types = np.array(polarize_types)
+        self.polarize_types = polarize_types
 
         n_atoms = len(atomTypes)
-        assert n_atoms == len(polarizabilityXX), "Number of polarizabilityXX does not match number of atoms!"
+
+
+        # assert n_atoms == len(polarizabilityXX), "Number of polarizabilityXX does not match number of atoms!"
 
         # map atom multipole moments
         if self.lmax == 0:
@@ -1168,6 +1214,7 @@ class ADMPPmeGenerator:
         else:
             pol = None
             tholes = None
+
 
     def overwrite(self):
 
@@ -1213,9 +1260,6 @@ class ADMPPmeGenerator:
             self.fftree.set_attrib(f'{self.name}/Polarize', 'thole', self.paramtree[self.name]['tholes'])
 
 
-
-
-
     def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
                     args):
 
@@ -1233,11 +1277,14 @@ class ADMPPmeGenerator:
 
         n_atoms = len(data.atoms)
         map_atomtype = np.zeros(n_atoms, dtype=int)
+        map_poltype = np.zeros(n_atoms, dtype=int)
 
         for i in range(n_atoms):
             atype = data.atomType[data.atoms[i]]  # convert str to int to match atomTypes
             map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
+            map_poltype[i] = np.where(self.polarize_types == atype)[0][0]
         self.map_atomtype = map_atomtype
+        self.map_poltype = map_poltype
 
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
@@ -1472,8 +1519,8 @@ class ADMPPmeGenerator:
             if self.lpol:
                 pScales = params["pScales"]
                 dScales = params["dScales"]
-                pol = params["pol"][map_atomtype]
-                tholes = params["tholes"][map_atomtype]
+                pol = params["pol"][map_poltype]
+                tholes = params["tholes"][map_poltype]
 
                 return pme_force.get_energy(
                     positions,
