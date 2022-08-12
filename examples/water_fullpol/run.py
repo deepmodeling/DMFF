@@ -41,8 +41,8 @@ if __name__ == '__main__':
     print('#', E_disp, 'kJ/mol')
     # sys.exit()
     # compare induced dipole with mpid
-    # with open('mpid_dip.pickle', 'rb') as ifile:
-    #     U_ind_mpid = pickle.load(ifile) * 10
+    with open('mpid_dip.pickle', 'rb') as ifile:
+        U_ind_mpid = pickle.load(ifile) * 10
 
-    # for x, y in zip(pme_generator.pme_force.U_ind.flatten(), U_ind_mpid.flatten()):
-    #     print(y, y, x)
+    for x, y in zip(pme_generator.pme_force.U_ind.flatten(), U_ind_mpid.flatten()):
+        print(y, y, x)

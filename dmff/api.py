@@ -685,6 +685,7 @@ class ADMPPmeGenerator:
         qYY = self.fftree.get_attribs(f'{self.name}/Atom', 'qYY')
         qZZ = self.fftree.get_attribs(f'{self.name}/Atom', 'qZZ')
         qXY = self.fftree.get_attribs(f'{self.name}/Atom', 'qXY')
+        qXZ = self.fftree.get_attribs(f'{self.name}/Atom', 'qXZ')
         qYZ = self.fftree.get_attribs(f'{self.name}/Atom', 'qYZ')
 
         # assume that polarize tag match the per atom type
@@ -730,8 +731,9 @@ class ADMPPmeGenerator:
             Q[:, 5] = qYY
             Q[:, 6] = qZZ
             Q[:, 7] = qXY
-            Q[:, 8] = qYZ
-            Q[:, 4:9] *= 300
+            Q[:, 8] = qXZ
+            Q[:, 9] = qYZ
+            Q[:, 4:10] *= 300
 
         # add all differentiable params to self.params
         Q_local = convert_cart2harm(Q, self.lmax)
@@ -783,7 +785,7 @@ class ADMPPmeGenerator:
         self.fftree.set_attrib(f'{self.name}/Atom', 'qYY', Q_global[:, 5])
         self.fftree.set_attrib(f'{self.name}/Atom', 'qZZ', Q_global[:, 6])
         self.fftree.set_attrib(f'{self.name}/Atom', 'qXY', Q_global[:, 7])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'qYZ', Q_global[:, 8])
+        self.fftree.set_attrib(f'{self.name}/Atom', 'qXZ', Q_global[:, 8])
         self.fftree.set_attrib(f'{self.name}/Atom', 'qYZ', Q_global[:, 9])
 
         if self.lpol:
