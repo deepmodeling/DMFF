@@ -10,6 +10,7 @@ import jax_md
 import jax.numpy as jnp
 import dmff
 from dmff.api import Hamiltonian
+from dmff.common import nblist
 import pickle
 import time
 from jax import value_and_grad, jit
@@ -17,7 +18,7 @@ import optax
 
 
 if __name__ == '__main__':
-    restart = 'params.0.pickle' # None
+    restart = 'params.1.pickle' # None
     ff = 'forcefield.xml'
     pdb_AB = PDBFile('peg2_dimer.pdb')
     pdb_A = PDBFile('peg2.pdb')
@@ -56,36 +57,36 @@ if __name__ == '__main__':
     rc = 15
 
     # get potential functions
-    potentials_AB = H_AB.createPotential(pdb_AB.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
-    pot_pme_AB, \
-            pot_disp_AB, \
-            pot_ex_AB, \
-            pot_sr_es_AB, \
-            pot_sr_pol_AB, \
-            pot_sr_disp_AB, \
-            pot_dhf_AB, \
-            pot_dmp_es_AB, \
-            pot_dmp_disp_AB = potentials_AB
-    potentials_A = H_A.createPotential(pdb_A.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
-    pot_pme_A, \
-            pot_disp_A, \
-            pot_ex_A, \
-            pot_sr_es_A, \
-            pot_sr_pol_A, \
-            pot_sr_disp_A, \
-            pot_dhf_A, \
-            pot_dmp_es_A, \
-            pot_dmp_disp_A = potentials_A
-    potentials_B = H_B.createPotential(pdb_B.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
-    pot_pme_B, \
-            pot_disp_B, \
-            pot_ex_B, \
-            pot_sr_es_B, \
-            pot_sr_pol_B, \
-            pot_sr_disp_B, \
-            pot_dhf_B, \
-            pot_dmp_es_B, \
-            pot_dmp_disp_B = potentials_B
+    pots_AB = H_AB.createPotential(pdb_AB.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
+    pot_pme_AB = pots_AB.dmff_potentials['ADMPPmeForce']
+    pot_disp_AB = pots_AB.dmff_potentials['ADMPDispPmeForce']
+    pot_ex_AB = pots_AB.dmff_potentials['SlaterExForce']
+    pot_sr_es_AB = pots_AB.dmff_potentials['SlaterSrEsForce']
+    pot_sr_pol_AB = pots_AB.dmff_potentials['SlaterSrPolForce']
+    pot_sr_disp_AB = pots_AB.dmff_potentials['SlaterSrDispForce']
+    pot_dhf_AB = pots_AB.dmff_potentials['SlaterDhfForce']
+    pot_dmp_es_AB = pots_AB.dmff_potentials['QqTtDampingForce']
+    pot_dmp_disp_AB = pots_AB.dmff_potentials['SlaterDampingForce']
+    pots_A = H_A.createPotential(pdb_A.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
+    pot_pme_A = pots_A.dmff_potentials['ADMPPmeForce']
+    pot_disp_A = pots_A.dmff_potentials['ADMPDispPmeForce']
+    pot_ex_A = pots_A.dmff_potentials['SlaterExForce']
+    pot_sr_es_A = pots_A.dmff_potentials['SlaterSrEsForce']
+    pot_sr_pol_A = pots_A.dmff_potentials['SlaterSrPolForce']
+    pot_sr_disp_A = pots_A.dmff_potentials['SlaterSrDispForce']
+    pot_dhf_A = pots_A.dmff_potentials['SlaterDhfForce']
+    pot_dmp_es_A = pots_A.dmff_potentials['QqTtDampingForce']
+    pot_dmp_disp_A = pots_A.dmff_potentials['SlaterDampingForce']
+    pots_B = H_B.createPotential(pdb_B.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
+    pot_pme_B = pots_B.dmff_potentials['ADMPPmeForce']
+    pot_disp_B = pots_B.dmff_potentials['ADMPDispPmeForce']
+    pot_ex_B = pots_B.dmff_potentials['SlaterExForce']
+    pot_sr_es_B = pots_B.dmff_potentials['SlaterSrEsForce']
+    pot_sr_pol_B = pots_B.dmff_potentials['SlaterSrPolForce']
+    pot_sr_disp_B = pots_B.dmff_potentials['SlaterSrDispForce']
+    pot_dhf_B = pots_B.dmff_potentials['SlaterDhfForce']
+    pot_dmp_es_B = pots_B.dmff_potentials['QqTtDampingForce']
+    pot_dmp_disp_B = pots_B.dmff_potentials['SlaterDampingForce']
 
     pos_AB0 = jnp.array(pdb_AB.positions._value) * 10
     n_atoms = len(pos_AB0)
@@ -95,48 +96,53 @@ if __name__ == '__main__':
     pos_B0 = jnp.array(pdb_AB.positions._value[n_atoms_A:n_atoms]) * 10
     box = jnp.array(pdb_AB.topology.getPeriodicBoxVectors()._value) * 10
     # nn list initial allocation
-    displacement_fn, shift_fn = jax_md.space.periodic_general(box, fractional_coordinates=False)
-    neighbor_list_fn = jax_md.partition.neighbor_list(displacement_fn, box, rc, 0, format=jax_md.partition.OrderedSparse)
-    nbr_AB = neighbor_list_fn.allocate(pos_AB0)
-    nbr_A = neighbor_list_fn.allocate(pos_A0)
-    nbr_B = neighbor_list_fn.allocate(pos_B0)
-    pairs_AB = np.array(nbr_AB.idx.T)
-    pairs_A = np.array(nbr_A.idx.T)
-    pairs_B = np.array(nbr_B.idx.T)
+    nbl_AB = nblist.NeighborList(box, rc)
+    nbl_AB.allocate(pos_AB0)
+    pairs_AB = nbl_AB.pairs
+    nbl_A = nblist.NeighborList(box, rc)
+    nbl_A.allocate(pos_A0)
+    pairs_A = nbl_A.pairs
+    nbl_B = nblist.NeighborList(box, rc)
+    nbl_B.allocate(pos_B0)
+    pairs_B = nbl_B.pairs
 
+    pairs_AB =  pairs_AB[pairs_AB[:, 0] < pairs_AB[:, 1]]
+    pairs_A =  pairs_A[pairs_A[:, 0] < pairs_A[:, 1]]
+    pairs_B =  pairs_B[pairs_B[:, 0] < pairs_B[:, 1]]
 
+    params0 = H_AB.getParameters()
     # construct total force field params
     comps = ['ex', 'es', 'pol', 'disp', 'dhf', 'tot']
     weights_comps = jnp.array([0.001, 0.001, 0.001, 0.001, 0.001, 1.0])
     if restart is None:
         params = {}
-        sr_generators = {
-                'ex': ex_generator_AB,
-                'es': sr_es_generator_AB,
-                'pol': sr_pol_generator_AB,
-                'disp': sr_disp_generator_AB,
-                'dhf': dhf_generator_AB,
+        sr_forces = {
+                'ex': 'SlaterExForce',
+                'es': 'SlaterSrEsForce',
+                'pol': 'SlaterSrPolForce',
+                'disp': 'SlaterSrDispForce',
+                'dhf': 'SlaterDhfForce',
                 }
-        for k in pme_generator_AB.params:
-            params[k] = pme_generator_AB.params[k]
-        for k in disp_generator_AB.params:
-            params[k] = disp_generator_AB.params[k]
+        for k in params0['ADMPPmeForce']:
+            params[k] = params0['ADMPPmeForce'][k]
+        for k in params0['ADMPDispPmeForce']:
+            params[k] = params0['ADMPDispPmeForce'][k]
         for c in comps:
             if c == 'tot':
                 continue
-            gen = sr_generators[c]
-            for k in gen.params:
+            force = sr_forces[c]
+            for k in params0[sr_forces[c]]:
                 if k == 'A':
-                    params['A_'+c] = gen.params[k]
+                    params['A_'+c] = params0[sr_forces[c]][k]
                 else:
-                    params[k] = gen.params[k]
+                    params[k] = params0[sr_forces[c]][k]
         # a random initialization of A
         for c in comps:
             if c == 'tot':
                 continue
             params['A_'+c] = jnp.array(np.random.random(params['A_'+c].shape))
         # specify charges for es damping
-        params['Q'] = dmp_es_generator_AB.params['Q']
+        params['Q'] = params0['QqTtDampingForce']['Q']
     else:
         with open(restart, 'rb') as ifile:
             params = pickle.load(ifile)
@@ -188,6 +194,14 @@ if __name__ == '__main__':
         params_dmp_disp['C6'] = params['C6']
         params_dmp_disp['C8'] = params['C8']
         params_dmp_disp['C10'] = params['C10']
+        p = {}
+        p['SlaterExForce'] = params_ex
+        p['SlaterSrEsForce'] = params_sr_es
+        p['SlaterSrPolForce'] = params_sr_pol
+        p['SlaterSrDispForce'] = params_sr_disp
+        p['SlaterDhfForce'] = params_dhf
+        p['QqTtDampingForce'] = params_dmp_es
+        p['SlaterDampingForce'] = params_dmp_disp
 
         # calculate each points, only the short range and damping components
         for ipt in range(npts):
@@ -199,44 +213,44 @@ if __name__ == '__main__':
             #####################
             # exchange repulsion
             #####################
-            E_ex_AB = pot_ex_AB(pos_AB, box, pairs_AB, params_ex)
-            E_ex_A = pot_ex_A(pos_A, box, pairs_A, params_ex)
-            E_ex_B = pot_ex_B(pos_B, box, pairs_B, params_ex)
+            E_ex_AB = pot_ex_AB(pos_AB, box, pairs_AB, p)
+            E_ex_A = pot_ex_A(pos_A, box, pairs_A, p)
+            E_ex_B = pot_ex_B(pos_B, box, pairs_B, p)
             E_ex = E_ex_AB - E_ex_A - E_ex_B
 
             #######################
             # electrostatic + pol
             #######################
-            E_dmp_es = pot_dmp_es_AB(pos_AB, box, pairs_AB, params_dmp_es) \
-                     - pot_dmp_es_A(pos_A, box, pairs_A, params_dmp_es) \
-                     - pot_dmp_es_B(pos_B, box, pairs_B, params_dmp_es)
-            E_sr_es = pot_sr_es_AB(pos_AB, box, pairs_AB, params_sr_es) \
-                    - pot_sr_es_A(pos_A, box, pairs_A, params_sr_es) \
-                    - pot_sr_es_B(pos_B, box, pairs_B, params_sr_es)
+            E_dmp_es = pot_dmp_es_AB(pos_AB, box, pairs_AB, p) \
+                     - pot_dmp_es_A(pos_A, box, pairs_A, p) \
+                     - pot_dmp_es_B(pos_B, box, pairs_B, p)
+            E_sr_es = pot_sr_es_AB(pos_AB, box, pairs_AB, p) \
+                    - pot_sr_es_A(pos_A, box, pairs_A, p) \
+                    - pot_sr_es_B(pos_B, box, pairs_B, p)
 
             ###################################
             # polarization (induction) energy
             ###################################
-            E_sr_pol = pot_sr_pol_AB(pos_AB, box, pairs_AB, params_sr_pol) \
-                     - pot_sr_pol_A(pos_A, box, pairs_A, params_sr_pol) \
-                     - pot_sr_pol_B(pos_B, box, pairs_B, params_sr_pol)
+            E_sr_pol = pot_sr_pol_AB(pos_AB, box, pairs_AB, p) \
+                     - pot_sr_pol_A(pos_A, box, pairs_A, p) \
+                     - pot_sr_pol_B(pos_B, box, pairs_B, p)
 
             #############
             # dispersion
             #############
-            E_dmp_disp = pot_dmp_disp_AB(pos_AB, box, pairs_AB, params_dmp_disp) \
-                       - pot_dmp_disp_A(pos_A, box, pairs_A, params_dmp_disp) \
-                       - pot_dmp_disp_B(pos_B, box, pairs_B, params_dmp_disp)
-            E_sr_disp = pot_sr_disp_AB(pos_AB, box, pairs_AB, params_sr_disp) \
-                      - pot_sr_disp_A(pos_A, box, pairs_A, params_sr_disp) \
-                      - pot_sr_disp_B(pos_B, box, pairs_B, params_sr_disp)
+            E_dmp_disp = pot_dmp_disp_AB(pos_AB, box, pairs_AB, p) \
+                       - pot_dmp_disp_A(pos_A, box, pairs_A, p) \
+                       - pot_dmp_disp_B(pos_B, box, pairs_B, p)
+            E_sr_disp = pot_sr_disp_AB(pos_AB, box, pairs_AB, p) \
+                      - pot_sr_disp_A(pos_A, box, pairs_A, p) \
+                      - pot_sr_disp_B(pos_B, box, pairs_B, p)
 
             ###########
             # dhf
             ###########
-            E_AB_dhf = pot_dhf_AB(pos_AB, box, pairs_AB, params_dhf)
-            E_A_dhf = pot_dhf_A(pos_A, box, pairs_A, params_dhf)
-            E_B_dhf = pot_dhf_B(pos_B, box, pairs_B, params_dhf)
+            E_AB_dhf = pot_dhf_AB(pos_AB, box, pairs_AB, p)
+            E_A_dhf = pot_dhf_A(pos_A, box, pairs_A, p)
+            E_B_dhf = pot_dhf_B(pos_B, box, pairs_B, p)
             E_dhf = E_AB_dhf - E_A_dhf - E_B_dhf
 
             energies['ex'] = energies['ex'].at[ipt].set(E_ex)

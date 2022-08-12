@@ -692,16 +692,17 @@ class ADMPPmeGenerator:
         # pol_YY = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityYY')
         # pol_ZZ = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityZZ')
         # thole_0 = self.fftree.get_attribs(f'{self.name}/Polarize', 'thole')
-        polarizabilityXX = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityXX')
-        polarizabilityYY = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityYY')
-        polarizabilityZZ = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityZZ')
-        thole = self.fftree.get_attribs(f'{self.name}/Polarize', 'thole')
-        polarize_types = self.fftree.get_attribs(f'{self.name}/Polarize', 'type')
-        if type(polarize_types[0]) != str:
-            polarize_types = np.array(polarize_types, dtype=int).astype(str)
-        else:
-            polarize_types = np.array(polarize_types)
-        self.polarize_types = polarize_types
+        if self.lpol:
+            polarizabilityXX = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityXX')
+            polarizabilityYY = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityYY')
+            polarizabilityZZ = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityZZ')
+            thole = self.fftree.get_attribs(f'{self.name}/Polarize', 'thole')
+            polarize_types = self.fftree.get_attribs(f'{self.name}/Polarize', 'type')
+            if type(polarize_types[0]) != str:
+                polarize_types = np.array(polarize_types, dtype=int).astype(str)
+            else:
+                polarize_types = np.array(polarize_types)
+            self.polarize_types = polarize_types
 
         n_atoms = len(atomTypes)
 
@@ -817,9 +818,11 @@ class ADMPPmeGenerator:
         for i in range(n_atoms):
             atype = data.atomType[data.atoms[i]]  # convert str to int to match atomTypes
             map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
-            map_poltype[i] = np.where(self.polarize_types == atype)[0][0]
+            if self.lpol:
+                map_poltype[i] = np.where(self.polarize_types == atype)[0][0]
         self.map_atomtype = map_atomtype
-        self.map_poltype = map_poltype
+        if self.lpol:
+            self.map_poltype = map_poltype
 
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
