@@ -43,8 +43,9 @@ class NeighborList:
         Returns:
             jax_md.partition.NeighborList
         """
-        jit_deco = jit_condition()
-        jit_deco(self.nblist.update)(positions)
+        # jit_deco = jit_condition()
+        # jit_deco(self.nblist.update)(positions)
+        self.nblist.update(positions)
         
         return self.nblist
     
