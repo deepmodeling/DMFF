@@ -17,7 +17,7 @@ class TestVdW:
     def test_lj_force(self, pdb, prm, value):
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        system = h.createPotential(pdb.topology,
+        potential = h.createPotential(pdb.topology,
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
@@ -26,11 +26,11 @@ class TestVdW:
         nblist = NeighborList(box, 4.0)
         nblist.allocate(pos)
         pairs = nblist.pairs
-        ljE = h._potentials[0]
-        energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
+        ljE = potential.getPotentialFunc()
+        energy = ljE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(ljE)(pos, box, pairs, h.getGenerators()[0].params)
+        energy = jax.jit(ljE)(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
 
@@ -40,7 +40,7 @@ class TestVdW:
     def test_lj_large_force(self, pdb, prm, value):
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        system = h.createPotential(pdb.topology,
+        potential = h.createPotential(pdb.topology,
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
@@ -51,17 +51,17 @@ class TestVdW:
             for jj in range(ii + 1, 10):
                 pairs.append((ii, jj))
         pairs = np.array(pairs, dtype=int)
-        ljE = h._potentials[0]
-        energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
+        ljE = potential.getPotentialFunc()
+        energy = ljE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(ljE)(pos, box, pairs, h.getGenerators()[0].params)
+        energy = jax.jit(ljE)(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
     def test_lj_params_check(self):
         pdb = app.PDBFile("tests/data/lj3.pdb")
         h = Hamiltonian("tests/data/lj3.xml")
-        system = h.createPotential(pdb.topology,
+        potential = h.createPotential(pdb.topology,
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
@@ -72,9 +72,9 @@ class TestVdW:
             for jj in range(ii + 1, 10):
                 pairs.append((ii, jj))
         pairs = np.array(pairs, dtype=int)                                        
-        ljE = h._potentials[0]
+        ljE = potential.getPotentialFunc()
         with pytest.raises(TypeError):
-            energy = ljE(pos, box, pairs, h.getGenerators()[0].params)
+            energy = ljE(pos, box, pairs, h.getGenerators()[0].paramtree)
             
-        energy = jax.jit(ljE)(pos, box, pairs, h.getGenerators()[0].params)  # jit will optimized away type check
-        force = jax.grad(jax.jit(ljE))(pos, box, pairs, h.getGenerators()[0].params)
+        energy = jax.jit(ljE)(pos, box, pairs, h.paramtree)  # jit will optimized away type check
+        force = jax.grad(jax.jit(ljE))(pos, box, pairs, h.paramtree)

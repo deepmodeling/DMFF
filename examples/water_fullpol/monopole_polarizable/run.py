@@ -14,9 +14,9 @@ if __name__ == '__main__':
     pdb = app.PDBFile("waterbox_31ang.pdb")
     rc = 6
     # generator stores all force field parameters
-    pme_generator = H.getGenerators()[1]
+    params = H.getParameters()
     
-    pot_pme = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)[1]
+    pot_pme = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom).dmff_potentials['ADMPPmeForce']
 
     # construct inputs
     positions = jnp.array(pdb.positions._value) * 10
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     nbr = neighbor_list_fn.allocate(positions)
     pairs = nbr.idx.T    
 
-    E_pme, F_pme = value_and_grad(pot_pme)(positions, box, pairs, pme_generator.params)
+    E_pme, F_pme = value_and_grad(pot_pme)(positions, box, pairs, params)
 
     print('Electrostatic Energy (kJ/mol):')
     print(E_pme)
