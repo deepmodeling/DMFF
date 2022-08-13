@@ -49,8 +49,8 @@ pme_generator = generators[1]
 
 potentials = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
 # pot_fn is the actual energy calculator
-pot_disp = potentials[0]
-pot_pme = potentials[1]
+pot_disp = potentials.dmff_potentials['ADMPDispForce']
+pot_pme = potentials.dmff_potentials['ADMPPmeForce']
 ```
 
 `Hamiltonian` class performs the following operations during instantiation:
@@ -58,11 +58,6 @@ pot_pme = potentials[1]
 * read Residue tag in XML, generate Residue template;
 * read AtomTypes tag, store AtomType of each atom;
 * for each Force tag, call corresponding `parseElement` method in `app.forcefield.parser` to parse itself, and register `generator`.
-
-`app.forcefield.parser` is a `dict`, the keys are Force tag names, and the values are the `parseElement` method 
-of the corresponding `generator`. When `Hamiltonian` parses the XML file, it will use the tag name to look up the 
-corresponding `parseElement` method, then calls it to initialize the `generator` instance, which stores the raw 
-parameters from the XML file. You can access all the generators by the `getGenerators()` method in Hamiltonian. 
 
 
 ### 2.1.2 Generator Class
