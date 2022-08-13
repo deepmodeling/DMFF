@@ -12,7 +12,8 @@ app.Topology.loadBondDefinitions("lig-top.xml")
 pdb = app.PDBFile("lig.pdb")
 ff = Hamiltonian("gaff-2.11.xml", "lig-prm.xml")
 potentials = ff.createPotential(pdb.topology)
-for pot in potentials:
+for k in potentials.dmff_potentials.keys():
+    pot = potentials.dmff_potentials[k]
     print(pot)
 ```
 In this example, `lig.pdb` is the PDB file containing atomic coordinates, and `lig-top.xml` specifying bond connections within a molecule and this information is required by `openmm.app` to generate molecular topology. Note that this file is not always required, if bond conncections are defined in .pdb file by `CONNECT` keyword. `gaff-2.11.xml` contains GAFF2 force field parameters (bonds, angles, torsion and vdW), and `lig-prm.xml` contains atomic partial charges (GAFF2 requests a user-defined charge assignment process). This xml format is compatitable with OpenMM definitions, and a detailed description can be found in [OpenMM user guide](`http://docs.openmm.org/latest/userguide/application/05_creating_ffs.html`) or [XML-format force fields](./xml_spec.md) section.
@@ -24,9 +25,10 @@ If you run this script in `examples/classical`, you will get the following outpu
 <function PeriodicTorsionJaxGenerator.createForce.<locals>.potential_fn at 0x18509b790>
 <function NonbondJaxGenerator.createForce.<locals>.potential_fn at 0x18509baf0>
 ```
-The force field parameters are stored as a Python dict in the `param` attribute of force generators.
+The force field parameters are stored as a Python dict in the Hamiltonian.
 ```python
-nbparam = ff.getGenerators()[3].params
+params = ff.getParameters()
+nbparam = params['NonbondedForce']
 nbparam
 ```
 
@@ -59,13 +61,13 @@ Note that in order to take advantages of the auto-differentiable implementation 
 
 The potential energy function will give energy (a scalar, in kJ/mol) as output:
 ```python
-nbfunc = potentials[3]
-nbene = nbfunc(positions, box, pairs, nbparam)
+nbfunc = potentials.dmff_potentials['NonbondedForce']
+nbene = nbfunc(positions, box, pairs, params)
 print(nbene)
 ```
 If everything works fine, you will get `-425.41412` as a result. In addition, you can also use `getPotentialFunc()` and `getParameters()` to obtain the whole potential energy function and force field parameter set, instead of seperated functions for different energy terms.
 ```python
-efunc = ff.getPotentialFunc()
+efunc = potentials.getPotentialFunc()
 params = ff.getParameters()
 totene = efunc(positions, box, pairs, params)
 ```
@@ -81,8 +83,8 @@ force = -pos_grad_func(positions, box, pairs, params)
 Similarly, the derivative of energy with regard to force field parameters can also be computed easily.
 ```
 param_grad_func = jax.grad(nbfunc, argnums=-1)
-pgrad = param_grad_func(positions, box, pairs, nbparam)
-print(pgrad["charge"])
+pgrad = param_grad_func(positions, box, pairs, params)
+print(pgrad["NonbondedForce"]["charge"])
 ```
 
 ```python

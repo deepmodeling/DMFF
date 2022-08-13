@@ -32,10 +32,8 @@ To test if DMFF is correctly installed, you can run the following commands in an
 
 You can also run the example scripts to test whether DMFF is installed correctly.
 ```bash
-cd ./examples/water_1024
-python ./run_admp.py
+cd ./examples/water_fullpol
+python ./run.py
 
-cd ./examples/water_pol_1024
-python ./run_admp.py
 ```
 Note that the scripts will run slower than expect if `DO_JIT = True` in `dmff/settings.py`. This is because the programm will do the jit compilation when a function is invoked in the first time.
