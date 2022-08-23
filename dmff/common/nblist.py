@@ -2,6 +2,7 @@ import jax.numpy as jnp
 from jax_md import space, partition
 from dmff.utils import jit_condition
 from dmff.utils import regularize_pairs
+from jax import jit
 
 
 class NeighborList:
@@ -45,8 +46,9 @@ class NeighborList:
         """
         # jit_deco = jit_condition()
         # jit_deco(self.nblist.update)(positions)
-        self.nblist.update(positions)
-        
+        self.nblist = self.nblist.update(positions)
+        if self.nblist.did_buffer_overflow:
+            self.nblist = self.neighborlist_fn.allocate(positions)
         return self.nblist
     
     @property
