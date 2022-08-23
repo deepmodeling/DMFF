@@ -44,11 +44,7 @@ class NeighborList:
         Returns:
             jax_md.partition.NeighborList
         """
-        # jit_deco = jit_condition()
-        # jit_deco(self.nblist.update)(positions)
         self.nblist = self.nblist.update(positions)
-        if self.nblist.did_buffer_overflow:
-            self.nblist = self.neighborlist_fn.allocate(positions)
         return self.nblist
     
     @property
@@ -102,3 +98,14 @@ class NeighborList:
         
         """
         return jnp.linalg.norm(self.dr, axis=1)
+
+    @property
+    def did_buffer_overflow(self)->bool:
+        """
+        if the neighborlist buffer overflowed, return True
+
+        Returns
+        -------
+        boolen
+        """
+        return self.nblist.did_buffer_overflow
