@@ -22,19 +22,6 @@ class TestNeighborList:
         nbobj.allocate(positions)
         yield nbobj
         
-    def test_jit_update(self, nblist):
-
-        positions = jnp.array([
-            [12.434,   3.404,   1.540],
-            [13.030,   2.664,   1.322],
-            [12.312,   3.814,   0.660],
-            [14.216,   1.424,   1.103],
-            [14.246,   1.144,   2.054],
-            [15.155,   1.542,   0.910]
-        ])   
-
-        jit(nblist.update)(positions) # pass 
-        jit(nblist.update)(positions) # pass 
 
 
     def test_update(self, nblist):
@@ -67,3 +54,17 @@ class TestNeighborList:
     def test_distance(self, nblist):
         
         assert nblist.distance.shape == (15, )
+
+    def test_jit_update(self, nblist):
+
+        positions = jnp.array([
+            [12.434,   3.404,   1.540],
+            [13.030,   2.664,   1.322],
+            [12.312,   3.814,   0.660],
+            [14.216,   1.424,   1.103],
+            [14.246,   1.144,   2.054],
+            [15.155,   1.542,   0.910]
+        ])   
+
+        jit(nblist.update)(positions) # pass 
+        jit(nblist.update)(positions) # pass 
