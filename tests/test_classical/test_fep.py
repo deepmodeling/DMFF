@@ -46,7 +46,7 @@ class TestFreeEnergy:
             [ 1.20,  0.00,  0.00],
             [ 0.00,  1.20,  0.00],
             [ 0.00,  0.00,  1.20]
-        ], dtype=jnp.float64)
+        ])
         gen = h.getGenerators()[-1]
         nbList = NeighborList(box, rcut, gen.covalent_map)
         nbList.allocate(positions)
@@ -102,7 +102,7 @@ class TestFreeEnergy:
             [ 1.20,  0.00,  0.00],
             [ 0.00,  1.20,  0.00],
             [ 0.00,  0.00,  1.20]
-        ], dtype=jnp.float64)
+        ])
         gen = h.getGenerators()[-1]
         nbList = NeighborList(box, rcut, gen.covalent_map)
         nbList.allocate(positions)

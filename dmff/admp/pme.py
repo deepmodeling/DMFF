@@ -304,7 +304,7 @@ def energy_pme(positions, box, pairs,
             (Nexcl,): multipole-multipole interaction exclusion scalings: 1-2, 1-3 ...
             for permanent-permanent, permanent-induced, induced-induced interactions
         pairs:
-            Np * 2: interacting pair indices
+            Np * 3: interacting pair indices and topology distance
         covalent_map:
             Na * Na: topological distances between atoms, if i, j are topologically distant, then covalent_map[i, j] == 0
         construct_local_frame_fn:
@@ -761,7 +761,7 @@ def pme_real(positions, box, pairs,
         box:
             3 * 3: box, axes arranged in row
         pairs:
-            Np * 2: interacting pair indices
+            Np * 3: interacting pair indices and topology distance
         Q_global:
             Na * (l+1)**2: harmonics multipoles of each atom, in global frame
         Uind_global:

@@ -90,7 +90,7 @@ def energy_disp_pme(positions, box, pairs,
         box:
             3 * 3: box, axes arranged in row
         pairs:
-            Np * 2: interacting pair indices
+            Np * 3: interacting pair indices and topology distance
         c_list:
             Na * (pmax-4)/2: atomic dispersion coefficients
         mScales:
@@ -144,7 +144,7 @@ def disp_pme_real(positions, box, pairs,
         box:
             3 * 3: box, axes arranged in row
         pairs:
-            Np * 2: interacting pair indices
+            Np * 3: interacting pair indices and topology distance
         c_list:
             Na * (pmax-4)/2: atomic dispersion coefficients
         mScales:

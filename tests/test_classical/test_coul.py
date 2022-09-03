@@ -22,8 +22,6 @@ class TestCoulomb:
                                    removeCMMotion=False)
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
-        # pairs = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]],
-        #                  dtype=int)
         rc = 4
         gen = h.getGenerators()[-1]
         nblist = NeighborList(box, rc, gen.covalent_map)
@@ -48,11 +46,6 @@ class TestCoulomb:
                                    removeCMMotion=False)
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
-        # pairs = []
-        # for ii in range(10):
-        #     for jj in range(ii + 1, 10):
-        #         pairs.append((ii, jj))
-        # pairs = np.array(pairs, dtype=int)
         rc = 4
         gen = h.getGenerators()[-1]
         nblist = NeighborList(box, rc, gen.covalent_map)
@@ -77,11 +70,6 @@ class TestCoulomb:
                                    removeCMMotion=False)
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
-        # pairs = []
-        # for ii in range(10):
-        #     for jj in range(ii + 1, 10):
-        #         pairs.append((ii, jj))
-        # pairs = np.array(pairs, dtype=int)
         rc = 4
         gen = h.getGenerators()[-1]
         nblist = NeighborList(box, rc, gen.covalent_map)
@@ -126,7 +114,7 @@ class TestCoulomb:
             [ 1.20,  0.00,  0.00],
             [ 0.00,  1.20,  0.00],
             [ 0.00,  0.00,  1.20]
-        ], dtype=jnp.float64)
+        ])
 
         gen = h.getGenerators()[-1]
 
