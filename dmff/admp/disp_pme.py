@@ -17,8 +17,8 @@ class ADMPDispPmeForce:
     The so called "environment paramters" means parameters that do not need to be differentiable
     '''
 
-    def __init__(self, box, covalent_map, rc, ethresh, pmax, lpme=True):
-        self.covalent_map = covalent_map
+    def __init__(self, box, rc, ethresh, pmax, lpme=True):
+
         self.rc = rc
         self.ethresh = ethresh
         self.pmax = pmax
@@ -44,7 +44,7 @@ class ADMPDispPmeForce:
     def generate_get_energy(self):
         def get_energy(positions, box, pairs, c_list, mScales):
             return energy_disp_pme(positions, box, pairs, 
-                                  c_list, mScales, self.covalent_map,
+                                  c_list, mScales,
                                   self.kappa, self.K1, self.K2, self.K3, self.pmax,
                                   self.d6_recip, self.d8_recip, self.d10_recip, lpme=self.lpme)
         return get_energy
@@ -78,7 +78,7 @@ class ADMPDispPmeForce:
 
 
 def energy_disp_pme(positions, box, pairs,
-        c_list, mScales, covalent_map,
+        c_list, mScales,
         kappa, K1, K2, K3, pmax, 
         recip_fn6, recip_fn8, recip_fn10, lpme=True):
     '''
@@ -115,7 +115,7 @@ def energy_disp_pme(positions, box, pairs,
     if lpme is False:
         kappa = 0
 
-    ene_real = disp_pme_real(positions, box, pairs, c_list, mScales, covalent_map, kappa, pmax)
+    ene_real = disp_pme_real(positions, box, pairs, c_list, mScales, kappa, pmax)
 
     if lpme:
         ene_recip = recip_fn6(positions, box, c_list[:, 0, jnp.newaxis])
@@ -132,7 +132,7 @@ def energy_disp_pme(positions, box, pairs,
 
 def disp_pme_real(positions, box, pairs, 
         c_list, 
-        mScales, covalent_map, 
+        mScales, 
         kappa, pmax):
     '''
     This function calculates the dispersion real space energy
@@ -162,16 +162,16 @@ def disp_pme_real(positions, box, pairs,
 
     # expand pairwise parameters
     # pairs = pairs[pairs[:, 0] < pairs[:, 1]]
-    pairs = regularize_pairs(pairs)
+    pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
 
     box_inv = jnp.linalg.inv(box)
 
     ri = distribute_v3(positions, pairs[:, 0])
     rj = distribute_v3(positions, pairs[:, 1])
-    nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
+    nbonds = pairs[:, 2]
     mscales = distribute_scalar(mScales, nbonds-1)
 
-    buffer_scales = pair_buffer_scales(pairs)
+    buffer_scales = pair_buffer_scales(pairs[:, :2])
     mscales = mscales * buffer_scales
 
     ci = distribute_dispcoeff(c_list, pairs[:, 0])

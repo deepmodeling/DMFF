@@ -5,7 +5,7 @@ import openmm.app as app
 import openmm.unit as unit
 import numpy as np
 import numpy.testing as npt
-from dmff.api import Hamiltonian
+from dmff import Hamiltonian, NeighborList
 
 
 class TestGaff2:
@@ -23,11 +23,16 @@ class TestGaff2:
                                    removeCMMotion=False)
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
-        pairs = []
-        for ii in range(pos.shape[0]):
-            for jj in range(ii + 1, pos.shape[0]):
-                pairs.append((ii, jj))
-        pairs = jnp.array(pairs, dtype=int)
+        # pairs = []
+        # for ii in range(pos.shape[0]):
+        #     for jj in range(ii + 1, pos.shape[0]):
+        #         pairs.append((ii, jj))
+        # pairs = jnp.array(pairs, dtype=int)
+        rc = 4
+        gen = h.getGenerators()[-1]
+        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist.allocate(pos)
+        pairs = nblist.pairs
         ljE = potential.getPotentialFunc()
         energy = ljE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
@@ -60,11 +65,16 @@ class TestGaff2:
         )
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[20.0, 0.0, 0.0], [0.0, 20.0, 0.0], [0.0, 0.0, 20.0]])
-        pairs = []
-        for ii in range(pos.shape[0]):
-            for jj in range(ii + 1, pos.shape[0]):
-                pairs.append((ii, jj))
-        pairs = np.array(pairs, dtype=int)
+        # pairs = []
+        # for ii in range(pos.shape[0]):
+        #     for jj in range(ii + 1, pos.shape[0]):
+        #         pairs.append((ii, jj))
+        # pairs = np.array(pairs, dtype=int)
+        rc = 4
+        gen = h.getGenerators()[-1]
+        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist.allocate(pos)
+        pairs = nblist.pairs
         for ne, energy in enumerate(potential.dmff_potentials.values()):
             E = energy(pos, box, pairs, h.paramtree)
             npt.assert_almost_equal(E, values[ne], decimal=3)
@@ -97,11 +107,16 @@ class TestGaff2:
         )
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[20.0, 0.0, 0.0], [0.0, 20.0, 0.0], [0.0, 0.0, 20.0]])
-        pairs = []
-        for ii in range(pos.shape[0]):
-            for jj in range(ii + 1, pos.shape[0]):
-                pairs.append((ii, jj))
-        pairs = np.array(pairs, dtype=int)
+        # pairs = []
+        # for ii in range(pos.shape[0]):
+        #     for jj in range(ii + 1, pos.shape[0]):
+        #         pairs.append((ii, jj))
+        # pairs = np.array(pairs, dtype=int)
+        rc = 4
+        gen = h.getGenerators()[-1]
+        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist.allocate(pos)
+        pairs = nblist.pairs
         efunc = potential.getPotentialFunc()
         Eref = sum(values)
         Ecalc = efunc(pos, box, pairs, h.paramtree)
