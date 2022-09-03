@@ -1,15 +1,13 @@
 #!/usr/bin/env python
-import copy
 import sys
 from functools import partial
 from itertools import permutations, product
 
-import jax
 import jax.numpy as jnp
 import MDAnalysis as mda
 import numpy as np
 from dmff.admp.pairwise import distribute_scalar, distribute_v3
-from dmff.admp.spatial import pbc_shift, v_pbc_shift
+from dmff.admp.spatial import pbc_shift
 from dmff.utils import jit_condition
 from jax import vmap
 
