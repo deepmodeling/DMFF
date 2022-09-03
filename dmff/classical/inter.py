@@ -63,7 +63,7 @@ class LennardJonesForce:
 
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)), epsilon.shape[0], axis=1)
             eps_m2 = eps_m1.T
-            eps_mat = jnp.sqrt(eps_m1 * eps_m2)
+            eps_mat = jnp.sqrt(eps_m1 * eps_m2 + 1e-32)
             sig_m1 = jnp.repeat(sigma.reshape((-1, 1)), sigma.shape[0], axis=1)
             sig_m2 = sig_m1.T
             sig_mat = (sig_m1 + sig_m2) * 0.5
@@ -85,7 +85,6 @@ class LennardJonesForce:
             eps_scale = eps * mscale_pair
 
             E_inter = get_LJ_energy(dr_vec, sig, eps_scale, box)
-
             return jnp.sum(E_inter * mask)
 
         return get_energy
@@ -198,8 +197,6 @@ class CoulReactionFieldForce:
             if self.ifPBC:
                 dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
-            chrgprod = chrgprod[dr_norm <= self.r_cut]
-            dr_norm = dr_norm[dr_norm <= self.r_cut]
 
             dr_inv = 1.0 / dr_norm
             E = (

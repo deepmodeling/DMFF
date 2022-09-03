@@ -15,9 +15,11 @@ if __name__ == '__main__':
     pdb = app.PDBFile("water_dimer.pdb")
     rc = 6
     # generator stores all force field parameters
-    disp_generator, pme_generator = H.getGenerators()
+    params = H.getParameters()
     
-    pot_disp, pot_pme = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
+    pots = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
+    pot_disp = pots.dmff_potentials['ADMPDispForce']
+    pot_pme = pots.dmff_potentials['ADMPPmeForce']
 
     # construct inputs
     positions = jnp.array(pdb.positions._value) * 10
@@ -46,6 +48,6 @@ if __name__ == '__main__':
     # for x, y in zip(pme_generator.pme_force.U_ind.flatten(), U_ind_mpid.flatten()):
     #     print(y, y, x)
 
-    param_grad = grad(pot_pme, argnums=(3))(positions, box, pairs, pme_generator.params)
-    print(param_grad['pScales'])
-    print(param_grad['dScales'])
+    param_grad = grad(pot_pme, argnums=(3))(positions, box, pairs, params)
+    print(param_grad['ADMPPmeForce']['pScales'])
+    print(param_grad['ADMPPmeForce']['dScales'])
