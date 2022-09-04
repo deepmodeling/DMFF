@@ -44,7 +44,7 @@ def distribute_dispcoeff(c_list, index):
 def distribute_matrix(multipoles,index1,index2):
     return multipoles[index1,index2]
 
-def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
+def generate_pairwise_interaction(pair_int_kernel, static_args):
     '''
     This is a calculator generator for pairwise interaction 
 
@@ -52,9 +52,6 @@ def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
         pair_int_kernel:
             function type (dr, m, p1i, p1j, p2i, p2j) -> energy : the vectorized kernel function, 
             dr is the distance, m is the topological scaling factor, p1i, p1j, p2i, p2j are pairwise parameters
-
-        covalent_map:
-            Na * Na, int: the covalent_map matrix that marks the topological distances between atoms
 
         static_args:
             dict: a dictionary that stores all static global parameters (such as lmax, kappa, etc)
@@ -73,7 +70,7 @@ def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
         rj = distribute_v3(positions, pairs[:, 1])
         # ri = positions[pairs[:, 0]]
         # rj = positions[pairs[:, 1]]
-        nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
+        nbonds = pairs[:, 3]
         mscales = distribute_scalar(mScales, nbonds-1)
 
         buffer_scales = pair_buffer_scales(pairs)

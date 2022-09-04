@@ -21,7 +21,6 @@ class LennardJonesForce:
         r_cut,
         map_prm,
         map_nbfix,
-        colvmap,
         isSwitch: bool = False,
         isPBC: bool = True,
         isNoCut: bool = False
@@ -34,7 +33,6 @@ class LennardJonesForce:
         self.map_nbfix = map_nbfix
         self.ifPBC = isPBC
         self.ifNoCut = isNoCut
-        self.colvmap = colvmap
 
     def generate_get_energy(self):
         def get_LJ_energy(dr_vec, sig, eps, box):
@@ -57,13 +55,13 @@ class LennardJonesForce:
 
         def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix, mscales):
             
-            pairs = regularize_pairs(pairs)
-            mask = pair_buffer_scales(pairs)
+            pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
+            mask = pair_buffer_scales(pairs[:, :2])
             map_prm = self.map_prm
 
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)), epsilon.shape[0], axis=1)
             eps_m2 = eps_m1.T
-            eps_mat = jnp.sqrt(eps_m1 * eps_m2)
+            eps_mat = jnp.sqrt(eps_m1 * eps_m2 + 1e-32)
             sig_m1 = jnp.repeat(sigma.reshape((-1, 1)), sigma.shape[0], axis=1)
             sig_m2 = sig_m1.T
             sig_mat = (sig_m1 + sig_m2) * 0.5
@@ -73,7 +71,7 @@ class LennardJonesForce:
             sig_mat = sig_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(sigfix)
             sig_mat = sig_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(sigfix)
 
-            colv_pair = self.colvmap[pairs[:,0],pairs[:,1]]
+            colv_pair = pairs[:, 2]
             mscale_pair = mscales[colv_pair-1] # in mscale vector, the 0th item is 1-2 scale, the 1st item is 1-3 scale, etc...
 
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
@@ -85,7 +83,6 @@ class LennardJonesForce:
             eps_scale = eps * mscale_pair
 
             E_inter = get_LJ_energy(dr_vec, sig, eps_scale, box)
-
             return jnp.sum(E_inter * mask)
 
         return get_energy
@@ -133,11 +130,10 @@ class LennardJonesLongRangeForce:
 class CoulNoCutoffForce:
     # E=\frac{{q}_{1}{q}_{2}}{4\pi\epsilon_0\epsilon_1 r}
 
-    def __init__(self, map_prm, colvmap, epsilon_1=1.0) -> None:
+    def __init__(self, map_prm, epsilon_1=1.0) -> None:
 
         self.eps_1 = epsilon_1
         self.map_prm = map_prm
-        self.colvmap = colvmap
 
     def generate_get_energy(self):
         def get_coul_energy(dr_vec, chrgprod, box):
@@ -150,11 +146,11 @@ class CoulNoCutoffForce:
 
         def get_energy(positions, box, pairs, charges, mscales):
             
-            pairs = regularize_pairs(pairs)
-            mask = pair_buffer_scales(pairs)
+            pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
+            mask = pair_buffer_scales(pairs[:, :2])
             map_prm = jnp.array(self.map_prm)
 
-            colv_pair = self.colvmap[pairs[:,0],pairs[:,1]]
+            colv_pair = pairs[:, 2]
             mscale_pair = mscales[colv_pair-1]
 
             chrg_map0 = map_prm[pairs[:, 0]]
@@ -178,7 +174,6 @@ class CoulReactionFieldForce:
         self,
         r_cut,
         map_prm,
-        colvmap,
         epsilon_1=1.0,
         epsilon_solv=78.5,
         isPBC=True,
@@ -190,7 +185,6 @@ class CoulReactionFieldForce:
         self.exp_solv = epsilon_solv
         self.eps_1 = epsilon_1
         self.map_prm = map_prm
-        self.colvmap = colvmap
         self.ifPBC = isPBC
 
     def generate_get_energy(self):
@@ -198,8 +192,6 @@ class CoulReactionFieldForce:
             if self.ifPBC:
                 dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
-            chrgprod = chrgprod[dr_norm <= self.r_cut]
-            dr_norm = dr_norm[dr_norm <= self.r_cut]
 
             dr_inv = 1.0 / dr_norm
             E = (
@@ -213,10 +205,10 @@ class CoulReactionFieldForce:
 
         def get_energy(positions, box, pairs, charges, mscales):
             
-            pairs = regularize_pairs(pairs)
-            mask = pair_buffer_scales(pairs)
+            pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
+            mask = pair_buffer_scales(pairs[:, :2])
 
-            colv_pair = self.colvmap[pairs[:,0],pairs[:,1]]
+            colv_pair = pairs[:, 2]
             mscale_pair = mscales[colv_pair-1]
 
             chrg_map0 = self.map_prm[pairs[:, 0]]
@@ -240,14 +232,12 @@ class CoulombPMEForce:
         self,
         r_cut: float,
         map_prm: Iterable[int],
-        cov_mat: np.ndarray,
         kappa: float,
         K: Tuple[int, int, int],
         pme_order: int = 6,
     ):
         self.r_cut = r_cut
         self.map_prm = map_prm
-        self.cov_mat = cov_mat
         self.lmax = 0
         self.kappa = kappa
         self.K1, self.K2, self.K3 = K[0], K[1], K[2]
@@ -283,7 +273,6 @@ class CoulombPMEForce:
                 mscales,
                 None,
                 None,
-                self.cov_mat,
                 None,
                 pme_recip_fn,
                 self.kappa / 10,

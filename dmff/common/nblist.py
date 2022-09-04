@@ -2,11 +2,12 @@ import jax.numpy as jnp
 from jax_md import space, partition
 from dmff.utils import jit_condition
 from dmff.utils import regularize_pairs
+from jax import jit
 
 
 class NeighborList:
     
-    def __init__(self, box, rc) -> None:
+    def __init__(self, box, rc, covalent_map) -> None:
         """ wrapper of jax_md.space_periodic_general and jax_md.partition.NeighborList
 
         Args:
@@ -15,6 +16,7 @@ class NeighborList:
         """
         self.box = box
         self.rc = rc
+        self.covalent_map = covalent_map
         self.displacement_fn, self.shift_fn = space.periodic_general(box, fractional_coordinates=False)
         self.neighborlist_fn = partition.neighbor_list(self.displacement_fn, box, rc, 0, format=partition.OrderedSparse)
         self.nblist = None
@@ -43,9 +45,7 @@ class NeighborList:
         Returns:
             jax_md.partition.NeighborList
         """
-        jit_deco = jit_condition()
-        jit_deco(self.nblist.update)(positions)
-        
+        self.nblist = self.nblist.update(positions)
         return self.nblist
     
     @property
@@ -55,7 +55,11 @@ class NeighborList:
         Returns:
             jnp.ndarray: (nPairs, 2)
         """
-        return self.nblist.idx.T
+        if self.nblist is None:
+            raise RuntimeError('run nblist.allocate(positions) first')
+        pairs = self.nblist.idx.T
+        nbond = self.covalent_map[pairs[:, 0], pairs[:, 1]]
+        return jnp.concatenate([pairs, nbond[:, None]], axis=1)
     
     @property
     def pair_mask(self):
@@ -65,9 +69,9 @@ class NeighborList:
             (jnp.ndarray, jnp.ndarray): ((nParis, 2), (nPairs, ))
         """
 
-        mask = jnp.sum(self.pairs == len(self.positions), axis=1)
+        mask = jnp.sum(self.pairs[:, :2] == len(self.positions), axis=1)
         mask = jnp.logical_not(mask)
-        pair = regularize_pairs(self.pairs)
+        pair = regularize_pairs(self.pairs[:, :2])
         
         return pair, mask
     
@@ -99,3 +103,14 @@ class NeighborList:
         
         """
         return jnp.linalg.norm(self.dr, axis=1)
+
+    @property
+    def did_buffer_overflow(self)->bool:
+        """
+        if the neighborlist buffer overflowed, return True
+
+        Returns
+        -------
+        boolen
+        """
+        return self.nblist.did_buffer_overflow

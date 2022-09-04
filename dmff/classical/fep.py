@@ -44,7 +44,6 @@ class LennardJonesFreeEnergyForce:
         r_cut,
         map_prm,
         map_nbfix,
-        colvmap,
         isSwitch: bool = False,
         isPBC: bool = True,
         isNoCut: bool = False,
@@ -66,7 +65,6 @@ class LennardJonesFreeEnergyForce:
         self.ifPBC = isPBC
         self.ifNoCut = isNoCut
         assert not isNoCut, f"NoCut is not supported for free energy calculations"
-        self.colvmap = colvmap
 
         # free energy
         self.feLambda = feLambda
@@ -82,8 +80,8 @@ class LennardJonesFreeEnergyForce:
 
         def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix, mscales, lambda_):
 
-            pairs = regularize_pairs(pairs)
-            bufScales = pair_buffer_scales(pairs)
+            pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
+            bufScales = pair_buffer_scales(pairs[:, :2])
 
             eps_m1 = jnp.repeat(epsilon.reshape((-1, 1)), epsilon.shape[0], axis=1)
             eps_m2 = eps_m1.T
@@ -97,7 +95,7 @@ class LennardJonesFreeEnergyForce:
             sig_mat = sig_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(sigfix)
             sig_mat = sig_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(sigfix)
 
-            colv_pair = self.colvmap[pairs[:,0],pairs[:,1]]
+            colv_pair = pairs[:, 2]
             mscale_pair = mscales[colv_pair-1] # in mscale vector, the 0th item is 1-2 scale, the 1st item is 1-3 scale, etc...
 
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
@@ -247,7 +245,6 @@ class CoulombPMEFreeEnergyForce:
         self,
         r_cut: float,
         map_prm: Iterable[int],
-        cov_mat: np.ndarray,
         kappa: float,
         K: Tuple[int, int, int],
         feLambda: float,
@@ -262,7 +259,6 @@ class CoulombPMEFreeEnergyForce:
     ):
         self.r_cut = r_cut
         self.map_prm = map_prm
-        self.cov_mat = cov_mat
         self.kappa = kappa # in nm -1
         self.K1, self.K2, self.K3 = K[0], K[1], K[2]
         # free energy
@@ -282,8 +278,8 @@ class CoulombPMEFreeEnergyForce:
     def generate_get_energy(self):
         
         def get_energy(positions, box, pairs, charges, mscales, lambda_): 
-            pairs = regularize_pairs(pairs)
-            bufScales = pair_buffer_scales(pairs)
+            pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
+            bufScales = pair_buffer_scales(pairs[:, :2])
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
             dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
@@ -291,7 +287,7 @@ class CoulombPMEFreeEnergyForce:
             atomCharges = charges[self.map_prm[np.arange(positions.shape[0])]]
             chgprod = atomCharges[pairs[:, 0]] * atomCharges[pairs[:, 1]]
 
-            colv_pair = self.cov_mat[pairs[:, 0], pairs[:, 1]]
+            colv_pair = pairs[:, 2]
             mscale_pair = mscales[colv_pair-1]
 
             pme_recip_fn = generate_pme_recip(

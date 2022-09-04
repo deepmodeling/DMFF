@@ -15,9 +15,11 @@ if __name__ == '__main__':
     pdb = app.PDBFile("waterbox_31ang.pdb")
     rc = 6
     # generator stores all force field parameters
-    disp_generator, pme_generator = H.getGenerators()
+    params = H.getParameters()
     
-    pot_disp, pot_pme = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
+    pots = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
+    pot_disp = pots.dmff_potentials['ADMPDispForce']
+    pot_pme = pots.dmff_potentials['ADMPPmeForce']
 
     # construct inputs
     positions = jnp.array(pdb.positions._value) * 10
@@ -30,8 +32,8 @@ if __name__ == '__main__':
     pairs = nbr.idx.T    
 
    
-    E_disp, F_disp = value_and_grad(pot_disp)(positions, box, pairs, disp_generator.params)
-    E_pme, F_pme = value_and_grad(pot_pme)(positions, box, pairs, pme_generator.params)
+    E_disp, F_disp = value_and_grad(pot_disp)(positions, box, pairs, params)
+    E_pme, F_pme = value_and_grad(pot_pme)(positions, box, pairs, params)
 
     print('# Electrostatic+Polarization Energy:')
     print('#', E_pme, 'kJ/mol')
