@@ -19,6 +19,7 @@ with open(path.join('dmff', '_date.py'), 'w') as fp:
     fp.write('date = \'%s\'' % today)
 
 install_requires = [
+    "setuptools_scm",
     "numpy>=1.18",
     "jax_md>=0.1.28",
     "openmm",
