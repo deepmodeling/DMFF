@@ -1,10 +1,14 @@
+import os
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
 from dmff.utils import convertStr2Float, DMFFException
 from typing import Dict, List, Union, TypeVar
 from itertools import permutations
+from openmm.app.forcefield import _getDataDirectories
+
 
 value = TypeVar('value')  # generic type: interpreted as either a number or str
+
 
 class SelectError(BaseException):
     pass
@@ -88,7 +92,7 @@ class ForcefieldTree(Node):
                 val = val[0]
         return val
 
-    def get_attribs(self, parser:str, attrname:Union[str, List[str]])->List[Union[value, List[value]]]:
+    def get_attribs(self, parser:str, attrname:Union[str, List[str]], convert_to_float: bool = True)->List[Union[value, List[value]]]:
         """
         get all values of attributes of nodes which nodes matching certain path
 
@@ -105,6 +109,8 @@ class ForcefieldTree(Node):
             a path to locate nodes
         attrname : _type_
             attribute name or a list of attribute names of a node
+        conver_to_float : bool
+            whether to covert the value of query attrnames to float type
 
         Returns
         -------
@@ -115,11 +121,23 @@ class ForcefieldTree(Node):
         if isinstance(attrname, list):
             ret = []
             for item in sel:
-                vals = [convertStr2Float(item.attrs[an]) if an in item.attrs else None for an in attrname]
+                vals = []
+                for an in attrname:
+                    if an in item.attrs:
+                        val = convertStr2Float(item.attrs[an]) if convert_to_float else item.attrs[an]
+                    else:
+                        val = None
+                    vals.append(val)
                 ret.append(vals)
             return ret
         else:
-            attrs = [convertStr2Float(n.attrs[attrname]) if attrname in n.attrs else None for n in sel]
+            attrs = []
+            for n in sel:
+                if attrname in n.attrs:
+                    val = convertStr2Float(n.attrs[attrname]) if convert_to_float else n.attrs[attrname]
+                else:
+                    val = None
+                attrs.append(val)
             return attrs
 
     def set_node(self, parser:str, values:List[Dict[str, value]])->None:
@@ -182,9 +200,19 @@ class XMLParser:
         if children:
             node.add_children(children)
         return node
+    
+    def _render_interal_ff_path(self, xml):
+        rendered_xml = xml
+        for dataDir in _getDataDirectories():
+            rendered_xml = os.path.join(dataDir, xml)
+            if os.path.isfile(rendered_xml):
+                break
+        return rendered_xml
 
     def parse(self, *xmls):
         for xml in xmls:
+            if not os.path.isfile(xml):
+                xml = self._render_interal_ff_path(xml)
             root = ET.parse(xml).getroot()
             for leaf in root:
                 n = self.parse_node(leaf)
@@ -233,8 +261,9 @@ class TypeMatcher:
         """
         Freeze type matching list.
         """
-        atypes = fftree.get_attribs("AtomTypes/Type", "name")
-        aclasses = fftree.get_attribs("AtomTypes/Type", "class")
+        # not convert to float for atom types
+        atypes = fftree.get_attribs("AtomTypes/Type", "name", convert_to_float=False)
+        aclasses = fftree.get_attribs("AtomTypes/Type", "class", convert_to_float=False)
         self.class2type = {}
         for nline in range(len(atypes)):
             if aclasses[nline] not in self.class2type:
@@ -256,9 +285,9 @@ class TypeMatcher:
                     tmp.append((1, [node.attrs[key]]))
                 elif len(key) > 5 and "class" == key[:5]:
                     nit = int(key[5:])
-                    tmp.append((nit, self.class2type[node.attrs[key]]))
+                    tmp.append((nit, self.class2type.get(node.attrs[key], [None])))
                 elif key == "class":
-                    tmp.append((1, self.class2type[node.attrs[key]]))
+                    tmp.append((1, self.class2type.get(node.attrs[key], [None])))
             tmp = sorted(tmp, key=lambda x: x[0])
             self.functions.append([i[1] for i in tmp])
 
