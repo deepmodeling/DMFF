@@ -38,11 +38,13 @@ class TestADMPAPI:
         a, b, c = pdb.topology.getPeriodicBoxVectors()
         box = np.array([a._value, b._value, c._value]) * 10
         # neighbor list
-        nblist = NeighborList(box, rc)
-        nblist.allocate(positions)
-        pairs = nblist.pairs
         
         gen = generators[1]
+        covalent_map = gen.covalent_map
+
+        nblist = NeighborList(box, rc, covalent_map)
+        nblist.allocate(positions)
+        pairs = nblist.pairs
         pot = gen.getJaxPotential()
         energy = pot(positions, box, pairs, gen.paramtree)
 
@@ -55,12 +57,13 @@ class TestADMPAPI:
         positions = jnp.array(pdb.positions._value) * 10
         a, b, c = pdb.topology.getPeriodicBoxVectors()
         box = jnp.array([a._value, b._value, c._value]) * 10
+        gen = generators[1]
+        covalent_map = gen.covalent_map
         # neighbor list
-        nblist = NeighborList(box, rc)
+        nblist = NeighborList(box, rc, covalent_map)
         nblist.allocate(positions)
         pairs = nblist.pairs
 
-        gen = generators[1]
         pot = gen.getJaxPotential()
         j_pot_pme = jit(value_and_grad(pot))
         energy = j_pot_pme(positions, box, pairs, gen.paramtree)
