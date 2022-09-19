@@ -1,4 +1,3 @@
-setuptools_scm
 numpy>=1.18
 jax>=0.3.7
 jax-md>=0.1.28
