@@ -18,7 +18,8 @@ import optax
 
 
 if __name__ == '__main__':
-    restart = 'params.1.pickle' # None
+    restart = 'params.0.pickle' # None
+    # restart = None
     ff = 'forcefield.xml'
     pdb_AB = PDBFile('peg2_dimer.pdb')
     pdb_A = PDBFile('peg2.pdb')
@@ -113,7 +114,7 @@ if __name__ == '__main__':
     params0 = H_AB.getParameters()
     # construct total force field params
     comps = ['ex', 'es', 'pol', 'disp', 'dhf', 'tot']
-    weights_comps = jnp.array([0.001, 0.001, 0.001, 0.001, 0.001, 1.0])
+    weights_comps = jnp.array([0.1, 0.1, 0.1, 0.1, 0.1, 1.0])
     if restart is None:
         params = {}
         sr_forces = {
@@ -278,7 +279,8 @@ if __name__ == '__main__':
     with open('data_sr.pickle', 'rb') as ifile:
         data = pickle.load(ifile)
 
-    err, gradients = value_and_grad(MSELoss, argnums=(0))(params, data['000'])
+    MSELoss_grad = jit(value_and_grad(MSELoss, argnums=(0)))
+    err, gradients = MSELoss_grad(params, data['000'])
     sids = np.array(list(data.keys()))
 
 
@@ -292,7 +294,7 @@ if __name__ == '__main__':
         return grads
 
     # start to do optmization
-    lr = 0.001
+    lr = 0.01
     optimizer = optax.adam(lr)
     opt_state = optimizer.init(params)
 
@@ -300,7 +302,7 @@ if __name__ == '__main__':
     for i_epoch in range(n_epochs):
         np.random.shuffle(sids)
         for sid in sids:
-            loss, grads = value_and_grad(MSELoss, argnums=(0))(params, data[sid])
+            loss, grads = MSELoss_grad(params, data[sid])
             grads = mask_fn(grads)
             print(loss)
             sys.stdout.flush()

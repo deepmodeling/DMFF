@@ -150,9 +150,16 @@ if __name__ == '__main__':
     sids = list(data.keys())
     sids.sort()
 
+    ofile_tot = open('res_tot.xvg', 'w')
+    ofile_es = open('res_es.xvg', 'w')
+    ofile_ex = open('res_ex.xvg', 'w')
+    ofile_pol = open('res_pol.xvg', 'w')
+    ofile_disp = open('res_disp.xvg', 'w')
+    ofile_dhf = open('res_dhf.xvg', 'w')
     # run test
-    # for sid in sids:
-    for sid in ['000']:
+    for sid in sids:
+        print(sid)
+    # for sid in ['000']:
         scan_res = data[sid]
         scan_res_sr = data_sr[sid]
         scan_res_lr = data_lr[sid]
@@ -241,4 +248,18 @@ if __name__ == '__main__':
             E_tot_sr = (E_sr_es + E_dmp_es) + (E_ex) + (E_sr_pol) + (E_sr_disp + E_dmp_disp) + (E_dhf)
             E_tot_lr = E_es + E_pol + E_disp
 
-            print(ipt, E_tot, E_tot_ref)
+            # if E_tot < 30:
+            #     e_es = (E_es + E_sr_es + E_dmp_es)
+            #     e_ex = (E_ex)
+            #     e_pol = (E_pol + E_sr_pol)
+            #     e_disp = (E_disp + E_dmp_disp + E_sr_disp)
+            #     e_dhf = (E_dhf)
+            #     print(E_tot_ref, E_tot_ref, E_tot, file=ofile_tot)
+            #     print(E_es_ref, E_es_ref, e_es, file=ofile_es)
+            #     print(E_ex_ref, E_ex_ref, e_ex, file=ofile_ex)
+            #     print(E_pol_ref, E_pol_ref, e_pol, file=ofile_pol)
+            #     print(E_disp_ref, E_disp_ref, e_disp, file=ofile_disp)
+            #     print(E_dhf_ref, E_dhf_ref, e_dhf, file=ofile_dhf)
+
+            if E_tot < 30:
+                print(E_tot_ref, E_tot_ref, E_tot)
