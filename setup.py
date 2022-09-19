@@ -23,7 +23,7 @@ install_requires = [
     "jax_md>=0.1.28",
     "openmm",
     "jax>=0.3.7,<0.3.16",
-    ""
+    "freud-analysis"
 ]
 
 

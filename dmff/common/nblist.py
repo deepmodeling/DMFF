@@ -3,26 +3,31 @@ import numpy as np
 import jax.numpy as jnp
 from jax_md import space, partition
 from dmff.utils import regularize_pairs
-try:
-    import freud
-except ImportError:
-    pass
-
+from typing import Literal
+import freud
+from dmff.admp.pairwise import distribute_v3
 
 class NeighborList:
-    
-    def __init__(self, box, rc, covalent_map) -> None:
-        """ wrapper of jax_md.space_periodic_general and jax_md.partition.NeighborList
+    def __init__(self, box, r_cutoff, covalent_map, dr_threshold=0, capacity_multiplier=1.25, format=Literal['dense', 'sparse', ]) -> None:
+        """wrapper of jax_md.space_periodic_general and jax_md.partition.NeighborList
 
         Args:
             box (jnp.ndarray): A (spatial_dim, spatial_dim) affine transformation or [lx, ly, lz] vector
             rc (float): cutoff radius
         """
         self.box = box
-        self.rc = rc
+        self.rc = self.r_cutoff = r_cutoff
+
+        self.dr_threshold = dr_threshold
+        self.capacity_multiplier = capacity_multiplier
+
         self.covalent_map = covalent_map
-        self.displacement_fn, self.shift_fn = space.periodic_general(box, fractional_coordinates=False)
-        self.neighborlist_fn = partition.neighbor_list(self.displacement_fn, box, rc, 0, format=partition.OrderedSparse)
+        self.displacement_fn, self.shift_fn = space.periodic_general(
+            box, fractional_coordinates=False
+        )
+        self.neighborlist_fn = partition.neighbor_list(
+            self.displacement_fn, box, r_cutoff, dr_threshold, format=partition.OrderedSparse
+        )
         self.nblist = None
         
     def allocate(self, positions: jnp.ndarray, box: Optional[jnp.ndarray] = None):
@@ -54,23 +59,23 @@ class NeighborList:
         else:
             self.nblist = self.nblist.update(positions, box)
         return self.nblist
-    
+
     @property
     def pairs(self):
-        """ get raw pair index
+        """get raw pair index
 
         Returns:
             jnp.ndarray: (nPairs, 2)
         """
         if self.nblist is None:
-            raise RuntimeError('run nblist.allocate(positions) first')
+            raise RuntimeError("run nblist.allocate(positions) first")
         pairs = self.nblist.idx.T
         nbond = self.covalent_map[pairs[:, 0], pairs[:, 1]]
         return jnp.concatenate([pairs, nbond[:, None]], axis=1)
-    
+
     @property
-    def pair_mask(self):
-        """ get regularized pair index and mask
+    def scaled_pairs(self):
+        """get regularized pair index and mask
 
         Returns:
             (jnp.ndarray, jnp.ndarray): ((nParis, 2), (nPairs, ))
@@ -78,41 +83,22 @@ class NeighborList:
 
         mask = jnp.sum(self.pairs[:, :2] == len(self.positions), axis=1)
         mask = jnp.logical_not(mask)
-        pair = regularize_pairs(self.pairs[:, :2])
-        
-        return pair, mask
-    
+        pairs = regularize_pairs(self.pairs[:, :2])
+        pairs = pairs[mask]
+        nbond = self.covalent_map[pairs[:, 0], pairs[:, 1]]
+        return jnp.concatenate([pairs, nbond[:, None]], axis=1)
+
     @property
     def positions(self):
-        """ get current positions in current neighborlist
+        """get current positions in current neighborlist
 
         Returns:
             jnp.ndarray: (n, 3)
         """
         return self.nblist.reference_position
-    
-    @property
-    def dr(self):
-        """ get pair distance vector in current neighborlist
-
-        Returns:
-            jnp.ndarray: (nPairs, 3)
-        """
-        pair, _ = self.pair_mask
-        return self.positions[pair[:, 0]] - self.positions[pair[:, 1]]
-        
-    @property
-    def distance(self):
-        """ get pair distance in current neighborlist
-        
-        Returns:
-            jnp.ndarray: (nPairs, )
-        
-        """
-        return jnp.linalg.norm(self.dr, axis=1)
 
     @property
-    def did_buffer_overflow(self)->bool:
+    def did_buffer_overflow(self) -> bool:
         """
         if the neighborlist buffer overflowed, return True
 
@@ -127,7 +113,7 @@ class NeighborListFreud:
     def __init__(self, box, rcut, cov_map, padding=True):
         self.fbox = freud.box.Box.from_matrix(box)
         self.rcut = rcut
-        self.nmax = None
+        self.capacity_multiplier = None
         self.padding = padding
         self.cov_map = cov_map
     
@@ -137,6 +123,7 @@ class NeighborListFreud:
         return pairs
 
     def allocate(self, coords, box=None):
+        self._positions = coords  # cache it
         fbox = freud.box.Box.from_matrix(box) if box is not None else self.fbox
         aq = freud.locality.AABBQuery(fbox, coords)
         res = aq.query(coords, dict(r_max=self.rcut, exclude_ii=True))
@@ -145,19 +132,37 @@ class NeighborListFreud:
         nlist = nlist.astype(np.int32)
         msk = (nlist[:, 0] - nlist[:, 1]) < 0
         nlist = nlist[msk]
-        if self.nmax is None:
-            self.nmax = int(nlist.shape[0] * 1.3)
+        if self.capacity_multiplier is None:
+            self.capacity_multiplier = int(nlist.shape[0] * 1.3)
         
         if not self.padding:
-            return self._do_cov_map(nlist)
+            self._pairs = self._do_cov_map(nlist)
+            return self._pairs
 
-        self.nmax = max(self.nmax, nlist.shape[0])
-        padding_width = self.nmax - nlist.shape[0]
+        self.capacity_multiplier = max(self.capacity_multiplier, nlist.shape[0])
+        padding_width = self.capacity_multiplier - nlist.shape[0]
         if padding_width == 0:
-            return self._do_cov_map(nlist)
+            self._pairs = self._do_cov_map(nlist)
+            return self._pairs
         elif padding_width > 0:
-            padding = np.ones((self.nmax - nlist.shape[0], 2), dtype=np.int32) * coords.shape[0]
+            padding = np.ones((self.capacity_multiplier - nlist.shape[0], 2), dtype=np.int32) * coords.shape[0]
             nlist = np.vstack((nlist, padding))
-            return self._do_cov_map(nlist)
+            self._pairs = self._do_cov_map(nlist)
+            return self._pairs
         else:
             raise ValueError("padding width < 0")
+
+    def update(self, positions, box=None):
+        self.allocate(positions, box)
+
+    @property
+    def pairs(self):
+        return self._pairs
+
+    @property
+    def scaled_pairs(self):
+        return self._pairs
+
+    @property
+    def positions(self):
+        return self._positions
