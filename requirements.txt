@@ -1,6 +1,6 @@
 numpy>=1.18
-jax>=0.3.7
-jax-md>=0.1.28
+jax=0.3.14
+jax-md=0.2.0
 mkdocs>=1.3.0
 mkdocs-autorefs>=0.4.1
 mkdocs-gen-files>=0.3.4
