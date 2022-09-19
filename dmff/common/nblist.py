@@ -47,8 +47,8 @@ class NeighborList:
         # jit_deco = jit_condition()
         # jit_deco(self.nblist.update)(positions)
         self.nblist = self.nblist.update(positions)
-        if self.nblist.did_buffer_overflow:
-            self.nblist = self.neighborlist_fn.allocate(positions)
+        # if self.nblist.did_buffer_overflow:
+        #     self.nblist = self.neighborlist_fn.allocate(positions)
         return self.nblist
     
     @property
