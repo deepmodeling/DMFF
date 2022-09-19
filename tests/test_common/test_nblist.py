@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import numpy.testing as npt
 import pytest
 from dmff import Hamiltonian, NeighborList
-from dmff.common.nblist import FreudNeighborList
+from dmff.common.nblist import NeighborListFreud
 from dmff.utils import regularize_pairs, pair_buffer_scales
 from dmff.admp.pairwise import (
     distribute_v3, 
@@ -69,15 +69,6 @@ class TestNeighborList:
         pairs = nblist.scaled_pairs
         scaled = pair_buffer_scales(nblist.pairs)
         assert pairs.shape[0] == scaled.sum()
-        
-    def test_dr(self, nblist):
-        
-        dr = nblist.dr
-        assert dr.shape == (15, 3)
-        
-    def test_distance(self, nblist):
-        
-        assert nblist.distances.shape == (15, )
 
     def test_jit_update(self, nblist):
 
@@ -149,9 +140,8 @@ class TestFreudNeighborlist:
         a, b, c = pdb.topology.getPeriodicBoxVectors()
         box = np.array([a._value, b._value, c._value]) * 10
         positions = np.array(pdb.positions._value) * 10
-
-
-        nbobj = FreudNeighborList(box, rc, generators[1].covalent_map)
+        nbobj = NeighborListFreud(box, rc, generators[1].covalent_map)
+        nbobj.capacity_multiplier = 1
         nbobj.allocate(positions)
         yield nbobj
 
@@ -177,12 +167,3 @@ class TestFreudNeighborlist:
         pairs = nblist.scaled_pairs
         scaled = pair_buffer_scales(nblist.pairs)
         assert pairs.shape[0] == scaled.sum()
-        
-    def test_dr(self, nblist):
-        
-        dr = nblist.dr
-        assert dr.shape == (15, 3)
-        
-    def test_distance(self, nblist):
-        
-        assert nblist.distances.shape == (15, )        

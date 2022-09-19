@@ -113,7 +113,7 @@ class NeighborListFreud:
     def __init__(self, box, rcut, cov_map, padding=True):
         self.fbox = freud.box.Box.from_matrix(box)
         self.rcut = rcut
-        self.nmax = None
+        self.capacity_multiplier = None
         self.padding = padding
         self.cov_map = cov_map
     
@@ -132,20 +132,20 @@ class NeighborListFreud:
         nlist = nlist.astype(np.int32)
         msk = (nlist[:, 0] - nlist[:, 1]) < 0
         nlist = nlist[msk]
-        if self.nmax is None:
-            self.nmax = int(nlist.shape[0] * 1.3)
+        if self.capacity_multiplier is None:
+            self.capacity_multiplier = int(nlist.shape[0] * 1.3)
         
         if not self.padding:
             self._pairs = self._do_cov_map(nlist)
             return self._pairs
 
-        self.nmax = max(self.nmax, nlist.shape[0])
-        padding_width = self.nmax - nlist.shape[0]
+        self.capacity_multiplier = max(self.capacity_multiplier, nlist.shape[0])
+        padding_width = self.capacity_multiplier - nlist.shape[0]
         if padding_width == 0:
             self._pairs = self._do_cov_map(nlist)
             return self._pairs
         elif padding_width > 0:
-            padding = np.ones((self.nmax - nlist.shape[0], 2), dtype=np.int32) * coords.shape[0]
+            padding = np.ones((self.capacity_multiplier - nlist.shape[0], 2), dtype=np.int32) * coords.shape[0]
             nlist = np.vstack((nlist, padding))
             self._pairs = self._do_cov_map(nlist)
             return self._pairs
