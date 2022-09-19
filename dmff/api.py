@@ -503,7 +503,7 @@ jaxGenerators['SlaterDampingForce'] = SlaterDampingGenerator
 class SlaterExGenerator:
     r"""
     This one computes the Slater-ISA type exchange interaction
-    u = \sum_ij A * (1/3*(Br)^2 + Br + 1)
+    u = \sum_ij A * (1/3*(Br)^2 + Br + 1) * exp(-B * r)
     """
     def __init__(self, ff):
         self.name = "SlaterExForce"
@@ -585,20 +585,45 @@ class SlaterSrEsGenerator(SlaterExGenerator):
         super().__init__(ff)
         self.name = "SlaterSrEsForce"
 
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
 
-class SlaterSrPolGenerator(SlaterExGenerator):
+        n_atoms = len(data.atoms)
+        # build index map
+        map_atomtype = np.zeros(n_atoms, dtype=int)
+        for i in range(n_atoms):
+            atype = data.atomType[data.atoms[i]]
+            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
+        self.map_atomtype = map_atomtype
+        # build covalent map
+        covalent_map = build_covalent_map(data, 6)
+
+        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
+                                                  static_args={})
+        def potential_fn(positions, box, pairs, params):
+            params = params[self.name]
+            mScales = params["mScales"]
+            a_list = params["A"][map_atomtype]
+            b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+
+            # add minus sign
+            return - pot_fn_sr(positions, box, pairs, mScales, a_list, b_list)
+        self._jaxPotential = potential_fn
+
+
+class SlaterSrPolGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterSrPolForce"
 
 
-class SlaterSrDispGenerator(SlaterExGenerator):
+class SlaterSrDispGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterSrDispForce"
 
 
-class SlaterDhfGenerator(SlaterExGenerator):
+class SlaterDhfGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterDhfForce"
@@ -1034,7 +1059,7 @@ class ADMPPmeGenerator:
             self.axis_indices = np.array(self.axis_indices)
             self.axis_types = np.array(self.axis_types)
         else:
-            self.axis_types = None
+            self.axis_types = jnp.zeros(n_atoms)
             self.axis_indices = None
 
         if "ethresh" in args:
