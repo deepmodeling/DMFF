@@ -6,6 +6,7 @@ import numpy as np
 from jax_md import space, partition
 import sys
 from dmff.api import Hamiltonian
+from dmff.common import nblist
 from jax import jit
 import jax.numpy as jnp
 
@@ -65,10 +66,9 @@ if __name__ == "__main__":
     
     # neighbor list
     rc = 4
-    displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
-    neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T        
+    nbl = nblist.NeighborList(box, rc, h.getGenerators()[-1].covalent_map)
+    nbl.allocate(positions)
+    pairs = nbl.pairs
 
     bondE = pot.dmff_potentials['HarmonicBondForce']
     print("Bond:", bondE(positions, box, pairs, params))

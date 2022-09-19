@@ -599,7 +599,6 @@ class SlaterSrEsGenerator(SlaterExGenerator):
         covalent_map = build_covalent_map(data, 6)
 
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
-                                                  covalent_map,
                                                   static_args={})
         def potential_fn(positions, box, pairs, params):
             params = params[self.name]
@@ -1060,7 +1059,7 @@ class ADMPPmeGenerator:
             self.axis_indices = np.array(self.axis_indices)
             self.axis_types = np.array(self.axis_types)
         else:
-            self.axis_types = None
+            self.axis_types = jnp.zeros(n_atoms)
             self.axis_indices = None
 
         if "ethresh" in args:

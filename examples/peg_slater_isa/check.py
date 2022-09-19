@@ -22,7 +22,7 @@ if __name__ == '__main__':
     pdb_AB = PDBFile('peg2_dimer.pdb')
     pdb_A = PDBFile('peg2.pdb')
     pdb_B = PDBFile('peg2.pdb')
-    param_file = 'params.1.pickle'
+    param_file = 'params.0.pickle'
     H_AB = Hamiltonian(ff)
     H_A = Hamiltonian(ff)
     H_B = Hamiltonian(ff)
@@ -75,13 +75,13 @@ if __name__ == '__main__':
     box = jnp.array(pdb_AB.topology.getPeriodicBoxVectors()._value) * 10
 
     # nn list initial allocation
-    nbl_AB = nblist.NeighborList(box, rc)
+    nbl_AB = nblist.NeighborList(box, rc, H_AB.getGenerators()[0].covalent_map)
     nbl_AB.allocate(pos_AB0)
     pairs_AB = nbl_AB.pairs
-    nbl_A = nblist.NeighborList(box, rc)
+    nbl_A = nblist.NeighborList(box, rc, H_A.getGenerators()[0].covalent_map)
     nbl_A.allocate(pos_A0)
     pairs_A = nbl_A.pairs
-    nbl_B = nblist.NeighborList(box, rc)
+    nbl_B = nblist.NeighborList(box, rc, H_B.getGenerators()[0].covalent_map)
     nbl_B.allocate(pos_B0)
     pairs_B = nbl_B.pairs
 
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     # run test
     for sid in sids:
         print(sid)
-    # for sid in ['000']:
+    # for sid in [sys.argv[1]]:
         scan_res = data[sid]
         scan_res_sr = data_sr[sid]
         scan_res_lr = data_lr[sid]
@@ -248,18 +248,20 @@ if __name__ == '__main__':
             E_tot_sr = (E_sr_es + E_dmp_es) + (E_ex) + (E_sr_pol) + (E_sr_disp + E_dmp_disp) + (E_dhf)
             E_tot_lr = E_es + E_pol + E_disp
 
-            # if E_tot < 30:
-            #     e_es = (E_es + E_sr_es + E_dmp_es)
-            #     e_ex = (E_ex)
-            #     e_pol = (E_pol + E_sr_pol)
-            #     e_disp = (E_disp + E_dmp_disp + E_sr_disp)
-            #     e_dhf = (E_dhf)
-            #     print(E_tot_ref, E_tot_ref, E_tot, file=ofile_tot)
-            #     print(E_es_ref, E_es_ref, e_es, file=ofile_es)
-            #     print(E_ex_ref, E_ex_ref, e_ex, file=ofile_ex)
-            #     print(E_pol_ref, E_pol_ref, e_pol, file=ofile_pol)
-            #     print(E_disp_ref, E_disp_ref, e_disp, file=ofile_disp)
-            #     print(E_dhf_ref, E_dhf_ref, e_dhf, file=ofile_dhf)
+            # print(ipt, E_tot, E_tot_ref)
 
             if E_tot < 30:
-                print(E_tot_ref, E_tot_ref, E_tot)
+                e_es = (E_es + E_sr_es + E_dmp_es)
+                e_ex = (E_ex)
+                e_pol = (E_pol + E_sr_pol)
+                e_disp = (E_disp + E_dmp_disp + E_sr_disp)
+                e_dhf = (E_dhf)
+                print(E_tot_ref, E_tot_ref, E_tot, file=ofile_tot)
+                print(E_es_ref, E_es_ref, e_es, file=ofile_es)
+                print(E_ex_ref, E_ex_ref, e_ex, file=ofile_ex)
+                print(E_pol_ref, E_pol_ref, e_pol, file=ofile_pol)
+                print(E_disp_ref, E_disp_ref, e_disp, file=ofile_disp)
+                print(E_dhf_ref, E_dhf_ref, e_dhf, file=ofile_dhf)
+
+            # if E_tot < 30:
+            #     print(E_tot_ref, E_tot_ref, E_tot)
