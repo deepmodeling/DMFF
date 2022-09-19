@@ -1,3 +1,3 @@
 from .settings import *
-from .common.nblist import NeighborList
+from .common.nblist import NeighborList, NeighborListFreud
 from .api import Hamiltonian
