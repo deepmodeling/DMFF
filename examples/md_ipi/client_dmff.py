@@ -15,8 +15,6 @@ from dmff.admp.parser import *
 from dmff.admp.pairwise import (
     TT_damping_qq_c6_kernel,
     generate_pairwise_interaction,
-    slater_disp_damping_kernel,
-    slater_sr_kernel,
     TT_damping_qq_kernel
 )
 from intra import onebodyenergy

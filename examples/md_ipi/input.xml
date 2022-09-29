@@ -1,7 +1,7 @@
 <simulation verbosity='high'>
   <output prefix='simulation'>
-    <properties stride='100' filename='out'>  [ step, time{picosecond}, temperature{kelvin}, potential{kiloj/mol} ] </properties>
-    <trajectory filename='pos' stride='100' cell_units='angstrom'> positions{angstrom} </trajectory>
+    <properties stride='1' filename='out'>  [ step, time{picosecond}, temperature{kelvin}, potential{kiloj/mol} ] </properties>
+    <trajectory filename='pos' stride='1' cell_units='angstrom'> positions{angstrom} </trajectory>
     <checkpoint stride='10'/>
   </output>
   <total_steps>200000</total_steps>

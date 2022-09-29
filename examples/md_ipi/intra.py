@@ -511,20 +511,14 @@ def validation(pdb):
     mScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
     pScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
     dScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-
     rc = 4  # in Angstrom
     ethresh = 1e-4
-
     n_atoms = len(serials)
 
     # compute intra
-    
-
-
     ene = onebodyenergy(positions, box)
     print(ene)
     return
-
 
 # below is the validation code
 if __name__ == '__main__':

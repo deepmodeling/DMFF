@@ -4,15 +4,15 @@
     <trajectory filename='pos' stride='1' cell_units='angstrom'> positions{angstrom} </trajectory>
     <checkpoint stride='10'/>
   </output>
-  <total_steps>100</total_steps>
+  <total_steps>200000</total_steps>
   <prng>
     <seed>12345</seed>
   </prng>
   <ffsocket name='dmff' mode='unix'>
-    <address> unix_dmff_442068 </address>
+    <address> unix_dmff_444801 </address>
   </ffsocket>
   <ffsocket name='EANN' mode='unix'>
-    <address> unix_eann_442068 </address>
+    <address> unix_eann_444801 </address>
   </ffsocket>
   <system>
     <initialize nbeads='1'>

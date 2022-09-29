@@ -7,7 +7,7 @@ import EANN
 #import time
 
 
-class OpenmmDriver(driver.BaseDriver):
+class EANNDriver(driver.BaseDriver):
 
     def __init__(self, addr, port, socktype):
         addr = addr + '_%s'%os.environ['SLURM_JOB_ID'] 
@@ -43,8 +43,8 @@ if __name__ == '__main__':
     addr = sys.argv[1]
     port = int(sys.argv[2])
     socktype = sys.argv[3]
-    driver_openmm = OpenmmDriver(addr, port, socktype)
+    driver_eann = EANNDriver(addr, port, socktype)
     while True:
-        driver_openmm.parse()
+        driver_eann.parse()
     EANN.deallocate_all()
 
