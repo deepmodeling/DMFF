@@ -13,7 +13,6 @@ from dmff.api import Hamiltonian
 from dmff.common import nblist
 from dmff.admp.parser import *
 from dmff.admp.pairwise import (
-    TT_damping_qq_c6_kernel,
     generate_pairwise_interaction,
     TT_damping_qq_kernel
 )
@@ -25,6 +24,35 @@ from jax import jit, vmap
 # os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 dmff.admp.pme.DEFAULT_THOLE_WIDTH = 2.6
+
+@vmap
+@jit
+def TT_damping_qq_disp_kernel(dr, m, ai, aj, bi, bj, qi, qj, c6i, c6j, c8i, c8j, c10i, c10j):
+    a = jnp.sqrt(ai * aj)
+    b = jnp.sqrt(bi * bj)
+    c6 = c6i * c6j
+    c8 = c8i * c8j
+    c10 = c10i * c10j
+    q = qi * qj
+    r = dr * 1.889726878 # convert to bohr
+    br = b * r
+    br2 = br * br
+    br3 = br2 * br
+    br4 = br2 * br2
+    br5 = br3 * br2
+    br6 = br3 * br3
+    br7 = br3 * br4
+    br8 = br4 * br4
+    br9 = br4 * br5
+    br10 = br5 * br5
+    exp_br = jnp.exp(-br)
+    f = 2625.5 * a * exp_br \
+        + (-2625.5) * exp_br * (1+br) * q / r \
+        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720) * c6 / dr**6 \
+        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720+br7/5040+br8/40320) * c8 / dr**8 \
+        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720+br7/5040+br8/40320+br9/362880+br10/3628800) * c10 / dr**10
+
+    return f * m
 
 class DMFFDriver(driver.BaseDriver):
 
@@ -46,7 +74,7 @@ class DMFFDriver(driver.BaseDriver):
         pots = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, step_pol=5)
         pot_disp = pots.dmff_potentials['ADMPDispForce']
         pot_pme = pots.dmff_potentials['ADMPPmeForce']
-        pot_sr = generate_pairwise_interaction(TT_damping_qq_c6_kernel, static_args={})
+        pot_sr = generate_pairwise_interaction(TT_damping_qq_disp_kernel, static_args={})
 
 
         self.nbl = nblist.NeighborList(box, rc, H.getGenerators()[0].covalent_map)
