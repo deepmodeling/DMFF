@@ -36,18 +36,22 @@ def compute_leading_terms(positions,box):
     dROH2 = jnp.linalg.norm(ROH2, axis=1)
     costh = jnp.sum(ROH1 * ROH2, axis=1) / (dROH1 * dROH2)
     angle = jnp.arccos(costh)*180/jnp.pi
-    dipole = -0.016858755+0.002287251*angle + 0.239667591*dROH1 + (-0.070483437)*dROH2
-    charge_H = dipole/dROH1
-    charge_O=charge_H*(-2)
-    C6_H = (-2.36066199 + (-0.007049238)*angle + 1.949429648*dROH1+ 2.097120784*dROH2) * 0.529**6 * 2625.5
+    dipole1 = -0.016858755+0.002287251*angle + 0.239667591*dROH1 + (-0.070483437)*dROH2
+    charge_H1 = dipole1/dROH1
+    dipole2 = -0.016858755+0.002287251*angle + 0.239667591*dROH2 + (-0.070483437)*dROH1
+    charge_H2 = dipole2/dROH2
+    charge_O = -(charge_H1 + charge_H2)
+    C6_H1 = (-2.36066199 + (-0.007049238)*angle + 1.949429648*dROH1+ 2.097120784*dROH2) * 0.529**6 * 2625.5
+    C6_H2 = (-2.36066199 + (-0.007049238)*angle + 1.949429648*dROH2+ 2.097120784*dROH1) * 0.529**6 * 2625.5
     C6_O = (-8.641301261 + 0.093247893*angle + 11.90395358*(dROH1+ dROH2)) * 0.529**6 * 2625.5
-    C6_H = trim_val_0(C6_H)
+    C6_H1 = trim_val_0(C6_H1)
+    C6_H2 = trim_val_0(C6_H2)
     c0 = c0.at[::3].set(charge_O)
-    c0 = c0.at[1::3].set(charge_H)
-    c0 = c0.at[2::3].set(charge_H)
+    c0 = c0.at[1::3].set(charge_H1)
+    c0 = c0.at[2::3].set(charge_H2)
     c6_list = c6_list.at[::3].set(jnp.sqrt(C6_O))
-    c6_list = c6_list.at[1::3].set(jnp.sqrt(C6_H))
-    c6_list = c6_list.at[2::3].set(jnp.sqrt(C6_H))
+    c6_list = c6_list.at[1::3].set(jnp.sqrt(C6_H1))
+    c6_list = c6_list.at[2::3].set(jnp.sqrt(C6_H2))
     return c0, c6_list
 
 def generate_calculator(pot_disp, pot_pme, pot_sr, disp_generator, pme_generator):
@@ -72,7 +76,7 @@ def generate_calculator(pot_disp, pot_pme, pot_sr, disp_generator, pme_generator
                 )    
         E_disp = disp_generator.disp_pme_force.get_energy(positions, box, pairs, c_list.T, params_disp["mScales"])
         E_sr = pot_sr(positions, box, pairs, params_disp["mScales"], a_list, b_list, q_list, c_list[0])
-        return E_pme + E_sr - E_disp
+        return E_pme 
     return jit(value_and_grad(admp_calculator,argnums=(0)))
 
 if __name__ == '__main__':

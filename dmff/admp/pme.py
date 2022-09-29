@@ -32,7 +32,7 @@ from dmff.admp.pairwise import (
 )
 
 
-DEFAULT_THOLE_WIDTH = 5.0
+DEFAULT_THOLE_WIDTH = 2.6
 
 
 class ADMPPmeForce:
@@ -362,7 +362,6 @@ def energy_pme(positions, box, pairs,
 
         if lpol:
             ene_self += pol_penalty(U_ind, pol)
-        
         return ene_real + ene_recip + ene_self
 
     else:
@@ -370,7 +369,6 @@ def energy_pme(positions, box, pairs,
             ene_self = pol_penalty(U_ind, pol)
         else:
             ene_self = 0.0
-
         return ene_real + ene_self
 
 
