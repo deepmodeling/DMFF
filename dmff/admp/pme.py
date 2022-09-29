@@ -32,7 +32,7 @@ from dmff.admp.pairwise import (
 )
 
 
-DEFAULT_THOLE_WIDTH = 2.6
+DEFAULT_THOLE_WIDTH = 5.0
 
 
 class ADMPPmeForce:

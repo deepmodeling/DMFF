@@ -97,12 +97,10 @@ def generate_pairwise_interaction(pair_int_kernel, static_args):
 
 @vmap
 @jit_condition(static_argnums={})
-def TT_damping_qq_c6_kernel(dr, m, ai, aj, bi, bj, qi, qj, c6i, c6j, c8i, c8j, c10i, c10j):
+def TT_damping_qq_c6_kernel(dr, m, ai, aj, bi, bj, qi, qj, ci, cj):
     a = jnp.sqrt(ai * aj)
     b = jnp.sqrt(bi * bj)
-    c6 = c6i * c6j
-    c8 = c8i * c8j
-    c10 = c10i * c10j
+    c = ci * cj
     q = qi * qj
     r = dr * 1.889726878 # convert to bohr
     br = b * r
@@ -111,16 +109,10 @@ def TT_damping_qq_c6_kernel(dr, m, ai, aj, bi, bj, qi, qj, c6i, c6j, c8i, c8j, c
     br4 = br3 * br
     br5 = br4 * br
     br6 = br5 * br
-    br7 = br3 * br4
-    br8 = br4 * br4
-    br9 = br4 * br5
-    br10 = br5 * br5
     exp_br = jnp.exp(-br)
     f = 2625.5 * a * exp_br \
         + (-2625.5) * exp_br * (1+br) * q / r \
-        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720) * c6 / dr**6 \
-        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720+br7/5040+br8/40320) * c8 / dr**8 \
-        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720+br7/5040+br8/40320+br9/362880+br10/3628800) * c10 / dr**10
+        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720) * c / dr**6 
     return f * m
 
 

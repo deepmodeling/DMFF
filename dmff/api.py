@@ -97,7 +97,7 @@ class ADMPDispGenerator:
         # default params
         self._jaxPotential = None
         self.types = []
-        self.ethresh = 1e-04
+        self.ethresh = 5e-04
         self.pmax = 10
 
     def extract(self):
@@ -230,7 +230,7 @@ class ADMPDispPmeGenerator:
         self.params = {"C6": [], "C8": [], "C10": []}
         self._jaxPotential = None
         self.atomTypes = None
-        self.ethresh = 1e-04
+        self.ethresh = 5e-04
         self.pmax = 10
         self.name = "ADMPDispPmeForce"
 
@@ -648,7 +648,7 @@ class ADMPPmeGenerator:
         # default params
         self._jaxPotential = None
         self.types = []
-        self.ethresh = 1e-04
+        self.ethresh = 5e-04
         self.step_pol = None
         self.lpol = False
         self.ref_dip = ""
