@@ -22,7 +22,7 @@
  <ADMPPmeForce lmax="2" 
      mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00" 
      pScale12="0.00" pScale13="0.00" pScale14="0.00" pScale15="1.00" pScale16="1.00" 
-     dScale12="1.00" dScale13="1.00" dScale14="1.00" dScale15="1.00" dScale16="1.00">
+     dScale12="0.00" dScale13="0.00" dScale14="0.00" dScale15="1.00" dScale16="1.00">
    <Atom type="380" kz="381" kx="-381"
              c0="-0.803721"
              dX="0.0" dY="0.0"  dZ="-0.00784325"

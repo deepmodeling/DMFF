@@ -97,7 +97,7 @@ class ADMPDispGenerator:
         # default params
         self._jaxPotential = None
         self.types = []
-        self.ethresh = 5e-4
+        self.ethresh = 5e-04
         self.pmax = 10
 
     def extract(self):
@@ -154,7 +154,7 @@ class ADMPDispGenerator:
             map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
         self.map_atomtype = map_atomtype
         # build covalent map
-        covalent_map = build_covalent_map(data, 6)
+        self.covalent_map = build_covalent_map(data, 6)
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
         box = jnp.array([a._value, b._value, c._value]) * 10
@@ -166,7 +166,6 @@ class ADMPDispGenerator:
             self.ethresh = args["ethresh"]
 
         Force_DispPME = ADMPDispPmeForce(box,
-                                         covalent_map,
                                          rc,
                                          self.ethresh,
                                          self.pmax,
@@ -174,7 +173,6 @@ class ADMPDispGenerator:
         self.disp_pme_force = Force_DispPME
         pot_fn_lr = Force_DispPME.get_energy
         pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_c6_kernel,
-                                                  covalent_map,
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
@@ -232,7 +230,7 @@ class ADMPDispPmeGenerator:
         self.params = {"C6": [], "C8": [], "C10": []}
         self._jaxPotential = None
         self.atomTypes = None
-        self.ethresh = 5e-4
+        self.ethresh = 5e-04
         self.pmax = 10
         self.name = "ADMPDispPmeForce"
 
@@ -294,7 +292,7 @@ class ADMPDispPmeGenerator:
         self.map_atomtype = map_atomtype
 
         # build covalent map
-        covalent_map = build_covalent_map(data, 6)
+        self.covalent_map = build_covalent_map(data, 6)
 
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
@@ -306,7 +304,7 @@ class ADMPDispPmeGenerator:
         if "ethresh" in args:
             self.ethresh = args["ethresh"]
 
-        disp_force = ADMPDispPmeForce(box, covalent_map, rc, self.ethresh,
+        disp_force = ADMPDispPmeForce(box, rc, self.ethresh,
                                       self.pmax, self.lpme)
         self.disp_force = disp_force
         pot_fn_lr = disp_force.get_energy
@@ -389,10 +387,9 @@ class QqTtDampingGenerator:
         self.map_atomtype = map_atomtype
 
         # build covalent map
-        covalent_map = build_covalent_map(data, 6)
+        self.covalent_map = build_covalent_map(data, 6)
 
         pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel,
-                                                  covalent_map,
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
@@ -475,11 +472,10 @@ class SlaterDampingGenerator:
             map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
         self.map_atomtype = map_atomtype
         # build covalent map
-        covalent_map = build_covalent_map(data, 6)
+        self.covalent_map = build_covalent_map(data, 6)
 
         # WORKING
         pot_fn_sr = generate_pairwise_interaction(slater_disp_damping_kernel,
-                                                  covalent_map,
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
@@ -507,7 +503,7 @@ jaxGenerators['SlaterDampingForce'] = SlaterDampingGenerator
 class SlaterExGenerator:
     r"""
     This one computes the Slater-ISA type exchange interaction
-    u = \sum_ij A * (1/3*(Br)^2 + Br + 1)
+    u = \sum_ij A * (1/3*(Br)^2 + Br + 1) * exp(-B * r)
     """
     def __init__(self, ff):
         self.name = "SlaterExForce"
@@ -559,10 +555,9 @@ class SlaterExGenerator:
             map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
         self.map_atomtype = map_atomtype
         # build covalent map
-        covalent_map = build_covalent_map(data, 6)
+        self.covalent_map = build_covalent_map(data, 6)
 
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
-                                                  covalent_map,
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
@@ -590,20 +585,45 @@ class SlaterSrEsGenerator(SlaterExGenerator):
         super().__init__(ff)
         self.name = "SlaterSrEsForce"
 
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
 
-class SlaterSrPolGenerator(SlaterExGenerator):
+        n_atoms = len(data.atoms)
+        # build index map
+        map_atomtype = np.zeros(n_atoms, dtype=int)
+        for i in range(n_atoms):
+            atype = data.atomType[data.atoms[i]]
+            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
+        self.map_atomtype = map_atomtype
+        # build covalent map
+        covalent_map = build_covalent_map(data, 6)
+
+        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
+                                                  static_args={})
+        def potential_fn(positions, box, pairs, params):
+            params = params[self.name]
+            mScales = params["mScales"]
+            a_list = params["A"][map_atomtype]
+            b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+
+            # add minus sign
+            return - pot_fn_sr(positions, box, pairs, mScales, a_list, b_list)
+        self._jaxPotential = potential_fn
+
+
+class SlaterSrPolGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterSrPolForce"
 
 
-class SlaterSrDispGenerator(SlaterExGenerator):
+class SlaterSrDispGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterSrDispForce"
 
 
-class SlaterDhfGenerator(SlaterExGenerator):
+class SlaterDhfGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterDhfForce"
@@ -628,7 +648,7 @@ class ADMPPmeGenerator:
         # default params
         self._jaxPotential = None
         self.types = []
-        self.ethresh = 5e-4
+        self.ethresh = 5e-04
         self.step_pol = None
         self.lpol = False
         self.ref_dip = ""
@@ -834,7 +854,7 @@ class ADMPPmeGenerator:
         rc = nonbondedCutoff.value_in_unit(unit.angstrom)
 
         # build covalent map
-        covalent_map = build_covalent_map(data, 6)
+        self.covalent_map = covalent_map = build_covalent_map(data, 6)
 
         # build intra-molecule axis
         # the following code is the direct transplant of forcefield.py in openmm 7.4.0
@@ -1039,7 +1059,7 @@ class ADMPPmeGenerator:
             self.axis_indices = np.array(self.axis_indices)
             self.axis_types = np.array(self.axis_types)
         else:
-            self.axis_types = None
+            self.axis_types = jnp.zeros(n_atoms)
             self.axis_indices = None
 
         if "ethresh" in args:
@@ -1048,7 +1068,7 @@ class ADMPPmeGenerator:
             self.step_pol = args["step_pol"]
 
         pme_force = ADMPPmeForce(box, self.axis_types, self.axis_indices,
-                                 covalent_map, rc, self.ethresh, self.lmax,
+                                 rc, self.ethresh, self.lmax,
                                  self.lpol, self.lpme, self.step_pol)
         self.pme_force = pme_force
 
@@ -1719,7 +1739,7 @@ class NonbondedJaxGenerator:
         map_nbfix = []
         map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
 
-        colv_map = build_covalent_map(data, 6)
+        self.covalent_map = build_covalent_map(data, 6)
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -1778,7 +1798,6 @@ class NonbondedJaxGenerator:
                                         r_cut,
                                         map_lj,
                                         map_nbfix,
-                                        colv_map,
                                         isSwitch=ifSwitch,
                                         isPBC=ifPBC,
                                         isNoCut=isNoCut)
@@ -1787,7 +1806,6 @@ class NonbondedJaxGenerator:
                                                   r_cut,
                                                   map_lj,
                                                   map_nbfix,
-                                                  colv_map,
                                                   isSwitch=ifSwitch,
                                                   isPBC=ifPBC,
                                                   isNoCut=isNoCut,
@@ -1819,7 +1837,7 @@ class NonbondedJaxGenerator:
             assert np.sum(countMat) == len(map_lj) * (len(map_lj) - 1) // 2
 
             colv_pairs = np.argwhere(
-                np.logical_and(colv_map > 0, colv_map <= 3))
+                np.logical_and(self.covalent_map > 0, self.covalent_map <= 3))
             for pair in colv_pairs:
                 if pair[0] <= pair[1]:
                     tmp = (map_lj[pair[0]], map_lj[pair[1]])
@@ -1844,19 +1862,17 @@ class NonbondedJaxGenerator:
                     # use Reaction Field
                     coulforce = CoulReactionFieldForce(r_cut,
                                                        map_charge,
-                                                       colv_map,
                                                        isPBC=ifPBC)
                 if nonbondedMethod is app.NoCutoff:
                     # use NoCutoff
-                    coulforce = CoulNoCutoffForce(map_charge, colv_map)
+                    coulforce = CoulNoCutoffForce(map_charge)
             else:
-                coulforce = CoulombPMEForce(r_cut, map_charge, colv_map, kappa,
+                coulforce = CoulombPMEForce(r_cut, map_charge, kappa,
                                             (K1, K2, K3))
         else:
             assert nonbondedMethod is app.PME, "Only PME is supported in free energy calculations"
             coulforce = CoulombPMEFreeEnergyForce(r_cut,
                                                   map_charge,
-                                                  colv_map,
                                                   kappa, (K1, K2, K3),
                                                   coulLambda,
                                                   ifStateA=ifStateA,

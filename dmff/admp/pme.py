@@ -42,7 +42,7 @@ class ADMPPmeForce:
     The so called "environment paramters" means parameters that do not need to be differentiable
     '''
 
-    def __init__(self, box, axis_type, axis_indices, covalent_map, rc, ethresh, lmax, lpol=False, lpme=True, steps_pol=None):
+    def __init__(self, box, axis_type, axis_indices, rc, ethresh, lmax, lpol=False, lpme=True, steps_pol=None):
         '''
         Initialize the ADMPPmeForce calculator.
 
@@ -51,8 +51,6 @@ class ADMPPmeForce:
                 (3, 3) float, box size in row
             axis_type:
                 (na,) int, types of local axis (bisector, z-then-x etc.)
-            covalent_map:
-                (na, na) int, covalent map matrix, labels the topological distances between atoms
             rc: 
                 float: cutoff distance
             ethresh: 
@@ -91,10 +89,10 @@ class ADMPPmeForce:
             self.K2 = K2
             self.K3 = K3
         self.pme_order = 6
-        self.covalent_map = covalent_map
         self.lpol = lpol
         self.steps_pol = steps_pol
-        self.n_atoms = int(covalent_map.shape[0]) # len(axis_type)
+        # self.n_atoms = int(covalent_map.shape[0]) # len(axis_type)
+        self.n_atoms = len(axis_type)
 
         # setup calculators
         self.refresh_calculators()
@@ -107,7 +105,7 @@ class ADMPPmeForce:
             def get_energy(positions, box, pairs, Q_local, mScales):
                 return energy_pme(positions, box, pairs,
                                  Q_local, None, None, None,
-                                 mScales, None, None, self.covalent_map,
+                                 mScales, None, None, 
                                  self.construct_local_frames, self.pme_recip,
                                  self.kappa, self.K1, self.K2, self.K3, self.lmax, False, lpme=self.lpme)
             return get_energy
@@ -116,7 +114,7 @@ class ADMPPmeForce:
             def energy_fn(positions, box, pairs, Q_local, Uind_global, pol, tholes, mScales, pScales, dScales):
                 return energy_pme(positions, box, pairs,
                                  Q_local, Uind_global, pol, tholes,
-                                 mScales, pScales, dScales, self.covalent_map,
+                                 mScales, pScales, dScales, 
                                  self.construct_local_frames, self.pme_recip,
                                  self.kappa, self.K1, self.K2, self.K3, self.lmax, True, lpme=self.lpme)
             self.energy_fn = energy_fn
@@ -284,7 +282,7 @@ def setup_ewald_parameters(
 # @jit_condition(static_argnums=())
 def energy_pme(positions, box, pairs,
         Q_local, Uind_global, pol, tholes,
-        mScales, pScales, dScales, covalent_map, 
+        mScales, pScales, dScales, 
         construct_local_frame_fn, pme_recip_fn, kappa, K1, K2, K3, lmax, lpol, lpme=True):
     '''
     This is the top-level wrapper for multipole PME
@@ -306,7 +304,7 @@ def energy_pme(positions, box, pairs,
             (Nexcl,): multipole-multipole interaction exclusion scalings: 1-2, 1-3 ...
             for permanent-permanent, permanent-induced, induced-induced interactions
         pairs:
-            Np * 2: interacting pair indices
+            Np * 3: interacting pair indices and topology distance
         covalent_map:
             Na * Na: topological distances between atoms, if i, j are topologically distant, then covalent_map[i, j] == 0
         construct_local_frame_fn:
@@ -353,10 +351,10 @@ def energy_pme(positions, box, pairs,
 
     if lpol:
         ene_real = pme_real(positions, box, pairs, Q_global, U_ind, pol, tholes, 
-                           mScales, pScales, dScales, covalent_map, kappa, lmax, True)
+                           mScales, pScales, dScales, kappa, lmax, True)
     else:
         ene_real = pme_real(positions, box, pairs, Q_global, None, None, None,
-                           mScales, None, None, covalent_map, kappa, lmax, False)
+                           mScales, None, None, kappa, lmax, False)
 
     if lpme:
         ene_recip = pme_recip_fn(positions, box, Q_global_tot)
@@ -364,7 +362,6 @@ def energy_pme(positions, box, pairs,
 
         if lpol:
             ene_self += pol_penalty(U_ind, pol)
-        
         return ene_real + ene_recip + ene_self
 
     else:
@@ -372,7 +369,6 @@ def energy_pme(positions, box, pairs,
             ene_self = pol_penalty(U_ind, pol)
         else:
             ene_self = 0.0
-
         return ene_real + ene_self
 
 
@@ -747,7 +743,7 @@ def pme_real_kernel(dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscal
 # @jit_condition(static_argnums=(7))
 def pme_real(positions, box, pairs, 
         Q_global, Uind_global, pol, tholes,
-        mScales, pScales, dScales, covalent_map, 
+        mScales, pScales, dScales,
         kappa, lmax, lpol):
     '''
     This is the real space PME calculate function
@@ -763,7 +759,7 @@ def pme_real(positions, box, pairs,
         box:
             3 * 3: box, axes arranged in row
         pairs:
-            Np * 2: interacting pair indices
+            Np * 3: interacting pair indices and topology distance
         Q_global:
             Na * (l+1)**2: harmonics multipoles of each atom, in global frame
         Uind_global:
@@ -786,14 +782,14 @@ def pme_real(positions, box, pairs,
     Output:
         ene: pme realspace energy
     '''
-    pairs = regularize_pairs(pairs)
-    buffer_scales = pair_buffer_scales(pairs)
+    pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
+    buffer_scales = pair_buffer_scales(pairs[:, :2])
     box_inv = jnp.linalg.inv(box)
     r1 = distribute_v3(positions, pairs[:, 0])
     r2 = distribute_v3(positions, pairs[:, 1])
     Q_extendi = distribute_multipoles(Q_global, pairs[:, 0])
     Q_extendj = distribute_multipoles(Q_global, pairs[:, 1])
-    nbonds = distribute_matrix(covalent_map,pairs[:, 0],pairs[:, 1])
+    nbonds = pairs[:, 2]
     #nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
     indices = nbonds-1
     mscales = distribute_scalar(mScales, indices)

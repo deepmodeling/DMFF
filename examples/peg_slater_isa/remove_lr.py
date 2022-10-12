@@ -92,13 +92,13 @@ if __name__ == '__main__':
     pos_B0 = jnp.array(pdb_AB.positions._value[n_atoms_A:n_atoms]) * 10
     box = jnp.array(pdb_AB.topology.getPeriodicBoxVectors()._value) * 10
     # nn list initial allocation
-    nbl_AB = nblist.NeighborList(box, rc)
+    nbl_AB = nblist.NeighborList(box, rc, H_AB.getGenerators()[0].covalent_map)
     nbl_AB.allocate(pos_AB0)
     pairs_AB = nbl_AB.pairs
-    nbl_A = nblist.NeighborList(box, rc)
+    nbl_A = nblist.NeighborList(box, rc, H_A.getGenerators()[0].covalent_map)
     nbl_A.allocate(pos_A0)
     pairs_A = nbl_A.pairs
-    nbl_B = nblist.NeighborList(box, rc)
+    nbl_B = nblist.NeighborList(box, rc, H_B.getGenerators()[0].covalent_map)
     nbl_B.allocate(pos_B0)
     pairs_B = nbl_B.pairs
 
