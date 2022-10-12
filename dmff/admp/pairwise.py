@@ -64,7 +64,8 @@ def generate_pairwise_interaction(pair_int_kernel, static_args):
     '''
 
     def pair_int(positions, box, pairs, mScales, *atomic_params):
-        pairs = regularize_pairs(pairs)
+        # pairs = regularize_pairs(pairs)
+        pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
 
         ri = distribute_v3(positions, pairs[:, 0])
         rj = distribute_v3(positions, pairs[:, 1])
@@ -111,8 +112,7 @@ def TT_damping_qq_c6_kernel(dr, m, ai, aj, bi, bj, qi, qj, ci, cj):
     exp_br = jnp.exp(-br)
     f = 2625.5 * a * exp_br \
         + (-2625.5) * exp_br * (1+br) * q / r \
-        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720) * c / dr**6
-
+        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720) * c / dr**6 
     return f * m
 
 

@@ -24,7 +24,7 @@ if __name__ == '__main__':
     a, b, c = pdb.topology.getPeriodicBoxVectors()
     box = jnp.array([a._value, b._value, c._value]) * 10
     # neighbor list
-    nbl = nblist.NeighborList(box, rc)
+    nbl = nblist.NeighborList(box, rc, H.getGenerators()[0].covalent_map)
     nbl.allocate(positions)
 
   
