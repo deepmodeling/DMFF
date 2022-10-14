@@ -118,7 +118,6 @@ class HarmonicBondJaxGenerator:
         return self._jaxPotential
 
 
-print("LOAD GENERATOR")
 dmff.api.jaxGenerators["HarmonicBondForce"] = HarmonicBondJaxGenerator
 
 
