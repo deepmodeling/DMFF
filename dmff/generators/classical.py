@@ -455,7 +455,7 @@ class NonbondedJaxGenerator:
             atomname = resnode.get_attribs("Atom", "name")
             shift = len(self.ra2idx)
             for natom, aname in enumerate(atomname):
-                self.ra2idx[(resname, aname)] = shift + natom
+                self.ra2idx[(resname, natom)] = shift + natom
                 self.idx2rai[shift + natom] = (resname, atomname, natom)
             for prm in self.from_residue:
                 atomval = resnode.get_attribs("Atom", prm)
@@ -542,9 +542,10 @@ class NonbondedJaxGenerator:
         for prm in self.from_residue:
             maps[prm] = []
             for atom in data.atoms:
-                resname, aname = atom.residue.name, atom.name
-                maps[prm].append(self.ra2idx[(resname, aname)])
-        # TODO: implement NBFIX
+                templateName = self.ff.templateNameForResidue[atom.residue.index]
+                aidx = data.atomTemplateIndexes[atom]
+                resname, aname = templateName, atom.name
+                maps[prm].append(self.ra2idx[(resname, aidx)])
         map_nbfix = []
         map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
 

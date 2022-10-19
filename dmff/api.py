@@ -93,6 +93,7 @@ class Potential:
 class Hamiltonian(app.forcefield.ForceField):
     def __init__(self, *xmlnames):
         super().__init__(*xmlnames)
+        self._pseudo_ff = app.ForceField(*xmlnames)
         # parse XML forcefields
         self.fftree = ForcefieldTree('ForcefieldTree')
         self.xmlparser = XMLParser(self.fftree)
@@ -137,6 +138,10 @@ class Hamiltonian(app.forcefield.ForceField):
                         **args):
         # load_constraints_from_system_if_needed
         # create potentials
+        pseudo_data = app.ForceField._SystemData(topology)
+        residueTemplates = {}
+        templateForResidue = self._pseudo_ff._matchAllResiduesToTemplates(pseudo_data, topology, residueTemplates, False)
+        self.templateNameForResidue = [i.name for i in templateForResidue]
 
         system = self.createSystem(
             topology,
