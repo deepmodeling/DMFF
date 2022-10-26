@@ -99,14 +99,18 @@ class MBAREstimator:
         self._mbar = MBAR(self._umat, self._nk, initialize=initialize)
         self._umat_jax = jax.numpy.array(self._umat)
         self._free_energy_jax = jax.numpy.array(self._mbar.f_k)
+        self._nk_jax = jax.numpy.array(nk)
 
-    def estimate_weight(self, unew):
-        unew_mean = unew.mean()
+    def estimate_weight(self, unew, return_freeE=False):
+        unew_min = unew.min()
         du_1 = self._free_energy_jax.reshape((-1, 1)) - self._umat_jax
-        delta_u = du_1 + unew.reshape((1, -1)) - unew_mean - du_1.mean()
+        delta_u = du_1 + unew.reshape((1, -1)) - unew_min - du_1.min()
         cm = 1. / (jax.numpy.exp(delta_u) * jax.numpy.array(self._nk).reshape(
             (-1, 1))).sum(axis=0)
         weight = cm / cm.sum()
+        if return_freeE:
+            f_new = -jax.numpy.log(jax.numpy.sum(jax.numpy.exp(cm)))
+            return weight, f_new
         return weight
 
     def _estimate_weight_numpy(self, unew_npy, return_cn=False):
@@ -178,4 +182,13 @@ class MBAREstimator:
         return eff_samples
 
     def estimate_free_energy(self, unew):
-        pass
+        a = self._free_energy_jax - self._umat_jax.T
+        # log(sum(n_k*exp(a)))
+        a_max = a.max(axis=1, keepdims=True)
+        log_denominator_n = jnp.log((self._nk_jax.reshape(
+            (1, -1)) * jnp.exp(a - a_max)).sum(axis=1)) + a_max.reshape((-1, ))
+        a2 = -unew - log_denominator_n
+        # log(sum(exp(a2)))
+        a2_max = a2.max()
+        f_new = -jnp.log(jnp.sum(jnp.exp(a2 - a2_max))) - a2_max
+        return f_new
