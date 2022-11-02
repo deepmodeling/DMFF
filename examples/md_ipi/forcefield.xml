@@ -1,0 +1,40 @@
+<!-- Note that the atom types "name" are numeric - this is because of how AMOEBA/MPID assign anchor atoms -->
+<ForceField>
+ <AtomTypes>
+  <Type name="380" class="OW" element="O" mass="15.999"/>
+  <Type name="381" class="HW" element="H" mass="1.008"/>
+ </AtomTypes>
+ <Residues>
+  <Residue name="HOH">
+   <Atom name="H1" type="381"/>
+   <Atom name="H2" type="381"/>
+   <Atom name="O" type="380"/>
+   <Bond from="0" to="2"/>
+   <Bond from="1" to="2"/>
+ </Residue>
+ </Residues>
+
+ <ADMPDispForce mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00">
+   <Atom type="380" A="485716.5811" B="37.81265679" Q="-0.741706" C6="0.001383816" C8="7.27065e-05" C10="1.8076465e-6"/>
+   <Atom type="381" A="347.6624088" B="37.78544799"  Q="0.370853" C6="5.7929e-05" C8="1.416624e-06" C10="2.26525e-08"/>
+ </ADMPDispForce>
+
+ <ADMPPmeForce lmax="2" 
+     mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00" 
+     pScale12="0.00" pScale13="0.00" pScale14="0.00" pScale15="1.00" pScale16="1.00" 
+     dScale12="0.00" dScale13="0.00" dScale14="0.00" dScale15="1.00" dScale16="1.00">
+   <Atom type="380" kz="381" kx="-381"
+             c0="-0.803721"
+             dX="0.0" dY="0.0"  dZ="-0.00784325"
+             qXX="0.000366476" qXY="0.0" qYY="-0.000381799" qXZ="0.0" qYZ="0.0" qZZ="1.53231e-05"
+             />
+   <Atom type="381" kz="380" kx="381"
+             c0="0.401876"
+             dX="-0.00121713" dY="0.0"  dZ="-0.00095895"
+             qXX="6.7161e-06" qXY="0.0" qYY="-3.37874e-05" qXZ="1.25905e-05" qYZ="0.0" qZZ="2.70713e-05"
+             />
+   <Polarize type="380" polarizabilityXX="1.1249e-03" polarizabilityYY="1.1249e-03" polarizabilityZZ="1.1249e-03" thole="0.33"/>
+   <Polarize type="381" polarizabilityXX="2.6906e-04" polarizabilityYY="2.6906e-04" polarizabilityZZ="2.6906e-04" thole="0.33"/>
+ </ADMPPmeForce>
+</ForceField>
+
