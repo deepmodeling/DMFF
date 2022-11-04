@@ -9,3 +9,4 @@ mkdocstrings-python>=0.7.0
 pygments>=2.12
 jax>=0.3.7,<0.3.16
 jaxlib>=0.3.7,<0.3.16
+pymbar==4.0.1
