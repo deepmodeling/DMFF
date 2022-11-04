@@ -864,7 +864,7 @@ class LennardJonesGenerator:
         map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
         map_nbfix = jnp.array(map_nbfix)
 
-        colv_map = dmff.api.build_covalent_map(data, 6)
+        colv_map = build_covalent_map(data, 6)
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)

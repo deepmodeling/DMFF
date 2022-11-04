@@ -16,7 +16,7 @@ import openmm.app.element as elem
 import openmm.unit as unit
 
 import dmff
-from dmff.api import Hamiltonian
+from dmff.api import Hamiltonian, build_covalent_map
 from dmff.admp.disp_pme import ADMPDispPmeForce
 from dmff.admp.multipole import convert_cart2harm, convert_harm2cart
 from dmff.admp.pairwise import (TT_damping_qq_c6_kernel,
