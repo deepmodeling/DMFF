@@ -115,8 +115,11 @@ class MBAREstimator:
         self._free_energy_jax = jax.numpy.array(self._mbar.f_k)
         self._nk_jax = jax.numpy.array(nk)
 
-    def estimate_weight(self, state, decompose=True):
-        unew = state.calc_energy(self._full_samples)
+    def estimate_weight(self, state, parameters=None, decompose=True, return_energy=True):
+        if isinstance(state, TargetState):
+            unew = state.calc_energy(self._full_samples, parameters)
+        else:
+            unew = state.calc_energy(self._full_samples)
         unew_min = unew.min()
         du_1 = self._free_energy_jax.reshape((-1, 1)) - self._umat_jax
         delta_u = du_1 + unew.reshape((1, -1)) - unew_min - du_1.min()
@@ -124,6 +127,8 @@ class MBAREstimator:
             (-1, 1))).sum(axis=0)
         weight = cm / cm.sum()
         i_effect = self.estimate_effective_sample(unew, decompose=decompose)
+        if return_energy:
+            return weight, unew, i_effect
         return weight, i_effect
 
     def _estimate_weight_numpy(self, unew_npy, return_cn=False):

@@ -1,5 +1,9 @@
 # 2. Installation
 ## 2.1 Install Dependencies
++ Create conda environment:
+```
+conda create -n dmff python=3.9 --yes
+```
 + Install [jax](https://github.com/google/jax) (select the correct cuda version, see more details in the Jax installation guide):
 ```bash
 pip install "jaxlib[cuda11_cudnn805]==0.3.15" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
