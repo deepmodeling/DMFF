@@ -7,13 +7,26 @@ from jax import grad
 from tqdm import tqdm, trange
 
 
-class BaseState:
+class TargetState:
+    def __init__(self, temperature, energy_function):
+        self._temperature = temperature
+        self._efunc = energy_function
+
+    def calc_energy(self, trajectory, parameters):
+        beta = 1. / self._temperature / 8.314 * 1000.
+        eners = []
+        for frame in tqdm(trajectory):
+            eners.append(self._efunc(frame, parameters))
+        ulist = jnp.concatenate([beta * e.reshape((1, )) for e in eners])
+        return ulist
+
+
+class SampleState:
     def __init__(self, temperature, name):
         self._temperature = temperature
         self.name = name
 
     def calc_energy_frame(self, frame):
-        # implement this on your own
         return 0.0
 
     def calc_energy(self, trajectory):
@@ -23,7 +36,7 @@ class BaseState:
         for frame in tqdm(trajectory):
             e = self.calc_energy_frame(frame)
             eners.append(e * beta)
-        return np.array(eners)
+        return jnp.array(eners)
 
 
 class Sample:
@@ -58,13 +71,14 @@ class MBAREstimator:
         init_num = len(self.samples)
         self.samples = [s for s in self.samples if s.from_state != name]
         final_num = len(self.samples)
-        assert init_num < final_num
+        assert init_num > final_num
 
     def remove_state(self, name):
         init_num = len(self.states)
         self.states = [s for s in self.states if s.name != name]
         final_num = len(self.states)
-        assert init_num < final_num
+        assert init_num > final_num
+        self.remove_sample(name)
 
     def compute_energy_matrix(self):
         for sample in self.samples:
@@ -101,17 +115,16 @@ class MBAREstimator:
         self._free_energy_jax = jax.numpy.array(self._mbar.f_k)
         self._nk_jax = jax.numpy.array(nk)
 
-    def estimate_weight(self, unew, return_freeE=False):
+    def estimate_weight(self, state, decompose=True):
+        unew = state.calc_energy(self._full_samples)
         unew_min = unew.min()
         du_1 = self._free_energy_jax.reshape((-1, 1)) - self._umat_jax
         delta_u = du_1 + unew.reshape((1, -1)) - unew_min - du_1.min()
         cm = 1. / (jax.numpy.exp(delta_u) * jax.numpy.array(self._nk).reshape(
             (-1, 1))).sum(axis=0)
         weight = cm / cm.sum()
-        if return_freeE:
-            f_new = -jax.numpy.log(jax.numpy.sum(jax.numpy.exp(cm)))
-            return weight, f_new
-        return weight
+        i_effect = self.estimate_effective_sample(unew, decompose=decompose)
+        return weight, i_effect
 
     def _estimate_weight_numpy(self, unew_npy, return_cn=False):
         unew_mean = unew_npy.mean()
@@ -171,17 +184,18 @@ class MBAREstimator:
         wnew, cn = self._estimate_weight_numpy(unew, return_cn=True)
         eff_samples = 1. / (wnew**2).sum()
         if decompose:
-            state_effect = np.zeros((len(self.states)))
-            argsort = np.argsort(wnew)[::-1][:int(eff_samples) + 1]
-            for nstate in range(state_effect.shape[0]):
+            state_effect = {}
+            argsort = np.argsort(wnew)[::-1][:int(eff_samples)]
+            for nstate in range(len(self.states)):
                 istart = self._nk[:nstate].sum()
                 iend = istart + self._nk[nstate]
-                state_effect[nstate] = ((argsort > istart) &
-                                        (argsort < iend)).sum()
-            return eff_samples, state_effect
+                state_effect[self.states[nstate].name] = (
+                    (argsort > istart) & (argsort < iend)).sum()
+            state_effect["Total"] = eff_samples
+            return state_effect
         return eff_samples
 
-    def estimate_free_energy(self, unew):
+    def _estimate_free_energy(self, unew):
         a = self._free_energy_jax - self._umat_jax.T
         # log(sum(n_k*exp(a)))
         a_max = a.max(axis=1, keepdims=True)
@@ -192,3 +206,29 @@ class MBAREstimator:
         a2_max = a2.max()
         f_new = -jnp.log(jnp.sum(jnp.exp(a2 - a2_max))) - a2_max
         return f_new
+
+    def estimate_free_energy_difference(self,
+                                        target_state,
+                                        ref_state,
+                                        target_parameters=None,
+                                        ref_parameters=None,
+                                        decompose=True,
+                                        return_energy=False):
+        # compute F_target - F_ref
+        if isinstance(ref_state, TargetState):
+            u_ref = ref_state.calc_energy(self._full_samples, ref_parameters)
+        else:
+            u_ref = ref_state.calc_energy(self._full_samples)
+        if isinstance(target_state, TargetState):
+            u_target = target_state.calc_energy(self._full_samples,
+                                                target_parameters)
+        else:
+            u_target = target_state.calc_energy(self._full_samples)
+        f_ref = self._estimate_free_energy(u_ref)
+        f_target = self._estimate_free_energy(u_target)
+        i_ref = self.estimate_effective_sample(u_ref, decompose=decompose)
+        i_target = self.estimate_effective_sample(u_target,
+                                                  decompose=decompose)
+        if return_energy:
+            return f_target - f_ref, u_target, u_ref, i_target, i_ref
+        return f_target - f_ref, i_target, i_ref
