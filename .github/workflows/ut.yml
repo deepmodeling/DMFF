@@ -24,6 +24,7 @@ jobs:
           conda update pip
           conda install numpy openmm pytest -c conda-forge
           pip install jax jax_md
+          pip install mdtraj==1.9.7
       - name: Install DMFF
         run: |
           source $CONDA/bin/activate
