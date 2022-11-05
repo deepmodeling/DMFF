@@ -1,18 +1,9 @@
-import sys
-import linecache
-import itertools
 from collections import defaultdict
 from typing import Dict
-import xml.etree.ElementTree as ET
-from copy import deepcopy
-import warnings
 
 import numpy as np
 import jax.numpy as jnp
-
-import openmm as mm
 import openmm.app as app
-import openmm.app.element as elem
 import openmm.unit as unit
 
 import dmff
@@ -30,14 +21,15 @@ from dmff.classical.inter import (
     CoulReactionFieldForce,
     LennardJonesForce,
 )
-from dmff.classical.fep import (LennardJonesFreeEnergyForce,
-                                LennardJonesLongRangeFreeEnergyForce,
-                                CoulombPMEFreeEnergyForce)
-from dmff.admp.pme import ADMPPmeForce, setup_ewald_parameters
+from dmff.classical.fep import (
+    LennardJonesFreeEnergyForce,
+    LennardJonesLongRangeFreeEnergyForce,
+    CoulombPMEFreeEnergyForce
+)
+from dmff.admp.pme import  setup_ewald_parameters
 from dmff.utils import jit_condition, isinstance_jnp, DMFFException, findItemInList
-from dmff.fftree import ForcefieldTree, XMLParser, TypeMatcher
-from dmff.api import Hamiltonian, build_covalent_map, get_line_context, findAtomTypeTexts
-from collections import defaultdict
+from dmff.fftree import ForcefieldTree, TypeMatcher
+from dmff.api import Hamiltonian, build_covalent_map
 
 
 class HarmonicBondJaxGenerator:

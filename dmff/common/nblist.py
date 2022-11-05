@@ -1,11 +1,12 @@
-from typing import Optional
+from typing import Optional, Literal
+
 import numpy as np
 import jax.numpy as jnp
 from jax_md import space, partition
-from dmff.utils import regularize_pairs
-from typing import Literal
 import freud
-from dmff.admp.pairwise import distribute_v3
+
+from dmff.utils import regularize_pairs
+
 
 class NeighborList:
     def __init__(self, box, r_cutoff, covalent_map, dr_threshold=0, capacity_multiplier=1.25, format=Literal['dense', 'sparse', ]) -> None:

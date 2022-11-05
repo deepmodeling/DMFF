@@ -1,22 +1,13 @@
-import sys
 import linecache
-import itertools
-from collections import defaultdict
-from typing import Dict
-import xml.etree.ElementTree as ET
-from copy import deepcopy
-import warnings
 
 import numpy as np
 import jax.numpy as jnp
 
 import openmm as mm
 import openmm.app as app
-import openmm.app.element as elem
 import openmm.unit as unit
-from dmff.utils import jit_condition, isinstance_jnp, DMFFException, findItemInList
-from dmff.fftree import ForcefieldTree, XMLParser, TypeMatcher
-from collections import defaultdict
+from dmff.utils import DMFFException
+from dmff.fftree import ForcefieldTree, XMLParser
 
 
 def get_line_context(file_path, line_number):
