@@ -129,6 +129,28 @@ class Hamiltonian(app.forcefield.ForceField):
                         **args):
         # load_constraints_from_system_if_needed
         # create potentials
+        """
+        Create differentiable jax potential for given openmm.app.Topology object
+
+        Parameters
+        ----------
+        topology: openmm.app.Topology
+            Input openmm topology
+        nonbondedMethod: object=NoCutoff
+            The method to use for nonbonded interactions. Allowed values are 
+            NoCutoff, CutoffNonPeriodic, CutoffPeriodic, Ewald, PME, or LJPME.
+        nonbondedCutoff : distance=1*nanometer
+            The cutoff distance to use for nonbonded interactions
+        jaxForces: list of str
+            Specified forces to create. If set to [], will create all existing types of forces.
+        args
+            Arbitrary parameters in openmm.app.ForceField.createSystem function
+        
+        Return
+        ------
+        potObj: dmff.api.Potential
+            Differentiable jax potential energy function
+        """
         pseudo_data = app.ForceField._SystemData(topology)
         residueTemplates = {}
         templateForResidue = self._pseudo_ff._matchAllResiduesToTemplates(pseudo_data, topology, residueTemplates, False)
