@@ -124,10 +124,9 @@ class MBAREstimator:
         cm = 1. / (jax.numpy.exp(delta_u) * jax.numpy.array(self._nk).reshape(
             (-1, 1))).sum(axis=0)
         weight = cm / cm.sum()
-        i_effect = self.estimate_effective_sample(unew, decompose=decompose)
         if return_energy:
-            return weight, unew, i_effect
-        return weight, i_effect
+            return weight, unew
+        return weight
 
     def _estimate_weight_numpy(self, unew_npy, return_cn=False):
         unew_mean = unew_npy.mean()
@@ -153,35 +152,6 @@ class MBAREstimator:
         Theta = (V @ Sigma @ np.linalg.pinv(
             I - Sigma @ V.T @ Ndiag @ V @ Sigma, rcond=1e-10) @ Sigma @ V.T)
         return Theta
-
-    def compute_covar_mat(self, unew):
-        wnew = self._estimate_weight_numpy(unew)
-        wappend = np.concatenate(
-            [self._mbar.W_nk.T, wnew.reshape((1, -1))], axis=0)
-
-        N_k = np.zeros((self._mbar.N_k.shape[0] + 1, ))
-        N_k[:-1] = self._mbar.N_k[:]
-        newcov = self._computeCovar(wappend, N_k)
-        return newcov
-
-    def compute_variance(self, unew, prop):
-        wnew, cn = self._estimate_weight_numpy(unew, return_cn=True)
-        ca = (1. / cn).sum()
-        A_ave = (prop * wnew).sum()
-        W_A = wnew * (prop / A_ave)
-
-        wappend = np.concatenate(
-            [self._mbar.W_nk.T,
-             wnew.reshape((1, -1)),
-             W_A.reshape((1, -1))],
-            axis=0)
-
-        N_k = np.zeros((self._mbar.N_k.shape[0] + 2, ))
-        N_k[:-2] = self._mbar.N_k[:]
-
-        newcov = self._computeCovar(wappend, N_k)
-        return A_ave * A_ave * (newcov[-2, -2] + newcov[-1, -1] -
-                                2. * newcov[-1, -2])
 
     def estimate_effective_sample(self, unew, decompose=False):
         wnew, cn = self._estimate_weight_numpy(unew, return_cn=True)
@@ -229,9 +199,6 @@ class MBAREstimator:
             u_target = target_state.calc_energy(self._full_samples)
         f_ref = self._estimate_free_energy(u_ref)
         f_target = self._estimate_free_energy(u_target)
-        i_ref = self.estimate_effective_sample(u_ref, decompose=decompose)
-        i_target = self.estimate_effective_sample(u_target,
-                                                  decompose=decompose)
         if return_energy:
-            return f_target - f_ref, u_target, u_ref, i_target, i_ref
-        return f_target - f_ref, i_target, i_ref
+            return f_target - f_ref, u_target, u_ref
+        return f_target - f_ref
