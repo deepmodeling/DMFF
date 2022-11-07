@@ -124,9 +124,9 @@ class MBAREstimator:
             unew = state.calc_energy(self._full_samples, parameters)
         else:
             unew = state.calc_energy(self._full_samples)
-        unew_min = unew.min()
+        unew_max = unew.max()
         du_1 = self._free_energy_jax.reshape((-1, 1)) - self._umat_jax
-        delta_u = du_1 + unew.reshape((1, -1)) - unew_min - du_1.min()
+        delta_u = du_1 + unew.reshape((1, -1)) - unew_max - du_1.min()
         cm = 1. / (jax.numpy.exp(delta_u) * jax.numpy.array(self._nk).reshape(
             (-1, 1))).sum(axis=0)
         weight = cm / cm.sum()
