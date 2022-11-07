@@ -875,7 +875,6 @@ class LennardJonesGenerator:
                                     r_cut,
                                     map_lj,
                                     map_nbfix,
-                                    colv_map,
                                     isSwitch=ifSwitch,
                                     isPBC=ifPBC,
                                     isNoCut=isNoCut)
