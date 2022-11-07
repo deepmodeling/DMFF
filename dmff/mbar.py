@@ -1,6 +1,8 @@
 import numpy as np
 import mdtraj as md
 from pymbar import MBAR
+import dmff
+dmff.update_jax_precision(dmff.PRECISION)
 import jax
 import jax.numpy as jnp
 from jax import grad
@@ -113,7 +115,11 @@ class MBAREstimator:
         self._free_energy_jax = jax.numpy.array(self._mbar.f_k)
         self._nk_jax = jax.numpy.array(nk)
 
-    def estimate_weight(self, state, parameters=None, decompose=True, return_energy=True):
+    def estimate_weight(self,
+                        state,
+                        parameters=None,
+                        decompose=True,
+                        return_energy=True):
         if isinstance(state, TargetState):
             unew = state.calc_energy(self._full_samples, parameters)
         else:
