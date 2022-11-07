@@ -14,9 +14,7 @@ class TargetState:
 
     def calc_energy(self, trajectory, parameters):
         beta = 1. / self._temperature / 8.314 * 1000.
-        eners = []
-        for frame in tqdm(trajectory):
-            eners.append(self._efunc(frame, parameters))
+        eners = self._efunc(trajectory, parameters)
         ulist = jnp.concatenate([beta * e.reshape((1, )) for e in eners])
         return ulist
 
