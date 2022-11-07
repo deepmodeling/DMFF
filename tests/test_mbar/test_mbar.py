@@ -64,17 +64,20 @@ class TestMBAR:
             if isinstance(gen, dmff.generators.NonbondedJaxGenerator):
                 nbgen = gen
 
-        def target_energy_function(frame, parameters):
-            aa, bb, cc = frame.openmm_boxes(0).value_in_unit(unit.nanometer)
-            box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
-                             [cc[0], cc[1], cc[2]]])
-            vol = aa[0] * bb[1] * cc[2]
-            positions = jnp.array(frame.xyz[0, :, :])
-            nbobj = NeighborListFreud(box, 0.9, nbgen.covalent_map)
-            nbobj.capacity_multiplier = 1
-            pairs = nbobj.allocate(positions)
-            energy = efunc(positions, box, pairs, parameters) + 0.06023 * vol
-            return energy
+        def target_energy_function(traj, parameters):
+            eners = []
+            for frame in traj:
+                aa, bb, cc = frame.openmm_boxes(0).value_in_unit(unit.nanometer)
+                box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
+                                [cc[0], cc[1], cc[2]]])
+                vol = aa[0] * bb[1] * cc[2]
+                positions = jnp.array(frame.xyz[0, :, :])
+                nbobj = NeighborListFreud(box, 0.9, nbgen.covalent_map)
+                nbobj.capacity_multiplier = 1
+                pairs = nbobj.allocate(positions)
+                energy = efunc(positions, box, pairs, parameters) + 0.06023 * vol
+                eners.append(energy)
+            return eners
 
         target_state = TargetState(300.0, target_energy_function)
 
@@ -234,17 +237,20 @@ class TestMBAR:
             if isinstance(gen, dmff.generators.NonbondedJaxGenerator):
                 nbgen = gen
 
-        def target_energy_function(frame, parameters):
-            aa, bb, cc = frame.openmm_boxes(0).value_in_unit(unit.nanometer)
-            box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
-                             [cc[0], cc[1], cc[2]]])
-            vol = aa[0] * bb[1] * cc[2]
-            positions = jnp.array(frame.xyz[0, :, :])
-            nbobj = NeighborListFreud(box, 0.9, nbgen.covalent_map)
-            nbobj.capacity_multiplier = 1
-            pairs = nbobj.allocate(positions)
-            energy = efunc(positions, box, pairs, parameters) + 0.06023 * vol
-            return energy
+        def target_energy_function(traj, parameters):
+            eners = []
+            for frame in traj:
+                aa, bb, cc = frame.openmm_boxes(0).value_in_unit(unit.nanometer)
+                box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
+                                [cc[0], cc[1], cc[2]]])
+                vol = aa[0] * bb[1] * cc[2]
+                positions = jnp.array(frame.xyz[0, :, :])
+                nbobj = NeighborListFreud(box, 0.9, nbgen.covalent_map)
+                nbobj.capacity_multiplier = 1
+                pairs = nbobj.allocate(positions)
+                energy = efunc(positions, box, pairs, parameters) + 0.06023 * vol
+                eners.append(energy)
+            return eners
 
         target_state = TargetState(300.0, target_energy_function)
 
