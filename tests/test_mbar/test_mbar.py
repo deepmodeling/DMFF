@@ -65,18 +65,36 @@ class TestMBAR:
                 nbgen = gen
 
         def target_energy_function(traj, parameters):
-            eners = []
-            for frame in traj:
-                aa, bb, cc = frame.openmm_boxes(0).value_in_unit(unit.nanometer)
+            pos_list, box_list, pairs_list, vol_list = [], [], [], []
+            for frame in tqdm(traj):
+                aa, bb, cc = frame.openmm_boxes(0).value_in_unit(
+                    unit.nanometer)
                 box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
-                                [cc[0], cc[1], cc[2]]])
+                                 [cc[0], cc[1], cc[2]]])
                 vol = aa[0] * bb[1] * cc[2]
                 positions = jnp.array(frame.xyz[0, :, :])
                 nbobj = NeighborListFreud(box, 0.9, nbgen.covalent_map)
                 nbobj.capacity_multiplier = 1
                 pairs = nbobj.allocate(positions)
-                energy = efunc(positions, box, pairs, parameters) + 0.06023 * vol
-                eners.append(energy)
+                box_list.append(box)
+                pairs_list.append(pairs)
+                vol_list.append(vol)
+                pos_list.append(positions)
+
+            pmax = max([p.shape[0] for p in pairs_list])
+            pairs_jax = np.zeros(
+                (traj.n_frames, pmax, 3), dtype=int) + traj.n_atoms
+            for nframe in range(traj.n_frames):
+                pair = pairs_list[nframe]
+                pairs_jax[nframe, :pair.shape[0], :] = pair[:, :]
+            pairs_jax = jax.numpy.array(pairs_jax)
+            pos_list = jnp.array(pos_list)
+            box_list = jnp.array(box_list)
+            vol_list = jnp.array(vol_list)
+            eners = [
+                efunc(pos_list[i], box_list[i], pairs_jax[i], parameters) +
+                0.06023 * vol_list[i] for i in range(traj.n_frames)
+            ]
             return eners
 
         target_state = TargetState(300.0, target_energy_function)
@@ -95,7 +113,7 @@ class TestMBAR:
         mbar.add_sample(sample1)
         mbar.optimize_mbar()
 
-        df, utgt, uref, itgt, iref = mbar.estimate_free_energy_difference(
+        df, utgt, uref = mbar.estimate_free_energy_difference(
             target_state,
             ref_state1,
             target_parameters=h.paramtree,
@@ -114,7 +132,7 @@ class TestMBAR:
         mbar.add_sample(sample2)
         mbar.optimize_mbar()
 
-        df, utgt, uref, itgt, iref = mbar.estimate_free_energy_difference(
+        df, utgt, uref = mbar.estimate_free_energy_difference(
             target_state,
             ref_state2,
             target_parameters=h.paramtree,
@@ -133,7 +151,7 @@ class TestMBAR:
         mbar.remove_state("ref1")
         mbar.optimize_mbar()
 
-        df, utgt, uref, itgt, iref = mbar.estimate_free_energy_difference(
+        df, utgt, uref = mbar.estimate_free_energy_difference(
             target_state,
             ref_state2,
             target_parameters=h.paramtree,
@@ -152,7 +170,8 @@ class TestMBAR:
         [("tests/data/waterbox.pdb", "tests/data/water1.xml",
           "tests/data/w1_npt.dcd", "tests/data/water2.xml",
           "tests/data/w2_npt.dcd", "tests/data/water3.xml")])
-    def test_mbar_free_energy_nodiff(self, pdb, prm1, traj1, prm2, traj2, prm3):
+    def test_mbar_free_energy_nodiff(self, pdb, prm1, traj1, prm2, traj2,
+                                     prm3):
         pdbobj = app.PDBFile(pdb)
 
         # prepare MBAR estimator
@@ -170,10 +189,8 @@ class TestMBAR:
         mbar.add_sample(sample1)
         mbar.optimize_mbar()
 
-        df, utgt, uref, itgt, iref = mbar.estimate_free_energy_difference(
-            ref_state3,
-            ref_state1,
-            return_energy=True)
+        df, utgt, uref = mbar.estimate_free_energy_difference(
+            ref_state3, ref_state1, return_energy=True)
 
         # calc reference using PyMBAR
         umat_np = np.zeros((2, traj2.n_frames))
@@ -188,10 +205,8 @@ class TestMBAR:
         mbar.add_sample(sample2)
         mbar.optimize_mbar()
 
-        df, utgt, uref, itgt, iref = mbar.estimate_free_energy_difference(
-            ref_state3,
-            ref_state2,
-            return_energy=True)
+        df, utgt, uref = mbar.estimate_free_energy_difference(
+            ref_state3, ref_state2, return_energy=True)
 
         # calc reference using PyMBAR
         umat_np = np.zeros((3, 2 * traj1.n_frames))
@@ -206,10 +221,8 @@ class TestMBAR:
         mbar.remove_state("ref1")
         mbar.optimize_mbar()
 
-        df, utgt, uref, itgt, iref = mbar.estimate_free_energy_difference(
-            ref_state3,
-            ref_state2,
-            return_energy=True)
+        df, utgt, uref = mbar.estimate_free_energy_difference(
+            ref_state3, ref_state2, return_energy=True)
 
         # calc reference using PyMBAR
         umat_np = np.zeros((2, traj2.n_frames))
@@ -238,18 +251,36 @@ class TestMBAR:
                 nbgen = gen
 
         def target_energy_function(traj, parameters):
-            eners = []
-            for frame in traj:
-                aa, bb, cc = frame.openmm_boxes(0).value_in_unit(unit.nanometer)
+            pos_list, box_list, pairs_list, vol_list = [], [], [], []
+            for frame in tqdm(traj):
+                aa, bb, cc = frame.openmm_boxes(0).value_in_unit(
+                    unit.nanometer)
                 box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
-                                [cc[0], cc[1], cc[2]]])
+                                 [cc[0], cc[1], cc[2]]])
                 vol = aa[0] * bb[1] * cc[2]
                 positions = jnp.array(frame.xyz[0, :, :])
                 nbobj = NeighborListFreud(box, 0.9, nbgen.covalent_map)
                 nbobj.capacity_multiplier = 1
                 pairs = nbobj.allocate(positions)
-                energy = efunc(positions, box, pairs, parameters) + 0.06023 * vol
-                eners.append(energy)
+                box_list.append(box)
+                pairs_list.append(pairs)
+                vol_list.append(vol)
+                pos_list.append(positions)
+
+            pmax = max([p.shape[0] for p in pairs_list])
+            pairs_jax = np.zeros(
+                (traj.n_frames, pmax, 3), dtype=int) + traj.n_atoms
+            for nframe in range(traj.n_frames):
+                pair = pairs_list[nframe]
+                pairs_jax[nframe, :pair.shape[0], :] = pair[:, :]
+            pairs_jax = jax.numpy.array(pairs_jax)
+            pos_list = jnp.array(pos_list)
+            box_list = jnp.array(box_list)
+            vol_list = jnp.array(vol_list)
+            eners = [
+                efunc(pos_list[i], box_list[i], pairs_jax[i], parameters) +
+                0.06023 * vol_list[i] for i in range(traj.n_frames)
+            ]
             return eners
 
         target_state = TargetState(300.0, target_energy_function)
@@ -269,9 +300,9 @@ class TestMBAR:
         mbar.add_sample(sample2)
         mbar.optimize_mbar()
 
-        weight, ulist, i_eff = mbar.estimate_weight(target_state,
-                                                    h.paramtree,
-                                                    return_energy=True)
+        weight, ulist = mbar.estimate_weight(target_state,
+                                             h.paramtree,
+                                             return_energy=True)
 
         # calc reference using PyMBAR
         umat_ref = np.zeros((3, ulist.shape[0]))
