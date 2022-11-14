@@ -782,3 +782,6 @@ FodyWeavers.xsd
 
 */_date.py
 */_version.py
+
+# hmtff cache
+*.hmtff/
