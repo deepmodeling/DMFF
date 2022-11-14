@@ -7,6 +7,9 @@ import jax
 import jax.numpy as jnp
 from jax import grad
 from tqdm import tqdm, trange
+import openmm as mm
+import openmm.app as app 
+import openmm.unit as unit
 
 
 class TargetState:
@@ -37,6 +40,43 @@ class SampleState:
             e = self.calc_energy_frame(frame)
             eners.append(e * beta)
         return jnp.array(eners)
+
+
+class OpenMMSampleState(SampleState):
+    def __init__(self,
+                 name,
+                 parameter,
+                 topology,
+                 temperature=300.0,
+                 pressure=1.0):
+        super(OpenMMSampleState, self).__init__(temperature, name)
+        self._pressure = pressure
+        # create a context
+        pdb = app.PDBFile(topology)
+        ff = app.ForceField(parameter)
+        system = ff.createSystem(pdb.topology,
+                                 nonbondedMethod=app.PME,
+                                 nonbondedCutoff=0.9 * unit.nanometer,
+                                 constraints=None,
+                                 rigidWater=False)
+
+        for force in system.getForces():
+            if isinstance(force, mm.NonbondedForce):
+                force.setUseDispersionCorrection(False)
+                force.setUseSwitchingFunction(False)
+
+        integ = mm.LangevinIntegrator(0 * unit.kelvin, 5 / unit.picosecond,
+                                      1.0 * unit.femtosecond)
+        self.ctx = mm.Context(system, integ)
+
+    def calc_energy_frame(self, frame):
+        self.ctx.setPositions(frame.openmm_positions(0))
+        self.ctx.setPeriodicBoxVectors(*frame.openmm_boxes(0))
+        state = self.ctx.getState(getEnergy=True)
+        vol = frame.unitcell_volumes[0]  # in nm^3
+        ener = state.getPotentialEnergy().value_in_unit(
+            unit.kilojoule_per_mole) + 0.06023 * vol * self._pressure
+        return ener
 
 
 class Sample:

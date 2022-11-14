@@ -1,4 +1,4 @@
-from dmff.mbar import MBAREstimator, Sample, SampleState, TargetState
+from dmff.mbar import MBAREstimator, Sample, SampleState, TargetState, OpenMMSampleState
 import dmff
 import pytest
 import jax
@@ -12,37 +12,6 @@ import mdtraj as md
 from pymbar import MBAR
 from dmff import Hamiltonian, NeighborListFreud
 from tqdm import tqdm
-
-
-class OMMNPTState(SampleState):
-    def __init__(self, temperature, name, parameter, topology):
-        super(OMMNPTState, self).__init__(temperature, name)
-        # create a context
-        pdb = app.PDBFile(topology)
-        ff = app.ForceField(parameter)
-        system = ff.createSystem(pdb.topology,
-                                 nonbondedMethod=app.PME,
-                                 nonbondedCutoff=0.9 * unit.nanometer,
-                                 constraints=None,
-                                 rigidWater=False)
-
-        for force in system.getForces():
-            if isinstance(force, mm.NonbondedForce):
-                force.setUseDispersionCorrection(False)
-                force.setUseSwitchingFunction(False)
-
-        integ = mm.LangevinIntegrator(0 * unit.kelvin, 5 / unit.picosecond,
-                                      1.0 * unit.femtosecond)
-        self.ctx = mm.Context(system, integ)
-
-    def calc_energy_frame(self, frame):
-        self.ctx.setPositions(frame.openmm_positions(0))
-        self.ctx.setPeriodicBoxVectors(*frame.openmm_boxes(0))
-        state = self.ctx.getState(getEnergy=True)
-        vol = frame.unitcell_volumes[0]
-        ener = state.getPotentialEnergy().value_in_unit(
-            unit.kilojoule_per_mole) + 0.06023 * vol
-        return ener
 
 
 class TestMBAR:
@@ -102,8 +71,16 @@ class TestMBAR:
         # prepare MBAR estimator
         traj1 = md.load(traj1, top=pdb)[20::4]
         traj2 = md.load(traj2, top=pdb)[20::4]
-        ref_state1 = OMMNPTState(300, "ref1", prm1, pdb)
-        ref_state2 = OMMNPTState(300, "ref2", prm2, pdb)
+        ref_state1 = OpenMMSampleState("ref1",
+                                       prm1,
+                                       pdb,
+                                       temperature=300.0,
+                                       pressure=1.0)
+        ref_state2 = OpenMMSampleState("ref2",
+                                       prm2,
+                                       pdb,
+                                       temperature=300.0,
+                                       pressure=1.0)
         sample1 = Sample(traj1, "ref1")
         sample2 = Sample(traj2, "ref2")
 
@@ -177,9 +154,21 @@ class TestMBAR:
         # prepare MBAR estimator
         traj1 = md.load(traj1, top=pdb)[20::4]
         traj2 = md.load(traj2, top=pdb)[20::4]
-        ref_state1 = OMMNPTState(300, "ref1", prm1, pdb)
-        ref_state2 = OMMNPTState(300, "ref2", prm2, pdb)
-        ref_state3 = OMMNPTState(300, "ref3", prm3, pdb)
+        ref_state1 = OpenMMSampleState("ref1",
+                                       prm1,
+                                       pdb,
+                                       temperature=300.0,
+                                       pressure=1.0)
+        ref_state2 = OpenMMSampleState("ref2",
+                                       prm2,
+                                       pdb,
+                                       temperature=300.0,
+                                       pressure=1.0)
+        ref_state3 = OpenMMSampleState("ref3",
+                                       prm3,
+                                       pdb,
+                                       temperature=300.0,
+                                       pressure=1.0)
         sample1 = Sample(traj1, "ref1")
         sample2 = Sample(traj2, "ref2")
 
@@ -288,8 +277,16 @@ class TestMBAR:
         # prepare MBAR estimator
         traj1 = md.load(traj1, top=pdb)[20::4]
         traj2 = md.load(traj2, top=pdb)[20::4]
-        ref_state1 = OMMNPTState(300, "ref1", prm1, pdb)
-        ref_state2 = OMMNPTState(300, "ref2", prm2, pdb)
+        ref_state1 = OpenMMSampleState("ref1",
+                                       prm1,
+                                       pdb,
+                                       temperature=300.0,
+                                       pressure=1.0)
+        ref_state2 = OpenMMSampleState("ref2",
+                                       prm2,
+                                       pdb,
+                                       temperature=300.0,
+                                       pressure=1.0)
         sample1 = Sample(traj1, "ref1")
         sample2 = Sample(traj2, "ref2")
 
