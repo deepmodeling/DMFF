@@ -48,7 +48,7 @@ class OpenMMSampleState(SampleState):
                  parameter,
                  topology,
                  temperature=300.0,
-                 pressure=1.0):
+                 pressure=0.0):
         super(OpenMMSampleState, self).__init__(temperature, name)
         self._pressure = pressure
         # create a context
