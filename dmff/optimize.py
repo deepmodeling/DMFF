@@ -1,4 +1,5 @@
 from jax import grad
+from typing import Optional
 import optax
 
 PeriodicParamsState = optax._src.base.EmptyState
@@ -24,20 +25,41 @@ def periodic_move(pmin, pmax):
     return optax._src.base.GradientTransformation(init_fn, update_fn)
 
 
-def genOptimizer(lrate=1.0, nonzero=True, clip=10.0, periodic=None):
+def genOptimizer(optimizer="adam",
+                 learning_rate=1.0,
+                 nonzero=True,
+                 clip=10.0,
+                 periodic=None,
+                 transition_steps=1000,
+                 decay_rate=0.99,
+                 options: dict={}):
+    options["learning_rate"] = learning_rate
     # Exponential decay of the learning rate.
-    scheduler = optax.exponential_decay(init_value=lrate,
-                                        transition_steps=1000,
-                                        decay_rate=0.99)
+    scheduler = optax.exponential_decay(init_value=learning_rate,
+                                        transition_steps=transition_steps,
+                                        decay_rate=decay_rate)
 
     # Combining gradient transforms using `optax.chain`.
-    chain = [optax.adam(scheduler), optax.clip(clip)]
+    if optimizer == "sgd":
+        chain = [optax.sgd(**options), optax.clip(clip)]
+    elif optimizer == "adam":
+        chain = [optax.adam(**options), optax.clip(clip)]
+    elif optimizer == "adagrad":
+        chain = [optax.adagrad(**options), optax.clip(clip)]
+    elif optimizer == "adamw":
+        chain = [optax.adamw(**options), optax.clip(clip)]
+    elif optimizer == "rmsprop":
+        chain = [optax.rmsprop(**options), optax.clip(clip)]
+    else:
+        print(f"Unknown optimizer {optimizer}.")
+
     if periodic is not None:
         chain.append(periodic_move(periodic[0], periodic[1]))
     elif nonzero:
         chain.append(optax.keep_params_nonnegative())
     gradient_transform = optax.chain(*chain)
     return gradient_transform
+
 
 def label_iter(parent, ltree, label):
     for key in parent:
@@ -79,8 +101,8 @@ def label2trans_iter(parent, mtree, ttree):
                 # print(label, False)
                 ttree[label] = optax.set_to_zero()
 
-class MultiTransform:
 
+class MultiTransform:
     def __init__(self, param_tree):
         self.transforms = {}
         self.labels = {}
