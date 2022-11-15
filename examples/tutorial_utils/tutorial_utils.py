@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 import openmm.app as app
 import openmm.unit as unit
-import mdtraj as md
+#import mdtraj as md
 
 
 class State:
@@ -105,30 +105,30 @@ class XYZWriter:
         self.file.close()
 
 
-def xyz_to_traj(filename, topology):
-    xyz, ulength, uangle = [], [], []
-    with open(filename, "r") as f:
-        text = f.readlines()
-    p = 0
-    while p < len(text):
-        natom = int(text[p].strip())
-        cell = [float(i) * 0.1 for i in text[p + 1].strip().split()]
-        frame = text[p + 2:p + 2 + natom]
-        p = p + natom + 2
-        frame = [i.strip().split()[1:] for i in frame]
-        frame = [[float(j) * 0.1 for j in i] for i in frame]
-        if len(frame) == natom:
-            xyz.append(frame)
-            ulength.append([cell[0], cell[4], cell[8]])
-            uangle.append([90., 90., 90.])
-
-    xyz = np.array(xyz)
-    ulength = np.array(ulength)
-    uangle = np.array(uangle)
-    return md.Trajectory(xyz,
-                         topology,
-                         unitcell_lengths=ulength,
-                         unitcell_angles=uangle)
+#def xyz_to_traj(filename, topology):
+#    xyz, ulength, uangle = [], [], []
+#    with open(filename, "r") as f:
+#        text = f.readlines()
+#    p = 0
+#    while p < len(text):
+#        natom = int(text[p].strip())
+#        cell = [float(i) * 0.1 for i in text[p + 1].strip().split()]
+#        frame = text[p + 2:p + 2 + natom]
+#        p = p + natom + 2
+#        frame = [i.strip().split()[1:] for i in frame]
+#        frame = [[float(j) * 0.1 for j in i] for i in frame]
+#        if len(frame) == natom:
+#            xyz.append(frame)
+#            ulength.append([cell[0], cell[4], cell[8]])
+#            uangle.append([90., 90., 90.])
+#
+#    xyz = np.array(xyz)
+#    ulength = np.array(ulength)
+#    uangle = np.array(uangle)
+#    return md.Trajectory(xyz,
+#                         topology,
+#                         unitcell_lengths=ulength,
+#                         unitcell_angles=uangle)
 
 
 class BaseIntegrator:
