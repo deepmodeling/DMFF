@@ -97,6 +97,7 @@ class HarmonicBondJaxGenerator:
         map_param = np.array(map_param, dtype=int)
 
         bforce = HarmonicBondJaxForce(map_atom1, map_atom2, map_param)
+        self._force_latest = bforce
 
         def potential_fn(positions, box, pairs, params):
             return bforce.get_energy(positions, box, pairs,
@@ -163,6 +164,7 @@ class HarmonicAngleJaxGenerator:
 
         aforce = HarmonicAngleJaxForce(map_atom1, map_atom2, map_atom3,
                                        map_param)
+        self._force_latest = aforce
 
         def potential_fn(positions, box, pairs, params):
             return aforce.get_energy(positions, box, pairs,
@@ -384,6 +386,8 @@ class PeriodicTorsionJaxGenerator:
                                     jnp.array(map_impr_param[p], dtype=int), p)
             for p in range(1, self.max_pred_impr + 1)
         ]
+        self._props_latest = props
+        self._imprs_latest = imprs
 
         def potential_fn(positions, box, pairs, params):
             prop_sum = sum([
