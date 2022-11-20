@@ -1,0 +1,13 @@
+<ForceField>
+    <AtomTypes>
+        <Type element="O" name="o1" class="o1" mass="15.99"/>
+    </AtomTypes>
+    <Residues>
+        <Residue name="LJP">
+            <Atom name="ATM" type="o1"/>
+        </Residue>
+    </Residues>
+    <NonbondedForce coulomb14scale="0.0" lj14scale="0.0">
+        <Atom type="o1" charge="0" sigma="0.47" epsilon="0.465"/>
+    </NonbondedForce>
+</ForceField>

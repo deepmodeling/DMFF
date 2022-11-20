@@ -24,7 +24,7 @@ git clone https://github.com/deepmodeling/DMFF.git
 ```
 Then you may install DMFF using `pip`:
 ```bash
-cd dmff
+cd DMFF
 pip install . --user
 ```
 
