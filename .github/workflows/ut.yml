@@ -22,7 +22,7 @@ jobs:
           $CONDA/bin/conda update -n base -c defaults conda
           conda install pip
           conda update pip
-          conda install numpy openmm pytest -c conda-forge
+          conda install numpy openmm pytest rdkit biopandas openbabel -c conda-forge
           pip install jax jax_md
           pip install mdtraj==1.9.7 pymbar==4.0.1
       - name: Install DMFF
