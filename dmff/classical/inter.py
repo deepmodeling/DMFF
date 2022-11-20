@@ -1,4 +1,4 @@
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Optional
 
 import jax.numpy as jnp
 import numpy as np
@@ -130,10 +130,11 @@ class LennardJonesLongRangeForce:
 class CoulNoCutoffForce:
     # E=\frac{{q}_{1}{q}_{2}}{4\pi\epsilon_0\epsilon_1 r}
 
-    def __init__(self, map_prm, epsilon_1=1.0) -> None:
+    def __init__(self, map_prm, epsilon_1=1.0, topology_matrix=None) -> None:
 
         self.eps_1 = epsilon_1
         self.map_prm = map_prm
+        self.top_mat = topology_matrix
 
     def generate_get_energy(self):
         def get_coul_energy(dr_vec, chrgprod, box):
@@ -145,7 +146,6 @@ class CoulNoCutoffForce:
             return E
 
         def get_energy(positions, box, pairs, charges, mscales):
-            
             pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
             mask = pair_buffer_scales(pairs[:, :2])
             map_prm = jnp.array(self.map_prm)
@@ -163,9 +163,16 @@ class CoulNoCutoffForce:
 
             E_inter = get_coul_energy(dr_vec, chrgprod_scale, box)
 
-            return jnp.sum(E_inter * mask) 
-
-        return get_energy
+            return jnp.sum(E_inter * mask)
+        
+        def get_energy_bcc(positions, box, pairs, pre_charges, bcc, mscales):
+            charges = pre_charges + jnp.dot(self.top_mat, bcc).flatten()
+            return get_energy(positions, box, pairs, charges, mscales)
+        
+        if self.top_mat is None:
+            return get_energy
+        else:
+            return get_energy_bcc
 
 
 class CoulReactionFieldForce:
@@ -177,6 +184,7 @@ class CoulReactionFieldForce:
         epsilon_1=1.0,
         epsilon_solv=78.5,
         isPBC=True,
+        topology_matrix=None
     ) -> None:
 
         self.r_cut = r_cut
@@ -186,6 +194,7 @@ class CoulReactionFieldForce:
         self.eps_1 = epsilon_1
         self.map_prm = map_prm
         self.ifPBC = isPBC
+        self.top_mat = topology_matrix
 
     def generate_get_energy(self):
         def get_rf_energy(dr_vec, chrgprod, box):
@@ -223,7 +232,14 @@ class CoulReactionFieldForce:
 
             return jnp.sum(E_inter * mask)
 
-        return get_energy
+        def get_energy_bcc(positions, box, pairs, pre_charges, bcc, mscales):
+            charges = pre_charges + jnp.dot(self.top_mat, bcc).flatten()
+            return get_energy(positions, box, pairs, charges, mscales)
+        
+        if self.top_mat is None:
+            return get_energy
+        else:
+            return get_energy_bcc
 
 
 class CoulombPMEForce:
@@ -235,6 +251,7 @@ class CoulombPMEForce:
         kappa: float,
         K: Tuple[int, int, int],
         pme_order: int = 6,
+        topology_matrix: Optional[jnp.array] = None,
     ):
         self.r_cut = r_cut
         self.map_prm = map_prm
@@ -242,6 +259,7 @@ class CoulombPMEForce:
         self.kappa = kappa
         self.K1, self.K2, self.K3 = K[0], K[1], K[2]
         self.pme_order = pme_order
+        self.top_mat = topology_matrix
         assert pme_order == 6, "PME order other than 6 is not supported"
 
     def generate_get_energy(self):
@@ -283,4 +301,11 @@ class CoulombPMEForce:
                 False,
             )
 
-        return get_energy
+        def get_energy_bcc(positions, box, pairs, pre_charges, bcc, mscales):
+            charges = pre_charges + jnp.dot(self.top_mat, bcc).flatten()
+            return get_energy(positions, box, pairs, charges, mscales)
+        
+        if self.top_mat is None:
+            return get_energy
+        else:
+            return get_energy_bcc

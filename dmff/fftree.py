@@ -257,11 +257,13 @@ class XMLParser:
 
 
 class TypeMatcher:
-    def __init__(self, fftree: ForcefieldTree, parser):
+    def __init__(self, fftree: ForcefieldTree, parser: str):
         """
         Freeze type matching list.
         """
         # not convert to float for atom types
+        self.useSmirks = False
+
         atypes = fftree.get_attribs("AtomTypes/Type", "name", convert_to_float=False)
         aclasses = fftree.get_attribs("AtomTypes/Type", "class", convert_to_float=False)
         self.class2type = {}
@@ -288,8 +290,13 @@ class TypeMatcher:
                     tmp.append((nit, self.class2type.get(node.attrs[key], [None])))
                 elif key == "class":
                     tmp.append((1, self.class2type.get(node.attrs[key], [None])))
-            tmp = sorted(tmp, key=lambda x: x[0])
-            self.functions.append([i[1] for i in tmp])
+                elif key == "smirks":
+                    self.useSmirks = True
+                    self.functions.append(node.attrs[key])
+
+            if not self.useSmirks:        
+                tmp = sorted(tmp, key=lambda x: x[0])
+                self.functions.append([i[1] for i in tmp])
 
     def matchGeneral(self, types):
         matches = []
@@ -300,6 +307,82 @@ class TypeMatcher:
         if len(matches) == 0:
             return False, False, -1
         return matches[-1]
+    
+    def matchSmirks(self, rdmol):
+        """
+        Match smirks
+        """
+        from rdkit import Chem
+
+        if rdmol is None:
+            raise DMFFException("No rdkit.Chem.Mol object is provided")
+
+        matches_dict = {}
+        for idx, smk in enumerate(self.functions):
+            patt = Chem.MolFromSmarts(smk)
+            matches = rdmol.GetSubstructMatches(patt)
+            for match in matches:
+                if len(match) == 2:
+                    canonical_match = (min(match), max(match))
+                elif len(match) == 3:
+                    canonical_match = (min([match[0], match[2]]), match[1], max([match[0], match[2]]))
+                elif len(match) == 4:
+                    canonical_match = (match[3], match[2], match[1], match[0]) if match[2] < match[1] else match
+                elif len(match) == 1:
+                    canonical_match = match
+                else:
+                    raise DMFFException(f"Invalid SMIRKS: {smk}")
+                matches_dict.update({canonical_match: idx})
+        
+        return matches_dict
+    
+    def matchSmirksNoSort(self, rdmol):
+        """
+        Match smirks, but no sorting the matched atom indices
+        """
+        from rdkit import Chem
+
+        if rdmol is None:
+            raise DMFFException("No rdkit.Chem.Mol object is provided")
+
+        matches_dict = {}
+        for idx, smk in enumerate(self.functions):
+            patt = Chem.MolFromSmarts(smk)
+            matches = rdmol.GetSubstructMatches(patt)
+            for match in matches:
+                matches_dict.update({match: idx})
+        
+        return matches_dict
+    
+    def matchSmirksImproper(self, rdmol):
+        """
+        Match smirks for improper torsions
+        """
+        from rdkit import Chem
+
+        if rdmol is None:
+            raise DMFFException("No rdkit.Chem.Mol object is provided")
+
+        matches_dict = {}
+        for idx, smk in enumerate(self.functions):
+            patt = Chem.MolFromSmarts(smk)
+            matches = rdmol.GetSubstructMatches(patt)
+            hasWildcard = "*" in smk
+            for match in matches:
+                # Be the most consistent with AMBER, in which ordering is determined in this way
+                atnums = [rdmol.GetAtomWithIdx(i).GetAtomicNum() for i in match]
+                if hasWildcard:
+                    if atnums[1] == atnums[2] and match[1] > match[2]:
+                        canonical_match = (match[2], match[1], match[0], match[3])
+                    elif atnums[1] != 6 and (atnums[2] == 6 or atnums[1] < atnums[2]):
+                        canonical_match = (match[2], match[1], match[0], match[3])
+                    else:
+                        canonical_match = (match[1], match[2], match[0], match[3])
+                else:
+                    canonical_match = match
+                matches_dict.update({canonical_match: idx})
+        
+        return matches_dict
 
     def _match(self, types, term):
         if len(types) != len(term):
