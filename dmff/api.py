@@ -204,6 +204,13 @@ class Hamiltonian(app.forcefield.ForceField):
             except AttributeError as e:
                 pass
 
+            # topology matrix (for BCC usage)
+            try:
+                top_mat = generator.getTopologyMatrix()
+                self.setTopologyMatrix(top_mat)
+            except AttributeError as e:
+                pass
+
         return potObj
 
     def render(self, filename):
@@ -246,6 +253,12 @@ class Hamiltonian(app.forcefield.ForceField):
     
     def getVirtualSiteObj(self):
         return self._vsite
+    
+    def setTopologyMatrix(self, top_mat):
+        self._top_mat = top_mat
+    
+    def getTopologyMatrix(self):
+        return self._top_mat
     
     def addVirtualSiteCoords(self, pos: jnp.ndarray, params: Dict[str, Any]) -> jnp.ndarray:
         """
