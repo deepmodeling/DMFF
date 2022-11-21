@@ -1,6 +1,6 @@
 <ForceField>
     <Residues>
-        <Residue name="MOL">
+        <Residue name="UNL">
             <Atom name="C1" type="C1" />
             <Atom name="H1" type="H1" />
             <Atom name="H2" type="H2" />
