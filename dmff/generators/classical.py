@@ -641,11 +641,47 @@ class NonbondedJaxGenerator:
 
         nbmatcher = TypeMatcher(self.fftree, "NonbondedForce/Atom")
 
-        # Load Lennard-Jones parameters
-        rdmol = args.get("rdmol", None)
         
-        maps = {}
+        rdmol = args.get("rdmol", None)
 
+        if self.useVsite:
+            vsitematcher = TypeMatcher(self.fftree, "NonbondedForce/VirtualSite")
+            vsite_matches_dict = vsitematcher.matchSmirksNoSort(rdmol)
+            vsiteObj = VirtualSite(vsite_matches_dict)
+
+            def addVsiteFunc(pos, params):
+                func = vsiteObj.getAddVirtualSiteFunc()
+                newpos = func(pos, params[self.name]['vsite_types'], params[self.name]['vsite_distances'])
+                return newpos
+            
+            self._addVsiteFunc = addVsiteFunc
+            rdmol = vsiteObj.addVirtualSiteToMol(rdmol)
+            self.vsiteObj = vsiteObj
+            
+            # expand covalent map
+            ori_dim = self.covalent_map.shape[0]
+            new_dim = ori_dim + len(vsite_matches_dict)
+            cov_map = np.zeros((new_dim, new_dim), dtype=int)
+            cov_map[:ori_dim, :ori_dim] += np.array(self.covalent_map, dtype=int)
+            
+            map_to_parents = np.arange(new_dim)
+            for i, match in enumerate(vsite_matches_dict.keys()):
+                map_to_parents[ori_dim + i] = match[0]
+            for i in range(len(vsite_matches_dict)):
+                parent_i = map_to_parents[ori_dim + i]
+                for j in range(new_dim):
+                    parent_j = map_to_parents[j]
+                    cov_map[ori_dim + i, j] = cov_map[parent_i, parent_j]
+                    cov_map[j, ori_dim + i] = cov_map[parent_j, parent_i]
+                # keep diagonal 0
+                cov_map[ori_dim + i, ori_dim + i] = 0
+                # keep vsite and its parent atom 1
+                cov_map[parent_i, ori_dim + i] = 1
+                cov_map[ori_dim + i, parent_i] = 1
+            self.covalent_map = jnp.array(cov_map)
+        
+        # Load Lennard-Jones parameters
+        maps = {}
         if not nbmatcher.useSmirks:
             for prm in self.from_force:
                 maps[prm] = []
@@ -659,18 +695,18 @@ class NonbondedJaxGenerator:
                     maps[prm].append(nnode)
                 maps[prm] = jnp.array(maps[prm], dtype=int)
         else:
-            matches_dict = nbmatcher.matchSmirks(rdmol)
+            lj_matches_dict = nbmatcher.matchSmirks(rdmol)
             for prm in self.from_force:
                 maps[prm] = []
                 for i in range(rdmol.GetNumAtoms()):
                     try:
-                        maps[prm].append(matches_dict[(i,)])
+                        maps[prm].append(lj_matches_dict[(i,)])
                     except KeyError as e:
                         raise DMFFException(
                             f"No parameter for atom {i}"
                         )
                 maps[prm] = jnp.array(maps[prm], dtype=int)
-
+        
         for prm in self.from_residue:
             maps[prm] = []
             for atom in data.atoms:
@@ -681,48 +717,16 @@ class NonbondedJaxGenerator:
         
         # Virtual Site
         if self.useVsite:
-            vsitematcher = TypeMatcher(self.fftree, "NonbondedForce/VirtualSite")
-            matches_dict = vsitematcher.matchSmirksNoSort(rdmol)
-            vsiteObj = VirtualSite(matches_dict)
-
-            def addVsiteFunc(pos, params):
-                func = vsiteObj.getAddVirtualSiteFunc()
-                newpos = func(pos, params[self.name]['vsite_types'], params[self.name]['vsite_distances'])
-                return newpos
-            
-            self._addVsiteFunc = addVsiteFunc
-            rdmol = vsiteObj.addVirtualSiteToMol(rdmol)
-            self.vsiteObj = vsiteObj
-            
-            # expand covalent map
-            ori_dim = self.covalent_map.shape[0]
-            new_dim = ori_dim + len(matches_dict)
-            cov_map = np.zeros((new_dim, new_dim), dtype=int)
-            cov_map[:ori_dim, :ori_dim] += np.array(self.covalent_map, dtype=int)
-            
-            map_to_parents = np.arange(new_dim)
-            for i, match in enumerate(matches_dict.keys()):
-                map_to_parents[ori_dim + i] = match[0]
-            for i in range(len(matches_dict)):
-                parent_i = map_to_parents[ori_dim + i]
-                for j in range(new_dim):
-                    parent_j = map_to_parents[j]
-                    cov_map[ori_dim + i, j] = cov_map[parent_i, parent_j]
-                    cov_map[j, ori_dim + i] = cov_map[parent_j, parent_i]
-                # keep diagonal 0
-                cov_map[ori_dim + i, ori_dim + i] = 0
-            self.covalent_map = jnp.array(cov_map)
-
             # expand charges
             chg = jnp.zeros(
-                (len(self.paramtree[self.name]['charge']) + len(matches_dict),), 
+                (len(self.paramtree[self.name]['charge']) + len(vsite_matches_dict),), 
                 dtype=self.paramtree[self.name]['charge'].dtype
             )
             self.paramtree[self.name]['charge'] = chg.at[:len(self.paramtree[self.name]['charge'])].set(
                 self.paramtree[self.name]['charge']
             )
             maps_chg = [int(x) for x in maps['charge']]
-            for i in range(len(matches_dict)):
+            for i in range(len(vsite_matches_dict)):
                 maps_chg.append(len(maps['charge']) + i)
             maps['charge'] = jnp.array(maps_chg, dtype=int)
             
@@ -731,19 +735,19 @@ class NonbondedJaxGenerator:
             bccmatcher = TypeMatcher(self.fftree, "NonbondedForce/BondChargeCorrection")
             
             if bccmatcher.useSmirks:
-                matches_dict = bccmatcher.matchSmirksNoSort(rdmol)
+                bcc_matches_dict = bccmatcher.matchSmirksNoSort(rdmol)
                 self.top_mat = np.zeros((rdmol.GetNumAtoms(), self.paramtree[self.name]['bcc'].shape[0]))
 
                 for bond in rdmol.GetBonds():
                     beginAtomIdx = bond.GetBeginAtomIdx()
                     endAtomIdx = bond.GetEndAtomIdx()
                     query1, query2 = (beginAtomIdx, endAtomIdx), (endAtomIdx, beginAtomIdx)
-                    if query1 in matches_dict:
-                        nnode = matches_dict[query1]
+                    if query1 in bcc_matches_dict:
+                        nnode = bcc_matches_dict[query1]
                         self.top_mat[query1[0], nnode] += 1
                         self.top_mat[query1[1], nnode] -= 1
-                    elif query2 in matches_dict:
-                        nnode = matches_dict[query2]
+                    elif query2 in bcc_matches_dict:
+                        nnode = bcc_matches_dict[query2]
                         self.top_mat[query2[0], nnode] += 1
                         self.top_mat[query2[1], nnode] -= 1
                     else:
@@ -983,7 +987,12 @@ class NonbondedJaxGenerator:
             return self.vsiteObj
         else:
             return None
-
+        
+    def getTopologyMatrix(self):
+        """
+        Get topology Matrix
+        """
+        return self.top_mat
 
 dmff.api.jaxGenerators["NonbondedForce"] = NonbondedJaxGenerator
 
