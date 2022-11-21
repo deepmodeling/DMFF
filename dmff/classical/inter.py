@@ -213,7 +213,6 @@ class CoulReactionFieldForce:
             return E
 
         def get_energy(positions, box, pairs, charges, mscales):
-            
             pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
             mask = pair_buffer_scales(pairs[:, :2])
 
