@@ -826,8 +826,8 @@ class LennardJonesGenerator:
 
         map_lj = jnp.array(maps["sigma"])
 
-        ifType = len(self.fftree.get_attribs("LennardJonesForce/Atom",
-                                             "type")) != 0
+        ifType = len([i for i in self.fftree.get_attribs("LennardJonesForce/Atom",
+                                             "type") if i is not None]) != 0
         if ifType:
             atom_labels = self.fftree.get_attribs("LennardJonesForce/Atom",
                                                   "type")
