@@ -379,7 +379,7 @@ class PeriodicTorsionJaxGenerator:
                     nnode = matches_dict[torsion]
                     ifFound = True
                     n_matched_props += 1
-                except KeyboardInterrupt:
+                except KeyError:
                     ifFound = False
                 
                 if not ifFound:
