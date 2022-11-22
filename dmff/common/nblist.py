@@ -44,7 +44,7 @@ class NeighborList:
             self.nblist = self.neighborlist_fn.allocate(positions)
         else:
             self.update(positions, box)
-        return self.pairs()
+        return self.pairs
     
     def update(self, positions: jnp.ndarray, box: Optional[jnp.ndarray] = None):
         """ A function to update a neighbor list given a new set of positions and a previously allocated neighbor list.
@@ -59,7 +59,7 @@ class NeighborList:
             self.nblist = self.nblist.update(positions)
         else:
             self.nblist = self.nblist.update(positions, box)
-        return self.nblist
+        return self.pairs
 
     @property
     def pairs(self):
