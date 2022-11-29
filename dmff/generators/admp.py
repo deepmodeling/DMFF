@@ -33,6 +33,7 @@ class ADMPDispGenerator:
         self.types = []
         self.ethresh = 5e-4
         self.pmax = 10
+        self._meta = {}
 
     def extract(self):
 
@@ -159,7 +160,7 @@ class ADMPDispGenerator:
                                [self.paramtree[self.name]['C10']])
 
     def getJaxPotential(self):
-        return self._jaxPotential
+        return self._jaxPotential, self._meta
 
 
 dmff.api.jaxGenerators['ADMPDispForce'] = ADMPDispGenerator
@@ -181,6 +182,7 @@ class ADMPDispPmeGenerator:
         self.ethresh = 5e-4
         self.pmax = 10
         self.name = "ADMPDispPmeForce"
+        self._meta = {}
 
     def extract(self):
 
@@ -284,7 +286,7 @@ class ADMPDispPmeGenerator:
         # self._top_data = data
 
     def getJaxPotential(self):
-        return self._jaxPotential
+        return self._jaxPotential, self._meta
 
 
 dmff.api.jaxGenerators['ADMPDispPmeForce'] = ADMPDispPmeGenerator
@@ -302,6 +304,7 @@ class QqTtDampingGenerator:
         self.paramtree = ff.paramtree
         self._jaxPotnetial = None
         self.name = "QqTtDampingForce"
+        self._meta = {}
 
     def extract(self):
         # get mscales
@@ -372,7 +375,7 @@ class QqTtDampingGenerator:
         self._jaxPotential = potential_fn
 
     def getJaxPotential(self):
-        return self._jaxPotential
+        return self._jaxPotential, self._meta
 
 
 # register all parsers
@@ -392,6 +395,7 @@ class SlaterDampingGenerator:
         self.fftree = ff.fftree
         self.paramtree = ff.paramtree
         self._jaxPotential = None
+        self._meta = {}
 
     def extract(self):
         # get mscales
@@ -473,7 +477,7 @@ class SlaterDampingGenerator:
         # self._top_data = data
 
     def getJaxPotential(self):
-        return self._jaxPotential
+        return self._jaxPotential, self._meta
 
 
 dmff.api.jaxGenerators['SlaterDampingForce'] = SlaterDampingGenerator
@@ -490,6 +494,7 @@ class SlaterExGenerator:
         self.fftree = ff.fftree
         self.paramtree = ff.paramtree
         self._jaxPotential = None
+        self._meta = {}
 
     def extract(self):
         # get mscales
@@ -558,7 +563,7 @@ class SlaterExGenerator:
         # self._top_data = data
 
     def getJaxPotential(self):
-        return self._jaxPotential
+        return self._jaxPotential, self._meta
 
 
 dmff.api.jaxGenerators["SlaterExForce"] = SlaterExGenerator
@@ -612,6 +617,8 @@ class ADMPPmeGenerator:
         self.step_pol = None
         self.lpol = False
         self.ref_dip = ""
+
+        self._meta = {}
 
     def extract(self):
 
@@ -850,7 +857,7 @@ class ADMPPmeGenerator:
 
         # build covalent map
         self.covalent_map = covalent_map = build_covalent_map(data, 6)
-
+        self._meta["cov_map"] = self.covalent_map
         # build intra-molecule axis
         # the following code is the direct transplant of forcefield.py in openmm 7.4.0
 
@@ -1096,7 +1103,7 @@ class ADMPPmeGenerator:
         self._jaxPotential = potential_fn
 
     def getJaxPotential(self):
-        return self._jaxPotential
+        return self._jaxPotential, self._meta
 
 
 dmff.api.jaxGenerators["ADMPPmeForce"] = ADMPPmeGenerator
