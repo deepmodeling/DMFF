@@ -1,6 +1,6 @@
 from collections import defaultdict
 from typing import Dict
-from copy import deepcopy
+import warnings
 
 import numpy as np
 import jax.numpy as jnp
@@ -755,7 +755,7 @@ class NonbondedJaxGenerator:
                         self.top_mat[query2[0], nnode] += 1
                         self.top_mat[query2[1], nnode] -= 1
                     else:
-                        raise DMFFException(
+                        warnings.warn(
                             f"No BCC parameter for bond between Atom{beginAtomIdx} and Atom{endAtomIdx}"
                         )
             else:
