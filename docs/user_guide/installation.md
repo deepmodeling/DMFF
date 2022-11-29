@@ -17,6 +17,10 @@ pip install jax-md==0.2.0
 ```bash
 conda install -c conda-forge openmm==7.7.0
 ```
++ Install [RDKit](https://www.rdkit.org/) (required for SMIRKS-based parametrization):
+```bash
+conda install -c conda-forge rdkit
+```
 ## 2.2 Install DMFF from Source Code
 One can download the DMFF source code from github:
 ```bash

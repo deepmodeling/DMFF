@@ -1,10 +1,15 @@
+import subprocess
+from pathlib import Path
 import openmm.app as app
 import openmm.unit as unit
-import numpy as np
-import jax.numpy as jnp
 import numpy.testing as npt
 import pytest
+from rdkit import Chem
+from rdkit.Chem import AllChem
+from biopandas.pdb import PandasPdb
+
 from dmff import Hamiltonian
+
 
 class TestADMPAPI:
     
@@ -158,3 +163,56 @@ class TestClassicalAPI:
         h = Hamiltonian("tests/data/methane.xml", "tests/data/tip3p.xml")
         potentials = h.createPotential(pdb.topology)
 
+
+def check_same_topology(top1: app.Topology, top2: app.Topology):
+    assert top1.getNumChains() == top2.getNumChains(), "Number of chains are not the same"
+    assert top1.getNumResidues() == top2.getNumResidues(), "Number of residues are not the same"
+    assert top1.getNumAtoms() == top2.getNumAtoms(), "Number of atoms are not the same"
+    assert top1.getNumBonds() == top2.getNumBonds(), "Number of bonds are not the same"
+    
+    atoms1, atoms2 = [at for at in top1.atoms()], [at for at in top2.atoms()]
+    for i in range(top1.getNumAtoms()):
+        assert atoms1[i].element == atoms2[i].element, f"Atom {i} are not the same"
+    
+    bonds1 = {
+        (int(bond.atom1.id) - 1, int(bond.atom2.id) - 1): True \
+             for bond in top1.bonds()
+    }
+    bonds2 = {
+        (int(bond.atom1.id) - 1, int(bond.atom2.id) - 1): True \
+             for bond in top2.bonds()
+    }
+    for key in bonds1.keys():
+        if (key not in bonds2) and ((key[1], key[0]) not in bonds2):
+            raise KeyError(f"Bond (key) not match")
+
+
+def fix_pdb(path):
+    pdb = PandasPdb()
+    pdb.read_pdb(path)
+    atCount = {}
+    for i in range(pdb.df['HETATM'].shape[0]):
+        atName = pdb.df['HETATM'].loc[i, 'atom_name']
+        atCount.update({atName: atCount.get(atName, 0) + 1})
+        pdb.df['HETATM'].loc[i, 'atom_name'] = f"{atName}{atCount.get(atName)}"
+    pdb.to_pdb(path)
+
+
+@pytest.mark.parametrize(
+    "smi",
+    ["CC", "CO", "C=C", "CC#N", "C1=CC=CC=C1"]
+)
+def test_build_top_from_rdkit(smi, tmpdir):
+    mol = Chem.AddHs(Chem.MolFromSmiles(smi))
+    AllChem.EmbedMolecule(mol)
+    AllChem.MMFFOptimizeMolecule(mol)
+    key = Chem.MolToInchiKey(mol)
+    wdir = Path(tmpdir).resolve()
+    molfile = str(wdir / f"{key}.mol")
+    pdbfile = str(wdir / f"{key}.pdb")
+    Chem.MolToMolFile(mol, str(wdir / f"{key}.mol"))
+    subprocess.run(["obabel", molfile, "-O", pdbfile], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    fix_pdb(pdbfile)
+    ref_top = app.PDBFile(pdbfile).getTopology()
+    test_top = Hamiltonian.buildTopologyFromMol(mol)
+    check_same_topology(ref_top, test_top)
