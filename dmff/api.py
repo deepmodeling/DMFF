@@ -53,9 +53,13 @@ class Potential:
     def __init__(self):
         self.dmff_potentials = {}
         self.omm_system = None
+        self.meta = {}
 
-    def addDmffPotential(self, name, potential):
+    def addDmffPotential(self, name, potential, meta={}):
         self.dmff_potentials[name] = potential
+        if len(meta):
+            for key in meta.keys():
+                self.meta[key] = meta[key]
 
     def addOmmSystem(self, system):
         self.omm_system = system
