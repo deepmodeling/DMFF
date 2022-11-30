@@ -130,15 +130,15 @@ Second, a `Hamiltonian` class should be initialized with XML file path
 from dmff.api import Hamiltonian
 H = Hamiltonian('forcefield.xml')
 rc = 4.0  # cutoff
-system = H.createPotential(pdb.topology, nonbondedCutoff=rc)
+pot = H.createPotential(pdb.topology, nonbondedCutoff=rc)
 ```
 
-The `Hamiltonian` class will parse tags in XML file and invoke corresponding potential functions. We can access those potentials in this way:
+The `Hamiltonian` class will parse tags in XML file and invoke corresponding potential functions. We can access those potentials in the `Potential` object (`pot`) by the name of the corresponding force:
 
 ```
-bondE = H._potentials[0]
-angleE = H._potentials[1]
-nonBondE = H._potentials[2]
+bondE = pot.dmff_potentials['HarmonicBondForce']
+angleE = pot.dmff_potentials['HarmonicAngleForce']
+nonBondE = pot.dmff_potentials['NonbondedForce']
 ```
 
 > Note: only when the `createPotential` method is called can potentials be obtained
@@ -167,12 +167,13 @@ dr = nblist.dr  # distance vector
 
 `pairs` is a `(N, 2)` shape array, which indicates the index of atom i and atom j. ATTENTION: pairs array contains many **invalid** index. For example, in this case, we only have 6 atoms and pairs' shape maybe `(18, 2)`. And even there are three `[6, 6]` pairs which are obviously out of range. Because `jax-md` takes advantage of the feature of Jax.numpy, which will not throw an error when the index out of range, and return the [last element](https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html#out-of-bounds-indexing).
 
-Finally, we can calculate energy and force using the aforementioned potential:
+THe force field parameters are stored as a dictionary and can be accessed from Hamiltonian. Using it, we can calculate energy and force using the aforementioned potential:
 
 ```
-print("Bond:", value_and_grad(bondE)(positions, box, pairs, H.getGenerators()[0].params))
-print("Angle:", value_and_grad(angleE)(positions, box, pairs, H.getGenerators()[1].params))
-print('NonBonded:', value_and_grad(nonBondE)(positions, box, pairs, H.getGenerators()[2].params))    
+params = H.getParameters()
+print("Bond:", value_and_grad(bondE)(positions, box, pairs, params))
+print("Angle:", value_and_grad(angleE)(positions, box, pairs, params))
+print('NonBonded:', value_and_grad(nonBondE)(positions, box, pairs, params))    
 ```
 
 also, we can write a simple gradient descent to optimize parameters:

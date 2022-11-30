@@ -16,19 +16,22 @@ class TestCoulomb:
     def test_coul_force(self, pdb, prm, value):
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        system = h.createPotential(pdb.topology,
+        potential = h.createPotential(pdb.topology,
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
-        pairs = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]],
-                         dtype=int)
-        coulE = h._potentials[0]
-        energy = coulE(pos, box, pairs, h.getGenerators()[0].params)
+        rc = 4
+        gen = h.getGenerators()[-1]
+        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist.allocate(pos)
+        pairs = nblist.pairs
+        coulE = potential.getPotentialFunc(names="NonbondedForce")
+        energy = coulE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(coulE)(pos, box, pairs, h.getGenerators()[0].params)
+        energy = jax.jit(coulE)(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
 
     @pytest.mark.parametrize(
@@ -37,22 +40,22 @@ class TestCoulomb:
     def test_coul_large_force(self, pdb, prm, value):
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        system = h.createPotential(pdb.topology,
+        potential = h.createPotential(pdb.topology,
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
-        pairs = []
-        for ii in range(10):
-            for jj in range(ii + 1, 10):
-                pairs.append((ii, jj))
-        pairs = np.array(pairs, dtype=int)
-        coulE = h._potentials[0]
-        energy = coulE(pos, box, pairs, h.getGenerators()[0].params)
+        rc = 4
+        gen = h.getGenerators()[-1]
+        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist.allocate(pos)
+        pairs = nblist.pairs
+        coulE = potential.getPotentialFunc()
+        energy = coulE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(coulE)(pos, box, pairs, h.getGenerators()[0].params)
+        energy = jax.jit(coulE)(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
 
     @pytest.mark.parametrize(
@@ -61,22 +64,22 @@ class TestCoulomb:
     def test_coul_res_large_force(self, pdb, prm, value):
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        system = h.createPotential(pdb.topology,
+        potential = h.createPotential(pdb.topology,
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
-        pairs = []
-        for ii in range(10):
-            for jj in range(ii + 1, 10):
-                pairs.append((ii, jj))
-        pairs = np.array(pairs, dtype=int)
-        coulE = h._potentials[0]
-        energy = coulE(pos, box, pairs, h.getGenerators()[0].params)
+        rc = 4
+        gen = h.getGenerators()[-1]
+        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist.allocate(pos)
+        pairs = nblist.pairs
+        coulE = potential.getPotentialFunc()
+        energy = coulE(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(coulE)(pos, box, pairs, h.getGenerators()[0].params)
+        energy = jax.jit(coulE)(pos, box, pairs, h.paramtree)
         npt.assert_almost_equal(energy, value, decimal=3)
     
     @pytest.mark.parametrize(
@@ -93,11 +96,12 @@ class TestCoulomb:
         rcut = 0.5 # nanometers
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
-        potentials = h.createPotential(
+        potential = h.createPotential(
             pdb.topology, 
             nonbondedMethod=app.PME, 
             constraints=app.HBonds, 
             removeCMMotion=False, 
+            rigidWater=False,
             nonbondedCutoff=rcut * unit.nanometers,
             useDispersionCorrection=False,
             PmeCoeffMethod="gromacs",
@@ -110,15 +114,19 @@ class TestCoulomb:
             [ 1.20,  0.00,  0.00],
             [ 0.00,  1.20,  0.00],
             [ 0.00,  0.00,  1.20]
-        ], dtype=jnp.float64)
-        nbList = NeighborList(box, rc=rcut)
+        ])
+
+        gen = h.getGenerators()[-1]
+
+        nbList = NeighborList(box, rcut, gen.covalent_map)
         nbList.allocate(positions)
         pairs = nbList.pairs
-        func = potentials[-1]
+        func = potential.getPotentialFunc(names=["NonbondedForce"])
+        #func = potential.dmff_potentials["NonbondedForce"]
         ene = func(
             positions, 
             box, 
             pairs,
-            h.getGenerators()[-1].params
+            h.paramtree
         )
         assert np.allclose(ene, value, atol=1e-2)

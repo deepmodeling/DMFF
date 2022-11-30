@@ -1,0 +1,38 @@
+<simulation verbosity='high'>
+  <output prefix='simulation'>
+    <properties stride='1' filename='out'>  [ step, time{picosecond}, temperature{kelvin}, potential{kiloj/mol} ] </properties>
+    <trajectory filename='pos' stride='1' cell_units='angstrom'> positions{angstrom} </trajectory>
+    <checkpoint stride='10'/>
+  </output>
+  <total_steps>200000</total_steps>
+  <prng>
+    <seed>12345</seed>
+  </prng>
+  <ffsocket name='dmff' mode='unix'>
+    <address> unix_dmff </address>
+  </ffsocket>
+  <ffsocket name='EANN' mode='unix'>
+    <address> unix_eann </address>
+  </ffsocket>
+  <system>
+    <initialize nbeads='1'>
+      <file mode='pdb'> density_0.03338_init.pdb </file>
+      <velocities mode='thermal' units='kelvin'> 295 </velocities>
+    </initialize>
+    <forces>
+      <force forcefield='dmff' weight='1.0'> </force>
+      <force forcefield='EANN' weight='1.0'> </force>
+    </forces>
+    <motion mode='dynamics'>
+      <dynamics mode='nvt'>
+        <timestep units='femtosecond'> 0.50 </timestep>
+        <thermostat mode='langevin'>
+          <tau units='femtosecond'> 1000 </tau>
+        </thermostat>
+      </dynamics>
+    </motion>
+    <ensemble>
+      <temperature units='kelvin'> 295 </temperature>
+    </ensemble>
+  </system>
+</simulation>

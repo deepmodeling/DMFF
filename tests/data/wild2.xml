@@ -16,7 +16,7 @@
             <Bond atomName1="N1" atomName2="N4"/>
         </Residue>
     </Residues>
-    <PeriodicTorsionForce>
+    <PeriodicTorsionForce ordering="amber">
         <Improper type1="n1" type2="" type3="" type4="n4" periodicity1="1" phase1="0.0" k1="2.092"/>
     </PeriodicTorsionForce>
 </ForceField>

@@ -1,0 +1,5 @@
+REMARK   1 CREATED WITH OPENMM 7.7, 2022-10-18
+CRYST1  100.000  100.000  100.000  90.00  90.00  90.00 P 1           1 
+HETATM    1  ATM PAR A   1       0.200   0.200   0.200  1.00  0.00           O  
+TER       2      PAR A   1
+END

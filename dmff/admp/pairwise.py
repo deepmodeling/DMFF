@@ -1,9 +1,9 @@
-import sys
-from jax import vmap
-import jax.numpy as jnp
-from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
-from dmff.admp.spatial import v_pbc_shift
 from functools import partial
+
+import jax.numpy as jnp
+from dmff.admp.spatial import v_pbc_shift
+from dmff.utils import jit_condition, pair_buffer_scales, regularize_pairs
+from jax import vmap
 
 DIELECTRIC = 1389.35455846
 
@@ -40,8 +40,11 @@ def distribute_multipoles(multipoles, index):
 def distribute_dispcoeff(c_list, index):
     return c_list[index]
 
+@jit_condition(static_argnums=())
+def distribute_matrix(multipoles,index1,index2):
+    return multipoles[index1,index2]
 
-def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
+def generate_pairwise_interaction(pair_int_kernel, static_args):
     '''
     This is a calculator generator for pairwise interaction 
 
@@ -49,9 +52,6 @@ def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
         pair_int_kernel:
             function type (dr, m, p1i, p1j, p2i, p2j) -> energy : the vectorized kernel function, 
             dr is the distance, m is the topological scaling factor, p1i, p1j, p2i, p2j are pairwise parameters
-
-        covalent_map:
-            Na * Na, int: the covalent_map matrix that marks the topological distances between atoms
 
         static_args:
             dict: a dictionary that stores all static global parameters (such as lmax, kappa, etc)
@@ -64,13 +64,14 @@ def generate_pairwise_interaction(pair_int_kernel, covalent_map, static_args):
     '''
 
     def pair_int(positions, box, pairs, mScales, *atomic_params):
-        pairs = regularize_pairs(pairs)
+        # pairs = regularize_pairs(pairs)
+        pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
 
         ri = distribute_v3(positions, pairs[:, 0])
         rj = distribute_v3(positions, pairs[:, 1])
         # ri = positions[pairs[:, 0]]
         # rj = positions[pairs[:, 1]]
-        nbonds = covalent_map[pairs[:, 0], pairs[:, 1]]
+        nbonds = pairs[:, 3]
         mscales = distribute_scalar(mScales, nbonds-1)
 
         buffer_scales = pair_buffer_scales(pairs)
@@ -111,8 +112,7 @@ def TT_damping_qq_c6_kernel(dr, m, ai, aj, bi, bj, qi, qj, ci, cj):
     exp_br = jnp.exp(-br)
     f = 2625.5 * a * exp_br \
         + (-2625.5) * exp_br * (1+br) * q / r \
-        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720) * c / dr**6
-
+        + exp_br*(1+br+br2/2+br3/6+br4/24+br5/120+br6/720) * c / dr**6 
     return f * m
 
 
@@ -167,106 +167,3 @@ def slater_sr_kernel(dr, m, ai, aj, bi, bj):
     P = 1/3 * br2 + br + 1 
     return a * P * jnp.exp(-br) * m
 
-
-def validation(pdb):
-    xml = 'mpidwater.xml'
-    pdbinfo = read_pdb(pdb)
-    serials = pdbinfo['serials']
-    names = pdbinfo['names']
-    resNames = pdbinfo['resNames']
-    resSeqs = pdbinfo['resSeqs']
-    positions = pdbinfo['positions']
-    box = pdbinfo['box'] # a, b, c, α, β, γ
-    charges = pdbinfo['charges']
-    positions = jnp.asarray(positions)
-    lx, ly, lz, _, _, _ = box
-    box = jnp.eye(3)*jnp.array([lx, ly, lz])
-
-    mScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    pScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-    dScales = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0])
-
-    rc = 4  # in Angstrom
-    ethresh = 1e-4
-
-    n_atoms = len(serials)
-
-    atomTemplate, residueTemplate = read_xml(xml)
-    atomDicts, residueDicts = init_residues(serials, names, resNames, resSeqs, positions, charges, atomTemplate, residueTemplate)
-
-    covalent_map = assemble_covalent(residueDicts, n_atoms)
-    displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
-    neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T
-
-    pmax = 10
-    kappa, K1, K2, K3 = setup_ewald_parameters(rc, ethresh, box)
-    kappa = 0.657065221219616
-
-    # construct the C list
-    c_list = np.zeros((3, n_atoms))
-    a_list = np.zeros(n_atoms)
-    q_list = np.zeros(n_atoms)
-    b_list = np.zeros(n_atoms)
-    nmol=int(n_atoms/3)
-    for i in range(nmol):
-        a = i*3
-        b = i*3+1
-        c = i*3+2
-        # dispersion coeff
-        c_list[0][a]=37.199677405
-        c_list[0][b]=7.6111103
-        c_list[0][c]=7.6111103
-        c_list[1][a]=85.26810658
-        c_list[1][b]=11.90220148
-        c_list[1][c]=11.90220148
-        c_list[2][a]=134.44874488
-        c_list[2][b]=15.05074749
-        c_list[2][c]=15.05074749
-        # q
-        q_list[a] = -0.741706
-        q_list[b] = 0.370853
-        q_list[c] = 0.370853
-        # b, Bohr^-1
-        b_list[a] = 2.00095977
-        b_list[b] = 1.999519942
-        b_list[c] = 1.999519942
-        # a, Hartree
-        a_list[a] = 458.3777
-        a_list[b] = 0.0317
-        a_list[c] = 0.0317
-
-
-    c_list = jnp.array(c_list)
-
-#     @partial(vmap, in_axes=(0, 0, 0, 0), out_axes=(0))
-#     @jit_condition(static_argnums=())
-#     def disp6_pme_real_kernel(dr, m, ci, cj):
-#         # unpack static arguments
-#         kappa = static_args['kappa']
-#         # calculate distance
-#         dr2 = dr ** 2
-#         dr6 = dr2 ** 3
-#         # do calculation
-#         x2 = kappa**2 * dr2
-#         exp_x2 = jnp.exp(-x2)
-#         x4 = x2 * x2
-#         g = (1 + x2 + 0.5*x4) * exp_x2
-#         return (m + g - 1) * ci * cj / dr6
-   
-#     static_args = {'kappa': kappa}
-#     disp6_pme_real = generate_pairwise_interaction(disp6_pme_real_kernel, covalent_map, static_args)
-#     print(disp6_pme_real(positions, box, pairs, mScales, c_list[0, :]))
-    
-    TT_damping_qq_c6 = generate_pairwise_interaction(TT_damping_qq_c6_kernel, covalent_map, static_args={})
-
-    TT_damping_qq_c6(positions, box, pairs, mScales, a_list, b_list, q_list, c_list[0])
-    print('ok')
-    print(TT_damping_qq_c6(positions, box, pairs, mScales, a_list, b_list, q_list, c_list[0]))
-    return 
-
-
-# below is the validation code
-if __name__ == '__main__':
-    validation(sys.argv[1])
