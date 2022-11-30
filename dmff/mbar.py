@@ -14,7 +14,7 @@ import openmm.unit as unit
 from dmff import NeighborList, NeighborListFreud
 
 
-def buildEnergyFunction(potential_func,
+def buildTrajEnergyFunction(potential_func,
                         cov_map,
                         cutoff,
                         usePBC=True,

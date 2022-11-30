@@ -1,4 +1,4 @@
-from dmff.mbar import MBAREstimator, Sample, SampleState, TargetState, OpenMMSampleState, buildEnergyFunction
+from dmff.mbar import MBAREstimator, Sample, SampleState, TargetState, OpenMMSampleState, buildTrajEnergyFunction
 import dmff
 import pytest
 import jax
@@ -29,10 +29,10 @@ class TestMBAR:
                                 nonbondedCutoff=0.9 * unit.nanometer)
         efunc = pot.getPotentialFunc()
 
-        target_energy_function = buildEnergyFunction(efunc,
-                                                     pot.meta["cov_map"],
-                                                     0.9,
-                                                     ensemble="npt")
+        target_energy_function = buildTrajEnergyFunction(efunc,
+                                                         pot.meta["cov_map"],
+                                                         0.9,
+                                                         ensemble="npt")
 
         target_state = TargetState(300.0, target_energy_function)
 
@@ -203,10 +203,10 @@ class TestMBAR:
                                 nonbondedCutoff=0.9 * unit.nanometer)
         efunc = pot.getPotentialFunc()
 
-        target_energy_function = buildEnergyFunction(efunc,
-                                                     pot.meta["cov_map"],
-                                                     0.9,
-                                                     ensemble="npt")
+        target_energy_function = buildTrajEnergyFunction(efunc,
+                                                         pot.meta["cov_map"],
+                                                         0.9,
+                                                         ensemble="npt")
 
         target_state = TargetState(300.0, target_energy_function)
 
