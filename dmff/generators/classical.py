@@ -241,7 +241,7 @@ class PeriodicTorsionJaxGenerator:
         self.fftree = ff.fftree
         self.paramtree = ff.paramtree
         self.meta = {}
-        self._meta
+        self._meta = {}
         self.meta["prop_order"] = defaultdict(list)
         self.meta["prop_nodeidx"] = defaultdict(list)
 
