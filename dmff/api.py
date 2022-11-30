@@ -186,7 +186,8 @@ class Hamiltonian(app.forcefield.ForceField):
             if len(jaxForces) > 0 and generator.name not in jaxForces:
                 continue
             try:
-                potentialImpl, meta = generator.getJaxPotential()
+                potentialImpl = generator.getJaxPotential()
+                meta = generator.getMetaData()
                 potObj.addDmffPotential(generator.name, potentialImpl, meta=meta)
             except Exception as e:
                 print(e)

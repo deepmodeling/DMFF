@@ -160,7 +160,10 @@ class ADMPDispGenerator:
                                [self.paramtree[self.name]['C10']])
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators['ADMPDispForce'] = ADMPDispGenerator
@@ -286,7 +289,10 @@ class ADMPDispPmeGenerator:
         # self._top_data = data
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators['ADMPDispPmeForce'] = ADMPDispPmeGenerator
@@ -375,7 +381,10 @@ class QqTtDampingGenerator:
         self._jaxPotential = potential_fn
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 # register all parsers
@@ -477,7 +486,10 @@ class SlaterDampingGenerator:
         # self._top_data = data
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators['SlaterDampingForce'] = SlaterDampingGenerator
@@ -563,7 +575,10 @@ class SlaterExGenerator:
         # self._top_data = data
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["SlaterExForce"] = SlaterExGenerator
@@ -1103,7 +1118,10 @@ class ADMPPmeGenerator:
         self._jaxPotential = potential_fn
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["ADMPPmeForce"] = ADMPPmeGenerator

@@ -133,7 +133,10 @@ class HarmonicBondJaxGenerator:
         # self._top_data = data
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["HarmonicBondForce"] = HarmonicBondJaxGenerator
@@ -228,7 +231,10 @@ class HarmonicAngleJaxGenerator:
         # self._top_data = data
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["HarmonicAngleForce"] = HarmonicAngleJaxGenerator
@@ -352,16 +358,6 @@ class PeriodicTorsionJaxGenerator:
         """
         Create force for torsions
         """
-        self.meta = {}
-        self._meta
-        self.meta["prop_order"] = defaultdict(list)
-        self.meta["prop_nodeidx"] = defaultdict(list)
-
-        self.meta["impr_order"] = defaultdict(list)
-        self.meta["impr_nodeidx"] = defaultdict(list)
-
-        self.max_pred_prop = 0
-        self.max_pred_impr = 0
 
         # Proper Torsions
         proper_matcher = TypeMatcher(self.fftree,
@@ -544,7 +540,10 @@ class PeriodicTorsionJaxGenerator:
         self._jaxPotential = potential_fn
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["PeriodicTorsionForce"] = PeriodicTorsionJaxGenerator
@@ -1015,7 +1014,10 @@ class NonbondedJaxGenerator:
             self._jaxPotential = potential_fn
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
     def getAddVsiteFunc(self):
         """
@@ -1229,7 +1231,10 @@ class LennardJonesGenerator:
         self._jaxPotential = potential_fn
 
     def getJaxPotential(self):
-        return self._jaxPotential, self._meta
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["LennardJonesForce"] = LennardJonesGenerator

@@ -28,10 +28,6 @@ class TestMBAR:
                                 nonbondedMethod=app.PME,
                                 nonbondedCutoff=0.9 * unit.nanometer)
         efunc = pot.getPotentialFunc()
-        nbgen = None
-        for gen in h.getGenerators():
-            if isinstance(gen, dmff.generators.NonbondedJaxGenerator):
-                nbgen = gen
 
         def target_energy_function(traj, parameters):
             pos_list, box_list, pairs_list, vol_list = [], [], [], []
@@ -42,7 +38,7 @@ class TestMBAR:
                                  [cc[0], cc[1], cc[2]]])
                 vol = aa[0] * bb[1] * cc[2]
                 positions = jnp.array(frame.xyz[0, :, :])
-                nbobj = NeighborListFreud(box, 0.9, nbgen.covalent_map)
+                nbobj = NeighborListFreud(box, 0.9, pot.meta["cov_map"])
                 nbobj.capacity_multiplier = 1
                 pairs = nbobj.allocate(positions)
                 box_list.append(box)
@@ -234,10 +230,6 @@ class TestMBAR:
                                 nonbondedMethod=app.PME,
                                 nonbondedCutoff=0.9 * unit.nanometer)
         efunc = pot.getPotentialFunc()
-        nbgen = None
-        for gen in h.getGenerators():
-            if isinstance(gen, dmff.generators.NonbondedJaxGenerator):
-                nbgen = gen
 
         def target_energy_function(traj, parameters):
             pos_list, box_list, pairs_list, vol_list = [], [], [], []
@@ -248,7 +240,7 @@ class TestMBAR:
                                  [cc[0], cc[1], cc[2]]])
                 vol = aa[0] * bb[1] * cc[2]
                 positions = jnp.array(frame.xyz[0, :, :])
-                nbobj = NeighborListFreud(box, 0.9, nbgen.covalent_map)
+                nbobj = NeighborListFreud(box, 0.9, pot.meta["cov_map"])
                 nbobj.capacity_multiplier = 1
                 pairs = nbobj.allocate(positions)
                 box_list.append(box)
