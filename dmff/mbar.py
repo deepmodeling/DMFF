@@ -2,14 +2,72 @@ import numpy as np
 import mdtraj as md
 from pymbar import MBAR
 import dmff
+
 dmff.update_jax_precision(dmff.PRECISION)
 import jax
 import jax.numpy as jnp
 from jax import grad
 from tqdm import tqdm, trange
 import openmm as mm
-import openmm.app as app 
+import openmm.app as app
 import openmm.unit as unit
+from dmff import NeighborList, NeighborListFreud
+
+
+def buildEnergyFunction(potential_func,
+                        cov_map,
+                        cutoff,
+                        usePBC=True,
+                        useFreud=True,
+                        ensemble="nvt",
+                        pressure=1.0):
+    def energy_function(traj, parameters):
+        pos_list, box_list, pairs_list, vol_list = [], [], [], []
+        pair_full = []
+        for na in range(traj.topology.n_atoms):
+            for nb in range(na + 1, traj.topology.n_atoms):
+                pair_full.append([na, nb, 0])
+        pair_full = np.array(pair_full, dtype=int)
+        pair_full[:, 2] = cov_map[pair_full[:, 0], pair_full[:, 1]]
+        for frame in tqdm(traj):
+            aa, bb, cc = frame.openmm_boxes(0).value_in_unit(unit.nanometer)
+            box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
+                             [cc[0], cc[1], cc[2]]])
+            vol = aa[0] * bb[1] * cc[2]
+            positions = jnp.array(frame.xyz[0, :, :])
+            if usePBC:
+                if useFreud:
+                    nbobj = NeighborListFreud(box, cutoff, cov_map)
+                else:
+                    nbobj = NeighborList(box, cutoff, cov_map)
+                nbobj.capacity_multiplier = 1
+                pairs = nbobj.allocate(positions)
+                pairs_list.append(pairs)
+            else:
+                pairs_list.append(pair_full)
+            box_list.append(box)
+            vol_list.append(vol)
+            pos_list.append(positions)
+
+        pmax = max([p.shape[0] for p in pairs_list])
+        pairs_jax = np.zeros(
+            (traj.n_frames, pmax, 3), dtype=int) + traj.n_atoms
+        for nframe in range(traj.n_frames):
+            pair = pairs_list[nframe]
+            pairs_jax[nframe, :pair.shape[0], :] = pair[:, :]
+        pairs_jax = jax.numpy.array(pairs_jax)
+        if ensemble.upper() == "NVT":
+            ensemble_cns = 0.0
+        elif ensemble.upper() == "NPT":
+            ensemble_cns = 1.0
+        eners = [
+            potential_func(pos_list[i], box_list[i], pairs_jax[i], parameters)
+            + ensemble_cns * pressure * 0.06023 * vol_list[i]
+            for i in trange(traj.n_frames)
+        ]
+        return eners
+
+    return energy_function
 
 
 class TargetState:
