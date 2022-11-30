@@ -354,6 +354,30 @@ class TypeMatcher:
         
         return matches_dict
     
+    def matchSmirksBCC(self, rdmol):
+        """
+        Match smirks for bcc
+        """
+        from rdkit import Chem
+
+        if rdmol is None:
+            raise DMFFException("No rdkit.Chem.Mol object is provided")
+
+        matches_dict = {}
+        for idx, smk in enumerate(self.functions):
+            patt = Chem.MolFromSmarts(smk)
+            matches = rdmol.GetSubstructMatches(patt)
+            for match in matches:
+                assert len(match) == 2
+                if (match[1], match[0]) in matches_dict:
+                    matches_dict.pop((match[1], match[0]))
+                    matches_dict.update({(match[1], match[0]): idx})
+                else:
+                    matches_dict.update({match: idx})
+        
+        return matches_dict
+
+    
     def matchSmirksImproper(self, rdmol):
         """
         Match smirks for improper torsions

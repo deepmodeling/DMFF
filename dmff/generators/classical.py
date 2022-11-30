@@ -739,7 +739,7 @@ class NonbondedJaxGenerator:
             bccmatcher = TypeMatcher(self.fftree, "NonbondedForce/BondChargeCorrection")
             
             if bccmatcher.useSmirks:
-                bcc_matches_dict = bccmatcher.matchSmirksNoSort(rdmol)
+                bcc_matches_dict = bccmatcher.matchSmirksBCC(rdmol)
                 self.top_mat = np.zeros((rdmol.GetNumAtoms(), self.paramtree[self.name]['bcc'].shape[0]))
 
                 for bond in rdmol.GetBonds():
