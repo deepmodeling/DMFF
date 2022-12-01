@@ -25,9 +25,29 @@ class TestADMPAPI:
         rc = 4.0
         H = Hamiltonian('tests/data/admp.xml')
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
-        H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
+        potential = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
+        generators = H.getGenerators()
         
-        yield H.getGenerators()
+        yield generators
+
+    def test_ADMPPmeForce(self, generators):
+
+        rc = 4.0
+        pdb = app.PDBFile('tests/data/water_dimer.pdb')
+        positions = np.array(pdb.positions._value) * 10
+        a, b, c = pdb.topology.getPeriodicBoxVectors()
+        box = np.array([a._value, b._value, c._value]) * 10
+        # neighbor list
+        
+        gen = generators[1]
+        covalent_map = gen.covalent_map
+
+        nblist = NeighborList(box, rc, covalent_map)
+        nblist.allocate(positions)
+        pairs = nblist.pairs
+        pot = gen.getJaxPotential()
+        energy = pot(positions, box, pairs, gen.paramtree)
+
         
     def test_ADMPPmeForce_jit(self, generators):
         
@@ -37,12 +57,13 @@ class TestADMPAPI:
         positions = jnp.array(pdb.positions._value) * 10
         a, b, c = pdb.topology.getPeriodicBoxVectors()
         box = jnp.array([a._value, b._value, c._value]) * 10
+        gen = generators[1]
+        covalent_map = gen.covalent_map
         # neighbor list
-        nblist = NeighborList(box, rc)
+        nblist = NeighborList(box, rc, covalent_map)
         nblist.allocate(positions)
         pairs = nblist.pairs
-        
-        pot_pme = gen.getJaxPotential()
-        j_pot_pme = jit(value_and_grad(pot_pme))
-        
-        E_pme, F_pme = j_pot_pme(positions, box, pairs, gen.params)
+
+        pot = gen.getJaxPotential()
+        j_pot_pme = jit(value_and_grad(pot))
+        energy = j_pot_pme(positions, box, pairs, gen.paramtree)

@@ -19,9 +19,10 @@ with open(path.join('dmff', '_date.py'), 'w') as fp:
     fp.write('date = \'%s\'' % today)
 
 install_requires = [
-    "numpy",
+    "numpy>=1.18",
     "jax_md>=0.1.28",
-    "openmm",
+    "openmm>=7.6.0",
+    "freud-analysis"
 ]
 
 
@@ -38,12 +39,12 @@ def setup(scm=None):
         long_description=readme,
         long_description_content_type="text/markdown",
         url="https://github.com/deepmodeling/DMFF",
-        python_requires="~=3.6",
+        python_requires="~=3.8",
         packages=packages,
         data_files=[],
         package_data={},
         classifiers=[
-            "Programming Language :: Python :: 3.7",
+            "Programming Language :: Python :: 3.8",
             "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
         ],
         keywords='DMFF',

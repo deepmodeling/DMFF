@@ -1,6 +1,6 @@
 # 2. Software architecture
 
-![arch](../assets/arch.png)
+![arch](../assets/arch.svg)
 
 The overall architechture of DMFF can be divided into two parts: 1. parser & typing and 2. calculators. 
 We usually refer to the former as the *frontend* and the latter as the *backend* for ease of description.
@@ -21,22 +21,13 @@ The structures of the frontend and the backend modules will be introduced in det
 
 ## 2.1 Frontend
 
+> NOTE: The front-end API has been re implemented after version 0.1.2 and is no longer dependent on openmm. It completely incompatible with previous versions. Please refactor your generator according to the instruction below.
+
 Frontend modules are stored in `api.py`. `Hamiltonian` class is the top-level class exposed to users by DMFF. 
-`Hamiltonian` class reads the path of the XML file, parses the XML file, and calls different frontend modules 
-according to the `*Force` tags found in XML. The frontend generator has the same form as the OpenMM's generators 
-[forcefield.py](https://github.com/openmm/openmm/blob/master/wrappers/python/openmm/app/forcefield.py). 
-The `Generator` class parses the corresponding XML tag to obtain the force field parameters, 
-then use the parameters to initialize the backend calculator. 
-It also provides the interface to wrap the backend calculators into potential functions, 
-which are eventually returned to the users.
+`Hamiltonian` class reads the path of the XML file, parses the XML file, and calls different frontend modules according to the `*Force` tags found in XML. It also provides a convenient interface to let all the generators extract, overwrite, render parameters.
 
 When users use DMFF, the only thing they need to do is to initilize the the `Hamiltonian` class. 
-In this process, `Hamiltonian` will automatically parse and initialize the corresponding potential function 
-according to the tags in XML. The call logic is shown in the following chart. 
-The box represents the command executed in Python script, 
-and the rounded box represents the internal operation logic of OpenMM when executing the command.
-
-![openmm_workflow](../assets/opemm_workflow.svg)
+In this process, `Hamiltonian` will automatically parse and initialize the corresponding potential function according to the tags in XML. 
 
 ### 2.1.1 Hamiltonian Class
 
@@ -58,8 +49,8 @@ pme_generator = generators[1]
 
 potentials = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom)
 # pot_fn is the actual energy calculator
-pot_disp = potentials[0]
-pot_pme = potentials[1]
+pot_disp = potentials.dmff_potentials['ADMPDispForce']
+pot_pme = potentials.dmff_potentials['ADMPPmeForce']
 ```
 
 `Hamiltonian` class performs the following operations during instantiation:
@@ -68,41 +59,56 @@ pot_pme = potentials[1]
 * read AtomTypes tag, store AtomType of each atom;
 * for each Force tag, call corresponding `parseElement` method in `app.forcefield.parser` to parse itself, and register `generator`.
 
-`app.forcefield.parser` is a `dict`, the keys are Force tag names, and the values are the `parseElement` method 
-of the corresponding `generator`. When `Hamiltonian` parses the XML file, it will use the tag name to look up the 
-corresponding `parseElement` method, then calls it to initialize the `generator` instance, which stores the raw 
-parameters from the XML file. You can access all the generators by the `getGenerators()` method in Hamiltonian. 
-
 
 ### 2.1.2 Generator Class
 
 
 The generator class is in charge of input file analysis, molecular topology construction, atom classification, 
-and expanding force field parameters to atomic parameters. It is a middle layerthat links `Hamiltonian` with the backend. 
-See the following chart for its design logic:
+and expanding force field parameters to atomic parameters. It is a middle layerthat links `Hamiltonian` with the backend. Here is an example of the `HarmonicBondForce` generator, you can find it in the `api.py`.
 
-![generator](../assets/generator.svg)
-
-In a custom generator one must define the following methods:
-
-
-* @staticmethod parseElement(element, hamiltonian): OpenMM uses `element.etree` to parse tags in XML file, 
-and the first argument `element` is an `Element` object. For instance, if there were a section in XML file 
-that defines a harmonic bond stretching potential:
+In many cases, the parameters of the force fields are interdependent, so it is not enough for each generator to store only the parameters it needs. In the new version of frontend api, the constructor of a generator needs to include the following four members:
 
 ```xml
-  <HarmonicJaxBondForce>
-    <Bond type1="ow" type2="hw" length="0.0957" k="462750.4"/>
-    <Bond type1="hw" type2="hw" length="0.1513" k="462750.4"/>
-  </HarmonicJaxBondForce>
+<HarmonicBondForce>
+   <Bond type1="ow" type2="hw" length="0.09572000000000001" k="462750.3999999999"/>
+<\HarmonicBondForce>
 ```
 
-This input will be converted into an `Element` object first and be passed to the `HarmonicBondJaxGenerator.parseElement` 
-method, which should have been registered in `app.forcefield.parsers["HarmonicBondForce"]`.
-The developer needs to define the `parseElement` method to parse the input `Element` object and to initialize the generator itself.
-For example, in this case, you can use `element.findall("Bond")` to get an iterator that iterates over all the <Bond\> tags. 
-Then you can use `.attrib` to access all the properties (`type1`, `type2`, `length`, and `k`) within each <Bond\> tag in `dict` format. 
-These properties, as force field parameters, can be classified into two categories. The first category is differentiable parameters 
+```python
+class HarmonicBondJaxGenerator:
+    def __init__(self, ff:Hamiltonian):
+        self.name = "HarmonicBondForce"
+        self.ff:Hamiltonian = ff
+        self.fftree:ForcefieldTree = ff.fftree
+        self.paramtree:Dict = ff.paramtree
+```
+
+The name must correspond to the tag to be parsed in the XML file. In the snippet, the name of  `HarmonicBondJaxGenerator` is `HarmonicBondForce` to parse the tag in the XML file and store those parameters. The `ff` is the `Hamiltonian` class, which is the top-level class of DMFF and manages all the generators. The `fftree` is the `ForcefieldTree` class, which is the tree-like storage of ALL force field parameters. The `paramtree` is the `Dict` class, and it stores differentiable parameters of this generator. 
+
+The generator also should implement the dual methods, `extract` and `overwrite`. `extract` method extracts the paramters needed by the generator from the `fftree` and `overwrite` method overwrites(updates) the `fftree` by using the parameters in the `paramtree`. This process will be completed using the API of `ForcefieldTree`, which will be described later. In this example, we need to get `length` and `k` from XML file and update `fftree`:
+
+```python
+    def extract(self):
+        """
+        extract forcefield paramters from ForcefieldTree. 
+        """
+        lengths = self.fftree.get_attribs(f"{self.name}/Bond", "length")
+        ks = self.fftree.get_attribs(f"{self.name}/Bond", "k")
+        self.paramtree[self.name] = {}
+        self.paramtree[self.name]["length"] = jnp.array(lengths)
+        self.paramtree[self.name]["k"] = jnp.array(ks)
+
+    def overwrite(self):
+        """
+        update parameters in the fftree by using paramtree of this generator.
+        """
+        self.fftree.set_attrib(f"{self.name}/Bond", "length",
+                               self.paramtree[self.name]["length"])
+        self.fftree.set_attrib(f"{self.name}/Bond", "k",
+                               self.paramtree[self.name]["k"])
+```
+In this case, you can use the `get_attribs` method to get the parameters from the `ForcefieldTree`, it will return a list of parameters, the omitted parameters will be filled with `None`. You shoud use `jnp.array` to convert it to a jax numpy array after handling `None` elements appropriately.
+The parameters extract from `fftree` can be classified into two categories. The first category is differentiable parameters 
 (such as `length` and `k`), which may be subject to further optimization. By design, these parameters should be fed into the potential 
 function as explicit input arguments. Therefore, these parameters should be gathered in a `dict` object named `params`, which is then 
 saved as an attribute of the `generator`. The second category is non-differentiable variables (such as `type1` and `type2`): it is 
@@ -110,8 +116,10 @@ unlikely that you are going to optimize them, so they are also called *static* v
 function implicitly and not be exposed to the users. Therefore, you may save them in `generator` at will, as long as they can be 
 accessed by the potential function later.
 
-  
-* `createForce(self, system, data, nonbondedMethod, *args)` pre-process the force field parameters from XML, and use them to initialize
+After the calculation and optimization, we need to save the optimized parameters as XML format files for the next calculation. This serialization process is implemented through the `overwrite` method. In the `ForcefieldTree` class at the `fftree.py`, we have implemented the `set_attrib` method to set the attribute of the XML node. 
+
+All the parameters needed by the generator are stored in the `paramtree`, and `createForce` method should be implemented to use the parameters to initialize the backend calculator. 
+`createForce(self, system, data, nonbondedMethod, *args)` pre-process the force field parameters from XML, and use them to initialize
 the backend calculators, then wrap the calculators using a potential function and returns it. 
 `System` and `data` are given by OpenMM's forcefield class, which store topology/atomType information (for now you need to use 
 debug tool to access). Bear in mind that we should not break the derivative chain from the XML raw data (force field parameters) 
@@ -119,6 +127,7 @@ to the per-atom properties (atomic parameters). So we should do the parameter di
 each atom) within the returned potential function. Therefore, in `createForce`, we usually only construct the atomtype index map using 
 the information in `data`, but do not dispatch parameters! The atomtype map will be used in potential function implicitly, to dispatch
 parameters.
+It also provides the interface to wrap the backend calculators into potential functions, which are eventually returned to the users. 
 
 Here is an example:
 
@@ -132,7 +141,6 @@ for i in range(n_atoms):
 
 Finally, we need to bind the calculator's compute function to `self._jaxPotential`, which is the final potential function (`potential_fn`) 
 returned to users:
-
 
 ```python
             
@@ -153,21 +161,24 @@ Meanwhile, if the generator needs to initialize multiple calculators (e.g. `NonB
 Here is a pseudo-code of the frontend module, demonstrating basic API and method
 
 ```python
-from openmm import app
 
 class SimpleJAXGenerator:
     
-    def __init__(self, hamiltonian):
-        self.ff = hamiltonian
-        self.params = None
-        self._jaxPotential = None
-        init_other_attributes_if_needed
+    def __init__(self, ff:Hamiltonian):
+        self.name = "SimpleJAXGenerator"
+        self.ff:Hamiltonian = ff
+        self.fftree:ForcefieldTree = ff.fftree
+        self.paramtree:Dict = ff.paramtree
         
-    @staticmethod
-    def parseElement(element, hamiltonian):
-        parse_xml_element
-        generator = SimpleGenerator(hamiltonian, args_from_xml)
-        hamiltonian.registerGenerator(generator)
+    def extract(self):
+        self.paramtree[self.name] = {}
+        self.paramtree[self.name]["a"] = jnp.array(self.fftree.get_attrib(f"{self.name}/tag", "a"))
+        self.paramtree[self.name]["b"] = jnp.array(self.fftree.get_attrib(f"{self.name}/tag", "b"))
+
+    def overwrite(self):
+
+        self.fftree.set_attrib(f"{self.name}/tag", "a", self.paramtree[self.name]["a"])
+        self.fftree.set_attrib(f"{self.name}/tag", "b", self.paramtree[self.name]["b"])
         
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
         generate_constraints_if_needed
@@ -176,13 +187,9 @@ class SimpleJAXGenerator:
         self._jaxPotential = jaxPotential
         
     def getJaxPotential(self, data, **args):
-        return self._jaxPotential
+        return self._jaxPotential       
         
-    def renderXML(self):
-        # render_xml_forcefield_from_params
-        
-        
-app.parsers["SimpleJAXForce"] = SimpleJAXGenerator.parseElement
+jaxGenerators["HarmonicBondForce"] = HarmonicBondJaxGenerator
 
 class Hamiltonian(app.ForceField):
 
@@ -194,92 +201,97 @@ class Hamiltonian(app.ForceField):
         system = self.createSystem(topology, **args)
         load_constraints_from_system_if_needed
         # create potentials
-        for generator in self._generators:
-            potentialImpl = generator.getJaxPotential(data)
-            self._potentials.append(potentialImpl)
-        return [p for p in self._potentials]
+        potObj = Potential()
+        potObj.addOmmSystem(system)
+        for generator in self._jaxGenerators:
+            if len(jaxForces) > 0 and generator.name not in jaxForces:
+                continue
+            try:
+                potentialImpl = generator.getJaxPotential()
+                potObj.addDmffPotential(generator.name, potentialImpl)
+            except Exception as e:
+                print(e)
+                pass
+
+        return potObj
 ```
 
 And here is a HarmonicBond potential implement:
 
 ```python
 class HarmonicBondJaxGenerator:
-    def __init__(self, hamiltonian):
-        self.ff = hamiltonian
-        self.params = {"k": [], "length": []}
-        self._jaxPotential = None
-        self.types = []
+    def __init__(self, ff:Hamiltonian):
+        self.name = "HarmonicBondForce"
+        self.ff:Hamiltonian = ff
+        self.fftree:ForcefieldTree = ff.fftree
+        self.paramtree:Dict = ff.paramtree
 
-    def registerBondType(self, bond):
+    def extract(self):
+        """
+        extract forcefield paramters from ForcefieldTree. 
+        """
+        lengths = self.fftree.get_attribs(f"{self.name}/Bond", "length")
+        # get_attribs will return a list if attribute name is a simple string
+        # e.g. if you provide 'length' then return  [1.0, 2.0, 3.0];
+        # if attribute name is a list, e.g. ['length', 'k']
+        # then return [[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]] List[List[value1, value2]]
+        ks = self.fftree.get_attribs(f"{self.name}/Bond", "k")
+        self.paramtree[self.name] = {}
+        self.paramtree[self.name]["length"] = jnp.array(lengths)
+        self.paramtree[self.name]["k"] = jnp.array(ks)
 
-        types = self.ff._findAtomTypes(bond, 2)
-        # self.ff._findAtomTypes is a function implemented in OpenMM to patch 
-        # atom types. The first argument is xml element. The second argument is 
-        # the number of types needed to be patched. 
-        # The return of this function is:
-        # [[atype1, atype2, ...], [atype3, atype4, ...], ...]
-        # When patching by atom types, the function would return a list with 
-        # patched atom types. When patching by atom classes, the function would 
-        # return a list with all the atom types patched to the class.
+    def overwrite(self):
+        """
+        update parameters in the fftree by using paramtree of this generator.
+        """
+        self.fftree.set_attrib(f"{self.name}/Bond", "length",
+                               self.paramtree[self.name]["length"])
+        self.fftree.set_attrib(f"{self.name}/Bond", "k",
+                               self.paramtree[self.name]["k"])
+
+    def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
+        """
+        This method will create a potential calculation kernel. It usually should do the following:
         
-        self.types.append(types)
-        self.params["k"].append(float(bond["k"]))
-        self.params["length"].append(float(bond["length"]))  # length := r0
+        1. Match the corresponding bond parameters according to the atomic types at both ends of each bond.
 
-    @staticmethod
-    def parseElement(element, hamiltonian):
-        # Work with xml tree. Element is the node of forcefield.
-        # Use element.findall and element.attrib to get the 
-        # children nodes and attributes in the node.
-            
-        generator = HarmonicBondJaxGenerator(hamiltonian)
-        hamiltonian.registerGenerator(generator)
-        for bondtype in element.findall("Bond"):
-            generator.registerBondType(bondtype.attrib)
+        2. Create a potential calculation kernel, and pass those mapped parameters to the kernel.
 
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
-        # jax it!
-        for k in self.params.keys():
-            self.params[k] = jnp.array(self.params[k])
-        self.types = np.array(self.types)
+        3. assign the jax potential to the _jaxPotential.
 
+        Args:
+            Those args are the same as those in createSystem.
+        """
+
+        # initialize typemap
+        matcher = TypeMatcher(self.fftree, "HarmonicBondForce/Bond")
+
+        map_atom1, map_atom2, map_param = [], [], []
         n_bonds = len(data.bonds)
-        # data is the data structure built by OpenMM, saving topology information of the system.
-        # The object maintains all the bonds, angles, dihedrals and impropers.
-        # And it also maintains the atomtype of each particle.
-        # Use data.atoms, data.bonds, data.angles, data.dihedrals, data.impropers 
-        # to get the atom types.
-        map_atom1 = np.zeros(n_bonds, dtype=int)
-        map_atom2 = np.zeros(n_bonds, dtype=int)
-        map_param = np.zeros(n_bonds, dtype=int)
+        # build map
         for i in range(n_bonds):
             idx1 = data.bonds[i].atom1
             idx2 = data.bonds[i].atom2
             type1 = data.atomType[data.atoms[idx1]]
             type2 = data.atomType[data.atoms[idx2]]
-            ifFound = False
-            for ii in range(len(self.types)):
-                if (type1 in self.types[ii][0] and type2 in self.types[ii][1]) or (
-                    type1 in self.types[ii][1] and type2 in self.types[ii][0]
-                ):
-                    map_atom1[i] = idx1
-                    map_atom2[i] = idx2
-                    map_param[i] = ii
-                    ifFound = True
-                    break
+            ifFound, ifForward, nfunc = matcher.matchGeneral([type1, type2])
             if not ifFound:
-                raise BaseException("No parameter for bond %i - %i" % (idx1, idx2))
-        
-        # HarmonicBondJaxForce is the backend class to build potential function
+                raise BaseException(
+                    f"No parameter for bond ({idx1},{type1}) - ({idx2},{type2})"
+                )
+            map_atom1.append(idx1)
+            map_atom2.append(idx2)
+            map_param.append(nfunc)
+        map_atom1 = np.array(map_atom1, dtype=int)
+        map_atom2 = np.array(map_atom2, dtype=int)
+        map_param = np.array(map_param, dtype=int)
+
         bforce = HarmonicBondJaxForce(map_atom1, map_atom2, map_param)
 
-        # potential_fn is the function to call potential, in which the dict self.params
-        # is fed to harmonic bond potential function
-            
         def potential_fn(positions, box, pairs, params):
-            return bforce.get_energy(
-                positions, box, pairs, params["k"], params["length"]
-            )
+            return bforce.get_energy(positions, box, pairs,
+                                     params[self.name]["k"],
+                                     params[self.name]["length"])
 
         self._jaxPotential = potential_fn
         # self._top_data = data
@@ -287,42 +299,136 @@ class HarmonicBondJaxGenerator:
     def getJaxPotential(self):
         return self._jaxPotential
 
-# register all parsers
-app.forcefield.parsers["HarmonicBondForce"] = HarmonicBondJaxGenerator.parseElement
-```
 
-    After the calculation and optimization, we need to save the optimized parameters as XML format files for the next calculation. This serialization process is implemented through the `renderXML` method. At the beginning of the `api.py` file, we provide nested helper classes called `XMLNodeInfo` and `XMLElementInfo`. In the XML file, a `<HarmonicJaxBondForce>` and its close tag is represented by XMLNodeInfo and the content element is controlled by `XMLElementInfo`
+jaxGenerators["HarmonicBondForce"] = HarmonicBondJaxGenerator
+```    
 
-```
-  <HarmonicJaxBondForce>
-    <Bond type1="ow" type2="hw" length="0.0957" k="462750.4"/>
-    <Bond type1="hw" type2="hw" length="0.1513" k="462750.4"/>
-  </HarmonicJaxBondForce>
-```
+### 2.1.3 fftree
 
-    When we want to serialize optimized parameters from the generator to a new XML file, we first initialize a `XMLNodeInfo(name:str)` class with the potential name
+We organize the forcefield parameters in a ForcefieldTree. This class provides four method to read and write the parameters in XML file. Once you need to develop a new generator in DMFF, the only way you access and modify the parameters is through the ForcefieldTree.
 
 ```python
-finfo = XMLNodeInfo("HarmonicBondForce")
-```
-    If necessary, you can add attributes to this tag using the `addAttribute(name:str, value:str)` method. Then we add the inner `<Bond>` tag by invoke `finfo.addElement(name:str, attrib:dict)` method. Here is an example to render `<HarmonicBondForce>`
+class ForcefieldTree(Node):
+    def __init__(self, tag, **attrs):
 
-```
-    def renderXML(self):
-        # generate xml force field file
-        finfo = XMLNodeInfo("HarmonicBondForce")  # <HarmonicBondForce> and <\HarmonicBondForce>
-        for ntype in range(len(self.types)):
-            binfo = {}
-            k1, v1 = self.typetexts[ntype][0]
-            k2, v2 = self.typetexts[ntype][1]
-            binfo[k1] = v1
-            binfo[k2] = v2
-            for key in self.params.keys():
-                binfo[key] = "%.8f"%self.params[key][ntype]
-            finfo.addElement("Bond", binfo)  # <Bond binfo.key=binfo.value ...>
-        return finfo
+        super().__init__(tag, **attrs)
+
+    def get_nodes(self, parser:str)->List[Node]:
+        """
+        get all nodes of a certain path
+
+        Examples
+        --------
+        >>> fftree.get_nodes('HarmonicBondForce/Bond')
+        >>> [<Bond 1>, <Bond 2>, ...]
+
+        Parameters
+        ----------
+        parser : str
+            a path to locate nodes
+
+        Returns
+        -------
+        List[Node]
+            a list of Node
+        """
+        steps = parser.split("/")
+        val = self
+        for nstep, step in enumerate(steps):
+            name, index = step, -1
+            if "[" in step:
+                name, index = step.split("[")
+                index = int(index[:-1])
+            val = [c for c in val.children if c.tag == name]
+            if index >= 0:
+                val = val[index]
+            elif nstep < len(steps) - 1:
+                val = val[0]
+        return val
+
+    def get_attribs(self, parser:str, attrname:Union[str, List[str]])->List[Union[value, List[value]]]:
+        """
+        get all values of attributes of nodes which nodes matching certain path
+
+        Examples:
+        ---------
+        >>> fftree.get_attribs('HarmonicBondForce/Bond', 'k')
+        >>> [2.0, 2.0, 2.0, 2.0, 2.0, ...]
+        >>> fftree.get_attribs('HarmonicBondForce/Bond', ['k', 'r0'])
+        >>> [[2.0, 1.53], [2.0, 1.53], ...]
+
+        Parameters
+        ----------
+        parser : str
+            a path to locate nodes
+        attrname : _type_
+            attribute name or a list of attribute names of a node
+
+        Returns
+        -------
+        List[Union[float, str]]
+            a list of values of attributes
+        """
+        sel = self.get_nodes(parser)
+        if isinstance(attrname, list):
+            ret = []
+            for item in sel:
+                vals = [convertStr2Float(item.attrs[an]) if an in item.attrs else None for an in attrname]
+                ret.append(vals)
+            return ret
+        else:
+            attrs = [convertStr2Float(n.attrs[attrname]) if attrname in n.attrs else None for n in sel]
+            return attrs
+
+    def set_node(self, parser:str, values:List[Dict[str, value]])->None:
+        """
+        set attributes of nodes which nodes matching certain path
+
+        Parameters
+        ----------
+        parser : str
+            path to locate nodes
+        values : List[Dict[str, value]]
+            a list of Dict[str, value], where value is any type can be convert to str of a number.
+
+        Examples
+        --------
+        >>> fftree.set_node('HarmonicBondForce/Bond', 
+                            [{'k': 2.0, 'r0': 1.53}, 
+                             {'k': 2.0, 'r0': 1.53}])
+        """
+        nodes = self.get_nodes(parser)
+        for nit in range(len(values)):
+            for key in values[nit]:
+                nodes[nit].attrs[key] = f"{values[nit][key]}"
+
+    def set_attrib(self, parser:str, attrname:str, values:Union[value, List[value]])->None:
+        """
+        set ONE Attribute of nodes which nodes matching certain path
+
+        Parameters
+        ----------
+        parser : str
+            path to locate nodes
+        attrname : str
+            attribute name
+        values : Union[float, str, List[float, str]]
+            attribute value or a list of attribute values of a node
+
+        Examples
+        --------
+        >>> fftree.set_attrib('HarmonicBondForce/Bond', 'k', 2.0)
+        >>> fftree.set_attrib('HarmonicBondForce/Bond', 'k', [2.0, 2.0, 2.0, 2.0, 2.0])
+
+        """
+        if len(values) == 0:
+            valdicts = [{attrname: values}]
+        else:
+            valdicts = [{attrname: i} for i in values]
+        self.set_node(parser, valdicts)
 ```
 
+The above source code gives clear type comments on how to use `fftree`. 
 
 ## 2.2 Backend
 

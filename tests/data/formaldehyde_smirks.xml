@@ -1,0 +1,37 @@
+<?xml version="1.0" ?>
+<ForceField>
+	<Residues>
+		<Residue name="MOL">
+			<Atom name="O1" type="O1" charge="0.0267000000"/>
+			<Atom name="C1" type="C1" charge="0.5627000000" />
+			<Atom name="H1" type="H1" charge="-0.0238000000"/>
+			<Atom name="H2" type="H2" charge="-0.0238000000"/>
+			<Bond atomName1="O1" atomName2="C1"/>
+			<Bond atomName1="C1" atomName2="H1"/>
+			<Bond atomName1="C1" atomName2="H2"/>
+		</Residue>
+	</Residues>
+	<AtomTypes>
+		<Type class="o" element="O" mass="16.000" name="O1"/>
+		<Type class="c" element="C" mass="12.010" name="C1"/>
+		<Type class="h4" element="H" mass="1.008" name="H1"/>
+		<Type class="h4" element="H" mass="1.008" name="H2"/>
+	</AtomTypes>
+	<HarmonicBondForce>
+		<Bond k="546100.0000000001" length="0.1218000000" smirks="[#8:1]=[#6X3:2]"/>
+		<Bond k="293050.0000000000" length="0.1112000000" smirks="[#6X3$(*=[#8X1]):1]-[#1:2]"/>
+	</HarmonicBondForce>
+	<HarmonicAngleForce>
+		<Angle angle="2.1066124072" k="557.3100000000" smirks="[#8:1]=[#6X3:2]-[#1:3]"/>
+		<Angle angle="2.0177751482" k="312.9600000000" smirks="[#1:1]-[#6X3$(*=[#8X1]):2]-[#1:3]"/>
+	</HarmonicAngleForce>
+	<PeriodicTorsionForce ordering="amber">
+		<Improper k1="4.6024000000" periodicity1="2" phase1="3.1415926536" smirks="[#6X3:1](~[#8X1:2])(-[*:3])-[*:4]"/>
+	</PeriodicTorsionForce>
+	<NonbondedForce coulomb14scale="0.83333" lj14scale="0.50000">
+		<UseAttributeFromResidue name="charge" />
+		<Atom epsilon="0.6121190000" sigma="0.3048120000" smirks="[$([#8X1]=[#6X3]):1]"/>
+		<Atom epsilon="0.4133790000" sigma="0.3315210000" smirks="[$([#6X3]=[#8X1]):1]"/>
+		<Atom epsilon="0.0673624000" sigma="0.2536390000" smirks="[$([#1]-[#6X3]=[#8X1]):1]"/>
+	</NonbondedForce>
+</ForceField>

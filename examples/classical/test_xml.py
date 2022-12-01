@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import openmm as mm 
 import openmm.app as app
 import openmm.unit as unit 
@@ -5,7 +6,9 @@ import numpy as np
 from jax_md import space, partition
 import sys
 from dmff.api import Hamiltonian
+from dmff.common import nblist
 from jax import jit
+import jax.numpy as jnp
 
 def forcegroupify(system):
     forcegroups = {}
@@ -50,9 +53,11 @@ if __name__ == "__main__":
     
     
     h = Hamiltonian("gaff-2.11.xml", "lig-prm.xml")
-    system = h.createPotential(pdb.topology, nonbondedMethod=app.NoCutoff, constraints=None, removeCMMotion=False)
+    pot = h.createPotential(pdb.topology, nonbondedMethod=app.NoCutoff, constraints=None, removeCMMotion=False)
+    params = h.getParameters()
 
     positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
+    positions = jnp.array(positions)
     box = np.array([
         [10.0,  0.0,  0.0],
         [ 0.0, 10.0,  0.0],
@@ -61,16 +66,18 @@ if __name__ == "__main__":
     
     # neighbor list
     rc = 4
-    displacement_fn, shift_fn = space.periodic_general(box, fractional_coordinates=False)
-    neighbor_list_fn = partition.neighbor_list(displacement_fn, box, rc, 0, format=partition.OrderedSparse)
-    nbr = neighbor_list_fn.allocate(positions)
-    pairs = nbr.idx.T        
+    nbl = nblist.NeighborList(box, rc, h.getGenerators()[-1].covalent_map)
+    nbl.allocate(positions)
+    pairs = nbl.pairs
 
-    bondE = h._potentials[0]
-    print("Bond:", bondE(positions, box, pairs, h.getGenerators()[0].params))
+    bondE = pot.dmff_potentials['HarmonicBondForce']
+    print("Bond:", bondE(positions, box, pairs, params))
 
-    angleE = h._potentials[1]
-    print("Angle:", angleE(positions, box, pairs, h.getGenerators()[1].params))
+    angleE = pot.dmff_potentials['HarmonicAngleForce']
+    print("Angle:", angleE(positions, box, pairs, params))
 
-    dihE = h._potentials[2]
-    print("Torsion:", dihE(positions, box, pairs, h.getGenerators()[2].params))
+    dihE = pot.dmff_potentials['PeriodicTorsionForce']
+    print("Torsion:", dihE(positions, box, pairs, params))
+
+    nbE = pot.dmff_potentials['NonbondedForce']
+    print("Nonbonded:", nbE(positions, box, pairs, params))
