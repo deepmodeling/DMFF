@@ -20,7 +20,6 @@ from dmff.classical.inter import (
     CoulNoCutoffForce,
     CoulombPMEForce,
     CoulReactionFieldForce,
-    LennardJonesForce,
 )
 from dmff.classical.fep import (
     LennardJonesFreeEnergyForce,
@@ -1050,7 +1049,7 @@ class LennardJonesGenerator:
         self.fftree = ff.fftree
         self.paramtree = ff.paramtree
         self.paramtree[self.name] = {}
-        self._meta
+        self._meta = {}
 
 
     def extract(self):

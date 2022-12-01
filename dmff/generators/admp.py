@@ -93,6 +93,8 @@ class ADMPDispGenerator:
         self.map_atomtype = map_atomtype
         # build covalent map
         self.covalent_map = build_covalent_map(data, 6)
+        self._meta["cov_map"] = self.covalent_map
+        self._meta["ADMPDispForce_map_atomtype"] = map_atomtype
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
         box = jnp.array([a._value, b._value, c._value]) * 10
@@ -257,6 +259,9 @@ class ADMPDispPmeGenerator:
         # build covalent map
         self.covalent_map = build_covalent_map(data, 6)
 
+        self._meta["cov_map"] = self.covalent_map
+        self._meta["ADMPDispPmeForce_map_atomtype"] = self.map_atomtype
+
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
         box = jnp.array([a._value, b._value, c._value]) * 10
@@ -366,6 +371,9 @@ class QqTtDampingGenerator:
         # build covalent map
         self.covalent_map = build_covalent_map(data, 6)
 
+        self._meta["cov_map"] = self.covalent_map
+        self._meta["QqTtDampingForce_map_atomtype"] = self.map_atomtype
+
         pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel,
                                                   static_args={})
 
@@ -466,6 +474,9 @@ class SlaterDampingGenerator:
         # build covalent map
         self.covalent_map = build_covalent_map(data, 6)
 
+        self._meta["cov_map"] = self.covalent_map
+        self._meta[self.name+"_map_atomtype"] = self.map_atomtype
+
         # WORKING
         pot_fn_sr = generate_pairwise_interaction(slater_disp_damping_kernel,
                                                   static_args={})
@@ -559,6 +570,9 @@ class SlaterExGenerator:
         self.map_atomtype = map_atomtype
         # build covalent map
         self.covalent_map = build_covalent_map(data, 6)
+
+        self._meta["cov_map"] = self.covalent_map
+        self._meta[self.name+"_map_atomtype"] = self.map_atomtype
 
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
                                                   static_args={})
