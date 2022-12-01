@@ -20,7 +20,6 @@ from dmff.classical.inter import (
     CoulNoCutoffForce,
     CoulombPMEForce,
     CoulReactionFieldForce,
-    LennardJonesForce,
 )
 from dmff.classical.fep import (
     LennardJonesFreeEnergyForce,
@@ -40,6 +39,7 @@ class HarmonicBondJaxGenerator:
         self.ff: Hamiltonian = ff
         self.fftree: ForcefieldTree = ff.fftree
         self.paramtree: Dict = ff.paramtree
+        self._meta = {}
 
     def extract(self):
         """
@@ -74,6 +74,7 @@ class HarmonicBondJaxGenerator:
         Args:
             Those args are the same as those in createSystem.
         """
+        self._meta = {}
 
         # initialize typemap
         matcher = TypeMatcher(self.fftree, "HarmonicBondForce/Bond")
@@ -114,7 +115,10 @@ class HarmonicBondJaxGenerator:
 
         map_atom1 = np.array(map_atom1, dtype=int)
         map_atom2 = np.array(map_atom2, dtype=int)
-        map_param = np.array(map_param, dtype=int)    
+        map_param = np.array(map_param, dtype=int)  
+        self._meta["HarmonicBondForce_atom1"] = map_atom1
+        self._meta["HarmonicBondForce_atom2"] = map_atom2
+        self._meta["HarmonicBondForce_param"] = map_param
 
         bforce = HarmonicBondJaxForce(map_atom1, map_atom2, map_param)
         self._force_latest = bforce
@@ -129,6 +133,9 @@ class HarmonicBondJaxGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["HarmonicBondForce"] = HarmonicBondJaxGenerator
@@ -140,6 +147,7 @@ class HarmonicAngleJaxGenerator:
         self.ff = ff
         self.fftree = ff.fftree
         self.paramtree = ff.paramtree
+        self._meta = {}
 
     def extract(self):
         angles = self.fftree.get_attribs(f"{self.name}/Angle", "angle")
@@ -155,6 +163,8 @@ class HarmonicAngleJaxGenerator:
                                self.paramtree[self.name]["k"])
 
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
+        self._meta = {}
+
         matcher = TypeMatcher(self.fftree, "HarmonicAngleForce/Angle")
 
         map_atom1, map_atom2, map_atom3, map_param = [], [], [], []
@@ -202,6 +212,10 @@ class HarmonicAngleJaxGenerator:
         map_atom2 = np.array(map_atom2, dtype=int)
         map_atom3 = np.array(map_atom3, dtype=int)
         map_param = np.array(map_param, dtype=int)
+        self._meta["HarmonicAngleForce_atom1"] = map_atom1
+        self._meta["HarmonicAngleForce_atom2"] = map_atom2
+        self._meta["HarmonicAngleForce_atom3"] = map_atom3
+        self._meta["HarmonicAngleForce_param"] = map_param
 
         aforce = HarmonicAngleJaxForce(map_atom1, map_atom2, map_atom3,
                                        map_param)
@@ -217,6 +231,9 @@ class HarmonicAngleJaxGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["HarmonicAngleForce"] = HarmonicAngleJaxGenerator
@@ -229,7 +246,7 @@ class PeriodicTorsionJaxGenerator:
         self.fftree = ff.fftree
         self.paramtree = ff.paramtree
         self.meta = {}
-
+        self._meta = {}
         self.meta["prop_order"] = defaultdict(list)
         self.meta["prop_nodeidx"] = defaultdict(list)
 
@@ -340,6 +357,7 @@ class PeriodicTorsionJaxGenerator:
         """
         Create force for torsions
         """
+
         # Proper Torsions
         proper_matcher = TypeMatcher(self.fftree,
                                      "PeriodicTorsionForce/Proper")
@@ -487,6 +505,19 @@ class PeriodicTorsionJaxGenerator:
         self._props_latest = props
         self._imprs_latest = imprs
 
+        self._meta["PeriodicTorsionForce_prop_atom1"] = map_prop_atom1
+        self._meta["PeriodicTorsionForce_prop_atom2"] = map_prop_atom2
+        self._meta["PeriodicTorsionForce_prop_atom3"] = map_prop_atom3
+        self._meta["PeriodicTorsionForce_prop_atom4"] = map_prop_atom4
+        self._meta["PeriodicTorsionForce_prop_param"] = map_prop_param
+
+        self._meta["PeriodicTorsionForce_impr_atom1"] = map_impr_atom1
+        self._meta["PeriodicTorsionForce_impr_atom2"] = map_impr_atom2
+        self._meta["PeriodicTorsionForce_impr_atom3"] = map_impr_atom3
+        self._meta["PeriodicTorsionForce_impr_atom4"] = map_impr_atom4
+        self._meta["PeriodicTorsionForce_impr_param"] = map_impr_param
+        
+
         def potential_fn(positions, box, pairs, params):
             prop_sum = sum([
                 props[i].get_energy(
@@ -509,6 +540,9 @@ class PeriodicTorsionJaxGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["PeriodicTorsionForce"] = PeriodicTorsionJaxGenerator
@@ -531,6 +565,8 @@ class NonbondedJaxGenerator:
 
         self.useBCC = False
         self.useVsite = False
+
+        self._meta = {}
 
     def extract(self):
         self.from_residue = self.fftree.get_attribs(
@@ -684,6 +720,8 @@ class NonbondedJaxGenerator:
                 cov_map[ori_dim + i, parent_i] = 1
             self.covalent_map = jnp.array(cov_map)
         
+        self._meta["cov_map"] = self.covalent_map
+
         # Load Lennard-Jones parameters
         maps = {}
         if not nbmatcher.useSmirks:
@@ -976,6 +1014,9 @@ class NonbondedJaxGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
     def getAddVsiteFunc(self):
         """
@@ -1008,8 +1049,8 @@ class LennardJonesGenerator:
         self.fftree = ff.fftree
         self.paramtree = ff.paramtree
         self.paramtree[self.name] = {}
-        self.paramtree[self.name]
-        self.paramtree[self.name]
+        self._meta = {}
+
 
     def extract(self):
         for prm in ["sigma", "epsilon"]:
@@ -1109,6 +1150,7 @@ class LennardJonesGenerator:
         map_nbfix = jnp.array(map_nbfix)
 
         colv_map = build_covalent_map(data, 6)
+        self._meta["cov_map"] = colv_map
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -1189,6 +1231,9 @@ class LennardJonesGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["LennardJonesForce"] = LennardJonesGenerator

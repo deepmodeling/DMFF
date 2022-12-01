@@ -47,8 +47,7 @@ class TestFreeEnergy:
             [ 0.00,  1.20,  0.00],
             [ 0.00,  0.00,  1.20]
         ])
-        gen = h.getGenerators()[-1]
-        nbList = NeighborList(box, rcut, gen.covalent_map)
+        nbList = NeighborList(box, rcut, potential.meta["cov_map"])
         nbList.allocate(positions)
         pairs = nbList.pairs
         func = jax.value_and_grad(potential.dmff_potentials["NonbondedForce"], argnums=-1)
@@ -103,8 +102,7 @@ class TestFreeEnergy:
             [ 0.00,  1.20,  0.00],
             [ 0.00,  0.00,  1.20]
         ])
-        gen = h.getGenerators()[-1]
-        nbList = NeighborList(box, rcut, gen.covalent_map)
+        nbList = NeighborList(box, rcut, potential.meta["cov_map"])
         nbList.allocate(positions)
         pairs = nbList.pairs
         func = jax.value_and_grad(potential.dmff_potentials["NonbondedForce"], argnums=-2)

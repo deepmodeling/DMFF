@@ -1,4 +1,4 @@
-from dmff.mbar import MBAREstimator, Sample, SampleState, TargetState, OpenMMSampleState
+from dmff.mbar import MBAREstimator, Sample, SampleState, TargetState, OpenMMSampleState, buildTrajEnergyFunction
 import dmff
 import pytest
 import jax
@@ -28,43 +28,11 @@ class TestMBAR:
                                 nonbondedMethod=app.PME,
                                 nonbondedCutoff=0.9 * unit.nanometer)
         efunc = pot.getPotentialFunc()
-        nbgen = None
-        for gen in h.getGenerators():
-            if isinstance(gen, dmff.generators.NonbondedJaxGenerator):
-                nbgen = gen
 
-        def target_energy_function(traj, parameters):
-            pos_list, box_list, pairs_list, vol_list = [], [], [], []
-            for frame in tqdm(traj):
-                aa, bb, cc = frame.openmm_boxes(0).value_in_unit(
-                    unit.nanometer)
-                box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
-                                 [cc[0], cc[1], cc[2]]])
-                vol = aa[0] * bb[1] * cc[2]
-                positions = jnp.array(frame.xyz[0, :, :])
-                nbobj = NeighborListFreud(box, 0.9, nbgen.covalent_map)
-                nbobj.capacity_multiplier = 1
-                pairs = nbobj.allocate(positions)
-                box_list.append(box)
-                pairs_list.append(pairs)
-                vol_list.append(vol)
-                pos_list.append(positions)
-
-            pmax = max([p.shape[0] for p in pairs_list])
-            pairs_jax = np.zeros(
-                (traj.n_frames, pmax, 3), dtype=int) + traj.n_atoms
-            for nframe in range(traj.n_frames):
-                pair = pairs_list[nframe]
-                pairs_jax[nframe, :pair.shape[0], :] = pair[:, :]
-            pairs_jax = jax.numpy.array(pairs_jax)
-            pos_list = jnp.array(pos_list)
-            box_list = jnp.array(box_list)
-            vol_list = jnp.array(vol_list)
-            eners = [
-                efunc(pos_list[i], box_list[i], pairs_jax[i], parameters) +
-                0.06023 * vol_list[i] for i in range(traj.n_frames)
-            ]
-            return eners
+        target_energy_function = buildTrajEnergyFunction(efunc,
+                                                         pot.meta["cov_map"],
+                                                         0.9,
+                                                         ensemble="npt")
 
         target_state = TargetState(300.0, target_energy_function)
 
@@ -234,43 +202,11 @@ class TestMBAR:
                                 nonbondedMethod=app.PME,
                                 nonbondedCutoff=0.9 * unit.nanometer)
         efunc = pot.getPotentialFunc()
-        nbgen = None
-        for gen in h.getGenerators():
-            if isinstance(gen, dmff.generators.NonbondedJaxGenerator):
-                nbgen = gen
 
-        def target_energy_function(traj, parameters):
-            pos_list, box_list, pairs_list, vol_list = [], [], [], []
-            for frame in tqdm(traj):
-                aa, bb, cc = frame.openmm_boxes(0).value_in_unit(
-                    unit.nanometer)
-                box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
-                                 [cc[0], cc[1], cc[2]]])
-                vol = aa[0] * bb[1] * cc[2]
-                positions = jnp.array(frame.xyz[0, :, :])
-                nbobj = NeighborListFreud(box, 0.9, nbgen.covalent_map)
-                nbobj.capacity_multiplier = 1
-                pairs = nbobj.allocate(positions)
-                box_list.append(box)
-                pairs_list.append(pairs)
-                vol_list.append(vol)
-                pos_list.append(positions)
-
-            pmax = max([p.shape[0] for p in pairs_list])
-            pairs_jax = np.zeros(
-                (traj.n_frames, pmax, 3), dtype=int) + traj.n_atoms
-            for nframe in range(traj.n_frames):
-                pair = pairs_list[nframe]
-                pairs_jax[nframe, :pair.shape[0], :] = pair[:, :]
-            pairs_jax = jax.numpy.array(pairs_jax)
-            pos_list = jnp.array(pos_list)
-            box_list = jnp.array(box_list)
-            vol_list = jnp.array(vol_list)
-            eners = [
-                efunc(pos_list[i], box_list[i], pairs_jax[i], parameters) +
-                0.06023 * vol_list[i] for i in range(traj.n_frames)
-            ]
-            return eners
+        target_energy_function = buildTrajEnergyFunction(efunc,
+                                                         pot.meta["cov_map"],
+                                                         0.9,
+                                                         ensemble="npt")
 
         target_state = TargetState(300.0, target_energy_function)
 

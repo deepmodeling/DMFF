@@ -23,8 +23,7 @@ class TestCoulomb:
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
         rc = 4
-        gen = h.getGenerators()[-1]
-        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist = NeighborList(box, rc, potential.meta["cov_map"])
         nblist.allocate(pos)
         pairs = nblist.pairs
         coulE = potential.getPotentialFunc(names="NonbondedForce")
@@ -71,8 +70,7 @@ class TestCoulomb:
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
         rc = 4
-        gen = h.getGenerators()[-1]
-        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist = NeighborList(box, rc, potential.meta["cov_map"])
         nblist.allocate(pos)
         pairs = nblist.pairs
         coulE = potential.getPotentialFunc()
@@ -116,9 +114,7 @@ class TestCoulomb:
             [ 0.00,  0.00,  1.20]
         ])
 
-        gen = h.getGenerators()[-1]
-
-        nbList = NeighborList(box, rcut, gen.covalent_map)
+        nbList = NeighborList(box, rcut, potential.meta["cov_map"])
         nbList.allocate(positions)
         pairs = nbList.pairs
         func = potential.getPotentialFunc(names=["NonbondedForce"])

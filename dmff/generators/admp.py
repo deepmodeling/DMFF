@@ -33,6 +33,7 @@ class ADMPDispGenerator:
         self.types = []
         self.ethresh = 5e-4
         self.pmax = 10
+        self._meta = {}
 
     def extract(self):
 
@@ -92,6 +93,8 @@ class ADMPDispGenerator:
         self.map_atomtype = map_atomtype
         # build covalent map
         self.covalent_map = build_covalent_map(data, 6)
+        self._meta["cov_map"] = self.covalent_map
+        self._meta["ADMPDispForce_map_atomtype"] = map_atomtype
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
         box = jnp.array([a._value, b._value, c._value]) * 10
@@ -160,6 +163,9 @@ class ADMPDispGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators['ADMPDispForce'] = ADMPDispGenerator
@@ -181,6 +187,7 @@ class ADMPDispPmeGenerator:
         self.ethresh = 5e-4
         self.pmax = 10
         self.name = "ADMPDispPmeForce"
+        self._meta = {}
 
     def extract(self):
 
@@ -252,6 +259,9 @@ class ADMPDispPmeGenerator:
         # build covalent map
         self.covalent_map = build_covalent_map(data, 6)
 
+        self._meta["cov_map"] = self.covalent_map
+        self._meta["ADMPDispPmeForce_map_atomtype"] = self.map_atomtype
+
         # here box is only used to setup ewald parameters, no need to be differentiable
         a, b, c = system.getDefaultPeriodicBoxVectors()
         box = jnp.array([a._value, b._value, c._value]) * 10
@@ -285,6 +295,9 @@ class ADMPDispPmeGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators['ADMPDispPmeForce'] = ADMPDispPmeGenerator
@@ -302,6 +315,7 @@ class QqTtDampingGenerator:
         self.paramtree = ff.paramtree
         self._jaxPotnetial = None
         self.name = "QqTtDampingForce"
+        self._meta = {}
 
     def extract(self):
         # get mscales
@@ -357,6 +371,9 @@ class QqTtDampingGenerator:
         # build covalent map
         self.covalent_map = build_covalent_map(data, 6)
 
+        self._meta["cov_map"] = self.covalent_map
+        self._meta["QqTtDampingForce_map_atomtype"] = self.map_atomtype
+
         pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel,
                                                   static_args={})
 
@@ -373,6 +390,9 @@ class QqTtDampingGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 # register all parsers
@@ -392,6 +412,7 @@ class SlaterDampingGenerator:
         self.fftree = ff.fftree
         self.paramtree = ff.paramtree
         self._jaxPotential = None
+        self._meta = {}
 
     def extract(self):
         # get mscales
@@ -453,6 +474,9 @@ class SlaterDampingGenerator:
         # build covalent map
         self.covalent_map = build_covalent_map(data, 6)
 
+        self._meta["cov_map"] = self.covalent_map
+        self._meta[self.name+"_map_atomtype"] = self.map_atomtype
+
         # WORKING
         pot_fn_sr = generate_pairwise_interaction(slater_disp_damping_kernel,
                                                   static_args={})
@@ -474,6 +498,9 @@ class SlaterDampingGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators['SlaterDampingForce'] = SlaterDampingGenerator
@@ -490,6 +517,7 @@ class SlaterExGenerator:
         self.fftree = ff.fftree
         self.paramtree = ff.paramtree
         self._jaxPotential = None
+        self._meta = {}
 
     def extract(self):
         # get mscales
@@ -543,6 +571,9 @@ class SlaterExGenerator:
         # build covalent map
         self.covalent_map = build_covalent_map(data, 6)
 
+        self._meta["cov_map"] = self.covalent_map
+        self._meta[self.name+"_map_atomtype"] = self.map_atomtype
+
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
                                                   static_args={})
 
@@ -559,6 +590,9 @@ class SlaterExGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["SlaterExForce"] = SlaterExGenerator
@@ -612,6 +646,8 @@ class ADMPPmeGenerator:
         self.step_pol = None
         self.lpol = False
         self.ref_dip = ""
+
+        self._meta = {}
 
     def extract(self):
 
@@ -850,7 +886,7 @@ class ADMPPmeGenerator:
 
         # build covalent map
         self.covalent_map = covalent_map = build_covalent_map(data, 6)
-
+        self._meta["cov_map"] = self.covalent_map
         # build intra-molecule axis
         # the following code is the direct transplant of forcefield.py in openmm 7.4.0
 
@@ -1097,6 +1133,9 @@ class ADMPPmeGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+
+    def getMetaData(self):
+        return self._meta
 
 
 dmff.api.jaxGenerators["ADMPPmeForce"] = ADMPPmeGenerator

@@ -24,8 +24,7 @@ class TestGaff2:
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
         rc = 4
-        gen = h.getGenerators()[-1]
-        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist = NeighborList(box, rc, potential.meta["cov_map"])
         nblist.allocate(pos)
         pairs = nblist.pairs
         ljE = potential.getPotentialFunc()
@@ -61,8 +60,7 @@ class TestGaff2:
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[20.0, 0.0, 0.0], [0.0, 20.0, 0.0], [0.0, 0.0, 20.0]])
         rc = 4
-        gen = h.getGenerators()[-1]
-        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist = NeighborList(box, rc, potential.meta["cov_map"])
         nblist.allocate(pos)
         pairs = nblist.pairs
         for ne, energy in enumerate(potential.dmff_potentials.values()):
@@ -98,8 +96,7 @@ class TestGaff2:
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[20.0, 0.0, 0.0], [0.0, 20.0, 0.0], [0.0, 0.0, 20.0]])
         rc = 4
-        gen = h.getGenerators()[-1]
-        nblist = NeighborList(box, rc, gen.covalent_map)
+        nblist = NeighborList(box, rc, potential.meta["cov_map"])
         nblist.allocate(pos)
         pairs = nblist.pairs
         efunc = potential.getPotentialFunc()

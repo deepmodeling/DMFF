@@ -56,7 +56,7 @@ def test_vsite(name: str):
 
     pos_vsite = jnp.array(newmol.GetConformer().GetPositions()) / 10
     box = jnp.eye(3, dtype=jnp.float32)
-    nblist = NeighborList(box, 1.0, h_smirks.getCovalentMap())
+    nblist = NeighborList(box, 1.0, pot_vsite.meta["cov_map"])
     nblist.allocate(pos_vsite)
     pairs_vsite = nblist.pairs
 
@@ -80,7 +80,7 @@ def test_vsite(name: str):
     pot_typing = h_typing.createPotential(top)
     pos = jnp.array(rdmol.GetConformer().GetPositions()) / 10
     box = jnp.eye(3, dtype=jnp.float32)
-    nblist = NeighborList(box, 1.0, h_typing.getCovalentMap())
+    nblist = NeighborList(box, 1.0, pot_typing.meta["cov_map"])
     nblist.allocate(pos)
     pairs = nblist.pairs
     nbfunc = jax.value_and_grad(pot_typing.dmff_potentials['NonbondedForce'], argnums=-1, allow_int=True)
