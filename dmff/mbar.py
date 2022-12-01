@@ -33,7 +33,6 @@ def buildTrajEnergyFunction(potential_func,
             aa, bb, cc = frame.openmm_boxes(0).value_in_unit(unit.nanometer)
             box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
                              [cc[0], cc[1], cc[2]]])
-            vol = aa[0] * bb[1] * cc[2]
             positions = jnp.array(frame.xyz[0, :, :])
             if usePBC:
                 if useFreud:
@@ -45,9 +44,9 @@ def buildTrajEnergyFunction(potential_func,
                 pairs_list.append(pairs)
             else:
                 pairs_list.append(pair_full)
-            box_list.append(box)
-            vol_list.append(vol)
-            pos_list.append(positions)
+        pos_list = jnp.array(traj.xyz)
+        vol_list = jnp.array(traj.unitcell_volumes)
+        box_list = jnp.array(traj.unitcell_vectors)
 
         pmax = max([p.shape[0] for p in pairs_list])
         pairs_jax = np.zeros(
