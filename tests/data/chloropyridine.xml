@@ -1,0 +1,55 @@
+<?xml version="1.0" ?>
+<ForceField>
+	<Residues>
+		<Residue name="MOL">
+			<Atom name="CL1" type="CL1"/>
+			<Atom name="C1" type="C1"/>
+			<Atom name="C2" type="C2"/>
+			<Atom name="C3" type="C3"/>
+			<Atom name="C4" type="C4"/>
+			<Atom name="C5" type="C5"/>
+			<Atom name="N1" type="N1"/>
+			<Atom name="H1" type="H1"/>
+			<Atom name="H2" type="H2"/>
+			<Atom name="H3" type="H3"/>
+			<Atom name="H4" type="H4"/>
+			<Bond atomName1="CL1" atomName2="C1"/>
+			<Bond atomName1="C1" atomName2="C2"/>
+			<Bond atomName1="C1" atomName2="N1"/>
+			<Bond atomName1="C2" atomName2="C3"/>
+			<Bond atomName1="C2" atomName2="H1"/>
+			<Bond atomName1="C3" atomName2="C4"/>
+			<Bond atomName1="C3" atomName2="H2"/>
+			<Bond atomName1="C4" atomName2="C5"/>
+			<Bond atomName1="C4" atomName2="H3"/>
+			<Bond atomName1="C5" atomName2="N1"/>
+			<Bond atomName1="C5" atomName2="H4"/>
+		</Residue>
+	</Residues>
+	<AtomTypes>
+		<Type class="cl" element="Cl" mass="35.450" name="CL1"/>
+		<Type class="ca" element="C" mass="12.010" name="C1"/>
+		<Type class="ca" element="C" mass="12.010" name="C2"/>
+		<Type class="ca" element="C" mass="12.010" name="C3"/>
+		<Type class="ca" element="C" mass="12.010" name="C4"/>
+		<Type class="ca" element="C" mass="12.010" name="C5"/>
+		<Type class="nb" element="N" mass="14.010" name="N1"/>
+		<Type class="ha" element="H" mass="1.008" name="H1"/>
+		<Type class="ha" element="H" mass="1.008" name="H2"/>
+		<Type class="ha" element="H" mass="1.008" name="H3"/>
+		<Type class="h4" element="H" mass="1.008" name="H4"/>
+	</AtomTypes>
+	<NonbondedForce coulomb14scale="0.83333" lj14scale="0.50000">
+		<Atom charge="-0.1510000000" epsilon="1.1037400000" sigma="0.3465950000" type="CL1"/>
+		<Atom charge="0.4883000000" epsilon="0.4133790000" sigma="0.3315210000" type="C1"/>
+		<Atom charge="-0.2353000000" epsilon="0.4133790000" sigma="0.3315210000" type="C2"/>
+		<Atom charge="-0.0860000000" epsilon="0.4133790000" sigma="0.3315210000" type="C3"/>
+		<Atom charge="-0.2473000000" epsilon="0.4133790000" sigma="0.3315210000" type="C4"/>
+		<Atom charge="0.4072000000" epsilon="0.4133790000" sigma="0.3315210000" type="C5"/>
+		<Atom charge="-0.6540000000" epsilon="0.3937140000" sigma="0.3384170000" type="N1"/>
+		<Atom charge="0.1570000000" epsilon="0.0673624000" sigma="0.2625480000" type="H1"/>
+		<Atom charge="0.1440000000" epsilon="0.0673624000" sigma="0.2625480000" type="H2"/>
+		<Atom charge="0.1480000000" epsilon="0.0673624000" sigma="0.2625480000" type="H3"/>
+		<Atom charge="0.0291000000" epsilon="0.0673624000" sigma="0.2536390000" type="H4"/>
+	</NonbondedForce>
+</ForceField>

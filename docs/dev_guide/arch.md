@@ -1,6 +1,6 @@
 # 2. Software architecture
 
-![arch](../assets/arch.png)
+![arch](../assets/arch.svg)
 
 The overall architechture of DMFF can be divided into two parts: 1. parser & typing and 2. calculators. 
 We usually refer to the former as the *frontend* and the latter as the *backend* for ease of description.
