@@ -18,11 +18,6 @@
   <HarmonicBondForce>
     <Bond type1="ca" type2="ca" length="0.24075506225207396" k="30000.0"/>
   </HarmonicBondForce>
-  <NonbondedForce coulomb14scale="0.8333333333333334" lj14scale="0.5">
-    <UseAttributeFromResidue name="charge"/>
-    <Atom type="ca" sigma="1.0" epsilon="0.0"/>
-    <Atom type="ha" sigma="1.0" epsilon="0.0"/>
-  </NonbondedForce>
   <LennardJonesForce lj14scale="0.5" useDispersionCorrection="False">
       <Atom type="ca" sigma="0.45" epsilon="1.0"/>
   </LennardJonesForce>
