@@ -13,6 +13,12 @@ pip install jax==0.3.17
 ```bash
 pip install jax-md==0.2.0
 ```
++ Install [mdtraj](https://github.com/mdtraj/mdtraj), [optax](https://github.com/deepmind/optax) and [pymbar](https://github.com/choderalab/pymbar):
+```bash
+conda install -c conda-forge mdtraj==1.9.7
+pip install optax==0.1.3
+pip install pymbar==4.0.1
+```
 + Install [OpenMM](https://openmm.org/):
 ```bash
 conda install -c conda-forge openmm==7.7.0
