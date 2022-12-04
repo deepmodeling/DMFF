@@ -1,0 +1,6 @@
+REMARK   1 CREATED WITH OPENMM 7.7, 2022-10-18
+CRYST1  100.000  100.000  100.000  90.00  90.00  90.00 P 1           1 
+HETATM    1  N1  LIG A   1       1.000   0.000   0.500  1.00  0.00           N  
+HETATM    2  N2  LIG A   1       0.000   1.000  -0.500  1.00  0.00           N
+CONECT    1    2
+END

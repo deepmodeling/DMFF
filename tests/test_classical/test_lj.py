@@ -21,10 +21,9 @@ class TestVdW:
                                    nonbondedMethod=app.NoCutoff,
                                    constraints=None,
                                    removeCMMotion=False)
-        gen = h.getGenerators()[0]
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = jnp.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
-        nblist = NeighborList(box, 4.0, gen.covalent_map)
+        nblist = NeighborList(box, 4.0, potential.meta["cov_map"])
         nblist.allocate(pos)
         pairs = nblist.pairs
         ljE = potential.getPotentialFunc()
@@ -47,8 +46,7 @@ class TestVdW:
                                    removeCMMotion=False)
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
-        gen = h.getGenerators()[0]
-        nblist = NeighborList(box, 4.0, gen.covalent_map)
+        nblist = NeighborList(box, 4.0, potential.meta["cov_map"])
         nblist.allocate(pos)
         pairs = nblist.pairs
         ljE = potential.getPotentialFunc()
@@ -67,8 +65,7 @@ class TestVdW:
                                    removeCMMotion=False)
         pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])     
-        gen = h.getGenerators()[0]
-        nblist = NeighborList(box, 4.0, gen.covalent_map)
+        nblist = NeighborList(box, 4.0, potential.meta["cov_map"])
         nblist.allocate(pos)              
         pairs = nblist.pairs 
         ljE = potential.getPotentialFunc()

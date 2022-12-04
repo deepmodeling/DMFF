@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<ForceField>
+	<Residues>
+		<Residue name="MOL">
+			<Atom name="CL1" type="CL1" charge="-0.1510000000"/>
+			<Atom name="C1" type="C1" charge="0.4883000000"/>
+			<Atom name="C2" type="C2" charge="-0.2353000000"/>
+			<Atom name="C3" type="C3" charge="-0.0860000000"/>
+			<Atom name="C4" type="C4" charge="-0.2473000000"/>
+			<Atom name="C5" type="C5" charge="0.4072000000"/>
+			<Atom name="N1" type="N1" charge="-0.6540000000"/>
+			<Atom name="H1" type="H1" charge="0.1570000000"/>
+			<Atom name="H2" type="H2" charge="0.1440000000"/>
+			<Atom name="H3" type="H3" charge="0.1480000000"/>
+			<Atom name="H4" type="H4" charge="0.0291000000"/>
+			<Bond atomName1="CL1" atomName2="C1"/>
+			<Bond atomName1="C1" atomName2="C2"/>
+			<Bond atomName1="C1" atomName2="N1"/>
+			<Bond atomName1="C2" atomName2="C3"/>
+			<Bond atomName1="C2" atomName2="H1"/>
+			<Bond atomName1="C3" atomName2="C4"/>
+			<Bond atomName1="C3" atomName2="H2"/>
+			<Bond atomName1="C4" atomName2="C5"/>
+			<Bond atomName1="C4" atomName2="H3"/>
+			<Bond atomName1="C5" atomName2="N1"/>
+			<Bond atomName1="C5" atomName2="H4"/>
+		</Residue>
+	</Residues>
+	<AtomTypes>
+		<Type class="cl" element="Cl" mass="35.450" name="CL1"/>
+		<Type class="ca" element="C" mass="12.010" name="C1"/>
+		<Type class="ca" element="C" mass="12.010" name="C2"/>
+		<Type class="ca" element="C" mass="12.010" name="C3"/>
+		<Type class="ca" element="C" mass="12.010" name="C4"/>
+		<Type class="ca" element="C" mass="12.010" name="C5"/>
+		<Type class="nb" element="N" mass="14.010" name="N1"/>
+		<Type class="ha" element="H" mass="1.008" name="H1"/>
+		<Type class="ha" element="H" mass="1.008" name="H2"/>
+		<Type class="ha" element="H" mass="1.008" name="H3"/>
+		<Type class="h4" element="H" mass="1.008" name="H4"/>
+	</AtomTypes>
+	<NonbondedForce coulomb14scale="0.83333" lj14scale="0.50000">
+		<UseAttributeFromResidue name="charge" />
+    	<Atom epsilon="1.1037400000" sigma="0.3465950000" smirks="[#17:1]"/>
+		<Atom epsilon="0.4133790000" sigma="0.3315210000" smirks="[#6X3;a;r6:1]"/>
+		<Atom epsilon="0.0673624000" sigma="0.2625480000" smirks="[$([#1]-[#6X3;r6;a]):1]"/>
+        <Atom epsilon="0.0673624000" sigma="0.2536390000" smirks="[$([#1]-[#6X3;r6;a]~[#7]):1]"/>
+		<Atom epsilon="0.3937140000" sigma="0.3384170000" smirks="[#7;r6;a:1]"/>
+		<Atom epsilon="0.000000000" sigma="0.00000000000" smirks="[#0:1]" />
+        <BondChargeCorrection smirks="[#6X3;a;r6:1]:[#6X3;a;r6:2]" bcc="0.000000" />
+		<BondChargeCorrection smirks="[#17:1]-[#6X3;r6;a:2]" bcc="0.000000" />
+		<BondChargeCorrection smirks="[#1:1]-[#6X3;r6;a:2]" bcc="0.000000" />
+        <BondChargeCorrection smirks="[$([#7]~[#0]);r6;a:1]:[#6X3;r6;a:2]" bcc="0.000000" />
+		<BondChargeCorrection smirks="[#0:1]~[#17:2]" bcc="0.000000"/>
+        <BondChargeCorrection smirks="[#0:1]~[#35:2]" bcc="0.000000"/>
+        <BondChargeCorrection smirks="[#0:1]~[#53:2]" bcc="0.000000"/>
+        <BondChargeCorrection smirks="[#0:1]~[#7:2]" bcc="0.000000"/>
+        <VirtualSite smirks="[#17,#35:1]-[#6X3;a:2]" vtype="1" distance="0.1600" />
+		<VirtualSite smirks="[#53:1]-[#6X3;a:2]" vtype="1" distance="0.1800" />
+		<VirtualSite smirks="[#7X2;a:1](:[*;a:2]):[*;a:3]" vtype="2" distance="0.0400" />
+	</NonbondedForce>
+</ForceField>

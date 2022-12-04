@@ -1,4 +1,5 @@
 import linecache
+from typing import Callable, Dict, Any
 
 import numpy as np
 import jax.numpy as jnp
@@ -52,9 +53,13 @@ class Potential:
     def __init__(self):
         self.dmff_potentials = {}
         self.omm_system = None
+        self.meta = {}
 
-    def addDmffPotential(self, name, potential):
+    def addDmffPotential(self, name, potential, meta={}):
         self.dmff_potentials[name] = potential
+        if len(meta):
+            for key in meta.keys():
+                self.meta[key] = meta[key]
 
     def addOmmSystem(self, system):
         self.omm_system = system
@@ -82,7 +87,7 @@ class Potential:
 
 
 class Hamiltonian(app.forcefield.ForceField):
-    def __init__(self, *xmlnames):
+    def __init__(self, *xmlnames, **kwargs):
         super().__init__(*xmlnames)
         self._pseudo_ff = app.ForceField(*xmlnames)
         # parse XML forcefields
@@ -104,6 +109,9 @@ class Hamiltonian(app.forcefield.ForceField):
         self.extractParameterTree()
 
         # hook generators to self._forces
+        # use noOmmSys to disable all traditional openmm system
+        if kwargs.get("noOmmSys", False):
+            self._forces = []
         for jaxGen in self._jaxGenerators:
             self._forces.append(jaxGen)
 
@@ -179,9 +187,33 @@ class Hamiltonian(app.forcefield.ForceField):
                 continue
             try:
                 potentialImpl = generator.getJaxPotential()
-                potObj.addDmffPotential(generator.name, potentialImpl)
+                meta = generator.getMetaData()
+                potObj.addDmffPotential(generator.name, potentialImpl, meta=meta)
             except Exception as e:
                 print(e)
+                pass
+
+            # virtual site
+            try:
+                addVsiteFunc = generator.getAddVsiteFunc()
+                self.setAddVirtualSiteFunc(addVsiteFunc)
+                vsiteObj = generator.getVsiteObj()
+                self.setVirtualSiteObj(vsiteObj)
+            except AttributeError as e:
+                pass
+
+            # covalent map
+            try:
+                cov_map = generator.covalent_map
+                self.setCovalentMap(cov_map)
+            except AttributeError as e:
+                pass
+
+            # topology matrix (for BCC usage)
+            try:
+                top_mat = generator.getTopologyMatrix()
+                self.setTopologyMatrix(top_mat)
+            except AttributeError as e:
                 pass
 
         return potObj
@@ -202,3 +234,150 @@ class Hamiltonian(app.forcefield.ForceField):
                     node[key] = ref[key]
 
         update_iter(self.paramtree, paramtree)
+        
+    def setCovalentMap(self, cov_map: jnp.ndarray):
+        self._cov_map = cov_map
+    
+    def getCovalentMap(self) -> jnp.ndarray:
+        """
+        Get covalent map
+        """
+        if hasattr(self, "_cov_map"):
+            return self._cov_map
+        else:
+            raise DMFFException("Covalent map is not set.")
+    
+    def getAddVirtualSiteFunc(self) -> Callable:
+        return self._add_vsite_coords
+    
+    def setAddVirtualSiteFunc(self, func: Callable):
+        self._add_vsite_coords = func
+    
+    def setVirtualSiteObj(self, vsite):
+        self._vsite = vsite
+    
+    def getVirtualSiteObj(self):
+        return self._vsite
+    
+    def setTopologyMatrix(self, top_mat):
+        self._top_mat = top_mat
+    
+    def getTopologyMatrix(self):
+        return self._top_mat
+    
+    def addVirtualSiteCoords(self, pos: jnp.ndarray, params: Dict[str, Any]) -> jnp.ndarray:
+        """
+        Add coordinates for virtual sites
+
+        Parameters
+        ----------
+        pos: jnp.ndarray
+            Coordinates without virtual sites
+        params: dict
+            Paramtree of hamiltonian, i.e. `dmff.Hamiltonian.paramtree`
+        
+        Return
+        ------
+        newpos: jnp.ndarray
+
+        Examples
+        --------
+        >>> import jax.numpy as jnp
+        >>> import openmm.app as app
+        >>> from rdkit import Chem
+        >>> from dmff import Hamiltonian
+        >>> pdb = app.PDBFile("tests/data/chlorobenzene.pdb")
+        >>> pos = jnp.array(pdb.getPositions(asNumpy=True)._value)
+        >>> mol = Chem.MolFromMolFile("tests/data/chlorobenzene.mol", removeHs=False)
+        >>> h = Hamiltonian("tests/data/cholorobenzene_vsite.xml")
+        >>> potObj = h.createPotential(pdb.topology, rdmol=mol)
+        >>> newpos = h.addVirtualSiteCoords(pos, h.paramtree)
+        
+        """
+        func = self.getAddVirtualSiteFunc()
+        newpos = func(pos, params)
+        return newpos
+    
+    def addVirtualSiteToMol(self, rdmol, params):
+        """
+        Add coordinates for rdkit.Chem.Mol object
+
+        Parameters
+        ----------
+        rdmol: rdkit.Chem.Mol
+            Mol object to which virtual sites are added
+        params: dict
+            Paramtree of hamiltonian, i.e. `dmff.Hamiltonian.paramtree`
+        
+        Return
+        ------
+        newmol: rdkit.Chem.Mol
+            Mol object with virtual sites added
+        
+        Examples
+        --------
+        >>> import jax.numpy as jnp
+        >>> import openmm.app as app
+        >>> from rdkit import Chem
+        >>> from dmff import Hamiltonian
+        >>> pdb = app.PDBFile("tests/data/chlorobenzene.pdb")
+        >>> mol = Chem.MolFromMolFile("tests/data/chlorobenzene.mol", removeHs=False)
+        >>> h = Hamiltonian("tests/data/cholorobenzene_vsite.xml")
+        >>> potObj = h.createPotential(pdb.topology, rdmol=mol)
+        >>> newmol = h.addVirtualSiteToMol(mol, h.paramtree)
+        """
+        vsiteObj = self.getVirtualSiteObj()
+        newmol = vsiteObj.addVirtualSiteToMol(
+            rdmol,
+            params['NonbondedForce']['vsite_types'],
+            params['NonbondedForce']['vsite_distances']
+        )
+        return newmol
+    
+    @staticmethod
+    def buildTopologyFromMol(rdmol, resname: str = "MOL") -> app.Topology:
+        """
+        Build openmm.app.Topology from rdkit.Chem.Mol Object
+
+        Parameters
+        ----------
+        rdmol: rdkit.Chem.Mol
+            Mol object
+        resname: str
+            Name of the added residue, default "MOL"
+        
+        Return
+        ------
+        top: `openmm.app.Topology`
+            Topology built based on the input rdkit Mol object
+        """
+        from rdkit import Chem
+
+        top = app.Topology()
+        chain = top.addChain(0)
+        res = top.addResidue(resname, chain, "1", "")
+        
+        atCount = {}
+        addedAtoms = []
+        for idx, atom in enumerate(rdmol.GetAtoms()):
+            symb = atom.GetSymbol().upper()
+            atCount.update({symb: atCount.get(symb, 0) + 1})
+            ele = app.Element.getBySymbol(symb)
+            atName = f'{symb}{atCount[symb]}'
+        
+            addedAtom = top.addAtom(atName, ele, res, str(idx+1))
+            addedAtoms.append(addedAtom)
+        
+        bondTypeMap = {
+            Chem.rdchem.BondType.SINGLE: app.Single,
+            Chem.rdchem.BondType.DOUBLE: app.Double,
+            Chem.rdchem.BondType.TRIPLE: app.Triple,
+            Chem.rdchem.BondType.AROMATIC: app.Aromatic
+        }
+        for bond in rdmol.GetBonds():
+            top.addBond(
+                addedAtoms[bond.GetBeginAtomIdx()],
+                addedAtoms[bond.GetEndAtomIdx()],
+                type=bondTypeMap.get(bond.GetBondType(), None)
+            )
+        return top

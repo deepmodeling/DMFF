@@ -7,6 +7,9 @@ import mkdocs_gen_files
 nav = mkdocs_gen_files.Nav()
 
 for path in sorted(Path("dmff").rglob("*.py")):  # 
+
+    if path.name.startswith("_"):
+        continue
     
     module_path = path.relative_to('dmff').with_suffix("")  # 
 
