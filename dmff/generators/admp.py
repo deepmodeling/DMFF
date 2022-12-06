@@ -599,26 +599,63 @@ dmff.api.jaxGenerators["SlaterExForce"] = SlaterExGenerator
 
 
 # Here are all the short range "charge penetration" terms
-# They all have the exchange form
+# They all have the exchange form with minus sign
 class SlaterSrEsGenerator(SlaterExGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterSrEsForce"
 
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
 
-class SlaterSrPolGenerator(SlaterExGenerator):
+        n_atoms = len(data.atoms)
+        # build index map
+        map_atomtype = np.zeros(n_atoms, dtype=int)
+        for i in range(n_atoms):
+            atype = data.atomType[data.atoms[i]]
+            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
+        self.map_atomtype = map_atomtype
+        # build covalent map
+        self.covalent_map = build_covalent_map(data, 6)
+
+        self._meta["cov_map"] = self.covalent_map
+        self._meta[self.name+"_map_atomtype"] = self.map_atomtype
+
+        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
+                                                  static_args={})
+
+        def potential_fn(positions, box, pairs, params):
+            params = params[self.name]
+            mScales = params["mScales"]
+            a_list = params["A"][map_atomtype]
+            b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+            
+            # add minus sign
+            return - pot_fn_sr(positions, box, pairs, mScales, a_list, b_list)
+
+        self._jaxPotential = potential_fn
+        # self._top_data = data
+
+    def getJaxPotential(self):
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
+
+
+class SlaterSrPolGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterSrPolForce"
 
 
-class SlaterSrDispGenerator(SlaterExGenerator):
+class SlaterSrDispGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterSrDispForce"
 
 
-class SlaterDhfGenerator(SlaterExGenerator):
+class SlaterDhfGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterDhfForce"
