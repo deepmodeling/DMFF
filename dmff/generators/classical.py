@@ -683,6 +683,7 @@ class NonbondedJaxGenerator:
 
         
         rdmol = args.get("rdmol", None)
+        raiseBccMatchError = args.get("raiseBccMatchError", False)
 
         if self.useVsite:
             vsitematcher = TypeMatcher(self.fftree, "NonbondedForce/VirtualSite")
@@ -794,7 +795,7 @@ class NonbondedJaxGenerator:
                         self.top_mat[query2[1], nnode] -= 1
                     else:
                         msg = f"No BCC parameter for bond between Atom{beginAtomIdx} and Atom{endAtomIdx}" 
-                        if args.get("raiseBccMatchError", False):
+                        if raiseBccMatchError:
                             raise DMFFException(msg)
                         else:
                             warnings.warn(msg)
