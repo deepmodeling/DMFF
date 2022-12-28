@@ -795,9 +795,9 @@ class NonbondedJaxGenerator:
                     else:
                         msg = f"No BCC parameter for bond between Atom{beginAtomIdx} and Atom{endAtomIdx}" 
                         if args.get("raiseBccMatchError", False):
-                            raise DMFFExecption(msg)
+                            raise DMFFException(msg)
                         else:
-                            warings.warn(msg)
+                            warnings.warn(msg)
             else:
                 raise DMFFException(
                     "Only SMIRKS-based parametrization is supported for BCC"
