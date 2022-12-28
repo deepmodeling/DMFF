@@ -793,9 +793,11 @@ class NonbondedJaxGenerator:
                         self.top_mat[query2[0], nnode] += 1
                         self.top_mat[query2[1], nnode] -= 1
                     else:
-                        warnings.warn(
-                            f"No BCC parameter for bond between Atom{beginAtomIdx} and Atom{endAtomIdx}"
-                        )
+                        msg = f"No BCC parameter for bond between Atom{beginAtomIdx} and Atom{endAtomIdx}" 
+                        if args.get("raiseBccMatchError", False):
+                            raise DMFFExecption(msg)
+                        else:
+                            warings.warn(msg)
             else:
                 raise DMFFException(
                     "Only SMIRKS-based parametrization is supported for BCC"
