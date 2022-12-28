@@ -371,9 +371,7 @@ class TypeMatcher:
                 assert len(match) == 2
                 if (match[1], match[0]) in matches_dict:
                     matches_dict.pop((match[1], match[0]))
-                    matches_dict.update({(match[1], match[0]): idx})
-                else:
-                    matches_dict.update({match: idx})
+                matches_dict.update({match: idx})
         
         return matches_dict
 
