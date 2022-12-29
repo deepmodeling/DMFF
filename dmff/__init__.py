@@ -1,4 +1,5 @@
 from .settings import *
 from .common.nblist import NeighborList, NeighborListFreud
 from .api import Hamiltonian
-from .generators import *
+import dmff.generators.admp
+import dmff.generators.classical
