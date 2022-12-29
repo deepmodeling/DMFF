@@ -4,7 +4,8 @@ from functools import partial
 from itertools import permutations, product
 
 import jax.numpy as jnp
-import MDAnalysis as mda
+# import MDAnalysis as mda
+import mdtraj as md
 import numpy as np
 from dmff.admp.pairwise import distribute_scalar, distribute_v3
 from dmff.admp.spatial import pbc_shift
@@ -1168,7 +1169,7 @@ def sort_by_order(ilist, map_order):
     return np.array(ilist)[np.argsort([map_order[i] for i in ilist])]
 
 
-def from_pdb(pdb):
+def from_pdb_mda(pdb):
     '''
     Build the TopGraph object from a pdb file.
     The pdb file has to contain all bonds within the file
@@ -1190,6 +1191,31 @@ def from_pdb(pdb):
         box = None
     else:
         box = jnp.array(mda.lib.mdamath.triclinic_vectors(u.dimensions))
+    return TopGraph(list_atom_elems, bonds, positions=positions, box=box)
+
+
+def from_pdb(pdb):
+    '''
+    Build the TopGraph object from a pdb file.
+    The pdb file has to contain all bonds within the file
+    This function currently relies on MDAnalysis
+
+    Parameters
+    ----------
+    pdb: string
+        the input pdb file name
+    '''
+    mol = md.load(pdb)
+    bonds = []
+    for bond in mol.top.bonds:
+        bonds.append(np.sort(np.array((bond.atom1.index, bond.atom2.index))))
+    bonds = np.array(bonds)
+    list_atom_elems = np.array([a.element.symbol for a in mol.top.atoms])
+    positions = jnp.array(mol.xyz[0] * 10)
+    if mol.unitcell_vectors is None:
+        box = None
+    else:
+        box = jnp.array(mol.unitcell_vectors)[0] * 10
     return TopGraph(list_atom_elems, bonds, positions=positions, box=box)
 
 
