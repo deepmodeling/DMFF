@@ -683,6 +683,7 @@ class NonbondedJaxGenerator:
 
         
         rdmol = args.get("rdmol", None)
+        raiseBccMatchError = args.get("raiseBccMatchError", False)
 
         if self.useVsite:
             vsitematcher = TypeMatcher(self.fftree, "NonbondedForce/VirtualSite")
@@ -793,9 +794,11 @@ class NonbondedJaxGenerator:
                         self.top_mat[query2[0], nnode] += 1
                         self.top_mat[query2[1], nnode] -= 1
                     else:
-                        warnings.warn(
-                            f"No BCC parameter for bond between Atom{beginAtomIdx} and Atom{endAtomIdx}"
-                        )
+                        msg = f"No BCC parameter for bond between Atom{beginAtomIdx} and Atom{endAtomIdx}" 
+                        if raiseBccMatchError:
+                            raise DMFFException(msg)
+                        else:
+                            warnings.warn(msg)
             else:
                 raise DMFFException(
                     "Only SMIRKS-based parametrization is supported for BCC"

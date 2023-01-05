@@ -46,6 +46,6 @@
 		<Atom epsilon="0.0870272000" sigma="0.2600180000" smirks="[$([#1]-[#6X4]):1]"/>
 		<BondChargeCorrection smirks="[#6X4:1]-[#6X4:2]" bcc="0.000" />
 		<BondChargeCorrection smirks="[#6:1]-[#1:2]" bcc="0.000" />
-		<BondChargeCorrection smirks="[#6X4:1]-[#1:2]" bcc="0.0393" />
+		<BondChargeCorrection smirks="[#1:2]-[#6X4:1]" bcc="-0.0393" />
 	</NonbondedForce>
 </ForceField>

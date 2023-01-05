@@ -96,9 +96,9 @@ class VirtualSite:
             dummy = Chem.Atom(0)
             duIdx = rwmol.AddAtom(dummy)
             rwmol.AddBond(duIdx, pidx)
-            newmol = rwmol.GetMol()
             duIdxs.append(duIdx)
-
+        
+        newmol = rwmol.GetMol()
         if addCoords is not None:
             assert len(addCoords) == len(parentAtomIdx) + ori_num_atoms, f"Number of atoms in coordinates doesn't match"
             conf = newmol.GetConformer()
