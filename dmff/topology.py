@@ -61,6 +61,9 @@ class TopologyData:
         def __eq__(self, other):
             return other.atom1 == self.atom1 and other.atom2 == self.atom2 and other.atom3 == self.atom3
 
+        def __contains__(self, item):
+            return item == self.atom1 or item == self.atom2 or item == self.atom3
+
         @classmethod
         def generate_indices(cls, angles):
             return np.array([[a.atom1, a.atom2, a.atom3] for a in angles])
@@ -127,6 +130,12 @@ class TopologyData:
         self.angle_indices = self._Angle.generate_indices(self.angles)
 
         # initialize proper
+        unique_propers = set()
+        for angle in self.angles:
+            for bond in self._bondOnAtom[angle.atom1]:
+                atom = bond.get_another(angle.atom1)
+                if atom not in angle:
+                    pass
 
-    def detect_improper(self):
+    def detect_impropers(self):
         pass

@@ -35,5 +35,6 @@ class TestTopologyData:
         topo = pdb_omm.topology
         # use TopologyData
         data = TopologyData(topo)
-        data.detect_improper()
+        data.detect_impropers()
         for pair in data.impropers:
+            pass
