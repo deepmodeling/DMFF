@@ -7,6 +7,9 @@ except ImportError as e:
 from typing import Dict, Tuple, List
 import numpy as np
 import itertools
+import networkx as nx
+from networkx.algorithms import isomorphism
+from .utils import DMFFException
 
 
 class AtomType:
@@ -115,10 +118,20 @@ class TopologyData:
     def __init__(self, topology: app.Topology) -> None:
         self.topo = topology
         self.natoms = topology.getNumAtoms()
-        self.atomtypes = []
+        self.atoms = [a for a in topology.atoms()]
+
+        self.residues = [r for r in topology.residues()]
+        self.residue_indices = []
+        for r in self.residues:
+            self.residue_indices.append([a.index for a in r.atoms()])
+
         self._bondedAtom = []
         for na in range(topology.getNumAtoms()):
             self._bondedAtom.append([])
+
+        self.properties = []
+        for na in range(topology.getNumAtoms()):
+            self.properties.append(None)
 
         # initialize bond
         unique_bonds = set()
@@ -173,3 +186,58 @@ class TopologyData:
         self.impropers = list(unique_impropers)
         self.improper_indices = self._Improper.generate_indices(self.impropers)
 
+    def generate_residue_graph(self, resid):
+        residue_indices = self.residue_indices[resid]
+        graph = nx.Graph()
+        # add nodes
+        for atom in residue_indices:
+            external_bond = False
+            bonded_atoms = self._bondedAtom[atom]
+            for bonded in bonded_atoms:
+                if bonded not in residue_indices:
+                    external_bond = True
+            graph.add_node(
+                atom, name=self.atoms[atom].name, element=self.atoms[atom].element.symbol, external_bond=external_bond)
+            for bonded in bonded_atoms:
+                if bonded < atom and bonded in residue_indices:
+                    graph.add_edge(atom, bonded)
+        return graph
+
+    @classmethod
+    def matchTemplate(cls, graph, template):
+        if graph.number_of_nodes() != template.number_of_nodes():
+            return False, {}
+
+        def match_func(n1, n2):
+            return n1["element"] == n2["element"] and n1["external_bond"] == n2["external_bond"]
+        matcher = isomorphism.GraphMatcher(
+            graph, template, node_match=match_func)
+        is_matched = matcher.is_isomorphic()
+        if is_matched:
+            match_dict = [i for i in matcher.match()][0]
+            atype_dict = {}
+            for key in match_dict.keys():
+                attrib = {k: v for k, v in template.nodes(
+                )[match_dict[key]].items() if k != "name"}
+                atype_dict[key] = attrib
+        else:
+            atype_dict = {}
+        return is_matched, atype_dict
+
+    def match_all(self, templates):
+        for ires in range(len(self.residues)):
+            graph = self.generate_residue_graph(ires)
+            all_fail = True
+            for template in templates:
+                is_matched, atype_dict = self.matchTemplate(graph, template)
+                if is_matched:
+                    all_fail = False
+                    for key in atype_dict.keys():
+                        if self.properties[key] is not None:
+                            raise DMFFException(
+                                f"Atom {key} is matched twice.")
+                        self.properties[key] = atype_dict[key]
+                    break
+            if all_fail:
+                raise DMFFException(
+                    f"No template can match residue {self.residues[ires]}.")
