@@ -133,10 +133,14 @@ class TopologyData:
         for angle in self.angles:
             for atom in self._bondedAtom[angle.atom1]:
                 if atom not in angle:
-                    unique_propers.add(self._Proper(atom, angle.atom1, angle.atom2, angle.atom3))
+                    unique_propers.add(self._Proper(
+                        atom, angle.atom1, angle.atom2, angle.atom3))
             for atom in self._bondedAtom[angle.atom3]:
                 if atom not in angle:
-                    unique_propers.add(self._Proper(atom, angle.atom3, angle.atom2, angle.atom1))
+                    unique_propers.add(self._Proper(
+                        atom, angle.atom3, angle.atom2, angle.atom1))
+        self.propers = list(unique_propers)
+        self.proper_indices = self._Proper.generate_indices(self.propers)
 
     def detect_impropers(self):
         pass
