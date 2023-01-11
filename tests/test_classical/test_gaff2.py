@@ -2,6 +2,7 @@ import pytest
 import jax
 import jax.numpy as jnp
 import openmm.app as app
+app.Topology.loadBondDefinitions("tests/data/lig-top.xml")
 import openmm.unit as unit
 import numpy as np
 import numpy.testing as npt
@@ -14,7 +15,6 @@ class TestGaff2:
         "pdb, prm, value",
         [("tests/data/lig.pdb", "tests/data/lig-prm-single-lj.xml", 22.77804946899414)])
     def test_gaff2_lj_force(self, pdb, prm, value):
-        app.Topology.loadBondDefinitions("tests/data/lig-top.xml")
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(prm)
         potential = h.createPotential(pdb.topology,
@@ -48,7 +48,6 @@ class TestGaff2:
         ]
     )
     def test_gaff2_force(self, pdb, prm, values):
-        app.Topology.loadBondDefinitions("tests/data/lig-top.xml")
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(*prm)
         potential = h.createPotential(
@@ -84,7 +83,6 @@ class TestGaff2:
         ]
     )
     def test_gaff2_total(self, pdb, prm, values):
-        app.Topology.loadBondDefinitions("tests/data/lig-top.xml")
         pdb = app.PDBFile(pdb)
         h = Hamiltonian(*prm)
         potential = h.createPotential(
