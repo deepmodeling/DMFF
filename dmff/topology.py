@@ -95,13 +95,9 @@ class TopologyData:
     def __init__(self, topology: app.Topology) -> None:
         self.topo = topology
         self.atomtypes = []
-        self.bonds = []
         self._bondedAtom = []
         for na in range(topology.getNumAtoms()):
             self._bondedAtom.append([])
-        self.bond_indices = None
-        self.angles = []
-        self.angle_indices = None
 
         # initialize bond
         unique_bonds = set()
