@@ -92,8 +92,28 @@ class TopologyData:
         def generate_indices(cls, propers):
             return np.array([[a.atom1, a.atom2, a.atom3, a.atom4] for a in propers])
 
+    class _Improper:
+
+        def __init__(self, atom1, atom2, atom3, atom4):
+            self.atom1 = atom1
+            a2, a3, a4 = sorted([atom2, atom3, atom4])
+            self.atom2 = a2
+            self.atom3 = a3
+            self.atom4 = a4
+
+        def __hash__(self):
+            return hash((self.atom1, self.atom2, self.atom3, self.atom4))
+
+        def __eq__(self, other):
+            return other.atom1 == self.atom1 and other.atom2 == self.atom2 and other.atom3 == self.atom3 and other.atom4 == self.atom4
+
+        @classmethod
+        def generate_indices(cls, imprs):
+            return np.array([[a.atom1, a.atom2, a.atom3, a.atom4] for a in imprs])
+
     def __init__(self, topology: app.Topology) -> None:
         self.topo = topology
+        self.natoms = topology.getNumAtoms()
         self.atomtypes = []
         self._bondedAtom = []
         for na in range(topology.getNumAtoms()):
@@ -138,5 +158,15 @@ class TopologyData:
         self.propers = list(unique_propers)
         self.proper_indices = self._Proper.generate_indices(self.propers)
 
+        # initialize improper
+        self.impropers = []
+        self.improper_indices = np.ndarray([], dtype=int)
+
     def detect_impropers(self):
-        pass
+        unique_impropers = set()
+        for atom in range(self.natoms):
+            bonded_atoms = self._bondedAtom[atom]
+            if len(bonded_atoms) == 3:
+                unique_impropers.add(self._Improper(atom, *bonded_atoms))
+        self.impropers = list(unique_impropers)
+        self.improper_indices = self._Improper.generate_indices(self.impropers)
