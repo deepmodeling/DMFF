@@ -96,46 +96,47 @@ class TopologyData:
         self.topo = topology
         self.atomtypes = []
         self.bonds = []
-        self._bondOnAtom = []
+        self._bondedAtom = []
         for na in range(topology.getNumAtoms()):
-            self._bondOnAtom.append([])
+            self._bondedAtom.append([])
         self.bond_indices = None
         self.angles = []
         self.angle_indices = None
 
         # initialize bond
+        unique_bonds = set()
         for nbond, bond in enumerate(topology.bonds()):
             i1, i2 = bond[0].index, bond[1].index
-            self.bonds.append(self._Bond(i1, i2))
-            self._bondOnAtom[i1].append(nbond)
-            self._bondOnAtom[i2].append(nbond)
+            unique_bonds.add(self._Bond(i1, i2))
+            self._bondedAtom[i1].append(i2)
+            self._bondedAtom[i2].append(i1)
+        self.bonds = list(unique_bonds)
         self.bond_indices = self._Bond.generate_indices(self.bonds)
 
         # initialize angle
         unique_angles = set()
         for iatom in range(topology.getNumAtoms()):
-            bonds_on_iatom = self._bondOnAtom[iatom]
-            if len(bonds_on_iatom) > 1:
-                for n1 in range(len(bonds_on_iatom)):
-                    b1 = self.bonds[bonds_on_iatom[n1]]
-                    for n2 in range(n1+1, len(bonds_on_iatom)):
-                        b2 = self.bonds[bonds_on_iatom[n2]]
-                        angle_i1 = b1.get_another(iatom)
-                        angle_i2 = iatom
-                        angle_i3 = b2.get_another(iatom)
-                        if angle_i1 >= 0 and angle_i3 >= 0:
-                            unique_angles.add(self._Angle(
-                                angle_i1, angle_i2, angle_i3))
+            bonded_atoms = self._bondedAtom[iatom]
+            angle_i2 = iatom
+            if len(bonded_atoms) > 1:
+                for n1 in range(len(bonded_atoms)):
+                    angle_i1 = bonded_atoms[n1]
+                    for n2 in range(n1+1, len(bonded_atoms)):
+                        angle_i3 = bonded_atoms[n2]
+                        unique_angles.add(self._Angle(
+                            angle_i1, angle_i2, angle_i3))
         self.angles = list(unique_angles)
         self.angle_indices = self._Angle.generate_indices(self.angles)
 
         # initialize proper
         unique_propers = set()
         for angle in self.angles:
-            for bond in self._bondOnAtom[angle.atom1]:
-                atom = bond.get_another(angle.atom1)
+            for atom in self._bondedAtom[angle.atom1]:
                 if atom not in angle:
-                    pass
+                    unique_propers.add(self._Proper(atom, angle.atom1, angle.atom2, angle.atom3))
+            for atom in self._bondedAtom[angle.atom3]:
+                if atom not in angle:
+                    unique_propers.add(self._Proper(atom, angle.atom3, angle.atom2, angle.atom1))
 
     def detect_impropers(self):
         pass
