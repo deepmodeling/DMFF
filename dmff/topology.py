@@ -6,6 +6,7 @@ except ImportError as e:
     import simtk.unit as unit
 from typing import Dict, Tuple, List
 import numpy as np
+import itertools
 
 
 class AtomType:
@@ -166,7 +167,9 @@ class TopologyData:
         unique_impropers = set()
         for atom in range(self.natoms):
             bonded_atoms = self._bondedAtom[atom]
-            if len(bonded_atoms) == 3:
-                unique_impropers.add(self._Improper(atom, *bonded_atoms))
+            if len(bonded_atoms) > 2:
+                for subset in itertools.combinations(bonded_atoms, 3):
+                    unique_impropers.add(self._Improper(atom, *subset))
         self.impropers = list(unique_impropers)
         self.improper_indices = self._Improper.generate_indices(self.impropers)
+
