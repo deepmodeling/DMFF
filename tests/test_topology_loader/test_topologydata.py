@@ -1,7 +1,8 @@
 import pytest
 import openmm.app as app
 import openmm.unit as unit
-from dmff.topology import TopologyData, is_propers_equal, is_improper_equal
+from dmff.topology import TopologyData
+from dmff.template.ffxml import generate_templates_from_xml
 
 
 class TestTopologyData:
@@ -24,7 +25,7 @@ class TestTopologyData:
         pass
 
     @pytest.mark.parametrize(
-        "pdb",
+        "pdb, ref",
         [
             ("tests/data/lig.pdb", "test/data/lig_impr.txt")
         ]
@@ -38,3 +39,22 @@ class TestTopologyData:
         data.detect_impropers()
         for pair in data.impropers:
             pass
+
+    @pytest.mark.parametrize(
+        "pdb, ref",
+        [
+            ("tests/data/lig.pdb", "test/data/lig.mol2")
+        ]
+    )
+    def test_match_atomtype(self, pdb, ref):
+        # load
+        pdb_omm = app.PDBFile(pdb)
+        topo = pdb_omm.topology
+        # use TopologyData
+        data = TopologyData(topo)
+        templates = generate_templates_from_xml("tests/data/gaff-2.11.xml", "tests/data/lig-prm-full.xml")
+        data.match_all(templates)
+        atom_types = [d['type'] for d in data.properties]
+        pass
+
+    
