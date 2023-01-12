@@ -176,13 +176,17 @@ class TopologyData:
         self.impropers = []
         self.improper_indices = np.ndarray([], dtype=int)
 
-    def detect_impropers(self):
+    def detect_impropers(self, detect_aromatic_only=False):
         unique_impropers = set()
         for atom in range(self.natoms):
             bonded_atoms = self._bondedAtom[atom]
-            if len(bonded_atoms) > 2:
-                for subset in itertools.combinations(bonded_atoms, 3):
-                    unique_impropers.add(self._Improper(atom, *subset))
+            if not detect_aromatic_only:
+                if len(bonded_atoms) > 2:
+                    for subset in itertools.combinations(bonded_atoms, 3):
+                        unique_impropers.add(self._Improper(atom, *subset))
+            else:
+                if len(bonded_atoms) == 3:
+                    unique_impropers.add(self._Improper(atom, *bonded_atoms))
         self.impropers = list(unique_impropers)
         self.improper_indices = self._Improper.generate_indices(self.impropers)
 
