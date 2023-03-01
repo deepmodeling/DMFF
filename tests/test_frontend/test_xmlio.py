@@ -1,9 +1,9 @@
-from dmff_new.xmlio import XMLIO
+from dmff.xmlio import XMLIO
 import pytest
 import os
 
 
-@pytest.mark.parametrize('input', ['test/data/test1.xml'])
+@pytest.mark.parametrize('input', ['tests/data/test1.xml'])
 def test_read_single_xml(input):
     io = XMLIO()
     io.loadXML(input)
@@ -28,7 +28,7 @@ def test_read_single_xml(input):
     assert "type" in ret["Forces"]['NonbondedForce']['node'][0]["attrib"]
     print(ret)
 
-@pytest.mark.parametrize('input1,input2', [('test/data/test1.xml', 'test/data/test2.xml')])
+@pytest.mark.parametrize('input1,input2', [('tests/data/test1.xml', 'tests/data/test2.xml')])
 def test_read_multi_xml(input1, input2):
     io = XMLIO()
     io.loadXML(input1)
@@ -57,15 +57,15 @@ def test_read_multi_xml(input1, input2):
     assert "type" in ret["Forces"]['NonbondedForce']['node'][0]["attrib"]
 
 
-@pytest.mark.parametrize('input', ['test/data/test1.xml'])
+@pytest.mark.parametrize('input', ['tests/data/test1.xml'])
 def test_write_xml(input):
     io = XMLIO()
     io.loadXML(input)
     ret = io.parseXML()
-    io.writeXML("test/data/test_out.xml", ret)
+    io.writeXML("tests/data/test_out.xml", ret)
 
     io = XMLIO()
-    io.loadXML("test/data/test_out.xml")
+    io.loadXML("tests/data/test_out.xml")
     ret = io.parseXML()
     assert len(ret["AtomTypes"]) == 4
 
@@ -85,8 +85,8 @@ def test_write_xml(input):
     assert "epsilon" in ret["Forces"]['NonbondedForce']['node'][0]["attrib"]
     assert "sigma" in ret["Forces"]['NonbondedForce']['node'][0]["attrib"]
     assert "type" in ret["Forces"]['NonbondedForce']['node'][0]["attrib"]
-    os.remove("test/data/test_out.xml")
+    os.remove("tests/data/test_out.xml")
 
 
 if __name__ == "__main__":
-    test_read_single_xml('test/data/test1.xml')
+    test_read_single_xml('tests/data/test1.xml')

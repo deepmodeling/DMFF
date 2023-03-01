@@ -1,2 +1,2 @@
-import dmff_new.operators.templatetype
-import dmff_new.operators.smartstype
+import dmff.operators.templatetype
+import dmff.operators.smartstype

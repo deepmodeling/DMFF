@@ -1,8 +1,8 @@
 import networkx as nx
 from networkx.algorithms import isomorphism
-from dmff_new.operators.base import BaseOperator
-from dmff_new.hamiltonian import dmff_operators
-from dmff_new.utils import DMFFException
+from dmff.operators.base import BaseOperator
+from dmff.hamiltonian import dmff_operators
+from dmff.utils import DMFFException
 
 
 class TemplateOperator(BaseOperator):

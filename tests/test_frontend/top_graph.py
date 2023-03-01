@@ -1,10 +1,10 @@
-from dmff_new.topology import top2graph, decompgraph, graph2top, top2rdmol
+from dmff.topology import top2graph, decompgraph, graph2top, top2rdmol
 import openmm.app as app
 import networkx as nx
 import matplotlib.pyplot as plt 
 
-app.Topology.loadBondDefinitions("test/data/lig-top.xml")
-pdb = app.PDBFile("test/data/sum.pdb")
+app.Topology.loadBondDefinitions("tests/data/lig-top.xml")
+pdb = app.PDBFile("tests/data/sum.pdb")
 top = pdb.topology
 
 graph = top2graph(top)

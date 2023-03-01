@@ -1,8 +1,8 @@
 import openmm.app as app
 import openmm.unit as unit
-from dmff_new.topology import TopologyData
-from dmff_new.xmlio import XMLIO
-from dmff_new.operators.smartstype import SMARTSOperator
+from dmff.topology import TopologyData
+from dmff.xmlio import XMLIO
+from dmff.operators.smartstype import SMARTSOperator
 import json
 import pytest
 
@@ -40,7 +40,7 @@ def test_atype_from_smarts_single():
     topdata.setOperatorToResidue(0, "smarts")
 
     io = XMLIO()
-    io.loadXML("test/data/smarts_test1.xml")
+    io.loadXML("tests/data/smarts_test1.xml")
     ret = io.parseXML()
 
     operator = SMARTSOperator(ret)

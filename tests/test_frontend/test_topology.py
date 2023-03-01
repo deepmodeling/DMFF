@@ -1,12 +1,12 @@
 import openmm.app as app
 import openmm.unit as unit
-from dmff_new.topology import TopologyData
+from dmff.topology import TopologyData
 import json
 import pytest
 
 
 @pytest.mark.parametrize('pdb,top,reference', [
-    ("test/data/lig.pdb", "test/data/lig-top.xml", "test/data/lig-structure.json")
+    ("tests/data/lig.pdb", "tests/data/lig-top.xml", "tests/data/lig-structure.json")
 ])
 def test_find_substructures(pdb, top, reference):
     app.Topology.loadBondDefinitions(top)

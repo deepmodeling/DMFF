@@ -9,10 +9,10 @@ import numpy as np
 import itertools
 import networkx as nx
 from networkx.algorithms import isomorphism
-from dmff_new.utils import DMFFException, _standardResidues, dict_to_jnp
+from dmff.utils import DMFFException, _standardResidues, dict_to_jnp
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from dmff_new.vstools import TwoParticleAverageSite, ThreeParticleAverageSite, OutOfPlaneSite, VSite
+from dmff.vstools import TwoParticleAverageSite, ThreeParticleAverageSite, OutOfPlaneSite, VSite
 import jax.numpy as jnp
 
 

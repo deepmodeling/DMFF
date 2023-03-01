@@ -1,6 +1,6 @@
 import openmm.app as app
-from dmff_new.vstools import addVSiteToTopology, TwoParticleAverageSite, ThreeParticleAverageSite
-from dmff_new.topology import TopologyData
+from dmff.vstools import addVSiteToTopology, TwoParticleAverageSite, ThreeParticleAverageSite
+from dmff.topology import TopologyData
 
 
 def build_test_mol():

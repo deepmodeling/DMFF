@@ -1,12 +1,33 @@
 import openmm.app as app
-from dmff_new.xmlio import XMLIO
-from dmff_new.paramset import ParamSet
-from dmff_new.topology import TopologyData
-from dmff_new.utils import DMFFException
+from dmff.xmlio import XMLIO
+from dmff.paramset import ParamSet
+from dmff.topology import TopologyData
+from dmff.utils import DMFFException
 import jax
 
 dmff_generators = {}
 dmff_operators = {}
+
+
+def build_covalent_map(data, max_neighbor):
+    n_atoms = len(data.atoms)
+    covalent_map = np.zeros((n_atoms, n_atoms), dtype=int)
+    for bond in data.bonds:
+        covalent_map[bond.atom1, bond.atom2] = 1
+        covalent_map[bond.atom2, bond.atom1] = 1
+    for n_curr in range(1, max_neighbor):
+        for i in range(n_atoms):
+            # current neighbors
+            j_list = np.where(
+                np.logical_and(covalent_map[i] <= n_curr,
+                               covalent_map[i] > 0))[0]
+            for j in j_list:
+                k_list = np.where(covalent_map[j] == 1)[0]
+                for k in k_list:
+                    if k != i and k not in j_list:
+                        covalent_map[i, k] = n_curr + 1
+                        covalent_map[k, i] = n_curr + 1
+    return jnp.array(covalent_map)
 
 
 class Hamiltonian:
