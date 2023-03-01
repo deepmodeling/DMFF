@@ -3,35 +3,8 @@ from typing import List, Union, Tuple
 import xml.etree.ElementTree as ET
 import networkx as nx
 from networkx.algorithms import isomorphism
-
-
-class VSite:
-
-    def __init__(self, atoms: List[app.topology.Atom], weights: List[float], vatom: Union[app.topology.Atom, None] = None):
-        self.atoms = atoms
-        self.weights = weights
-        self.vatom = vatom
-
-
-class TwoParticleAverageSite(VSite):
-
-    def __init__(self, atoms: List[app.topology.Atom], weights: List[float], vatom: Union[app.topology.Atom, None] = None):
-        super().__init__(atoms, weights, vatom)
-        self.name = "two-particle-average"
-
-
-class ThreeParticleAverageSite(VSite):
-
-    def __init__(self, atoms: List[app.topology.Atom], weights: List[float], vatom: Union[app.topology.Atom, None] = None):
-        super().__init__(atoms, weights, vatom)
-        self.name = "three-particle-average"
-
-
-class OutOfPlaneSite(VSite):
-
-    def __init__(self, atoms: List[app.topology.Atom], weights: List[float], vatom: Union[app.topology.Atom, None] = None):
-        super().__init__(atoms, weights, vatom)
-        self.name = "out-of-plane"
+from .vsite import VSite, TwoParticleAverageSite, ThreeParticleAverageSite, OutOfPlaneSite
+from .topology import TopologyData
 
 
 class TemplateVSitePatcher:
@@ -63,7 +36,7 @@ class TemplateVSitePatcher:
                 elem = atype.attrib["element"]
             self.atype_to_elem[typename] = elem
 
-        for residue in self._residue["Residues"]:
+        for residue in self._residue:
             res = {
                 "name": None, "particles": [], "bonds": [], "externals": [], "vsite": []
             }
@@ -86,8 +59,9 @@ class TemplateVSitePatcher:
             if len(res["vsite"]) > 0:
                 self.residue_templates.append(res)
 
-    def patch(self, topdata, resid=None):
-        pass
+    def patch(self, topdata: TopologyData, resid=Union[List[int], None]):
+        if resid is None:
+            resid = [_ for _ in range(topdata.re)]
 
     def res2graph(self, topdata, resid):
         residue_indices = topdata.residue_indices[resid]
@@ -114,6 +88,8 @@ class TemplateVSitePatcher:
             name = atom["name"]
             atype = atom["type"]
             elem = self.atype_to_elem[atype]
+            if elem == "none":
+                continue
             name2idx[name] = na
             external_bond = name in template["externals"]
             graph.add_node(atom["name"], element=elem,
@@ -224,7 +200,6 @@ def addVSiteToTopology(top: app.Topology, vslist: List[VSite]) -> Tuple[app.Topo
 
 def insertVirtualSites(top: app.Topology, templatePatcher=Union[TemplateVSitePatcher, None], smartsPatcher=Union[SMARTSVSitePatcher, None]) -> Tuple[app.Topology, List[VSite]]:
     vslist = []
-    from .topology import TopologyData
     topdata = TopologyData(top)
     # map virtual site from template
     if templatePatcher is not None:

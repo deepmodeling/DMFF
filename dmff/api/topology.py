@@ -13,6 +13,7 @@ from ..utils import DMFFException, _standardResidues, dict_to_jnp
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import jax.numpy as jnp
+from .vsite import TwoParticleAverageSite, ThreeParticleAverageSite, OutOfPlaneSite, VSite
 
 
 def top2graph(top: app.Topology) -> nx.Graph:
@@ -317,23 +318,25 @@ class TopologyData:
         out_of_plane_idx, out_of_plane_weight = [], []
         out_of_plane_vsites = []
 
-        from .vstools import TwoParticleAverageSite, ThreeParticleAverageSite, OutOfPlaneSite, VSite
         for vsite in vslist:
             if isinstance(vsite, TwoParticleAverageSite):
                 a1, a2 = vsite.atoms
                 w1, w2 = vsite.weights
                 two_ave_idx.append([a1.index, a2.index])
                 two_ave_weight.append([w1, w2])
+                two_ave_vsites.append(vsite.vatom.index)
             elif isinstance(vsite, ThreeParticleAverageSite):
                 a1, a2, a3 = vsite.atoms
                 w1, w2, w3 = vsite.weights
                 three_ave_idx.append([a1.index, a2.index, a3.index])
                 three_ave_weight.append([w1, w2, w3])
+                three_ave_vsites.append(vsite.vatom.index)
             elif isinstance(vsite, OutOfPlaneSite):
                 a1, a2, a3 = vsite.atoms
                 w1, w2, w3 = vsite.weights
                 out_of_plane_idx.append([a1.index, a2.index, a3.index])
                 out_of_plane_weight.append([w1, w2, w3])
+                out_of_plane_vsites.append(vsite.vatom.index)
 
         self.vsite["two_point_average"]["index"] = np.array(
             two_ave_idx, dtype=int)

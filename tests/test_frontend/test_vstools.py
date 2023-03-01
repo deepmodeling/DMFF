@@ -1,5 +1,5 @@
 import openmm.app as app
-from dmff.api.vstools import addVSiteToTopology, TwoParticleAverageSite, ThreeParticleAverageSite
+from dmff.api.vstools import addVSiteToTopology, TwoParticleAverageSite, ThreeParticleAverageSite, TemplateVSitePatcher
 from dmff.api.topology import TopologyData
 
 
@@ -23,6 +23,32 @@ def build_test_mol():
     top.addBond(c3, c4, order=2)
     top.addBond(c4, n1, order=1)
     top.addBond(n1, hn, order=1)
+    top.addBond(c1, h1, order=1)
+    top.addBond(c2, h2, order=1)
+    top.addBond(c3, h3, order=1)
+    top.addBond(c4, h4, order=1)
+    return top
+
+def build_vsite_test_mol():
+    top = app.Topology()
+    chain = top.addChain()
+    res = top.addResidue("MOL", chain)
+    n1 = top.addAtom("N1", app.element.nitrogen, res)
+    c1 = top.addAtom("C1", app.element.carbon, res)
+    c2 = top.addAtom("C2", app.element.carbon, res)
+    c3 = top.addAtom("C3", app.element.carbon, res)
+    c4 = top.addAtom("C4", app.element.carbon, res)
+    h1 = top.addAtom("H1", app.element.hydrogen, res)
+    h2 = top.addAtom("H2", app.element.hydrogen, res)
+    h3 = top.addAtom("H3", app.element.hydrogen, res)
+    h4 = top.addAtom("H4", app.element.hydrogen, res)
+    br = top.addAtom("BR", app.element.bromine, res)
+    top.addBond(n1, c1, order=1)
+    top.addBond(c1, c2, order=2)
+    top.addBond(c2, c3, order=1)
+    top.addBond(c3, c4, order=2)
+    top.addBond(c4, n1, order=1)
+    top.addBond(n1, br, order=1)
     top.addBond(c1, h1, order=1)
     top.addBond(c2, h2, order=1)
     top.addBond(c3, h3, order=1)
@@ -66,7 +92,13 @@ def test_add_virtual_site_to_topodata():
 
 
 def test_patch_vsite_from_template():
-    pass
+    top = build_vsite_test_mol()
+    topdata = TopologyData(top)
+    patcher = TemplateVSitePatcher()
+    patcher.loadFile("tests/data/template_and_vsite.xml")
+    patcher.parse()
+    patcher.patch(topdata, [0])
+    
 
 
 def test_patch_vsite_from_smarts():
