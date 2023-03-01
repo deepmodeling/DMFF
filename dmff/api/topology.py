@@ -9,10 +9,9 @@ import numpy as np
 import itertools
 import networkx as nx
 from networkx.algorithms import isomorphism
-from dmff.utils import DMFFException, _standardResidues, dict_to_jnp
+from ..utils import DMFFException, _standardResidues, dict_to_jnp
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from dmff.vstools import TwoParticleAverageSite, ThreeParticleAverageSite, OutOfPlaneSite, VSite
 import jax.numpy as jnp
 
 
@@ -310,7 +309,7 @@ class TopologyData:
         for iatom in self.residue_indices[residue_id]:
             self.atom_meta[iatom]["operator"].append(operator_name)
 
-    def addVirtualSiteList(self, vslist: List[VSite]):
+    def addVirtualSiteList(self, vslist: List):
         two_ave_idx, two_ave_weight = [], []
         two_ave_vsites = []
         three_ave_idx, three_ave_weight = [], []
@@ -318,6 +317,7 @@ class TopologyData:
         out_of_plane_idx, out_of_plane_weight = [], []
         out_of_plane_vsites = []
 
+        from .vstools import TwoParticleAverageSite, ThreeParticleAverageSite, OutOfPlaneSite, VSite
         for vsite in vslist:
             if isinstance(vsite, TwoParticleAverageSite):
                 a1, a2 = vsite.atoms

@@ -1,4 +1,4 @@
-from dmff.topology import top2graph, decompgraph, graph2top, top2rdmol
+from dmff.api.topology import top2graph, decompgraph, graph2top, top2rdmol
 import openmm.app as app
 import networkx as nx
 import matplotlib.pyplot as plt 

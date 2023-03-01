@@ -1,4 +1,4 @@
-from dmff.xmlio import XMLIO
+from dmff.api.xmlio import XMLIO
 import pytest
 import os
 

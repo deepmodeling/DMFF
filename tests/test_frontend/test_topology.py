@@ -1,6 +1,6 @@
 import openmm.app as app
 import openmm.unit as unit
-from dmff.topology import TopologyData
+from dmff.api.topology import TopologyData
 import json
 import pytest
 

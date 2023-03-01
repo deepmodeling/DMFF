@@ -1,9 +1,11 @@
 import openmm.app as app
-from dmff.xmlio import XMLIO
-from dmff.paramset import ParamSet
-from dmff.topology import TopologyData
-from dmff.utils import DMFFException
+from .xmlio import XMLIO
+from .paramset import ParamSet
+from .topology import TopologyData
+from ..utils import DMFFException
 import jax
+import jax.numpy as jnp
+import numpy as np
 
 dmff_generators = {}
 dmff_operators = {}

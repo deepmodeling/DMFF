@@ -1,7 +1,7 @@
 import networkx as nx
 from networkx.algorithms import isomorphism
 from dmff.operators.base import BaseOperator
-from dmff.hamiltonian import dmff_operators
+from dmff.api.hamiltonian import dmff_operators
 from dmff.utils import DMFFException
 
 

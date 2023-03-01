@@ -1,7 +1,7 @@
 import openmm.app as app
 import openmm.unit as unit
-from dmff.topology import TopologyData
-from dmff.xmlio import XMLIO
+from dmff.api.topology import TopologyData
+from dmff.api.xmlio import XMLIO
 from dmff.operators.smartstype import SMARTSOperator
 import json
 import pytest

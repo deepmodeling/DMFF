@@ -3,7 +3,6 @@ from typing import List, Union, Tuple
 import xml.etree.ElementTree as ET
 import networkx as nx
 from networkx.algorithms import isomorphism
-import dmff.topology as dmfftop
 
 
 class VSite:
@@ -225,7 +224,8 @@ def addVSiteToTopology(top: app.Topology, vslist: List[VSite]) -> Tuple[app.Topo
 
 def insertVirtualSites(top: app.Topology, templatePatcher=Union[TemplateVSitePatcher, None], smartsPatcher=Union[SMARTSVSitePatcher, None]) -> Tuple[app.Topology, List[VSite]]:
     vslist = []
-    topdata = dmfftop.TopologyData(top)
+    from .topology import TopologyData
+    topdata = TopologyData(top)
     # map virtual site from template
     if templatePatcher is not None:
         templatePatcher.patch(topdata, vslist)
