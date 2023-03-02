@@ -54,9 +54,6 @@ class XMLIO:
         ret["AtomTypes"] = self.parseAtomTypes()
         ret["Residues"] = self.parseResidues()
         for force in self._data["Forces"].keys():
-            # if force not in hamilt.generators:
-            #    raise BaseException(
-            #        f"XML parser of force {force} is not implemented.")
             ret["Forces"][force] = self.parseForce(self._data["Forces"][force])
         return ret
 
@@ -72,7 +69,7 @@ class XMLIO:
         ret = []
         for residue in self._data["Residues"]:
             res = {
-                "name": None, "particles": [], "bonds": [], "externals": []
+                "name": None, "particles": [], "bonds": [], "externals": [], "vsites": []
             }
             res["name"] = residue.attrib["name"]
             for item in residue:
@@ -84,6 +81,15 @@ class XMLIO:
                         else:
                             ainner[key] = float(item.attrib[key])
                     res["particles"].append(ainner)
+                if item.tag == "VirtualSite":
+                    vinner = {}
+                    for key in item.attrib.keys():
+                        val = item.attrib[key]
+                        if "atom" in key or "index" in key:
+                            vinner[key] = int(val)
+                        elif "weight" in key:
+                            vinner[key] = float(val)
+                    res["vsites"].append(vinner)
                 if item.tag == "Bond":
                     res["bonds"].append(item.attrib)
                 if item.tag == "ExternalBond":
@@ -117,6 +123,9 @@ class XMLIO:
                 for atom in res["particles"]:
                     anode = ET.SubElement(residue, "Atom")
                     anode.attrib = genStrDict(atom)
+                for vsite in res["vsites"]:
+                    vnode = ET.SubElement(residue, "VirtualSite")
+                    vnode.attrib = genStrDict(vsite)
                 # write Bonds
                 for bond in res["bonds"]:
                     bnode = ET.SubElement(residue, "Bond")

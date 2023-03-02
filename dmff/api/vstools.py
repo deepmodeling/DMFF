@@ -73,7 +73,7 @@ class TemplateVSitePatcher:
                     rgraph, tgraph)
                 if is_matched:
                     name2idx_template = {}
-                    for k,v in matched_dict.items():
+                    for k, v in matched_dict.items():
                         name2idx_template[v] = k
                     for vs in self.residue_infos[nt]["vsite"]:
                         vtype = vs["type"]
@@ -87,10 +87,10 @@ class TemplateVSitePatcher:
                             a2_idx = name2idx_template[a2_name]
                             a1, a2 = topdata.atoms[a1_idx], topdata.atoms[a2_idx]
                             w1, w2 = float(vs["weight1"]), float(vs["weight2"])
-                            vsite = TwoParticleAverageSite([a1, a2], [w1, w2], name=vs_name)
+                            vsite = TwoParticleAverageSite(
+                                [a1, a2], [w1, w2], name=vs_name)
                             vslist.append(vsite)
                     break
-
 
     def res2graph(self, topdata, resid):
         residue_indices = topdata.residue_indices[resid]
@@ -165,8 +165,6 @@ class SMARTSVSitePatcher:
                         w1, w2 = info["weight1"], info["weight2"]
                         vsite = TwoParticleAverageSite([a1, a2], [w1, w2])
                         vslist.append(vsite)
-
-
 
 
 def pickTheSame(obj, li) -> int:

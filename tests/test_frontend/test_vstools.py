@@ -29,6 +29,7 @@ def build_test_mol():
     top.addBond(c4, h4, order=1)
     return top
 
+
 def build_vsite_test_mol():
     top = app.Topology()
     chain = top.addChain()
@@ -124,7 +125,6 @@ def test_patch_vsite_from_template():
     topdata = TopologyData(newtop)
     topdata.addVirtualSiteList(new_vslist)
     print(topdata.topology)
-    
 
 
 def test_patch_vsite_from_smarts():
