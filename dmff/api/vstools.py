@@ -267,3 +267,21 @@ def insertVirtualSites(top: app.Topology, templatePatcher=Union[TemplateVSitePat
     if templatePatcher is None and smartsPatcher is None:
         return top, vslist
     return addVSiteToTopology(top, vslist)
+
+class VSiteTool:
+
+    def __init__(self, template_files: List[str] = [], smarts_files: List[str] = []) -> None:
+        self.templatePatcher = TemplateVSitePatcher()
+        self.smartsPatcher = SMARTSVSitePatcher()
+        for fname in template_files:
+            self.templatePatcher.loadFile(fname)
+        for fname in smarts_files:
+            self.smartsPatcher.loadFile(fname)
+        self.templatePatcher.parse()
+        self.smartsPatcher.parse()
+
+    def addVSite(self, topdata: TopologyData) -> TopologyData:
+        newtop, vslist = insertVirtualSites(topdata.topology, self.templatePatcher, self.smartsPatcher)
+        newdata = TopologyData(newtop)
+        newdata.addVirtualSiteList(vslist)
+        return newdata

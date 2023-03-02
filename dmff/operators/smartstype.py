@@ -33,7 +33,7 @@ class SMARTSOperator(BaseOperator):
             if not is_smarts:
                 continue
             Chem.SanitizeMol(rdmol)
-            
+
             for nparser, parser in enumerate(self.parsers):
                 name, cls, elem = self.atypes[nparser]
                 par = Chem.MolFromSmarts(parser)

@@ -36,7 +36,7 @@ class Hamiltonian:
     # 存Residue templates
     # 存Generators
 
-    def __init__(self, xmlfiles, operators=["res_template"]):
+    def __init__(self, xmlfiles, operators=["template"]):
         self._xmlio = XMLIO()
         self.generators = {}
         self.templates = []
