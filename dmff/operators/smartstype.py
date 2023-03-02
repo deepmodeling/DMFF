@@ -1,7 +1,7 @@
-from dmff.operators.base import BaseOperator
-from dmff.api.topology import TopologyData, top2graph, decompgraph, graph2top, top2rdmol
-from dmff.api.hamiltonian import dmff_operators
-from dmff.utils import DMFFException
+from .base import BaseOperator
+from ..api.topology import TopologyData, top2graph, decompgraph, graph2top, top2rdmol
+from ..api.hamiltonian import dmff_operators
+from ..utils import DMFFException
 from openmm.app import Topology
 from typing import List
 from rdkit import Chem

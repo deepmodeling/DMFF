@@ -43,8 +43,11 @@ class Hamiltonian:
         self.paramset = ParamSet()
         self.operators = []
 
-        for xml in xmlfiles:
-            self._xmlio.loadXML(xml)
+        if isinstance(xmlfiles, str):
+            self._xmlio.loadXML(xmlfiles)
+        else:
+            for xml in xmlfiles:
+                self._xmlio.loadXML(xml)
         ffinfo = self._xmlio.parseXML()
         self.ffinfo = ffinfo
 
@@ -63,21 +66,12 @@ class Hamiltonian:
                 raise DMFFException(f"Operator {tp} is not loaded.")
             self.operators.append(dmff_operators[tp](self.ffinfo))
 
-    def prepTopData(self, topo: app.Topology, operators=["template"]) -> TopologyData:
-        # prepare TopData
-        if isinstance(operators, str):
-            topdata = TopologyData(topo, default_typifier=operators)
-        elif isinstance(operators, dict):
-            topdata = TopologyData(topo)
-            for key in operators.keys():
-                for rid in operators[key]:
-                    topdata.setOperatorToResidue(rid, key)
-
+    def prepTopData(self, topdata: TopologyData) -> TopologyData:
         # patch atoms using typifiers
         for operator in self.operators:
             if operator.name not in dmff_operators:
                 raise DMFFException(f"Typifier {operator.name} is not loaded.")
-            operator.typification(topdata)
+            operator.operate(topdata)
         return topdata
 
     def buildJaxPotential(self, topdata: TopologyData, forces=None):

@@ -259,10 +259,10 @@ def insertVirtualSites(top: app.Topology, templatePatcher=Union[TemplateVSitePat
     topdata = TopologyData(top)
     # map virtual site from template
     if templatePatcher is not None:
-        templatePatcher.patch(topdata, vslist)
+        templatePatcher.patch(topdata, None, vslist)
     # map virtual site from smarts
     if smartsPatcher is not None:
-        smartsPatcher.patch(topdata, vslist)
+        smartsPatcher.patch(topdata, None, vslist)
     # update topology
     if templatePatcher is None and smartsPatcher is None:
         return top, vslist
