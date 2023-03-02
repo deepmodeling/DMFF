@@ -33,6 +33,18 @@ def decompgraph(graph: nx.Graph) -> List[nx.Graph]:
     return nsub
 
 
+def decomptop(top: app.Topology) -> List[List[int]]:
+    graph = top2graph(top)
+    graphs_dec = decompgraph(graph)
+    indices = []
+    for g in graphs_dec:
+        index = []
+        for n in g.nodes():
+            index.append(g.nodes()[n]["index"])
+        indices.append(index)
+    return indices
+
+
 def graph2top(graph: nx.Graph) -> app.Topology:
     nodes = [graph.nodes[n] for n in graph.nodes]
     nodes = sorted(nodes, key=lambda x: x["index"])
@@ -49,7 +61,8 @@ def graph2top(graph: nx.Graph) -> app.Topology:
             rname = node["resname"]
             res = top.addResidue(rname, chain)
             rid = node["residx"]
-        elem = app.element.get_by_symbol(node["element"]) if node["element"] != "none" else None
+        elem = app.element.get_by_symbol(
+            node["element"]) if node["element"] != "none" else None
         atom = top.addAtom(
             node["name"], elem, res)
         atoms.append(atom)
@@ -63,12 +76,15 @@ def graph2top(graph: nx.Graph) -> app.Topology:
     return top
 
 
-def top2rdmol(top: app.Topology) -> Chem.rdchem.Mol:
+def top2rdmol(top: app.Topology, indices: List[int]) -> Chem.rdchem.Mol:
     rdmol = Chem.Mol()
     emol = Chem.EditableMol(rdmol)
     idx2ridx = {}
-    for na, atm in enumerate(top.atoms()):
+    na = 0
+    for atm in top.atoms():
         if atm.element is None:
+            continue
+        if not atm.index in indices:
             continue
         ratm = Chem.Atom(atm.element.atomic_number)
         ratm.SetProp("_Name", atm.name)
@@ -77,7 +93,10 @@ def top2rdmol(top: app.Topology) -> Chem.rdchem.Mol:
         ratm.SetProp("_ResName", atm.residue.name)
         emol.AddAtom(ratm)
         idx2ridx[atm.index] = na
+        na += 1
     for bnd in top.bonds():
+        if bnd.atom1.index not in indices or bnd.atom2.index not in indices:
+            continue
         if bnd.type is None:
             if bnd.order is None:
                 order = 1
@@ -96,7 +115,7 @@ def top2rdmol(top: app.Topology) -> Chem.rdchem.Mol:
                      idx2ridx[bnd.atom2.index], Chem.BondType(order))
     rdmol = emol.GetMol()
     # rdmol.UpdatePropertyCache()
-    #AllChem.EmbedMolecule(rdmol, randomSeed=1)
+    # AllChem.EmbedMolecule(rdmol, randomSeed=1)
     return rdmol
 
 
@@ -268,7 +287,25 @@ class TopologyData:
         self.improper_indices = np.ndarray([], dtype=int)
         self.detect_impropers()
 
-        self.updateRDMol()
+        indices_decomp = decomptop(self.topology)
+        self.rdmols = [top2rdmol(self.topology, ind)
+                       for ind in indices_decomp]
+        self.atom2mol = {}
+        self.res2mol = {}
+        self.mol2res = {}
+        self.mol2atom = {}
+        for nmol, mol in enumerate(self.rdmols):
+            resid = []
+            atomid = []
+            for atom in mol.GetAtoms():
+                aid = int(atom.GetProp("_Index"))
+                rid = int(atom.GetProp("_ResIndex"))
+                self.atom2mol[aid] = nmol
+                self.res2mol[rid] = nmol
+                resid.append(rid)
+                atomid.append(aid)
+            self.mol2res[nmol] = list(set(resid))
+            self.mol2atom[nmol] = list(set(atomid))
 
         self.vsite = {}
         self.vsite["two_point_average"] = {
@@ -286,11 +323,6 @@ class TopologyData:
             "weight": [],
             "vsite": []
         }
-
-    def updateRDMol(self):
-        # decompose topology to rdmol
-        self.rdmols = [top2rdmol(graph2top(g))
-                       for g in decompgraph(top2graph(self.topology))]
 
     def detect_impropers(self, detect_aromatic_only=False):
         unique_impropers = set()
@@ -404,5 +436,15 @@ class TopologyData:
 
         return vsite_update
 
-    def getAtomIndices(self):
+    def getAtomIndices(self, include_vsite=False):
+        if include_vsite:
+            return [a.index for a in self.topology.atoms()]
         return [a.index for a in self.topology.atoms() if a.element is not None]
+
+    def getNumResidues(self):
+        return len(self.residues)
+
+    def getNumAtoms(self, include_vsite=False):
+        if include_vsite:
+            return len(self.atoms)
+        return len([a.index for a in self.topology.atoms() if a.element is not None])

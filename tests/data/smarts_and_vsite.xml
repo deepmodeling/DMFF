@@ -1,0 +1,3 @@
+<VirtualSites>
+    <VirtualSite smarts="[#35]~[#7]" type="average2" weight1="0.5" weight2="0.5"/>
+</VirtualSites>

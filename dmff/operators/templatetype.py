@@ -1,8 +1,9 @@
 import networkx as nx
 from networkx.algorithms import isomorphism
-from dmff.operators.base import BaseOperator
-from dmff.api.hamiltonian import dmff_operators
-from dmff.utils import DMFFException
+from .base import BaseOperator
+from ..api.hamiltonian import dmff_operators
+from ..api.graph import matchTemplate
+from ..utils import DMFFException
 
 
 class TemplateOperator(BaseOperator):
@@ -53,25 +54,6 @@ class TemplateOperator(BaseOperator):
                     graph.add_edge(atom, bonded)
         return graph
 
-    def matchTemplate(self, graph, template):
-        if graph.number_of_nodes() != template.number_of_nodes():
-            return False, {}
-
-        def match_func(n1, n2):
-            return n1["element"] == n2["element"] and n1["external_bond"] == n2["external_bond"]
-        matcher = isomorphism.GraphMatcher(
-            graph, template, node_match=match_func)
-        is_matched = matcher.is_isomorphic()
-        if is_matched:
-            match_dict = [i for i in matcher.match()][0]
-            atype_dict = {}
-            for key in match_dict.keys():
-                attrib = {k: v for k, v in template.nodes(
-                )[match_dict[key]].items() if k != "name"}
-                atype_dict[key] = attrib
-        else:
-            atype_dict = {}
-        return is_matched, atype_dict
 
     def match_all(self, topdata, templates):
         for ires in range(len(topdata.residues)):
@@ -80,7 +62,7 @@ class TemplateOperator(BaseOperator):
             graph = self.generate_residue_graph(topdata, ires)
             all_fail = True
             for template in templates:
-                is_matched, atype_dict = self.matchTemplate(graph, template)
+                is_matched, _, atype_dict = matchTemplate(graph, template)
                 if is_matched:
                     all_fail = False
                     for key in atype_dict.keys():

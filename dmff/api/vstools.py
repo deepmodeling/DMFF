@@ -5,12 +5,15 @@ import networkx as nx
 from networkx.algorithms import isomorphism
 from .vsite import VSite, TwoParticleAverageSite, ThreeParticleAverageSite, OutOfPlaneSite
 from .topology import TopologyData
+from .graph import matchTemplate
+from rdkit import Chem
 
 
 class TemplateVSitePatcher:
 
     def __init__(self):
         self.residue_templates = []
+        self.residue_infos = []
         self.atype_to_elem = {}
         self._residue = []
         self._atomtypes = []
@@ -57,11 +60,37 @@ class TemplateVSitePatcher:
                 if item.tag == "VirtualSite":
                     res["vsite"].append(item.attrib)
             if len(res["vsite"]) > 0:
-                self.residue_templates.append(res)
+                self.residue_templates.append(self.template2graph(res))
+                self.residue_infos.append(res)
 
-    def patch(self, topdata: TopologyData, resid=Union[List[int], None]):
+    def patch(self, topdata: TopologyData, resid: Union[List[int], None], vslist: List[VSite]):
         if resid is None:
-            resid = [_ for _ in range(topdata.re)]
+            resid = [_ for _ in range(topdata.getNumResidues())]
+        for rid in resid:
+            rgraph = self.res2graph(topdata, rid)
+            for nt, tgraph in enumerate(self.residue_templates):
+                is_matched, matched_dict, atype_dict = matchTemplate(
+                    rgraph, tgraph)
+                if is_matched:
+                    name2idx_template = {}
+                    for k,v in matched_dict.items():
+                        name2idx_template[v] = k
+                    for vs in self.residue_infos[nt]["vsite"]:
+                        vtype = vs["type"]
+                        idx = int(vs["index"])
+                        if vtype == "average2":
+                            a1i, a2i = int(vs["atom1"]), int(vs["atom2"])
+                            a1_name = self.residue_infos[nt]["particles"][a1i]["name"]
+                            a2_name = self.residue_infos[nt]["particles"][a2i]["name"]
+                            vs_name = self.residue_infos[nt]["particles"][idx]["name"]
+                            a1_idx = name2idx_template[a1_name]
+                            a2_idx = name2idx_template[a2_name]
+                            a1, a2 = topdata.atoms[a1_idx], topdata.atoms[a2_idx]
+                            w1, w2 = float(vs["weight1"]), float(vs["weight2"])
+                            vsite = TwoParticleAverageSite([a1, a2], [w1, w2], name=vs_name)
+                            vslist.append(vsite)
+                    break
+
 
     def res2graph(self, topdata, resid):
         residue_indices = topdata.residue_indices[resid]
@@ -103,16 +132,41 @@ class TemplateVSitePatcher:
 class SMARTSVSitePatcher:
 
     def __init__(self):
-        pass
+        self.infos = []
 
     def loadFile(self, filename):
-        pass
+        root = ET.parse(filename).getroot()
+        for child in root:
+            if child.tag == "VirtualSite":
+                self.infos.append(child.attrib)
 
     def parse(self):
         pass
 
-    def patch(self, top, resid=None):
-        pass
+    def patch(self, topdata: TopologyData, resid: Union[List[int], None], vslist: List[VSite]):
+        if resid is None:
+            resid = [_ for _ in range(topdata.getNumResidues())]
+        mols = list(set([topdata.res2mol[r] for r in resid]))
+        for nmol in mols:
+            rdmol = topdata.rdmols[nmol]
+            Chem.SanitizeMol(rdmol)
+            atoms = rdmol.GetAtoms()
+            for info in self.infos:
+                parser = info["smarts"]
+                par = Chem.MolFromSmarts(parser)
+                matches = rdmol.GetSubstructMatches(par)
+                for match in matches:
+                    if info["type"] == "average2":
+                        a1idx, a2idx = match[0], match[1]
+                        idx1 = int(atoms[a1idx].GetProp("_Index"))
+                        idx2 = int(atoms[a2idx].GetProp("_Index"))
+                        a1 = topdata.atoms[idx1]
+                        a2 = topdata.atoms[idx2]
+                        w1, w2 = info["weight1"], info["weight2"]
+                        vsite = TwoParticleAverageSite([a1, a2], [w1, w2])
+                        vslist.append(vsite)
+
+
 
 
 def pickTheSame(obj, li) -> int:
@@ -173,7 +227,11 @@ def addVSiteToTopology(top: app.Topology, vslist: List[VSite]) -> Tuple[app.Topo
                 new_atom_all.append(newatom)
             # add vsite
             for nv, vsite in enumerate(vsite_per_residue[residue.index]):
-                vatom = newtop.addAtom(f"V{nv+1}", None, newres)
+                if vsite.vsname is None:
+                    name = f"V{nv+1}"
+                else:
+                    name = vsite.vsname
+                vatom = newtop.addAtom(name, None, newres)
                 atoms = []
                 weights = vsite.weights
                 for natom, atom in enumerate(vsite.atoms):

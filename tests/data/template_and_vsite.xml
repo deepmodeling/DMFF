@@ -9,17 +9,17 @@
     </AtomTypes>
     <Residues>
         <Residue name="MOL">
-            <Atom name="N" type="n"/>
-            <Atom name="C1" type="c1"/>
-            <Atom name="C2" type="c2"/>
-            <Atom name="C3" type="c2"/>
-            <Atom name="C4" type="c1"/>
-            <Atom name="H1" type="hc"/>
-            <Atom name="H2" type="hc"/>
-            <Atom name="H3" type="hc"/>
-            <Atom name="H4" type="hc"/>
-            <Atom name="BR" type="br"/>
-            <Atom name="VBR" type="vbr"/>
+            <Atom name="N" type="n" charge="0.00"/>
+            <Atom name="C1" type="c1" charge="0.00"/>
+            <Atom name="C2" type="c2" charge="0.00"/>
+            <Atom name="C3" type="c2" charge="0.00"/>
+            <Atom name="C4" type="c1" charge="0.00"/>
+            <Atom name="H1" type="hc" charge="0.00"/>
+            <Atom name="H2" type="hc" charge="0.00"/>
+            <Atom name="H3" type="hc" charge="0.00"/>
+            <Atom name="H4" type="hc" charge="0.00"/>
+            <Atom name="BR" type="br" charge="0.00"/>
+            <Atom name="VBR" type="vbr" charge="0.00"/>
             <VirtualSite type="average2" index="10" atom1="0" atom2="9" weight1="0.5" weight2="0.5"/>
             <Bond atomName1="N" atomName2="C1"/>
             <Bond atomName1="C1" atomName2="C2"/>
