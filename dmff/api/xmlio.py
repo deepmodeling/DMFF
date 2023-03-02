@@ -62,7 +62,7 @@ class XMLIO:
         for atype in self._data["AtomTypes"]:
             ret.append(atype.attrib)
             if "element" not in ret[-1]:
-                ret[-1]["element"] = "EP"
+                ret[-1]["element"] = "none"
         return ret
 
     def parseResidues(self):
@@ -89,6 +89,8 @@ class XMLIO:
                             vinner[key] = int(val)
                         elif "weight" in key:
                             vinner[key] = float(val)
+                        else:
+                            vinner[key] = val
                     res["vsites"].append(vinner)
                 if item.tag == "Bond":
                     res["bonds"].append(item.attrib)
