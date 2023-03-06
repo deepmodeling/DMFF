@@ -20,21 +20,32 @@ class BetterTopology:
         natom = self._numAtoms
         nbond = len(self._bonds)
         return '<%s; %d chains, %d residues, %d atoms, %d bonds>' % (
-                type(self).__name__, nchains, nres, natom, nbond)
-    
+            type(self).__name__, nchains, nres, natom, nbond)
+
     def add(self, other):
         offset = self.getNumAtoms()
         newatoms = []
         for chain in other.chains():
             newchain = self.addChain(id=chain.id)
             for res in chain.residues():
-                newres = self.addResidue(res.name, newchain, id=res.id, insertionCode=res.insertionCode)
+                newres = self.addResidue(
+                    res.name, newchain, id=res.id, insertionCode=res.insertionCode)
                 for atom in res.atoms():
-                    newatom = self.addAtom(atom.name, atom.element, newres, id=atom.id)
+                    newatom = self.addAtom(
+                        atom.name, atom.element, newres, id=atom.id)
                     newatoms.append(newatom)
         for bond in other.bonds():
             a1, a2, order = bond.atom1, bond.atom2, bond.order
             self.addBond(newatoms[a1.index], newatoms[a2.index], order)
+
+        for vsite in other.vsites():
+            vtype = vsite.type
+            aidx = [a.index for a in vsite.atoms]
+            weights = vsite.weights
+            vatom = newatoms[vsite.vatom.index]
+            self._vsites.append(VirtualSite(
+                vtype, [newatoms[i] for i in aidx], weights, vatom=vatom))
+
         # add molecules
         for mol in other.molecules():
             newmol = Chem.Mol()
@@ -55,20 +66,21 @@ class BetterTopology:
         decomp_indices = decomptop(self)
         for ind in decomp_indices:
             self._molecules.append(top2rdmol(self, ind))
-            
+
     def sanitize(self):
         for mol in self._molecules:
             Chem.sanitize(mol)
-            
+
     def parseSMARTS(self, parser):
         parse = Chem.MolFromSmarts(parser)
         ret = []
         for mol in self._molecules:
             matches = mol.GetSubstructMatches(parse)
             for match in matches:
-                ret.append([mol.GetAtomWithIdx(idx).GetProp("_Index") for idx in match])
+                ret.append([mol.GetAtomWithIdx(idx).GetProp("_Index")
+                           for idx in match])
         return ret
-            
+
     def getNumAtoms(self):
         return self._numAtoms
 
@@ -80,7 +92,7 @@ class BetterTopology:
 
     def getNumBonds(self):
         return len(self._bonds)
-    
+
     def getNumMolecules(self):
         return len(self._molecules)
 
@@ -116,9 +128,79 @@ class BetterTopology:
 
     def addBond(self, atom1, atom2, order=None):
         self._bonds.append(Bond(atom1, atom2, order))
-        
-    def addVirtualSites(self, vsite_list):
-        pass
+
+    def insertVirtualSites(self, vsite_list):
+        parent2vsite = {}
+        for vsite in vsite_list:
+            parent = vsite.atoms[0].index
+            if parent not in parent2vsite:
+                parent2vsite[parent] = []
+            parent2vsite[parent].append(vsite)
+        tot_vsites = []
+        vsite_and_vatom = []
+
+        newatoms = []
+        newtop = BetterTopology()
+        for chain in self.chains():
+            newchain = newtop.addChain(id=chain.id)
+            for residue in chain.residues():
+                newres = newtop.addResidue(
+                    name=residue.name, chain=newchain, id=residue.id)
+                nep = 1
+                for atom in residue.atoms():
+                    newatom = newtop.addAtom(
+                        atom.name, atom.element, newres, id=atom.id, meta=atom.meta)
+                    newatoms.append(newatom)
+                    if atom.element is None:
+                        nep += 1
+
+                    # add new vsite
+                    if atom.index in parent2vsite:
+                        for vsite in parent2vsite[atom.index]:
+                            newvatom = newtop.addAtom(f"V{nep}", None, newres)
+                            nep += 1
+                            vsite_and_vatom.append((vsite, newvatom))
+
+        for vs, va in vsite_and_vatom:
+            aidx = [a.index for a in vs.atoms]
+            weights = vs.weights
+            vtype = vs.type
+            newvsite = VirtualSite(vtype, [newatoms[i]
+                                   for i in aidx], weights, vatom=va)
+            tot_vsites.append(newvsite)
+
+        for bond in self.bonds():
+            idx1 = bond.atom1.index
+            idx2 = bond.atom2.index
+            order = bond.order
+            newtop.addBond(newatoms[idx1], newatoms[idx2], order=order)
+
+        for vsite in self.vsites():
+            vtype = vsite.type
+            aidx = [a.index for a in vsite.atoms]
+            weights = vsite.weights
+            vidx = vsite.vatom.index
+            new_vsite = VirtualSite(
+                vtype, [newatoms[i] for i in aidx], weights, vatom=newatoms[vidx])
+            tot_vsites.append(new_vsite)
+
+        newtop._vsites = sorted(tot_vsites, key=lambda x: x.atoms[0].index)
+
+        for mol in self.molecules():
+            # copy a molecule with new index
+            newmol = Chem.Mol()
+            emol = Chem.EditableMol(newmol)
+            for atom in mol.GetAtoms():
+                newatom = Chem.Atom(atom.GetSymbol())
+                idx = int(atom.GetProp("_Index"))
+                newatom.SetProp("_Index", f"{newatoms[idx].index}")
+                emol.AddAtom(newatom)
+            for bond in mol.GetBonds():
+                i1, i2 = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+                emol.AddBond(i1, i2, bond.GetBondType())
+            rdmol = emol.GetMol()
+            newtop._molecules.append(rdmol)
+        return newtop
 
     def chains(self):
         return iter(self._chains)
@@ -136,17 +218,21 @@ class BetterTopology:
 
     def bonds(self):
         return iter(self._bonds)
-    
+
     def molecules(self):
         return iter(self._molecules)
 
+    def vsites(self):
+        return iter(self._vsites)
+
+
 class Chain(object):
     def __init__(self, index, topology, id):
-        ## The index of the Chain within its Topology
+        # The index of the Chain within its Topology
         self.index = index
-        ## The Topology this Chain belongs to
+        # The Topology this Chain belongs to
         self.topology = topology
-        ## A user defined identifier for this Chain
+        # A user defined identifier for this Chain
         self.id = id
         self._residues = []
 
@@ -164,17 +250,18 @@ class Chain(object):
     def __repr__(self):
         return "<Chain %d>" % self.index
 
+
 class Residue(object):
     def __init__(self, name, index, chain, id, insertionCode):
-        ## The name of the Residue
+        # The name of the Residue
         self.name = name
-        ## The index of the Residue within its Topology
+        # The index of the Residue within its Topology
         self.index = index
-        ## The Chain this Residue belongs to
+        # The Chain this Residue belongs to
         self.chain = chain
-        ## A user defined identifier for this Residue
+        # A user defined identifier for this Residue
         self.id = id
-        ## A user defined insertion code for this Residue
+        # A user defined insertion code for this Residue
         self.insertionCode = insertionCode
         self._atoms = []
 
@@ -182,13 +269,13 @@ class Residue(object):
         return iter(self._atoms)
 
     def bonds(self):
-        return ( bond for bond in self.chain.topology.bonds() if ((bond[0] in self._atoms) or (bond[1] in self._atoms)) )
+        return (bond for bond in self.chain.topology.bonds() if ((bond[0] in self._atoms) or (bond[1] in self._atoms)))
 
     def internal_bonds(self):
-        return ( bond for bond in self.chain.topology.bonds() if ((bond[0] in self._atoms) and (bond[1] in self._atoms)) )
+        return (bond for bond in self.chain.topology.bonds() if ((bond[0] in self._atoms) and (bond[1] in self._atoms)))
 
     def external_bonds(self):
-        return ( bond for bond in self.chain.topology.bonds() if ((bond[0] in self._atoms) != (bond[1] in self._atoms)) )
+        return (bond for bond in self.chain.topology.bonds() if ((bond[0] in self._atoms) != (bond[1] in self._atoms)))
 
     def __len__(self):
         return len(self._atoms)
@@ -196,24 +283,26 @@ class Residue(object):
     def __repr__(self):
         return "<Residue %d (%s) of chain %d>" % (self.index, self.name, self.chain.index)
 
+
 class Atom(object):
 
     def __init__(self, name, element, index, residue, id, meta):
-        ## The name of the Atom
+        # The name of the Atom
         self.name = name
-        ## That Atom's element
+        # That Atom's element
         self.element = element
-        ## The index of the Atom within its Topology
+        # The index of the Atom within its Topology
         self.index = index
-        ## The Residue this Atom belongs to
+        # The Residue this Atom belongs to
         self.residue = residue
-        ## A user defined identifier for this Atom
+        # A user defined identifier for this Atom
         self.id = id
-        
+
         self.meta = meta
 
     def __repr__(self):
         return "<Atom %d (%s) of chain %d residue %d (%s)>" % (self.index, self.name, self.residue.chain.index, self.residue.index, self.residue.name)
+
 
 class Bond(namedtuple('Bond', ['atom1', 'atom2'])):
 
@@ -238,22 +327,27 @@ class Bond(namedtuple('Bond', ['atom1', 'atom2'])):
         s += ")"
         return s
 
-class TwoPointAverageSite:
-    
-    def __init__(self, atom1, atom2, weight1, weight2, vatom=None):
-        self.atom1 = atom1
-        self.atom2 = atom2
-        self.weight1 = weight1
-        self.weight2 = weight2
+
+class VirtualSite:
+
+    def __init__(self, vtype, atoms, weights, vatom=None):
+        self.type = vtype
+        self.atoms = atoms
+        self.weights = weights
         self.vatom = vatom
-        
+
     def __deepcopy__(self, memo):
-        return TwoPointAverageSite(self.atom1, self.atom2, self.weight1, self.weight2)
+        return VirtualSite(self.atoms, self.weights, vatom=self.vatom)
 
     def __repr__(self):
-        s = f"Two Point Average VSite: {self.weight1} x {self.atom1} + {self.weight2} x {self.atom2}"
+        s = f"Virtual site type: {self.type} with \natoms: "
+        for atom in self.atoms:
+            s += f"{atom} "
+        s += f"\nweights: "
+        for weight in self.weights:
+            s += f"{weight} "
         return s
-        
+
 
 def top2graph(top: BetterTopology) -> nx.Graph:
     g = nx.Graph()
@@ -264,10 +358,12 @@ def top2graph(top: BetterTopology) -> nx.Graph:
         g.add_edge(b.atom1.index, b.atom2.index)
     return g
 
+
 def decompgraph(graph: nx.Graph) -> List[nx.Graph]:
     nsub = [graph.subgraph(indices)
             for indices in nx.connected_components(graph)]
     return nsub
+
 
 def decomptop(top: BetterTopology) -> List[List[int]]:
     graph = top2graph(top)
@@ -279,6 +375,7 @@ def decomptop(top: BetterTopology) -> List[List[int]]:
             index.append(g.nodes()[n]["index"])
         indices.append(index)
     return indices
+
 
 def top2rdmol(top: BetterTopology, indices: List[int]) -> Chem.rdchem.Mol:
     rdmol = Chem.Mol()
