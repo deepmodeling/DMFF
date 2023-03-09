@@ -4,10 +4,11 @@ from .base import BaseOperator
 from ..api.hamiltonian import dmff_operators
 from ..api.graph import matchTemplate
 from ..utils import DMFFException
-from ..api.topology import TopologyData
+from ..api.topology import DMFFTopology, Residue
+import openmm.app as app
 
 
-class TemplateOperator(BaseOperator):
+class TemplateATypeOperator(BaseOperator):
 
     def __init__(self, ffinfo):
         self.name = "template"
@@ -29,6 +30,8 @@ class TemplateOperator(BaseOperator):
             name = atom["name"]
             atype = atom["type"]
             elem = self.atomtypes[atype][1]
+            if elem is None:
+                elem = "none"
             name2idx[name] = na
             external_bond = name in resinfo["externals"]
             graph.add_node(atom["name"], element=elem,
@@ -37,45 +40,52 @@ class TemplateOperator(BaseOperator):
             a1, a2 = bond["atomName1"], bond["atomName2"]
             graph.add_edge(a1, a2, btype="bond")
         # vsite
-        idx2name = {v:k for k,v in name2idx.items()}
+        idx2name = {v: k for k, v in name2idx.items()}
         for vsite in resinfo["vsites"]:
             iself = int(vsite["index"])
-            if vsite["type"] == "average2":
-                iatom1 = int(vsite["atom1"])
-                iatom2 = int(vsite["atom2"])
-                graph.add_edge(idx2name[iself], idx2name[iatom1], btype="vsite")
-                graph.add_edge(idx2name[iself], idx2name[iatom2], btype="vsite")
+            for key in vsite.keys():
+                if "atom" in key:
+                    iatom = int(vsite[key])
+                    graph.add_edge(idx2name[iself],
+                                   idx2name[iatom], btype="vsite")
         return graph
 
-    def generate_residue_graph(self, topdata: TopologyData, resid: int):
-        residue_indices = topdata.residue_indices[resid]
+    def generate_residue_graph(self, topdata: DMFFTopology, residue: Residue):
+        residue_indices = [a.index for a in residue.atoms()]
+        atoms = [a for a in residue.atoms()]
         graph = nx.Graph()
         # add nodes
-        for atom in residue_indices:
+        for atom in atoms:
+            aidx = atom.index
             external_bond = False
-            bonded_atoms = topdata._bondedAtom[atom]
+            bonded_atoms = topdata._bondedAtom[aidx]
             for bonded in bonded_atoms:
                 if bonded not in residue_indices:
                     external_bond = True
-            elem = topdata.atoms[atom].element.symbol if topdata.atoms[atom].element is not None else "none"
+            if isinstance(atom.element, str):
+                elem = atom.element
+            elif isinstance(atom.element, app.element.Element):
+                elem = atom.element.symbol
+            elif atom.element is None:
+                elem = "none"
             graph.add_node(
-                atom, name=topdata.atoms[atom].name, element=elem, external_bond=external_bond)
+                aidx, name=atom.name, element=elem, external_bond=external_bond)
             for bonded in bonded_atoms:
-                if bonded < atom and bonded in residue_indices:
-                    graph.add_edge(atom, bonded, btype="bond")
+                if bonded < aidx and bonded in residue_indices:
+                    graph.add_edge(aidx, bonded, btype="bond")
         # vsite
-        for nvsite, vsite in enumerate(topdata.vsite["two_point_average"]["vsite"]):
-            a1, a2 = topdata.vsite["two_point_average"]["index"][nvsite]
-            vsite, a1, a2 = int(vsite), int(a1), int(a2)
-            graph.add_edge(vsite, a1, btype="vsite")
-            graph.add_edge(vsite, a2, btype="vsite")
+        for nvsite, vsite in enumerate(topdata.vsites()):
+            vidx = vsite.vatom.index
+            aidx = [a.index for a in vsite.atoms]
+            for a in aidx:
+                graph.add_edge(vidx, a, btype="vsite")
         return graph
 
-    def match_all(self, topdata: TopologyData, templates):
-        for ires in range(len(topdata.residues)):
-            if self.name not in topdata.atom_meta[topdata.residue_indices[ires][0]]["operator"]:
-                continue
-            graph = self.generate_residue_graph(topdata, ires)
+    def match_all(self, topdata: DMFFTopology, templates):
+        residues = [r for r in topdata.residues()]
+        atoms = [a for a in topdata.atoms()]
+        for res in residues:
+            graph = self.generate_residue_graph(topdata, res)
             all_fail = True
             for ntemp, template in enumerate(templates):
                 is_matched, _, atype_dict = matchTemplate(graph, template)
@@ -84,16 +94,14 @@ class TemplateOperator(BaseOperator):
                     # move attribs
                     for key in atype_dict.keys():
                         for key2 in atype_dict[key]:
-                            topdata.atom_meta[key][key2] = atype_dict[key][key2]
-                        if "type" in topdata.atom_meta[key]:
-                            itype = topdata.atom_meta[key]["type"]
-                            topdata.atom_meta[key]["class"] = self.atomtypes[itype][0]
+                            atoms[key].meta[key2] = atype_dict[key][key2]
+                        if "type" in atoms[key].meta:
+                            itype = atoms[key].meta["type"]
+                            atoms[key].meta["class"] = self.atomtypes[itype][0]
                     break
             if all_fail:
-                print(f"{topdata.residues[ires]} is not patched.")
+                print(f"{res} is not patched.")
 
     def operate(self, topdata):
         self.match_all(topdata, self.templates)
-
-
-dmff_operators["template"] = TemplateOperator
+        return topdata

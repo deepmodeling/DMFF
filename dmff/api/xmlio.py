@@ -62,7 +62,7 @@ class XMLIO:
         for atype in self._data["AtomTypes"]:
             ret.append(atype.attrib)
             if "element" not in ret[-1]:
-                ret[-1]["element"] = "none"
+                ret[-1]["element"] = None
         return ret
 
     def parseResidues(self):

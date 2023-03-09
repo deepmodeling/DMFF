@@ -1,5 +1,6 @@
 from .base import BaseOperator
-from ..api.topology import TopologyData, top2graph, decompgraph, graph2top, top2rdmol
+from ..api.xmlio import XMLIO
+from ..api.topology import DMFFTopology
 from ..api.hamiltonian import dmff_operators
 from ..utils import DMFFException
 from openmm.app import Topology
@@ -7,7 +8,7 @@ from typing import List
 from rdkit import Chem
 
 
-class SMARTSOperator(BaseOperator):
+class SMARTSATypeOperator(BaseOperator):
 
     def __init__(self, ffinfo):
         self.name = "smarts"
@@ -20,28 +21,19 @@ class SMARTSOperator(BaseOperator):
                 self.parsers.append(parser)
                 self.atypes.append(atype)
 
-    def operate(self, topdata: TopologyData):
-        for rdmol in topdata.rdmols:
-            is_smarts = True
-            node_idx = []
-            for atom in rdmol.GetAtoms():
-                idx = int(atom.GetProp("_Index"))
-                node_idx.append(idx)
-                if self.name not in topdata.atom_meta[idx]["operator"]:
-                    is_smarts = False
-                    break
-            if not is_smarts:
-                continue
+    def operate(self, topdata: DMFFTopology) -> DMFFTopology:
+        atoms = [a for a in topdata.atoms()]
+        for rdmol in topdata.molecules():
             Chem.SanitizeMol(rdmol)
-
-            for nparser, parser in enumerate(self.parsers):
-                name, cls, elem = self.atypes[nparser]
-                par = Chem.MolFromSmarts(parser)
-                matches = rdmol.GetSubstructMatches(par)
-                for match in matches:
-                    matchidx = node_idx[match[0]]
-                    topdata.atom_meta[matchidx]["type"] = name
-                    topdata.atom_meta[matchidx]["class"] = cls
-
-
-dmff_operators["smarts"] = SMARTSOperator
+        for nparser, parser in enumerate(self.parsers):
+            name, cls, elem = self.atypes[nparser]
+            matches = topdata.parseSMARTS(parser)
+            for match in matches:
+                atoms[match[0]].meta["type"] = name
+                atoms[match[0]].meta["class"] = cls
+        for atom in topdata.atoms():
+            if "type" not in atom.meta:
+                atom.meta["type"] = None
+                atom.meta["class"] = None
+        return topdata
+                

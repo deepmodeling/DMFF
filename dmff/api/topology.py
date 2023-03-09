@@ -1,5 +1,6 @@
 from typing import Dict, Tuple, List
 from collections import namedtuple
+from copy import deepcopy
 from .vsite import VirtualSite
 import networkx as nx
 import openmm.app as app
@@ -15,6 +16,7 @@ class DMFFTopology:
         self._bonds = []
         self._molecules = []
         self._vsites = []
+        self._bondedAtom = {}
 
     def __repr__(self):
         nchains = len(self._chains)
@@ -37,7 +39,7 @@ class DMFFTopology:
                     res.name, newchain, id=res.id, insertionCode=res.insertionCode)
                 for atom in res.atoms():
                     newatom = self.addAtom(
-                        atom.name, atom.element, newres, id=atom.id)
+                        atom.name, atom.element, newres, id=atom.id, meta=deepcopy(atom.meta))
                     newatoms.append(newatom)
         for bond in other.bonds():
             a1, a2, order = bond.atom1, bond.atom2, bond.order
@@ -82,7 +84,7 @@ class DMFFTopology:
         for mol in self._molecules:
             matches = mol.GetSubstructMatches(parse)
             for match in matches:
-                ret.append([mol.GetAtomWithIdx(idx).GetProp("_Index")
+                ret.append([int(mol.GetAtomWithIdx(idx).GetProp("_Index"))
                            for idx in match])
         return ret
 
@@ -119,6 +121,10 @@ class DMFFTopology:
         return residue
 
     def addAtom(self, name, element, residue, id=None, meta=None):
+        if isinstance(element, app.element.Element):
+            element = element.symbol
+        elif element is None:
+            element = "none"
         if len(residue._atoms) > 0 and self._numAtoms != residue._atoms[-1].index+1:
             raise ValueError('All atoms within a residue must be contiguous')
         if id is None:
@@ -129,10 +135,13 @@ class DMFFTopology:
         atom = Atom(name, element, self._numAtoms, residue, id, meta)
         self._numAtoms += 1
         residue._atoms.append(atom)
+        self._bondedAtom[atom.index] = []
         return atom
 
     def addBond(self, atom1, atom2, order=None):
         self._bonds.append(Bond(atom1, atom2, order))
+        self._bondedAtom[atom1.index].append(atom2.index)
+        self._bondedAtom[atom2.index].append(atom1.index)
 
     def chains(self):
         return iter(self._chains)
@@ -265,7 +274,6 @@ class Bond(namedtuple('Bond', ['atom1', 'atom2'])):
 
 def top2graph(top) -> nx.Graph:
     g = nx.Graph()
-    print(top)
     for na, a in enumerate(top.atoms()):
         g.add_node(a.index, index=a.index)
     for nb, b in enumerate(top.bonds()):

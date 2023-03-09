@@ -1,6 +1,12 @@
+from ..api.topology import DMFFTopology
+
+
 class BaseOperator:
     def __init__(self, ffinfo):
         pass
 
-    def operate(self, topdata):
+    def __call__(self, input: DMFFTopology) -> DMFFTopology:
+        return self.operate(input)
+        
+    def operate(self, topdata: DMFFTopology) -> DMFFTopology:
         pass

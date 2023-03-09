@@ -2,34 +2,23 @@ import openmm.app as app
 from typing import List, Union, Tuple
 
 
-class VSite:
+class VirtualSite:
 
-    def __init__(self, atoms: List[app.topology.Atom], weights: List[float], vatom: Union[app.topology.Atom, None] = None, name: str = None):
+    def __init__(self, vtype, atoms, weights, vatom=None, meta={}):
+        self.type = vtype
         self.atoms = atoms
         self.weights = weights
         self.vatom = vatom
-        self.vsname = name
+        self.meta = meta
 
+    def __deepcopy__(self, memo):
+        return VirtualSite(self.atoms, self.weights, vatom=self.vatom, meta=self.meta)
 
-class TwoParticleAverageSite(VSite):
-
-    def __init__(self, atoms: List[app.topology.Atom], weights: List[float], vatom: Union[app.topology.Atom, None] = None, name: str = None):
-        super().__init__(atoms, weights, vatom)
-        self.name = "two-particle-average"
-        self.vsname = name
-
-
-class ThreeParticleAverageSite(VSite):
-
-    def __init__(self, atoms: List[app.topology.Atom], weights: List[float], vatom: Union[app.topology.Atom, None] = None, name: str = None):
-        super().__init__(atoms, weights, vatom)
-        self.name = "three-particle-average"
-        self.vsname = name
-
-
-class OutOfPlaneSite(VSite):
-
-    def __init__(self, atoms: List[app.topology.Atom], weights: List[float], vatom: Union[app.topology.Atom, None] = None, name: str = None):
-        super().__init__(atoms, weights, vatom)
-        self.name = "out-of-plane"
-        self.vsname = name
+    def __repr__(self):
+        s = f"Virtual site type: {self.type} with \natoms: "
+        for atom in self.atoms:
+            s += f"{atom} "
+        s += f"\nweights: "
+        for weight in self.weights:
+            s += f"{weight} "
+        return s

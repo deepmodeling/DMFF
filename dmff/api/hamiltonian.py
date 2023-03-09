@@ -1,7 +1,7 @@
 import openmm.app as app
 from .xmlio import XMLIO
 from .paramset import ParamSet
-from .topology import TopologyData
+from .topology import DMFFTopology
 from ..utils import DMFFException
 import jax
 import jax.numpy as jnp
@@ -66,7 +66,7 @@ class Hamiltonian:
                 raise DMFFException(f"Operator {tp} is not loaded.")
             self.operators.append(dmff_operators[tp](self.ffinfo))
 
-    def prepTopData(self, topdata: TopologyData) -> TopologyData:
+    def prepTopData(self, topdata: DMFFTopology) -> DMFFTopology:
         # patch atoms using typifiers
         for operator in self.operators:
             if operator.name not in dmff_operators:
@@ -74,7 +74,7 @@ class Hamiltonian:
             operator.operate(topdata)
         return topdata
 
-    def buildJaxPotential(self, topdata: TopologyData, forces=None):
+    def buildJaxPotential(self, topdata: DMFFTopology, forces=None):
         efuncs = {}
         for gen in self.generators:
             if forces is not None and gen.getName() not in forces:

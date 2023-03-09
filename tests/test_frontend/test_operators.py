@@ -1,6 +1,7 @@
 import openmm.app as app
 from dmff.api.topology import DMFFTopology
 from dmff.operators import TemplateVSiteOperator, SMARTSVSiteOperator, TemplateATypeOperator, SMARTSATypeOperator, AM1ChargeOperator
+from dmff.api.xmlio import XMLIO
 
 
 def build_test_mol():
@@ -56,9 +57,11 @@ def test_add_vsite_from_smarts():
 def test_add_atype_from_smarts():
     top = DMFFTopology()
     mol = build_test_mol()
-    smartsATypeOP = SMARTSATypeOperator("tests/data/smarts_test1.xml")
+    xmlio = XMLIO()
+    xmlio.loadXML("tests/data/smarts_test1.xml")
+    ffinfo = xmlio.parseXML()
+    smartsATypeOP = SMARTSATypeOperator(ffinfo)
     mol = smartsATypeOP(mol)
-    top.add(mol)
     top.add(mol)
     for atom in top.atoms():
         print(atom.meta)
@@ -66,17 +69,25 @@ def test_add_atype_from_smarts():
 def test_add_atype_from_template():
     mol = build_test_mol()
     templateVSOP = TemplateVSiteOperator("tests/data/template_and_vsite.xml")
-    templateATypeOP = TemplateATypeOperator("tests/data/template_and_vsite.xml")
+    xmlio = XMLIO()
+    xmlio.loadXML("tests/data/template_and_vsite.xml")
+    ffinfo = xmlio.parseXML()
+    templateATypeOP = TemplateATypeOperator(ffinfo)
     mol_vsite = templateATypeOP(templateVSOP(mol))
     for atom in mol_vsite.atoms():
         print(atom.meta)
 
 def test_add_atype_from_smarts_with_vs():
-    mol = build_test_mol()
+    top = DMFFTopology()
     smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
-    smartsATypeOP = SMARTSATypeOperator("tests/data/smarts_and_vsite.xml")
-    mol_vsite = smartsATypeOP(smartsVSOP(mol))
-    for atom in mol_vsite.atoms():
+    mol = build_test_mol()
+    xmlio = XMLIO()
+    xmlio.loadXML("tests/data/smarts_test1.xml")
+    ffinfo = xmlio.parseXML()
+    smartsATypeOP = SMARTSATypeOperator(ffinfo)
+    mol = smartsATypeOP(smartsVSOP(mol))
+    top.add(mol)
+    for atom in top.atoms():
         print(atom.meta)
 
 def test_add_am1_charge():
@@ -93,7 +104,15 @@ def test_add_resp_charge():
 
 
 if __name__ == "__main__":
+    print("--")
     test_better_top()
+    print("--")
     test_add_atype_from_smarts()
+    print("--")
     test_add_vsite_from_template()
+    print("--")
     test_add_vsite_from_smarts()
+    print("--")
+    test_add_atype_from_template()
+    print("--")
+    test_add_atype_from_smarts_with_vs()
