@@ -16,13 +16,13 @@ def build_test_mol():
     h2 = top.addAtom("H2", app.element.hydrogen, res)
     h3 = top.addAtom("H3", app.element.hydrogen, res)
     h4 = top.addAtom("H4", app.element.hydrogen, res)
-    hn = top.addAtom("HN", app.element.hydrogen, res)
+    br = top.addAtom("BR", app.element.bromine, res)
     top.addBond(n1, c1, order=1)
     top.addBond(c1, c2, order=2)
     top.addBond(c2, c3, order=1)
     top.addBond(c3, c4, order=2)
     top.addBond(c4, n1, order=1)
-    top.addBond(n1, hn, order=1)
+    top.addBond(n1, br, order=1)
     top.addBond(c1, h1, order=1)
     top.addBond(c2, h2, order=1)
     top.addBond(c3, h3, order=1)
@@ -33,8 +33,8 @@ def build_test_mol():
 def test_better_top():
     top = DMFFTopology()
     mol = build_test_mol()
-    top.add(mol)
-    top.add(mol)
+    for nmol in range(10):
+        top.add(mol)
     print(top)
 
 def test_add_vsite_from_template():
@@ -53,6 +53,16 @@ def test_add_vsite_from_smarts():
     for atom in mol_vsite.atoms():
         print(atom)
 
+def test_add_atype_from_smarts():
+    top = DMFFTopology()
+    mol = build_test_mol()
+    smartsATypeOP = SMARTSATypeOperator("tests/data/smarts_test1.xml")
+    mol = smartsATypeOP(mol)
+    top.add(mol)
+    top.add(mol)
+    for atom in top.atoms():
+        print(atom.meta)
+
 def test_add_atype_from_template():
     mol = build_test_mol()
     templateVSOP = TemplateVSiteOperator("tests/data/template_and_vsite.xml")
@@ -61,7 +71,7 @@ def test_add_atype_from_template():
     for atom in mol_vsite.atoms():
         print(atom.meta)
 
-def test_add_atype_from_smarts():
+def test_add_atype_from_smarts_with_vs():
     mol = build_test_mol()
     smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
     smartsATypeOP = SMARTSATypeOperator("tests/data/smarts_and_vsite.xml")
@@ -84,4 +94,6 @@ def test_add_resp_charge():
 
 if __name__ == "__main__":
     test_better_top()
+    test_add_atype_from_smarts()
     test_add_vsite_from_template()
+    test_add_vsite_from_smarts()
