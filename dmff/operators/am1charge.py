@@ -21,3 +21,4 @@ class AM1ChargeOperator(BaseOperator):
 
         for rdmol in topdata.molecules():
             pass
+        return topdata
