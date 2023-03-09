@@ -1,10 +1,10 @@
 import openmm.app as app
-from dmff.api.bettertopology import BetterTopology
+from dmff.api.topology import DMFFTopology
 from dmff.operators import TemplateVSiteOperator, SMARTSVSiteOperator, TemplateATypeOperator, SMARTSATypeOperator, AM1ChargeOperator
 
 
 def build_test_mol():
-    top = BetterTopology()
+    top = DMFFTopology()
     chain = top.addChain()
     res = top.addResidue("MOL", chain)
     n1 = top.addAtom("N1", app.element.nitrogen, res)
@@ -31,7 +31,7 @@ def build_test_mol():
     return top
 
 def test_better_top():
-    top = BetterTopology()
+    top = DMFFTopology()
     mol = build_test_mol()
     top.add(mol)
     top.add(mol)
