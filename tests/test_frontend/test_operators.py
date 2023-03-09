@@ -93,7 +93,10 @@ def test_add_atype_from_smarts_with_vs():
 def test_add_am1_charge():
     mol = build_test_mol()
     smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
-    smartsATypeOP = SMARTSATypeOperator("tests/data/smarts_and_vsite.xml")
+    xmlio = XMLIO()
+    xmlio.loadXML("tests/data/smarts_test1.xml")
+    ffinfo = xmlio.parseXML()
+    smartsATypeOP = SMARTSATypeOperator(ffinfo)
     am1ChargeOP = AM1ChargeOperator()
     mol_vsite = am1ChargeOP(smartsATypeOP(smartsVSOP(mol)))
     for atom in mol_vsite.atoms():
@@ -116,3 +119,5 @@ if __name__ == "__main__":
     test_add_atype_from_template()
     print("--")
     test_add_atype_from_smarts_with_vs()
+    print("--")
+    test_add_am1_charge()
