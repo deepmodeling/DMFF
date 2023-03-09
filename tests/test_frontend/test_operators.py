@@ -42,14 +42,16 @@ def test_add_vsite_from_template():
     print(mol)
     templateVSOP = TemplateVSiteOperator("tests/data/template_and_vsite.xml")
     mol_vsite = templateVSOP(mol)
-    print(mol_vsite)
+    for atom in mol_vsite.atoms():
+        print(atom)
 
 def test_add_vsite_from_smarts():
     mol = build_test_mol()
     print(mol)
     smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
     mol_vsite = smartsVSOP(mol)
-    print(mol_vsite)
+    for atom in mol_vsite.atoms():
+        print(atom)
 
 def test_add_atype_from_template():
     mol = build_test_mol()
@@ -82,3 +84,4 @@ def test_add_resp_charge():
 
 if __name__ == "__main__":
     test_better_top()
+    test_add_vsite_from_template()
