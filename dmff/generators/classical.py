@@ -689,6 +689,7 @@ class NonbondedJaxGenerator:
             vsitematcher = TypeMatcher(self.fftree, "NonbondedForce/VirtualSite")
             vsite_matches_dict = vsitematcher.matchSmirksNoSort(rdmol)
             vsiteObj = VirtualSite(vsite_matches_dict)
+            self._meta['map_vsite'] = [vsite_matches_dict[k] for k in vsite_matches_dict]
 
             def addVsiteFunc(pos, params):
                 func = vsiteObj.getAddVirtualSiteFunc()
@@ -837,6 +838,8 @@ class NonbondedJaxGenerator:
 
         map_lj = jnp.array(maps["sigma"])
         map_charge = jnp.array(maps["charge"])
+        self._meta['map_lj'] = map_lj
+        self._meta['map_charge'] = map_charge
 
         # Free Energy Settings #
         isFreeEnergy = args.get("isFreeEnergy", False)
