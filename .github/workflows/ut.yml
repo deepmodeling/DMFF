@@ -20,7 +20,7 @@ jobs:
         run: |
           source $CONDA/bin/activate
           conda create -n dmff python=${{ matrix.python-version }} numpy openmm pytest rdkit biopandas openbabel -c conda-forge
-          conda activate dmff && pip install jax==0.3.7 jax_md==0.2.0 && pip install mdtraj==1.9.7 pymbar==4.0.1
+          conda activate dmff && pip install jax==0.3.7 jaxlib==0.3.7 jax_md==0.2.0 && pip install mdtraj==1.9.7 pymbar==4.0.1
       - name: Install DMFF
         run: |
           source $CONDA/bin/activate dmff
