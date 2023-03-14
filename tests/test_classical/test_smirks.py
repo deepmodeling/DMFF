@@ -60,7 +60,6 @@ def test_vsite(name: str):
     nblist.allocate(pos_vsite)
     pairs_vsite = nblist.pairs
 
-    print(pos_vsite, box, pairs_vsite, h_smirks.paramtree)
     nbfunc_vsite = jax.value_and_grad(pot_vsite.dmff_potentials['NonbondedForce'], argnums=-1, allow_int=True)
     nbene_vsite, nbene_grad_vsite = nbfunc_vsite(pos_vsite, box, pairs_vsite, h_smirks.paramtree)
     nbene_dbcc = jnp.dot(
