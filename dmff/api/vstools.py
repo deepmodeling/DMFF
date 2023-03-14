@@ -85,7 +85,9 @@ def insertVirtualSites(topdata, vsite_list):
         for atom in mol.GetAtoms():
             newatom = Chem.Atom(atom.GetSymbol())
             idx = int(atom.GetProp("_Index"))
+            name = atom.GetProp("_Name")
             newatom.SetProp("_Index", f"{newatoms[idx].index}")
+            newatom.SetProp("_Name", name)
             emol.AddAtom(newatom)
         for bond in mol.GetBonds():
             i1, i2 = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()

@@ -60,7 +60,9 @@ class DMFFTopology:
             for atom in mol.GetAtoms():
                 newatom = Chem.Atom(atom.GetSymbol())
                 idx = int(atom.GetProp("_Index")) + offset
+                name = atom.GetProp("_Name")
                 newatom.SetProp("_Index", f"{idx}")
+                newatom.SetProp("_Name", name)
                 emol.AddAtom(newatom)
             for bond in mol.GetBonds():
                 i1, i2 = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
@@ -313,6 +315,7 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
             continue
         ratm = Chem.Atom(atm.element)
         ratm.SetProp("_Index", f"{atm.index}")
+        ratm.SetProp("_Name", atm.name)
         emol.AddAtom(ratm)
         idx2ridx[atm.index] = na
         na += 1

@@ -102,6 +102,6 @@ class TemplateATypeOperator(BaseOperator):
             if all_fail:
                 print(f"{res} is not patched.")
 
-    def operate(self, topdata):
+    def operate(self, topdata, **kwargs):
         self.match_all(topdata, self.templates)
         return topdata

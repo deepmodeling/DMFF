@@ -21,7 +21,7 @@ class SMARTSVSiteOperator(BaseOperator):
                 if child.tag == "VirtualSite":
                     self.infos.append(child.attrib)
 
-    def operate(self, topdata: DMFFTopology) -> DMFFTopology:
+    def operate(self, topdata: DMFFTopology, **kwargs) -> DMFFTopology:
         vslist = []
         topatoms = [a for a in topdata.atoms()]
         for rdmol in topdata.molecules():

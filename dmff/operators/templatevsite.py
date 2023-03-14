@@ -76,7 +76,7 @@ class TemplateVSiteOperator(BaseOperator):
                     graph.add_edge(atom, bonded)
         return graph
 
-    def operate(self, topdata: DMFFTopology) -> DMFFTopology:
+    def operate(self, topdata: DMFFTopology, **kwargs) -> DMFFTopology:
         # get vslist
         vslist = []
         atoms = [a for a in topdata.atoms()]
