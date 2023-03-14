@@ -13,23 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
-          $CONDA/bin/conda update -n base -c defaults conda
-          conda install pip
-          conda update pip
-          conda install numpy openmm pytest rdkit biopandas openbabel -c conda-forge
-          pip install jax jax_md
-          pip install mdtraj==1.9.7 pymbar==4.0.1
+          conda create -n dmff python=${{ matrix.python-version }} numpy openmm pytest rdkit biopandas openbabel -c conda-forge
+          conda activate dmff && pip install jax jax_md && pip install mdtraj==1.9.7 pymbar==4.0.1
       - name: Install DMFF
         run: |
-          source $CONDA/bin/activate
+          source $CONDA/bin/activate dmff
           pip install .
       - name: Run Tests
         run: |
-          source $CONDA/bin/activate
+          source $CONDA/bin/activate dmff
           pytest -vs tests/     
