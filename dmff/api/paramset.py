@@ -3,7 +3,6 @@ import jax.numpy as jnp
 
 
 class ParamSet:
-
     def __init__(self, data=None):
         if data is None:
             self.parameters = {}
@@ -41,5 +40,5 @@ def unflatten_paramset(aux_data, contents):
     return ret
 
 
-jax.tree_util.register_pytree_node(
-    ParamSet, flatten_paramset, unflatten_paramset)
+jax.tree_util.register_pytree_node(ParamSet, flatten_paramset,
+                                   unflatten_paramset)

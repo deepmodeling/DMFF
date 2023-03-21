@@ -8,7 +8,6 @@ from rdkit import Chem
 
 
 class DMFFTopology:
-
     def __init__(self):
         self._chains = []
         self._numResidues = 0
@@ -35,11 +34,16 @@ class DMFFTopology:
             else:
                 newchain = self.addChain(id=chain.id)
             for res in chain.residues():
-                newres = self.addResidue(
-                    res.name, newchain, id=res.id, insertionCode=res.insertionCode)
+                newres = self.addResidue(res.name,
+                                         newchain,
+                                         id=res.id,
+                                         insertionCode=res.insertionCode)
                 for atom in res.atoms():
-                    newatom = self.addAtom(
-                        atom.name, atom.element, newres, id=atom.id, meta=deepcopy(atom.meta))
+                    newatom = self.addAtom(atom.name,
+                                           atom.element,
+                                           newres,
+                                           id=atom.id,
+                                           meta=deepcopy(atom.meta))
                     newatoms.append(newatom)
         for bond in other.bonds():
             a1, a2, order = bond.atom1, bond.atom2, bond.order
@@ -50,8 +54,10 @@ class DMFFTopology:
             aidx = [a.index for a in vsite.atoms]
             weights = vsite.weights
             vatom = newatoms[vsite.vatom.index]
-            self._vsites.append(VirtualSite(
-                vtype, [newatoms[i] for i in aidx], weights, vatom=vatom))
+            self._vsites.append(
+                VirtualSite(vtype, [newatoms[i] for i in aidx],
+                            weights,
+                            vatom=vatom))
 
         # add molecules
         for mol in other.molecules():
@@ -86,9 +92,17 @@ class DMFFTopology:
         for mol in self._molecules:
             matches = mol.GetSubstructMatches(parse)
             for match in matches:
-                ret.append([int(mol.GetAtomWithIdx(idx).GetProp("_Index"))
-                           for idx in match])
+                ret.append([
+                    int(mol.GetAtomWithIdx(idx).GetProp("_Index"))
+                    for idx in match
+                ])
         return ret
+
+    def getProperty(self, property_name):
+        data = []
+        for atom in self.atoms():
+            data.append(atom.meta[property_name])
+        return np.array(data)
 
     def getNumAtoms(self):
         return self._numAtoms
@@ -107,16 +121,17 @@ class DMFFTopology:
 
     def addChain(self, id=None):
         if id is None:
-            id = str(len(self._chains)+1)
+            id = str(len(self._chains) + 1)
         chain = Chain(len(self._chains), self, id)
         self._chains.append(chain)
         return chain
 
     def addResidue(self, name, chain, id=None, insertionCode=''):
-        if len(chain._residues) > 0 and self._numResidues != chain._residues[-1].index+1:
+        if len(chain._residues
+               ) > 0 and self._numResidues != chain._residues[-1].index + 1:
             raise ValueError('All residues within a chain must be contiguous')
         if id is None:
-            id = str(self._numResidues+1)
+            id = str(self._numResidues + 1)
         residue = Residue(name, self._numResidues, chain, id, insertionCode)
         self._numResidues += 1
         chain._residues.append(residue)
@@ -127,10 +142,11 @@ class DMFFTopology:
             element = element.symbol
         elif element is None:
             element = "none"
-        if len(residue._atoms) > 0 and self._numAtoms != residue._atoms[-1].index+1:
+        if len(residue._atoms
+               ) > 0 and self._numAtoms != residue._atoms[-1].index + 1:
             raise ValueError('All atoms within a residue must be contiguous')
         if id is None:
-            id = str(self._numAtoms+1)
+            id = str(self._numAtoms + 1)
         if meta is None:
             meta = {}
             meta["element"] = element
@@ -167,6 +183,12 @@ class DMFFTopology:
 
     def vsites(self):
         return iter(self._vsites)
+
+    def buildCovMat(self, nmax=6):
+        pass
+
+    def buildVSiteUpdateFunction(self):
+        pass
 
 
 class Chain(object):
@@ -212,23 +234,26 @@ class Residue(object):
         return iter(self._atoms)
 
     def bonds(self):
-        return (bond for bond in self.chain.topology.bonds() if ((bond[0] in self._atoms) or (bond[1] in self._atoms)))
+        return (bond for bond in self.chain.topology.bonds()
+                if ((bond[0] in self._atoms) or (bond[1] in self._atoms)))
 
     def internal_bonds(self):
-        return (bond for bond in self.chain.topology.bonds() if ((bond[0] in self._atoms) and (bond[1] in self._atoms)))
+        return (bond for bond in self.chain.topology.bonds()
+                if ((bond[0] in self._atoms) and (bond[1] in self._atoms)))
 
     def external_bonds(self):
-        return (bond for bond in self.chain.topology.bonds() if ((bond[0] in self._atoms) != (bond[1] in self._atoms)))
+        return (bond for bond in self.chain.topology.bonds()
+                if ((bond[0] in self._atoms) != (bond[1] in self._atoms)))
 
     def __len__(self):
         return len(self._atoms)
 
     def __repr__(self):
-        return "<Residue %d (%s) of chain %d>" % (self.index, self.name, self.chain.index)
+        return "<Residue %d (%s) of chain %d>" % (self.index, self.name,
+                                                  self.chain.index)
 
 
 class Atom(object):
-
     def __init__(self, name, element, index, residue, id, meta):
         # The name of the Atom
         self.name = name
@@ -247,11 +272,12 @@ class Atom(object):
         self.meta = meta
 
     def __repr__(self):
-        return "<Atom %d (%s) of chain %d residue %d (%s)>" % (self.index, self.name, self.residue.chain.index, self.residue.index, self.residue.name)
+        return "<Atom %d (%s) of chain %d residue %d (%s)>" % (
+            self.index, self.name, self.residue.chain.index,
+            self.residue.index, self.residue.name)
 
 
 class Bond(namedtuple('Bond', ['atom1', 'atom2'])):
-
     def __new__(cls, atom1, atom2, order=None):
         bond = super(Bond, cls).__new__(cls, atom1, atom2)
         bond.order = order
@@ -284,8 +310,9 @@ def top2graph(top) -> nx.Graph:
 
 
 def decompgraph(graph) -> List[nx.Graph]:
-    nsub = [graph.subgraph(indices)
-            for indices in nx.connected_components(graph)]
+    nsub = [
+        graph.subgraph(indices) for indices in nx.connected_components(graph)
+    ]
     return nsub
 
 
@@ -326,8 +353,8 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
             order = 1
         else:
             order = bnd.order
-        emol.AddBond(idx2ridx[bnd.atom1.index],
-                     idx2ridx[bnd.atom2.index], Chem.BondType(order))
+        emol.AddBond(idx2ridx[bnd.atom1.index], idx2ridx[bnd.atom2.index],
+                     Chem.BondType(order))
     rdmol = emol.GetMol()
     # rdmol.UpdatePropertyCache()
     # AllChem.EmbedMolecule(rdmol, randomSeed=1)
