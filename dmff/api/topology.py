@@ -5,10 +5,12 @@ from .vsite import VirtualSite
 import networkx as nx
 import openmm.app as app
 from rdkit import Chem
+import numpy as np
+import jax.numpy as jnp
 
 
 class DMFFTopology:
-    def __init__(self):
+    def __init__(self, from_top=None):
         self._chains = []
         self._numResidues = 0
         self._numAtoms = 0
@@ -17,6 +19,9 @@ class DMFFTopology:
         self._vsites = []
         self._bondedAtom = {}
 
+        if from_top is not None:
+            self._load_omm_top(from_top)
+
     def __repr__(self):
         nchains = len(self._chains)
         nres = self._numResidues
@@ -24,6 +29,9 @@ class DMFFTopology:
         nbond = len(self._bonds)
         return '<%s; %d chains, %d residues, %d atoms, %d bonds>' % (
             type(self).__name__, nchains, nres, natom, nbond)
+
+    def _load_from_top(self, top):
+        pass
 
     def add(self, other, newchain=False):
         offset = self.getNumAtoms()
@@ -140,6 +148,8 @@ class DMFFTopology:
     def addAtom(self, name, element, residue, id=None, meta=None):
         if isinstance(element, app.element.Element):
             element = element.symbol
+        elif isinstance(element, str):
+            element = element
         elif element is None:
             element = "none"
         if len(residue._atoms
@@ -184,10 +194,32 @@ class DMFFTopology:
     def vsites(self):
         return iter(self._vsites)
 
-    def buildCovMat(self, nmax=6):
-        pass
+    def buildCovMat(self, nmax=6, use_jax=True):
+        n_atoms = self.getNumAtoms()
+        covalent_map = np.zeros((n_atoms, n_atoms), dtype=int)
+        for bond in self.bonds():
+            covalent_map[bond.atom1.index, bond.atom2.index] = 1
+            covalent_map[bond.atom2.index, bond.atom1.index] = 1
+        for n_curr in range(1, nmax):
+            for i in range(n_atoms):
+                # current neighbors
+                j_list = np.where(
+                    np.logical_and(covalent_map[i] <= n_curr,
+                                   covalent_map[i] > 0))[0]
+                for j in j_list:
+                    k_list = np.where(covalent_map[j] == 1)[0]
+                    for k in k_list:
+                        if k != i and k not in j_list:
+                            covalent_map[i, k] = n_curr + 1
+                            covalent_map[k, i] = n_curr + 1
+        if use_jax:
+            return jnp.array(covalent_map)
+        return covalent_map
 
     def buildVSiteUpdateFunction(self):
+        pass
+
+    def getEquivalentList(self):
         pass
 
 
