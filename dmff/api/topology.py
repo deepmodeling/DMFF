@@ -239,7 +239,7 @@ class DMFFTopology:
         for atom in self.atoms():
             elem = atom.meta["element"]
             if elem == "none":
-                eq_atoms[atom.index] = []
+                eq_atoms[atom.index] = [atom.index]
             eq_atoms[atom.index] = list(set([i[atom.index] for i in isomorphisms]))
         return eq_atoms
 

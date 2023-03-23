@@ -52,5 +52,16 @@ class AM1ChargeOperator(BaseOperator):
                 charge = float(text[start+natom+1].strip().split()[-1])
                 idx = int(atom.GetProp("_Index"))
                 atoms[idx].meta["charge"] = charge
+            eqv_info = topdata.getEquivalentAtoms()
+            finished_atoms = []
+            for atom in topdata.atoms():
+                aidx = atom.index
+                if aidx in finished_atoms:
+                    continue
+                aeq = eqv_info[aidx]
+                average_charge = sum([atoms[i].meta["charge"] for i in aeq]) / len(aeq)
+                for i in aeq:
+                    atoms[i].meta["charge"] = average_charge
+                    finished_atoms.append(i)
             os.system("rm tmp.in tmp.out")
         return topdata

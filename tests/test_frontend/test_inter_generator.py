@@ -80,7 +80,7 @@ def test_cov_mat():
     print(cov_mat)
 
 def test_run_coul_generator():
-    mol = build_test_mol()
+    mol = build_test_C2H6()
     smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
     xmlio = XMLIO()
     xmlio.loadXML("tests/data/smarts_test1.xml")
@@ -99,3 +99,4 @@ def test_eqv_list():
 if __name__ == "__main__":
     test_cov_mat()
     test_eqv_list()
+    test_run_coul_generator()

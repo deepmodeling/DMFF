@@ -1,9 +1,12 @@
 from ..api.topology import DMFFTopology
 from ..api.paramset import ParamSet
+from ..utils import DMFFException, isinstance_jnp
+from ..admp.pme import setup_ewald_parameters
 import numpy as np
 import jax.numpy as jnp
 import openmm.app as app
 import openmm.unit as unit
+from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce, CoulReactionFieldForce
 
 
 class CoulombGenerator:
@@ -15,8 +18,8 @@ class CoulombGenerator:
         self.paramset.addParameter([
             self.ffinfo["Forces"]["CoulombForce"]["attrib"]["coulomb14scale"]
         ],
-                                   "coulomb14scale",
-                                   field=self.name)
+            "coulomb14scale",
+            field=self.name)
 
     def overwrite(self):
         # paramset to ffinfo
@@ -98,7 +101,7 @@ class CoulombGenerator:
             isinstance_jnp(positions, box, params)
 
             coulE = coulenergy(positions, box, pairs,
-                                charges, mscales_coul)
+                               charges, mscales_coul)
 
             return coulE
 
