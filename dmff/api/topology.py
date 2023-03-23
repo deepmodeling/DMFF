@@ -219,8 +219,31 @@ class DMFFTopology:
     def buildVSiteUpdateFunction(self):
         pass
 
-    def getEquivalentList(self):
-        pass
+    def getEquivalentAtoms(self):
+        graph = nx.Graph()
+        for atom in self.atoms():
+            elem = atom.meta["element"]
+            if elem == "none":
+                continue
+            graph.add_node(atom.index, elem=elem)
+        for bond in self.bonds():
+            a1, a2 = bond.atom1, bond.atom2
+            graph.add_edge(a1.index, a2.index, btype="bond")
+
+        def match_node(n1, n2):
+            return n1["elem"] == n2["elem"]
+
+        ismags = nx.isomorphism.ISMAGS(graph, graph, node_match=match_node)
+        isomorphisms = list(ismags.isomorphisms_iter(symmetry=False))
+        eq_atoms = {}
+        for atom in self.atoms():
+            elem = atom.meta["element"]
+            if elem == "none":
+                eq_atoms[atom.index] = []
+            eq_atoms[atom.index] = list(set([i[atom.index] for i in isomorphisms]))
+        return eq_atoms
+
+
 
 
 class Chain(object):

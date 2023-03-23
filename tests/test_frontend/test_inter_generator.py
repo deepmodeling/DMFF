@@ -93,6 +93,9 @@ def test_run_coul_generator():
 
 def test_eqv_list():
     mol = build_test_C2H6()
+    eq_info = mol.getEquivalentAtoms()
+    print(eq_info)
 
 if __name__ == "__main__":
     test_cov_mat()
+    test_eqv_list()
