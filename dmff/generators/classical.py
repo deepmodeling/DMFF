@@ -14,7 +14,8 @@ class CoulombGenerator:
         self.name = "CoulombForce"
         self.ffinfo = ffinfo
         self.paramset = paramset
-        self.coulomb14scale = float(self.ffinfo["Forces"]["CoulombForce"]["meta"]["coulomb14scale"])
+        self.coulomb14scale = float(
+            self.ffinfo["Forces"]["CoulombForce"]["meta"]["coulomb14scale"])
         self._use_bcc = False
 
     def overwrite(self):
@@ -79,7 +80,8 @@ class CoulombGenerator:
                                                    topology_matrix=cov_mat if self._use_bcc else None)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
-                coulforce = CoulNoCutoffForce(topology_matrix=cov_mat if self._use_bcc else None)
+                coulforce = CoulNoCutoffForce(
+                    topology_matrix=cov_mat if self._use_bcc else None)
         else:
             coulforce = CoulombPMEForce(r_cut,
                                         kappa, (K1, K2, K3),
@@ -96,10 +98,10 @@ class CoulombGenerator:
 
             if self._use_bcc:
                 coulE = coulenergy(positions, box, pairs,
-                                charges, params["CoulombForce"]["bcc"], mscales_coul)
+                                   charges, params["CoulombForce"]["bcc"], mscales_coul)
             else:
                 coulE = coulenergy(positions, box, pairs,
-                                charges, mscales_coul)
+                                   charges, mscales_coul)
 
             return coulE
 
