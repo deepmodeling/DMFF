@@ -130,10 +130,9 @@ class LennardJonesLongRangeForce:
 class CoulNoCutoffForce:
     # E=\frac{{q}_{1}{q}_{2}}{4\pi\epsilon_0\epsilon_1 r}
 
-    def __init__(self, map_prm, epsilon_1=1.0, topology_matrix=None) -> None:
+    def __init__(self, epsilon_1=1.0, topology_matrix=None) -> None:
 
         self.eps_1 = epsilon_1
-        self.map_prm = map_prm
         self.top_mat = topology_matrix
 
     def generate_get_energy(self):
@@ -148,15 +147,11 @@ class CoulNoCutoffForce:
         def get_energy(positions, box, pairs, charges, mscales):
             pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
             mask = pair_buffer_scales(pairs[:, :2])
-            map_prm = jnp.array(self.map_prm)
+            cov_pair = pairs[:, 2]
+            mscale_pair = mscales[cov_pair-1]
 
-            colv_pair = pairs[:, 2]
-            mscale_pair = mscales[colv_pair-1]
-
-            chrg_map0 = map_prm[pairs[:, 0]]
-            chrg_map1 = map_prm[pairs[:, 1]]
-            charge0 = charges[chrg_map0]
-            charge1 = charges[chrg_map1]
+            charge0 = charges[pairs[:, 0]]
+            charge1 = charges[pairs[:, 1]]
             chrgprod = charge0 * charge1
             chrgprod_scale = chrgprod * mscale_pair
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
@@ -246,14 +241,12 @@ class CoulombPMEForce:
     def __init__(
         self,
         r_cut: float,
-        map_prm: Iterable[int],
         kappa: float,
         K: Tuple[int, int, int],
         pme_order: int = 6,
         topology_matrix: Optional[jnp.array] = None,
     ):
         self.r_cut = r_cut
-        self.map_prm = map_prm
         self.lmax = 0
         self.kappa = kappa
         self.K1, self.K2, self.K3 = K[0], K[1], K[2]
@@ -276,7 +269,7 @@ class CoulombPMEForce:
                 lmax=self.lmax,
             )
 
-            atomCharges = charges[self.map_prm[np.arange(positions.shape[0])]]
+            atomCharges = charges
             atomChargesT = jnp.reshape(atomCharges, (-1, 1))
 
             return energy_pme(

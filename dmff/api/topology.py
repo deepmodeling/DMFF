@@ -18,6 +18,7 @@ class DMFFTopology:
         self._molecules = []
         self._vsites = []
         self._bondedAtom = {}
+        self.cell = np.zeros((3, 3))
 
         if from_top is not None:
             self._load_omm_top(from_top)
@@ -243,7 +244,13 @@ class DMFFTopology:
             eq_atoms[atom.index] = list(set([i[atom.index] for i in isomorphisms]))
         return eq_atoms
 
-
+    def getPeriodicBoxVectors(self, use_jax=True):
+        if use_jax:
+            return jnp.array(self.cell)
+        return self.cell
+    
+    def setPeriodicBoxVectors(self, box):
+        self.cell[:,:] = box[:,:]
 
 
 class Chain(object):

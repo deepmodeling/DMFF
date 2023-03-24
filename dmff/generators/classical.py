@@ -14,17 +14,12 @@ class CoulombGenerator:
         self.name = "CoulombForce"
         self.ffinfo = ffinfo
         self.paramset = paramset
-        self.paramset.addField(self.name)
-        self.paramset.addParameter([
-            self.ffinfo["Forces"]["CoulombForce"]["attrib"]["coulomb14scale"]
-        ],
-            "coulomb14scale",
-            field=self.name)
+        self.coulomb14scale = float(self.ffinfo["Forces"]["CoulombForce"]["meta"]["coulomb14scale"])
+        self._use_bcc = False
 
     def overwrite(self):
         # paramset to ffinfo
-        self.ffinfo["Forces"]["CoulombForce"]["attrib"][
-            "coulomb14scale"] = self.paramset[self.name]["coulomb14scale"][0]
+        pass
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
                         nonbondedCutoff, args):
@@ -44,7 +39,7 @@ class CoulombGenerator:
         mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0,
                                   1.0])  # mscale for PME
         mscales_coul = mscales_coul.at[2].set(
-            self.paramset["coulomb14scale"][0])
+            self.coulomb14scale)
 
         # set PBC
         if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
@@ -56,6 +51,11 @@ class CoulombGenerator:
         charges = jnp.array(charges)
 
         cov_mat = topdata.buildCovMat()
+
+        if unit.is_quantity(nonbondedCutoff):
+            r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
+        else:
+            r_cut = nonbondedCutoff
 
         # PME Settings
         if nonbondedMethod is app.PME:
@@ -69,27 +69,21 @@ class CoulombGenerator:
                                                        self.fourier_spacing,
                                                        self.coeff_method)
 
-        if unit.is_quantity(nonbondedCutoff):
-            r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
-        else:
-            r_cut = nonbondedCutoff
-
         if nonbondedMethod is not app.PME:
             # do not use PME
             if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
                 # use Reaction Field
                 coulforce = CoulReactionFieldForce(r_cut,
-                                                   map_charge,
+                                                   charges,
                                                    isPBC=ifPBC,
-                                                   topology_matrix=cov_mat)
+                                                   topology_matrix=cov_mat if self._use_bcc else None)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
-                coulforce = CoulNoCutoffForce(charges, topology_matrix=cov_mat)
+                coulforce = CoulNoCutoffForce(topology_matrix=cov_mat if self._use_bcc else None)
         else:
             coulforce = CoulombPMEForce(r_cut,
-                                        charges,
                                         kappa, (K1, K2, K3),
-                                        topology_matrix=cov_mat)
+                                        topology_matrix=cov_mat if self._use_bcc else None)
 
         coulenergy = coulforce.generate_get_energy()
 
@@ -100,9 +94,14 @@ class CoulombGenerator:
             # it is jit-compatiable
             isinstance_jnp(positions, box, params)
 
-            coulE = coulenergy(positions, box, pairs,
-                               charges, mscales_coul)
+            if self._use_bcc:
+                coulE = coulenergy(positions, box, pairs,
+                                charges, params["CoulombForce"]["bcc"], mscales_coul)
+            else:
+                coulE = coulenergy(positions, box, pairs,
+                                charges, mscales_coul)
 
             return coulE
 
         self._jaxPotential = potential_fn
+        return potential_fn
