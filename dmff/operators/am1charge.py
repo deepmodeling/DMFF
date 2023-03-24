@@ -25,7 +25,7 @@ class AM1ChargeOperator(BaseOperator):
 
         for rdmol in topdata.molecules():
             Chem.SanitizeMol(rdmol)
-            AllChem.EmbedMolecule(rdmol, randomSeed=1)
+            AllChem.EmbedMolecule(rdmol, randomSeed=10)
             conf = rdmol.GetConformer()
             pos = conf.GetPositions()
             with open("tmp.in", "w") as f:

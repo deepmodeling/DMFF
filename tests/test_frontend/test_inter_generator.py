@@ -1,7 +1,12 @@
 import openmm.app as app
+import openmm.unit as unit
 from dmff.api.topology import DMFFTopology
-from dmff.operators import TemplateVSiteOperator, SMARTSVSiteOperator, TemplateATypeOperator, SMARTSATypeOperator, AM1ChargeOperator
+from dmff.api.paramset import ParamSet
+from dmff.operators import TemplateVSiteOperator, SMARTSVSiteOperator, TemplateATypeOperator, SMARTSATypeOperator, AM1ChargeOperator, GAFFTypeOperator
 from dmff.api.xmlio import XMLIO
+from dmff.generators.classical import CoulombGenerator
+import numpy as np
+import jax.numpy as jnp
 
 
 def build_test_mol():
@@ -34,7 +39,7 @@ def build_test_mol():
     ret.updateMolecules()
     return ret
 
-def build_test_C2H6():
+def build_test_C4H10():
     ret = DMFFTopology()
     top = DMFFTopology()
     chain = top.addChain()
@@ -75,28 +80,79 @@ def build_test_C2H6():
 
 
 def test_cov_mat():
-    top = build_test_C2H6()
+    top = build_test_C4H10()
     cov_mat = top.buildCovMat()
     print(cov_mat)
 
-def test_run_coul_generator():
-    mol = build_test_C2H6()
+def test_run_coul_generator_nocutoff():
+    pdb = app.PDBFile("tests/data/c4h10.pdb")
+    pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
+    pos = jnp.array(pos)
+    mol = build_test_C4H10()
+    mol.setPeriodicBoxVectors(np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]) * 3.0)
+    cov_mat = mol.buildCovMat()
+
     smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
     xmlio = XMLIO()
     xmlio.loadXML("tests/data/smarts_test1.xml")
+    xmlio.loadXML("tests/data/coul_integ.xml")
     ffinfo = xmlio.parseXML()
-    smartsATypeOP = SMARTSATypeOperator(ffinfo)
+    gaffTypeOP = GAFFTypeOperator()
     am1ChargeOP = AM1ChargeOperator()
-    mol_vsite = am1ChargeOP(smartsATypeOP(smartsVSOP(mol)))
+    mol_vsite = am1ChargeOP(gaffTypeOP(smartsVSOP(mol)))
     for atom in mol_vsite.atoms():
         print(atom.meta)
 
+    paramset = ParamSet()
+    generator = CoulombGenerator(ffinfo, paramset)
+    pot_func = generator.createPotential(mol, nonbondedMethod=app.NoCutoff, nonbondedCutoff=999.9, args={})
+    box = mol.getPeriodicBoxVectors(use_jax=True)
+    pairs = []
+    for ii in range(mol.getNumAtoms()):
+        for jj in range(ii+1, mol.getNumAtoms()):
+            pairs.append([ii, jj, 0])
+    pairs = jnp.array(pairs)
+    pairs.at[:,2].set(cov_mat[pairs[:,0], pairs[:,1]])
+    print(pot_func(pos, box, pairs, paramset))
+
+def test_run_coul_generator_pme():
+    pdb = app.PDBFile("tests/data/c4h10.pdb")
+    pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
+    pos = jnp.array(pos)
+    mol = build_test_C4H10()
+    mol.setPeriodicBoxVectors(np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]) * 3.0)
+    cov_mat = mol.buildCovMat()
+
+    smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
+    xmlio = XMLIO()
+    xmlio.loadXML("tests/data/smarts_test1.xml")
+    xmlio.loadXML("tests/data/coul_integ.xml")
+    ffinfo = xmlio.parseXML()
+    gaffTypeOP = GAFFTypeOperator()
+    am1ChargeOP = AM1ChargeOperator()
+    mol_vsite = am1ChargeOP(gaffTypeOP(smartsVSOP(mol)))
+    for atom in mol_vsite.atoms():
+        print(atom.meta)
+
+    paramset = ParamSet()
+    generator = CoulombGenerator(ffinfo, paramset)
+    pot_func = generator.createPotential(mol, nonbondedMethod=app.PME, nonbondedCutoff=1.0, args={})
+    box = mol.getPeriodicBoxVectors(use_jax=True)
+    pairs = []
+    for ii in range(mol.getNumAtoms()):
+        for jj in range(ii+1, mol.getNumAtoms()):
+            pairs.append([ii, jj, 0])
+    pairs = jnp.array(pairs)
+    pairs.at[:,2].set(cov_mat[pairs[:,0], pairs[:,1]])
+    print(pot_func(pos, box, pairs, paramset))
+
 def test_eqv_list():
-    mol = build_test_C2H6()
+    mol = build_test_C4H10()
     eq_info = mol.getEquivalentAtoms()
     print(eq_info)
 
 if __name__ == "__main__":
     test_cov_mat()
     test_eqv_list()
-    test_run_coul_generator()
+    test_run_coul_generator_nocutoff()
+    test_run_coul_generator_pme()

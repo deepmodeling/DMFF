@@ -1,6 +1,7 @@
 <ForceField>
     <AtomTypes>
         <Type name="n1" class="n1" element="N" smarts="[#7$(*[#6x2]),#7$(*[#6X2])]"/>
+        <Type name="ct" class="ct" element="C" smarts="[#6X4$(*(-[#6]))]"/>
         <Type name="c1" class="c1" element="C" smarts="[#6$(*[#7])]"/>
         <Type name="c2" class="c2" element="C" smarts="[#6$(*(~[#6])(~[#6]))]"/>
         <Type name="hn" class="hn" element="H" smarts="[#1$(*[#7]):1]"/>
