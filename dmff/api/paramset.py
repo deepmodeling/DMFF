@@ -3,16 +3,16 @@ import jax.numpy as jnp
 
 
 class ParamSet:
-    def __init__(self, data=None):
+    def __init__(self, data: dict=None):
         if data is None:
             self.parameters = {}
         else:
             self.parameters = data
 
-    def addField(self, field):
+    def addField(self, field: str):
         self.parameters[field] = {}
 
-    def addParameter(self, values, name, field=None):
+    def addParameter(self, values, name: str, field: str=None):
         if field is not None:
             self.parameters[field][name] = values
         else:
