@@ -44,5 +44,6 @@ class GAFFTypeOperator(BaseOperator):
                     borders.append([aidx[int(ii)-1], aidx[int(jj)-1], int(oo)])
                 for nat, at in enumerate(atypes):
                     atoms[aidx[nat]].meta["type"] = at
+                    atoms[aidx[nat]].meta["class"] = at
             os.system("rm _tmp.mol _tmp.mol2")
         return topdata

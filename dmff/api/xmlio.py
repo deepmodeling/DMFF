@@ -49,9 +49,13 @@ class XMLIO:
         ret = {
             "AtomTypes": [],
             "Residues": [],
-            "Forces": {}
+            "Forces": {},
+            "Type2Class": {}
         }
         ret["AtomTypes"] = self.parseAtomTypes()
+        for item in ret["AtomTypes"]:
+            if "name" in item and "class" in item:
+                ret["Type2Class"][item["name"]] = item["class"]
         ret["Residues"] = self.parseResidues()
         for force in self._data["Forces"].keys():
             ret["Forces"][force] = self.parseForce(self._data["Forces"][force])

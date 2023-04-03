@@ -4,7 +4,7 @@ from dmff.api.topology import DMFFTopology
 from dmff.api.paramset import ParamSet
 from dmff.operators import TemplateVSiteOperator, SMARTSVSiteOperator, TemplateATypeOperator, SMARTSATypeOperator, AM1ChargeOperator, GAFFTypeOperator
 from dmff.api.xmlio import XMLIO
-from dmff.generators.classical import CoulombGenerator
+from dmff.generators.classical import CoulombGenerator, LennardJonesGenerator
 import numpy as np
 import jax.numpy as jnp
 
@@ -84,7 +84,7 @@ def test_cov_mat():
     cov_mat = top.buildCovMat()
     print(cov_mat)
 
-def test_run_coul_generator_nocutoff():
+def test_run_coul_and_lj_nocutoff():
     pdb = app.PDBFile("tests/data/c4h10.pdb")
     pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
     pos = jnp.array(pos)
@@ -104,8 +104,6 @@ def test_run_coul_generator_nocutoff():
         print(atom.meta)
 
     paramset = ParamSet()
-    generator = CoulombGenerator(ffinfo, paramset)
-    pot_func = generator.createPotential(mol, nonbondedMethod=app.NoCutoff, nonbondedCutoff=999.9, args={})
     box = mol.getPeriodicBoxVectors(use_jax=True)
     pairs = []
     for ii in range(mol.getNumAtoms()):
@@ -113,9 +111,16 @@ def test_run_coul_generator_nocutoff():
             pairs.append([ii, jj, 0])
     pairs = jnp.array(pairs)
     pairs.at[:,2].set(cov_mat[pairs[:,0], pairs[:,1]])
+    
+    generator = CoulombGenerator(ffinfo, paramset)
+    pot_func = generator.createPotential(mol, nonbondedMethod=app.NoCutoff, nonbondedCutoff=999.9, args={})
     print(pot_func(pos, box, pairs, paramset))
 
-def test_run_coul_generator_pme():
+    generator_lj = LennardJonesGenerator(ffinfo, paramset)
+    pot_func_lj = generator_lj.createPotential(mol, nonbondedMethod=app.NoCutoff, nonbondedCutoff=999.9, args={})
+    print(pot_func_lj(pos, box, pairs, paramset))
+
+def test_run_coul_and_lj_pme():
     pdb = app.PDBFile("tests/data/c4h10.pdb")
     pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
     pos = jnp.array(pos)
@@ -151,8 +156,9 @@ def test_eqv_list():
     eq_info = mol.getEquivalentAtoms()
     print(eq_info)
 
+
 if __name__ == "__main__":
-    test_cov_mat()
-    test_eqv_list()
-    test_run_coul_generator_nocutoff()
-    test_run_coul_generator_pme()
+    # test_cov_mat()
+    # test_eqv_list()
+    # test_run_coul_and_lj_pme()
+    test_run_coul_and_lj_nocutoff()

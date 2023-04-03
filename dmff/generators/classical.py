@@ -125,23 +125,32 @@ class LennardJonesGenerator:
         for node in self.ffinfo["Forces"][self.name]["node"]:
             if node["name"] != "Atom":
                 continue
-            atype, eps, sig = node["attrib"]["type"], node["attrib"][
-                "epsilon"], node["attrib"]["sigma"]
-            if atype in self.atype_to_idx:
-                raise DMFFException(f"Repeat L-J parameters for {atype}")
-            self.atype_to_idx[atype] = len(sig_prms)
-            sig_prms.append(sig)
-            eps_prms.append(eps)
+            if "type" in node["attrib"]:
+                atype, eps, sig = node["attrib"]["type"], node["attrib"][
+                    "epsilon"], node["attrib"]["sigma"]
+                if atype in self.atype_to_idx:
+                    raise DMFFException(f"Repeat L-J parameters for {atype}")
+                self.atype_to_idx[atype] = len(sig_prms)
+            elif "class" in node["attrib"]:
+                acls, eps, sig = node["attrib"]["class"], node["attrib"][
+                    "epsilon"], node["attrib"]["sigma"]
+                atypes = [k for k in ffinfo["Type2Class"].keys() if ffinfo["Type2Class"][k] == acls]
+                for atype in atypes:
+                    if atype in self.atype_to_idx:
+                        raise DMFFException(f"Repeat L-J parameters for {atype}")
+                    self.atype_to_idx[atype] = len(sig_prms)
+            sig_prms.append(float(sig))
+            eps_prms.append(float(eps))
         sig_prms = jnp.array(sig_prms)
         eps_prms = jnp.array(eps_prms)
 
         sig_nbf, eps_nbf = [], []
 
         paramset.addField(self.name)
-        paramset.addParameter(sig_prms, "sigma")
-        paramset.addParameter(eps_prms, "epsilon")
-        paramset.addParameter(sig_nbf, "sigma_nbfix")
-        paramset.addParameter(eps_nbf, "epsilon_nbfix")
+        paramset.addParameter(sig_prms, "sigma", field=self.name)
+        paramset.addParameter(eps_prms, "epsilon", field=self.name)
+        paramset.addParameter(sig_nbf, "sigma_nbfix", field=self.name)
+        paramset.addParameter(eps_nbf, "epsilon_nbfix", field=self.name)
 
     def overwrite(self):
         # paramset to ffinfo
@@ -179,6 +188,7 @@ class LennardJonesGenerator:
 
         # not use nbfix for now
         map_nbfix = []
+        map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 3))
 
         if methodString in ["NoCutoff", "CutoffNonPeriodic"]:
             isPBC = False
@@ -221,4 +231,6 @@ class LennardJonesGenerator:
                            params["LennardJonesForce"]["sigma_nbfix"],
                            mscales_lj)
 
-            return coulE
+            return ljE
+        self._jaxPotential = potential_fn
+        return potential_fn
