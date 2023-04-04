@@ -59,6 +59,21 @@ def run_water_cutoff():
         top_atype, nonbondedMethod=app.CutoffPeriodic, nonbondedCutoff=cutoff, args={})
     print("E_LJ", pot_func_lj(pos, box, pairs, paramset))
 
+    elj = 0.0
+    mscales_lj = jnp.array([0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0])
+    from tqdm import tqdm
+    for ii, jj, norder in tqdm(pairs):
+        if ii == 750 or jj == 750:
+            continue
+        d = dist_pbc(pos[ii], pos[jj], box)
+        if atoms[ii].meta["element"] == "O" and atoms[jj].meta["element"] == "O":
+            eps, sig = 0.650299, 0.3185492
+        else:
+            eps, sig = 0.0, 1.0
+        one_sig = sig / d
+        de = mscales_lj[norder-1] * 4. * eps * (one_sig ** 12 - one_sig ** 6)
+        elj += de
+    print("E_LJ calc: ", elj)
 
 if __name__ == "__main__":
     run_water_cutoff()
