@@ -134,10 +134,14 @@ class LennardJonesGenerator:
             elif "class" in node["attrib"]:
                 acls, eps, sig = node["attrib"]["class"], node["attrib"][
                     "epsilon"], node["attrib"]["sigma"]
-                atypes = [k for k in ffinfo["Type2Class"].keys() if ffinfo["Type2Class"][k] == acls]
+                atypes = [
+                    k for k in ffinfo["Type2Class"].keys()
+                    if ffinfo["Type2Class"][k] == acls
+                ]
                 for atype in atypes:
                     if atype in self.atype_to_idx:
-                        raise DMFFException(f"Repeat L-J parameters for {atype}")
+                        raise DMFFException(
+                            f"Repeat L-J parameters for {atype}")
                     self.atype_to_idx[atype] = len(sig_prms)
             sig_prms.append(float(sig))
             eps_prms.append(float(eps))
@@ -157,8 +161,18 @@ class LennardJonesGenerator:
         for nnode in range(len(self.ffinfo["Forces"][self.name]["node"])):
             if node["name"] != "Atom":
                 continue
-            atype = node["attrib"]["type"]
-            idx = self.atype_to_idx[atype]
+            if "type" in node["attrib"]:
+                atype = node["attrib"]["type"]
+                idx = self.atype_to_idx[atype]
+
+            elif "class" in node["attrib"]:
+                acls = node["attrib"]["class"]
+                atypes = [
+                    k for k in self.ffinfo["Type2Class"].keys()
+                    if self.ffinfo["Type2Class"][k] == acls
+                ]
+                idx = self.atype_to_idx[atypes[0]]
+
             eps_now = self.paramset[self.name]["epsilon"][idx]
             sig_now = self.paramset[self.name]["sigma"][idx]
             self.ffinfo["Forces"][
@@ -232,5 +246,6 @@ class LennardJonesGenerator:
                            mscales_lj)
 
             return ljE
+
         self._jaxPotential = potential_fn
         return potential_fn

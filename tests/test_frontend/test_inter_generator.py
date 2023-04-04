@@ -101,7 +101,8 @@ def test_run_coul_and_lj_nocutoff():
     am1ChargeOP = AM1ChargeOperator()
     mol_vsite = am1ChargeOP(gaffTypeOP(smartsVSOP(mol)))
     for atom in mol_vsite.atoms():
-        print(atom.meta)
+        #print(atom.meta)
+        pass
 
     paramset = ParamSet()
     box = mol.getPeriodicBoxVectors(use_jax=True)
@@ -125,7 +126,7 @@ def test_run_coul_and_lj_pme():
     pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
     pos = jnp.array(pos)
     mol = build_test_C4H10()
-    mol.setPeriodicBoxVectors(np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]) * 3.0)
+    mol.setPeriodicBoxVectors(np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]) * 2.5)
     cov_mat = mol.buildCovMat()
 
     smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
@@ -137,7 +138,8 @@ def test_run_coul_and_lj_pme():
     am1ChargeOP = AM1ChargeOperator()
     mol_vsite = am1ChargeOP(gaffTypeOP(smartsVSOP(mol)))
     for atom in mol_vsite.atoms():
-        print(atom.meta)
+        #print(atom.meta)
+        pass
 
     paramset = ParamSet()
     generator = CoulombGenerator(ffinfo, paramset)
@@ -146,7 +148,8 @@ def test_run_coul_and_lj_pme():
     pairs = []
     for ii in range(mol.getNumAtoms()):
         for jj in range(ii+1, mol.getNumAtoms()):
-            pairs.append([ii, jj, 0])
+            if np.linalg.norm(pos[ii] - pos[jj]) < 1.0:
+                pairs.append([ii, jj, 0])
     pairs = jnp.array(pairs)
     pairs.at[:,2].set(cov_mat[pairs[:,0], pairs[:,1]])
     print(pot_func(pos, box, pairs, paramset))
@@ -160,5 +163,5 @@ def test_eqv_list():
 if __name__ == "__main__":
     # test_cov_mat()
     # test_eqv_list()
-    # test_run_coul_and_lj_pme()
+    test_run_coul_and_lj_pme()
     test_run_coul_and_lj_nocutoff()
