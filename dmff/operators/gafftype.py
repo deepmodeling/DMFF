@@ -46,4 +46,8 @@ class GAFFTypeOperator(BaseOperator):
                     atoms[aidx[nat]].meta["type"] = at
                     atoms[aidx[nat]].meta["class"] = at
             os.system("rm _tmp.mol _tmp.mol2")
+        for vsite in topdata.vsites():
+            vidx = vsite.vatom.index
+            atoms[vidx].meta["type"] = "vs"
+            atoms[vidx].meta["class"] = "vs"
         return topdata

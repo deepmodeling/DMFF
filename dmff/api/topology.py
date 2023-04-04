@@ -4,6 +4,7 @@ from copy import deepcopy
 from .vsite import VirtualSite
 import networkx as nx
 import openmm.app as app
+import openmm.unit as unit
 from rdkit import Chem
 import numpy as np
 import jax.numpy as jnp
@@ -31,8 +32,31 @@ class DMFFTopology:
         return '<%s; %d chains, %d residues, %d atoms, %d bonds>' % (
             type(self).__name__, nchains, nres, natom, nbond)
 
-    def _load_from_top(self, top):
-        pass
+    def _load_omm_top(self, top: app.Topology):
+        # add atom
+        for omm_chain in top.chains():
+            dmff_chain = self.addChain(id=omm_chain.id)
+            for omm_res in omm_chain.residues():
+                dmff_res = self.addResidue(
+                    omm_res.name, dmff_chain, id=omm_res.id)
+                for omm_atom in omm_res.atoms():
+                    dmff_atom = self.addAtom(
+                        omm_atom.name, omm_atom.element, dmff_res, omm_atom.id)
+        atoms = [a for a in self.atoms()]
+
+        # add bonds
+        for bond in top.bonds():
+            a1, a2, order = bond.atom1, bond.atom2, bond.order
+            self.addBond(atoms[a1.index], atoms[a2.index], order)
+
+        self.updateMolecules()
+        cell = top.getPeriodicBoxVectors().value_in_unit(unit.nanometer)
+        cellvec = np.array([
+            [cell[0][0], cell[0][1], cell[0][2]],
+            [cell[1][0], cell[1][1], cell[1][2]],
+            [cell[2][0], cell[2][1], cell[2][2]]
+        ])
+        self.setPeriodicBoxVectors(cellvec)
 
     def add(self, other, newchain=False):
         offset = self.getNumAtoms()
@@ -241,16 +265,17 @@ class DMFFTopology:
             elem = atom.meta["element"]
             if elem == "none":
                 eq_atoms[atom.index] = [atom.index]
-            eq_atoms[atom.index] = list(set([i[atom.index] for i in isomorphisms]))
+            eq_atoms[atom.index] = list(
+                set([i[atom.index] for i in isomorphisms]))
         return eq_atoms
 
     def getPeriodicBoxVectors(self, use_jax=True):
         if use_jax:
             return jnp.array(self.cell)
         return self.cell
-    
+
     def setPeriodicBoxVectors(self, box):
-        self.cell[:,:] = box[:,:]
+        self.cell[:, :] = box[:, :]
 
 
 class Chain(object):

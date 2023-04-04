@@ -198,5 +198,6 @@
         <Atom class="ss" sigma="0.35324134174264454" epsilon="1.1815616"/>
         <Atom class="sx" sigma="0.35324134174264454" epsilon="1.1815616"/>
         <Atom class="sy" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="vs" sigma="1.0" epsilon="0.0"/>
   </LennardJonesForce>
 </ForceField>

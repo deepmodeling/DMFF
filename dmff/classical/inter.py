@@ -175,7 +175,6 @@ class CoulReactionFieldForce:
     def __init__(
         self,
         r_cut,
-        map_prm,
         epsilon_1=1.0,
         epsilon_solv=78.5,
         isPBC=True,
@@ -187,7 +186,6 @@ class CoulReactionFieldForce:
         self.crf = (1.0 / r_cut) * 3.0 * epsilon_solv / (2.0 * epsilon_solv + 1)
         self.exp_solv = epsilon_solv
         self.eps_1 = epsilon_1
-        self.map_prm = map_prm
         self.ifPBC = isPBC
         self.top_mat = topology_matrix
 
@@ -198,6 +196,7 @@ class CoulReactionFieldForce:
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
 
             dr_inv = 1.0 / dr_norm
+
             E = (
                 chrgprod
                 * ONE_4PI_EPS0
@@ -214,10 +213,8 @@ class CoulReactionFieldForce:
             colv_pair = pairs[:, 2]
             mscale_pair = mscales[colv_pair-1]
 
-            chrg_map0 = self.map_prm[pairs[:, 0]]
-            chrg_map1 = self.map_prm[pairs[:, 1]]
-            charge0 = charges[chrg_map0]
-            charge1 = charges[chrg_map1]
+            charge0 = charges[pairs[:, 0]]
+            charge1 = charges[pairs[:, 1]]
             chrgprod = charge0 * charge1
             chrgprod_scale = chrgprod * mscale_pair
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]

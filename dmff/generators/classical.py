@@ -75,7 +75,6 @@ class CoulombGenerator:
                 # use Reaction Field
                 coulforce = CoulReactionFieldForce(
                     r_cut,
-                    charges,
                     isPBC=ifPBC,
                     topology_matrix=cov_mat if self._use_bcc else None)
             if nonbondedMethod is app.NoCutoff:
@@ -118,10 +117,7 @@ class LennardJonesGenerator:
         self.lj14scale = float(
             self.ffinfo["Forces"][self.name]["meta"]["lj14scale"])
         self.atype_to_idx = {}
-        self.atype_to_idx["_dummy_"] = 0
         sig_prms, eps_prms = [], []
-        sig_prms.append(1.0)
-        eps_prms.append(0.0)
         for node in self.ffinfo["Forces"][self.name]["node"]:
             if node["name"] != "Atom":
                 continue
@@ -148,7 +144,7 @@ class LennardJonesGenerator:
         sig_prms = jnp.array(sig_prms)
         eps_prms = jnp.array(eps_prms)
 
-        sig_nbf, eps_nbf = [], []
+        sig_nbf, eps_nbf = jnp.array([]), jnp.array([])
 
         paramset.addField(self.name)
         paramset.addParameter(sig_prms, "sigma", field=self.name)
@@ -159,6 +155,7 @@ class LennardJonesGenerator:
     def overwrite(self):
         # paramset to ffinfo
         for nnode in range(len(self.ffinfo["Forces"][self.name]["node"])):
+            node = self.ffinfo["Forces"][self.name]["node"][nnode]
             if node["name"] != "Atom":
                 continue
             if "type" in node["attrib"]:
@@ -195,7 +192,7 @@ class LennardJonesGenerator:
         atoms = [a for a in topdata.atoms()]
         atypes = [
             a.meta["type"] if
-            ("type" in a.meta and a.meta is not None) else "_dummy_"
+            ("type" in a.meta and a.meta is not None) else "vs"
             for a in atoms
         ]
         map_prm = [self.atype_to_idx[atype] for atype in atypes]
@@ -239,10 +236,10 @@ class LennardJonesGenerator:
             isinstance_jnp(positions, box, params)
 
             ljE = ljenergy(positions, box, pairs,
-                           params["LennardJonesForce"]["epsilon"],
-                           params["LennardJonesForce"]["sigma"],
-                           params["LennardJonesForce"]["epsilon_nbfix"],
-                           params["LennardJonesForce"]["sigma_nbfix"],
+                           params[self.name]["epsilon"],
+                           params[self.name]["sigma"],
+                           params[self.name]["epsilon_nbfix"],
+                           params[self.name]["sigma_nbfix"],
                            mscales_lj)
 
             return ljE

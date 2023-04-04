@@ -7,7 +7,8 @@ from dmff.api.xmlio import XMLIO
 from dmff.generators.classical import CoulombGenerator, LennardJonesGenerator
 import numpy as np
 import jax.numpy as jnp
-
+from dmff.settings import update_jax_precision
+update_jax_precision("double")
 
 def build_test_mol():
     ret = DMFFTopology()
@@ -91,6 +92,8 @@ def test_run_coul_and_lj_nocutoff():
     mol = build_test_C4H10()
     mol.setPeriodicBoxVectors(np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]) * 3.0)
     cov_mat = mol.buildCovMat()
+    print(cov_mat)
+    atoms = [a for a in mol.atoms()]
 
     smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
     xmlio = XMLIO()
@@ -111,15 +114,45 @@ def test_run_coul_and_lj_nocutoff():
         for jj in range(ii+1, mol.getNumAtoms()):
             pairs.append([ii, jj, 0])
     pairs = jnp.array(pairs)
-    pairs.at[:,2].set(cov_mat[pairs[:,0], pairs[:,1]])
+    pairs = pairs.at[:,2].set(cov_mat[pairs[:,0], pairs[:,1]])
     
     generator = CoulombGenerator(ffinfo, paramset)
     pot_func = generator.createPotential(mol, nonbondedMethod=app.NoCutoff, nonbondedCutoff=999.9, args={})
-    print(pot_func(pos, box, pairs, paramset))
+    print("E_coul", pot_func(pos, box, pairs, paramset))
 
     generator_lj = LennardJonesGenerator(ffinfo, paramset)
     pot_func_lj = generator_lj.createPotential(mol, nonbondedMethod=app.NoCutoff, nonbondedCutoff=999.9, args={})
-    print(pot_func_lj(pos, box, pairs, paramset))
+    print("E_LJ", pot_func_lj(pos, box, pairs, paramset))
+
+    # <Atom class="c3" sigma="0.3397709531243626" epsilon="0.4510352"/>
+    # <Atom class="hc" sigma="0.2600176998764394" epsilon="0.0870272"/>
+    mscales_lj = jnp.array([0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0])
+    elj = 0.0
+    def dist(ii, jj):
+        return np.linalg.norm(pos[ii] - pos[jj])
+    for ii, jj, norder in pairs:
+        d = dist(ii, jj)
+        if atoms[ii].meta["element"] == "C":
+            eps1, sig1 = 0.4510352, 0.3397710
+        elif atoms[ii].meta["element"] == "H":
+            eps1, sig1 = 0.0870272, 0.2601770
+        else:
+            raise BaseException(f"ELEM: {atoms[ii].meta['element']}")
+        
+        if atoms[jj].meta["element"] == "C":
+            eps2, sig2 = 0.4510352, 0.3397710
+        elif atoms[jj].meta["element"] == "H":
+            eps2, sig2 = 0.0870272, 0.2601770
+        else:
+            raise BaseException(f"ELEM: {atoms[ii].meta['element']}")
+        
+        sig = (sig1 + sig2) / 2
+        eps = np.sqrt(eps1 * eps2)
+        one_sig = sig / d
+        de = mscales_lj[norder-1] * 4. * eps * (one_sig ** 12 - one_sig ** 6)
+        # print(f"{ii} {jj} {sig:.4f}, {eps:.4f}, {d:.4f}, {mscales_lj[norder-1]:.2f}, {de:.4f}")
+        elj += de
+    print("E_LJ calc: ", elj)
 
 def test_run_coul_and_lj_pme():
     pdb = app.PDBFile("tests/data/c4h10.pdb")
@@ -151,8 +184,15 @@ def test_run_coul_and_lj_pme():
             if np.linalg.norm(pos[ii] - pos[jj]) < 1.0:
                 pairs.append([ii, jj, 0])
     pairs = jnp.array(pairs)
-    pairs.at[:,2].set(cov_mat[pairs[:,0], pairs[:,1]])
-    print(pot_func(pos, box, pairs, paramset))
+    pairs = pairs.at[:,2].set(cov_mat[pairs[:,0], pairs[:,1]])
+
+    generator = CoulombGenerator(ffinfo, paramset)
+    pot_func = generator.createPotential(mol, nonbondedMethod=app.PME, nonbondedCutoff=0.9, args={})
+    print("E_coul", pot_func(pos, box, pairs, paramset))
+
+    generator_lj = LennardJonesGenerator(ffinfo, paramset)
+    pot_func_lj = generator_lj.createPotential(mol, nonbondedMethod=app.PME, nonbondedCutoff=0.9, args={})
+    print("E_LJ", pot_func_lj(pos, box, pairs, paramset))
 
 def test_eqv_list():
     mol = build_test_C4H10()
@@ -163,5 +203,6 @@ def test_eqv_list():
 if __name__ == "__main__":
     # test_cov_mat()
     # test_eqv_list()
-    test_run_coul_and_lj_pme()
+    # 
     test_run_coul_and_lj_nocutoff()
+    test_run_coul_and_lj_pme()
