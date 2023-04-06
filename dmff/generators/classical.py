@@ -19,7 +19,7 @@ class CoulombGenerator:
             self.ffinfo["Forces"]["CoulombForce"]["meta"]["coulomb14scale"])
         self._use_bcc = False
         self._bcc_mol = []
-        self.bcc_parser = []
+        self.bcc_parsers = []
         bcc_prms = []
         for node in self.ffinfo["Forces"]["CoulombForce"]["node"]:
             if node["name"] == "UseBondChargeCorrection":
@@ -91,7 +91,20 @@ class CoulombGenerator:
                                                        self.coeff_method)
 
         if self._use_bcc:
-            pass
+            top_mat = np.zeros((topdata.getNumAtoms(), self.paramset[self.name]["bcc"].shape[0]))
+            matched_dict = {}
+            for nparser, parser in enumerate(self.bcc_parsers):
+                matches = topdata.parseSMARTS(parser, resname=self._bcc_mol)
+                for ii, jj in matches:
+                    if (ii, jj) in matched_dict:
+                        del matched_dict[(ii, jj)]
+                    elif (jj, ii) in matched_dict:
+                        del matched_dict[(jj, ii)]
+                    matched_dict[(ii, jj)] = nparser
+            for ii, jj in matched_dict.keys():
+                nval = matched_dict[(ii, jj)]
+                top_mat[ii, nval] += 1.
+                top_mat[jj, nval] -= 1.
 
         if nonbondedMethod is not app.PME:
             # do not use PME
@@ -100,16 +113,16 @@ class CoulombGenerator:
                 coulforce = CoulReactionFieldForce(
                     r_cut,
                     isPBC=ifPBC,
-                    topology_matrix=cov_mat if self._use_bcc else None)
+                    topology_matrix=top_mat if self._use_bcc else None)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
                 coulforce = CoulNoCutoffForce(
-                    topology_matrix=cov_mat if self._use_bcc else None)
+                    topology_matrix=top_mat if self._use_bcc else None)
         else:
             coulforce = CoulombPMEForce(
                 r_cut,
                 kappa, (K1, K2, K3),
-                topology_matrix=cov_mat if self._use_bcc else None)
+                topology_matrix=top_mat if self._use_bcc else None)
 
         coulenergy = coulforce.generate_get_energy()
 
