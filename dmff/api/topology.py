@@ -19,7 +19,7 @@ class DMFFTopology:
         self._molecules = []
         self._vsites = []
         self._bondedAtom = {}
-        self.cell = np.zeros((3, 3))
+        self.cell = None
 
         if from_top is not None:
             self._load_omm_top(from_top)
@@ -50,13 +50,16 @@ class DMFFTopology:
             self.addBond(atoms[a1.index], atoms[a2.index], order)
 
         self.updateMolecules()
-        cell = top.getPeriodicBoxVectors().value_in_unit(unit.nanometer)
-        cellvec = np.array([
-            [cell[0][0], cell[0][1], cell[0][2]],
-            [cell[1][0], cell[1][1], cell[1][2]],
-            [cell[2][0], cell[2][1], cell[2][2]]
-        ])
-        self.setPeriodicBoxVectors(cellvec)
+
+        cell_omm = top.getPeriodicBoxVectors()
+        if cell_omm is not None:
+            cell = cell_omm.value_in_unit(unit.nanometer)
+            cellvec = np.array([
+                [cell[0][0], cell[0][1], cell[0][2]],
+                [cell[1][0], cell[1][1], cell[1][2]],
+                [cell[2][0], cell[2][1], cell[2][2]]
+            ])
+            self.setPeriodicBoxVectors(cellvec)
 
     def add(self, other, newchain=False):
         offset = self.getNumAtoms()
@@ -289,6 +292,7 @@ class DMFFTopology:
         return self.cell
 
     def setPeriodicBoxVectors(self, box):
+        self.cell = np.zeros((3, 3))
         self.cell[:, :] = box[:, :]
 
 

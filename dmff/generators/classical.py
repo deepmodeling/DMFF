@@ -28,8 +28,8 @@ class CoulombGenerator:
             if node["name"] == "BondChargeCorrection":
                 bcc = node["attrib"]["bcc"]
                 parser = node["attrib"]["smarts"]
-                bcc_prms.append(bcc)
-                self.bcc_parser.append(parser)
+                bcc_prms.append(float(bcc))
+                self.bcc_parsers.append(parser)
         bcc_prms = jnp.array(bcc_prms)
         paramset.addParameter(bcc_prms, "bcc", field=self.name)
 
