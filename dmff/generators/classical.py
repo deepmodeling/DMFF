@@ -14,13 +14,34 @@ class CoulombGenerator:
         self.name = "CoulombForce"
         self.ffinfo = ffinfo
         self.paramset = paramset
+        self.paramset.addField(self.name)
         self.coulomb14scale = float(
             self.ffinfo["Forces"]["CoulombForce"]["meta"]["coulomb14scale"])
         self._use_bcc = False
+        self._bcc_mol = []
+        self.bcc_parser = []
+        bcc_prms = []
+        for node in self.ffinfo["Forces"]["CoulombForce"]["node"]:
+            if node["name"] == "UseBondChargeCorrection":
+                self._use_bcc = True
+                self._bcc_mol.append(node["attrib"]["name"])
+            if node["name"] == "BondChargeCorrection":
+                bcc = node["attrib"]["bcc"]
+                parser = node["attrib"]["smarts"]
+                bcc_prms.append(bcc)
+                self.bcc_parser.append(parser)
+        bcc_prms = jnp.array(bcc_prms)
+        paramset.addParameter(bcc_prms, "bcc", field=self.name)
 
     def overwrite(self):
         # paramset to ffinfo
-        pass
+        if self._use_bcc:
+            bcc_now = self.paramset[self.name]["bcc"]
+            nbcc = 0
+            for nnode, node in enumerate(self.ffinfo["Forces"][self.name]["node"]):
+                if node["name"] == "BondChargeCorrection":
+                    self.ffinfo["Forces"][self.name]["node"][nnode]["bcc"] = bcc_now[nbcc]
+                    nbcc += 1
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
                         nonbondedCutoff, args):
@@ -68,6 +89,9 @@ class CoulombGenerator:
                                                        box,
                                                        self.fourier_spacing,
                                                        self.coeff_method)
+
+        if self._use_bcc:
+            pass
 
         if nonbondedMethod is not app.PME:
             # do not use PME

@@ -119,16 +119,30 @@ class DMFFTopology:
         for mol in self._molecules:
             Chem.sanitize(mol)
 
-    def parseSMARTS(self, parser):
+    def parseSMARTS(self, parser, resname=[]):
+        atoms = [a for a in self.atoms()]
+        if resname:
+            aidx = [a.index for a in atoms if a.residue.name in resname]
+        else:
+            aidx = [a.index for a in atoms]
         parse = Chem.MolFromSmarts(parser)
         ret = []
         for mol in self._molecules:
             matches = mol.GetSubstructMatches(parse)
             for match in matches:
-                ret.append([
+                matched_idx = [
                     int(mol.GetAtomWithIdx(idx).GetProp("_Index"))
                     for idx in match
-                ])
+                ]
+                if resname:
+                    none_matched = True
+                    for idx in matched_idx:
+                        if idx in aidx:
+                            none_matched = False
+                            break
+                    if none_matched:
+                        continue
+                ret.append(matched_idx)
         return ret
 
     def getProperty(self, property_name):
