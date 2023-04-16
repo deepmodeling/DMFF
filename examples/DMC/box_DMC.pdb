@@ -3,7 +3,7 @@ TITLE     Built with Packmol
 REMARK   Packmol generated pdb file 
 REMARK   Home-Page: http://m3g.iqm.unicamp.br/packmol
 REMARK
-CRYST1    31.28    31.35    31.24  90.00  90.00  90.00 P 1           1
+CRYST1    31.35    31.35    31.35  90.00  90.00  90.00 P 1           1
 HETATM    1  CM1 DMC A   1      30.977  23.356  29.010  1.00  0.00           C  
 HETATM    2  CM2 DMC A   1      31.170  23.922  26.704  1.00  0.00           C  
 HETATM    3  CO  DMC A   1      30.853  23.001  27.695  1.00  0.00           C  
