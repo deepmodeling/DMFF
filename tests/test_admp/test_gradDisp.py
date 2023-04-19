@@ -46,7 +46,7 @@ class TestGradDispersion:
 
         # nn list initial allocation
         nbl = NeighborList(box, rc, H.getGenerators()[0].covalent_map)
-        nbl.allocate(pos0)
+        nbl.allocate(pos)
         pairs = nbl.pairs
 
         calc_disp = value_and_grad(pot_disp,argnums=(0,1))
