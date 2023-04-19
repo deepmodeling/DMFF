@@ -27,7 +27,7 @@ class TestGradDispersion:
     )
     def test_admp_slater(self, pdb, prm, values):
         pdb = app.PDBFile(pdb)
-        H = Hamiltonian(prm)
+        H = Hamiltonian(prm) 
         rc = 15
         pots = H.createPotential(
             pdb.topology, 
