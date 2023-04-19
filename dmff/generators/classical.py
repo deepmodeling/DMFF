@@ -616,8 +616,8 @@ class NonbondedJaxGenerator:
         vsite_distance = self.fftree.get_attribs("NonbondedForce/VirtualSite", "distance")
         self.useVsite = len(vsite_types) > 0
         if self.useVsite:
-            self.paramtree[self.name]['vsite_types'] = jnp.array(vsite_types, dtype=int)
-            self.paramtree[self.name]['vsite_distances'] = jnp.array(vsite_distance)
+            self.vsite_types = jnp.array(vsite_types, dtype=int)
+            self.vsite_distances = jnp.array(vsite_distance)
             
 
     def overwrite(self):
@@ -695,9 +695,9 @@ class NonbondedJaxGenerator:
             vsiteObj = VirtualSite(vsite_matches_dict)
             self._meta['map_vsite'] = [vsite_matches_dict[k] for k in vsite_matches_dict]
 
-            def addVsiteFunc(pos, params):
+            def addVsiteFunc(pos):
                 func = vsiteObj.getAddVirtualSiteFunc()
-                newpos = func(pos, params[self.name]['vsite_types'], params[self.name]['vsite_distances'])
+                newpos = func(pos, self.vsite_types, self.vsite_distances)
                 return newpos
             
             self._addVsiteFunc = addVsiteFunc
