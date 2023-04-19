@@ -52,4 +52,4 @@ class TestGradDispersion:
         calc_disp = value_and_grad(pot_disp,argnums=(0,1))
         E, (F, V) = calc_disp(pos, box, pairs, params)
 
-        npt.assert_almost_equal(V, values)
+        npt.assert_almost_equal(V.all(), values.all())
