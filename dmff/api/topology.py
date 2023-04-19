@@ -259,7 +259,24 @@ class DMFFTopology:
         return covalent_map
 
     def buildVSiteUpdateFunction(self):
-        pass
+        vsites_type_2 = [v for v in self.vsites() if v.vtype == "2"]
+        self_idx_type_2 = jnp.array([v.vatom.index for v in vsites_type_2], dtype=int)
+        a1_idx_type_2 = jnp.array([v.atoms[0].index for v in vsites_type_2], dtype=int)
+        a2_idx_type_2 = jnp.array([v.atoms[1].index for v in vsites_type_2], dtype=int)
+        w1_idx_type_2 = jnp.array([v.weights[0].index for v in vsites_type_2])
+        w2_idx_type_2 = 1. - w1_idx_type_2
+
+        vsites_type_3 = [v for v in self.vsites() if v.vtype == "3"]
+
+        def update_pos(pos):
+            # vtype: 2
+            new_pos = pos[a1_idx_type_2,:] * w1_idx_type_2 + pos[a2_idx_type_2,:] * w2_idx_type_2
+            pos = pos.at[self_idx_type_2,:].set(new_pos)
+            # vtype: 3
+
+            return pos
+        
+        return update_pos
 
     def getEquivalentAtoms(self):
         graph = nx.Graph()

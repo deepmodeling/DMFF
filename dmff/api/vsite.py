@@ -5,7 +5,10 @@ from typing import List, Union, Tuple
 class VirtualSite:
 
     def __init__(self, vtype, atoms, weights, vatom=None, meta={}):
-        self.type = vtype
+        # https://manual.gromacs.org/documentation/2019-rc1/reference-manual/functions/interaction-methods.html#virtualsites
+        # vtype: 2, 3, 3fd, 3fad, 3out, 4fdn
+        # only support 2 and 3 for now
+        self.type = vtype 
         self.atoms = atoms
         self.weights = weights
         self.vatom = vatom
