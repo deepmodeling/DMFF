@@ -295,7 +295,7 @@ class Hamiltonian(app.forcefield.ForceField):
         
         """
         func = self.getAddVirtualSiteFunc()
-        newpos = func(pos, params)
+        newpos = func(pos)
         return newpos
     
     def addVirtualSiteToMol(self, rdmol, params):
