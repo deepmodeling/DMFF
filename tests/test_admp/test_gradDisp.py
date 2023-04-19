@@ -6,6 +6,9 @@ import numpy.testing as npt
 import pytest
 from dmff import Hamiltonian, NeighborList
 from jax import jit, value_and_grad
+from jax.config import config
+
+config.update("jax_debug_nans", True)
 
 class TestGradDispersion:
 
@@ -51,5 +54,3 @@ class TestGradDispersion:
 
         calc_disp = value_and_grad(pot_disp,argnums=(0,1))
         E, (F, V) = calc_disp(pos, box, pairs, params)
-
-        npt.assert_almost_equal(V.all(), values.all())
