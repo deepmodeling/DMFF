@@ -13,15 +13,17 @@ class SMARTSATypeOperator(BaseOperator):
         self.name = "smarts"
         self.parsers = []
         self.atypes = []
-        for atom in ffinfo["Operators"]["SMARTSTypeOperator"]:
+        for atom in ffinfo["AtomTypes"]:
             if "smarts" in atom:
                 key = "smarts"
             elif "smirks" in atom:
                 key = "smirks"
-            parser = atom["attrib"][key]
-            nm = atom["attrib"]["name"]
-            cls = atom["attrib"]["class"] if "class" in atom["attrib"] else nm
-            atype = (nm, cls, atom["attrib"]["element"])
+            else:
+                continue
+            parser = atom[key]
+            nm = atom["name"]
+            cls = atom["class"] if "class" in atom else nm
+            atype = (nm, cls, atom["element"])
             self.parsers.append(parser)
             self.atypes.append(atype)
 

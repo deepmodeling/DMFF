@@ -11,7 +11,7 @@ import jax.numpy as jnp
 
 
 class DMFFTopology:
-    def __init__(self, from_top=None):
+    def __init__(self, from_top=None, from_mol=None, residue_name="MOL"):
         self._chains = []
         self._numResidues = 0
         self._numAtoms = 0
@@ -24,6 +24,9 @@ class DMFFTopology:
         if from_top is not None:
             self._load_omm_top(from_top)
 
+        elif from_mol is not None:
+            self._load_mol(from_mol, residue_name)
+
     def __repr__(self):
         nchains = len(self._chains)
         nres = self._numResidues
@@ -31,6 +34,29 @@ class DMFFTopology:
         nbond = len(self._bonds)
         return '<%s; %d chains, %d residues, %d atoms, %d bonds>' % (
             type(self).__name__, nchains, nres, natom, nbond)
+
+    def _load_mol(self, filename, residue_name):
+        mol = Chem.MolFromMolFile(filename, removeHs=False)
+        atoms = [a for a in mol.GetAtoms()]
+        bonds = [b for b in mol.GetBonds()]
+        chain = self.addChain()
+        res = self.addResidue(residue_name, chain)
+        no_symbol = {}
+        top_atoms = []
+        for atom in atoms:
+            symbol = atom.GetSymbol()
+            if symbol not in no_symbol:
+                no_symbol[symbol] = 0
+            no_symbol[symbol] += 1
+            top_atom = self.addAtom(
+                f"{symbol}{no_symbol[symbol]}", symbol, res)
+            top_atoms.append(top_atom)
+        for bond in bonds:
+            idx1 = bond.GetBeginAtomIdx()
+            idx2 = bond.GetEndAtomIdx()
+            order = bond.GetBondType()
+            self.addBond(top_atoms[idx1], top_atoms[idx2], order)
+        self.updateMolecules()
 
     def _load_omm_top(self, top: app.Topology):
         # add atom
@@ -193,7 +219,7 @@ class DMFFTopology:
         elif isinstance(element, str):
             element = element
         elif element is None:
-            element = "none"
+            element = "EP"
         if len(residue._atoms
                ) > 0 and self._numAtoms != residue._atoms[-1].index + 1:
             raise ValueError('All atoms within a residue must be contiguous')
@@ -260,7 +286,7 @@ class DMFFTopology:
 
     def buildVSiteUpdateFunction(self):
         # vtype: 2
-        vsites_type_2 = [v for v in self.vsites() if v.vtype == "2"]
+        vsites_type_2 = [v for v in self.vsites() if v.type == "2"]
         self_idx_type_2 = jnp.array(
             [v.vatom.index for v in vsites_type_2], dtype=int)
         a1_idx_type_2 = jnp.array(
@@ -271,7 +297,7 @@ class DMFFTopology:
         w1_idx_type_2 = jnp.ones(w2_idx_type_2.shape) - w2_idx_type_2
 
         # vtype: 3
-        vsites_type_3 = [v for v in self.vsites() if v.vtype == "3"]
+        vsites_type_3 = [v for v in self.vsites() if v.type == "3"]
         self_idx_type_3 = jnp.array(
             [v.vatom.index for v in vsites_type_3], dtype=int)
         a1_idx_type_3 = jnp.array(
@@ -286,7 +312,7 @@ class DMFFTopology:
             w2_idx_type_3 - w3_idx_type_3
 
         # vtype: 2fd
-        vsites_type_2fd = [v for v in self.vsites() if v.vtype == "2fd"]
+        vsites_type_2fd = [v for v in self.vsites() if v.type == "2fd"]
         self_idx_type_2fd = jnp.array(
             [v.vatom.index for v in vsites_type_2fd], dtype=int)
         a1_idx_type_2fd = jnp.array(
@@ -296,7 +322,7 @@ class DMFFTopology:
         dist_idx_type_2fd = jnp.array([v.weights[0] for v in vsites_type_2fd])
 
         # vtype: 3fd
-        vsites_type_3fd = [v for v in self.vsites() if v.vtype == "3fd"]
+        vsites_type_3fd = [v for v in self.vsites() if v.type == "3fd"]
         self_idx_type_3fd = jnp.array(
             [v.vatom.index for v in vsites_type_3fd], dtype=int)
         a1_idx_type_3fd = jnp.array(
@@ -342,7 +368,7 @@ class DMFFTopology:
         graph = nx.Graph()
         for atom in self.atoms():
             elem = atom.meta["element"]
-            if elem == "none":
+            if elem == "EP":
                 continue
             graph.add_node(atom.index, elem=elem)
         for bond in self.bonds():
@@ -357,7 +383,7 @@ class DMFFTopology:
         eq_atoms = {}
         for atom in self.atoms():
             elem = atom.meta["element"]
-            if elem == "none":
+            if elem == "EP":
                 eq_atoms[atom.index] = [atom.index]
             eq_atoms[atom.index] = list(
                 set([i[atom.index] for i in isomorphisms]))
@@ -488,6 +514,8 @@ def top2graph(top) -> nx.Graph:
         g.add_node(a.index, index=a.index)
     for nb, b in enumerate(top.bonds()):
         g.add_edge(b.atom1.index, b.atom2.index)
+    for nvs, vs in enumerate(top.vsites()):
+        g.add_edge(vs.vatom.index, vs.atoms[0].index)
     return g
 
 
@@ -518,11 +546,12 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
     for atm in top.atoms():
         if atm.element is None:
             continue
-        if atm.element in ["none", "EP", "None", "NONE"]:
+        elif atm.element in ["none", "EP", "None", "NONE"]:
+            ratm = Chem.Atom(0)
+        elif not atm.index in indices:
             continue
-        if not atm.index in indices:
-            continue
-        ratm = Chem.Atom(atm.element)
+        else:
+            ratm = Chem.Atom(atm.element)
         ratm.SetProp("_Index", f"{atm.index}")
         ratm.SetProp("_Name", atm.name)
         emol.AddAtom(ratm)
@@ -537,6 +566,12 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
             order = bnd.order
         emol.AddBond(idx2ridx[bnd.atom1.index], idx2ridx[bnd.atom2.index],
                      Chem.BondType(order))
+    for vsite in top.vsites():
+        vidx = vsite.vatom.index
+        parent = vsite.atoms[0].index
+        if vidx not in indices or parent not in indices:
+            continue
+        emol.AddBond(idx2ridx[vidx], idx2ridx[parent], Chem.BondType.ZERO)
     rdmol = emol.GetMol()
     # rdmol.UpdatePropertyCache()
     # AllChem.EmbedMolecule(rdmol, randomSeed=1)

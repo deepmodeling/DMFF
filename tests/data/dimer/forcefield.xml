@@ -1,64 +1,767 @@
 <ForceField>
     <Operators>
         <SMARTSVSiteOperator>
-            <VirtualSite smirks="[#17,#35:1]-[#6X3;a:2]" vtype="2" weight1="0.1600" type="EP" class="EP"/>
+            <VirtualSite smirks="[#17,#35:1]-[#6X3;a:2]" vtype="2fd" weight1="0.1600" type="EP" class="EP"/>
+            <VirtualSite smirks="[#53:1]-[#6X3;a:2]" vtype="2fd" weight1="0.1800" type="EP" class="EP"/>
+            <VirtualSite smirks="[#7X2;a:1](:[*;a:2]):[*;a:3]" vtype="3fd" weight1="0.0400" type="EP" class="EP"/>
         </SMARTSVSiteOperator>
         <AM1ChargeOperator>
             <SQM path="sqm"/>
         </AM1ChargeOperator>
-        <SMARTSTypeOperator>
-            <Type smirks="[$([#1]-[#6X4]):1]" name="gaff2-hc" class="gaff2-hc" element="H"/>
-            <Type smirks="[$([#1]-[#6X4]-[!#1;!#6]):1]" name="gaff2-h1" class="gaff2-h1" element="H"/>
-            <Type smirks="[$([#1]-[#6X4](-[!#1;!#6])-[!#1;!#6]):1]" name="gaff2-h2" class="gaff2-h2" element="H"/>
-            <Type smirks="[$([#1]-[#6X4](-[!#1;!#6])(-[!#1;!#6])-[!#1;!#6]):1]" name="gaff2-h3" class="gaff2-h3" element="H"/>
-            <Type smirks="[$([#1]-[#6X3,#6X2]):1]" name="gaff2-ha" class="gaff2-ha" element="H"/>
-            <Type smirks="[$([#1]-[#6X3]~[!#1;!#6]):1]" name="gaff2-h4" class="gaff2-h4" element="H"/>
-            <Type smirks="[$([#1]-[#6X3](~[!#1;!#6])~[!#1;!#6]):1]" name="gaff2-h5" class="gaff2-h5" element="H"/>
-            <Type smirks="[$([#1]-[#6X4]~[*+]):1]" name="gaff2-hx" class="gaff2-hx" element="H"/>
-            <Type smirks="[$([#1]-[#7]):1]" name="gaff2-hn" class="gaff2-hn" element="H"/>
-            <Type smirks="[$([#1]-[#8]):1]" name="gaff2-ho" class="gaff2-ho" element="H"/>
-            <Type smirks="[$([#1]-[#8]-[#1]):1]" name="tip3p-hw" class="tip3p-hw" element="H"/>
-            <Type smirks="[$([#1]-[#15]):1]" name="gaff2-hp" element="H"/>
-            <Type smirks="[$([#1]-[#16]):1]" name="gaff2-hs" element="H"/>
-            <Type smirks="[#6X2:1]" name="gaff2-c1,cg,ch" element="C"/>
-            <Type smirks="[#6X3:1]" name="gaff2-c,cs,c2,ca,cp,cq,cc,cd,ce,cf,cu,cv,cz" element="C"/>
-            <Type smirks="[#6X4:1]" name="gaff2-c3,cx,cy" element="C"/>
-            <Type smirks="[#7X1:1]" name="gaff2-n1" element="N"/>
-            <Type smirks="[#7X2,$([#7X3]~[#0]):1]" name="gaff2-n2,nb,nc,nd,ne,nf" element="N"/>
-            <Type smirks="[$([#7X2](=[*])=[*]):1]" name="gaff2-n1" element="N"/>
-            <Type smirks="[$([#7X3](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-n3,no" element="N"/>
-            <Type smirks="[$([#7X3H1](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-n7" element="N"/>
-            <Type smirks="[$([#7X3H2](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-n8" element="N"/>
-            <Type smirks="[$([#7X3]-[#6X3]):1]" name="gaff2-nh" element="N"/>
-            <Type smirks="[$([#7X3H1]-[#6X3]):1]" name="gaff2-nu" element="N"/>
-            <Type smirks="[$([#7X3H2]-[#6X3]):1]" name="gaff2-nv" element="N"/>
-            <Type smirks="[$([#7X3+1]=[#6X3]):1]" name="gaff2-nh" element="N"/>
-            <Type smirks="[$([#7X3H1+1]=[#6X3]):1]" name="gaff2-nu" element="N"/>
-            <Type smirks="[$([#7X3H2+1]=[#6X3]):1]" name="gaff2-nv" element="N"/>
-            <Type smirks="[$([#7X3;a](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-na" element="N"/>
-            <Type smirks="[#7X4:1]" name="gaff2-n4" element="N"/>
-            <Type smirks="[#7X4H1:1]" name="gaff2-nx" element="N"/>
-            <Type smirks="[#7X4H2:1]" name="gaff2-ny" element="N"/>
-            <Type smirks="[#7X4H3:1]" name="gaff2-nz" element="N"/>
-            <Type smirks="[$([#7X3]-[#6X3]=[#8,#16]):1]" name="gaff2-n" element="N"/>
-            <Type smirks="[$([#7X3H1]-[#6X3]=[#8,#16]):1]" name="gaff2-ns" element="N"/>
-            <Type smirks="[$([#7X3H2]-[#6X3]=[#8,#16]):1]" name="gaff2-nt" element="N"/>
-            <Type smirks="[#7H4+1:1]" name="gaff2-n+" element="N"/>
-            <Type smirks="[#7H3+0:1]" name="gaff2-n9" element="N"/>
-            <Type smirks="[#8:1]" name="gaff2-os" element="O"/>
-            <Type smirks="[#8X1:1]" name="gaff2-o" element="O"/>
-            <Type smirks="[#8H1:1]" name="gaff2-oh" element="O"/>
-            <Type smirks="[#8H2:1]" name="tip3p-ow" element="O"/>
-            <Type smirks="[#9:1]" name="gaff2-f" element="F"/>
-            <Type smirks="[#15:1]" name="gaff2-p*" element="P"/>
-            <Type smirks="[#16:1]" name="gaff2-s*" element="S"/>
-            <Type smirks="[#17:1]" name="gaff2-cl" element="Cl"/>
-            <Type smirks="[#35:1]" name="gaff2-br" element="Br"/>
-            <Type smirks="[#53:1]" name="gaff2-i" element="I"/>
-            <Type smirks="[#0:1]" name="EP" element="EP"/>
-        </SMARTSTypeOperator>
         <GAFFTypeOperator>
             <Antechamber path="antechamber"/>
         </GAFFTypeOperator>
     </Operators>
+    <AtomTypes>
+        <Type smirks="[$([#1]-[#6X4]):1]" name="gaff2-hc" class="gaff2-hc" element="H"/>
+        <Type smirks="[$([#1]-[#6X4]-[!#1;!#6]):1]" name="gaff2-h1" class="gaff2-h1" element="H"/>
+        <Type smirks="[$([#1]-[#6X4](-[!#1;!#6])-[!#1;!#6]):1]" name="gaff2-h2" class="gaff2-h2" element="H"/>
+        <Type smirks="[$([#1]-[#6X4](-[!#1;!#6])(-[!#1;!#6])-[!#1;!#6]):1]" name="gaff2-h3" class="gaff2-h3" element="H"/>
+        <Type smirks="[$([#1]-[#6X3,#6X2]):1]" name="gaff2-ha" class="gaff2-ha" element="H"/>
+        <Type smirks="[$([#1]-[#6X3]~[!#1;!#6]):1]" name="gaff2-h4" class="gaff2-h4" element="H"/>
+        <Type smirks="[$([#1]-[#6X3](~[!#1;!#6])~[!#1;!#6]):1]" name="gaff2-h5" class="gaff2-h5" element="H"/>
+        <Type smirks="[$([#1]-[#6X4]~[*+]):1]" name="gaff2-hx" class="gaff2-hx" element="H"/>
+        <Type smirks="[$([#1]-[#7]):1]" name="gaff2-hn" class="gaff2-hn" element="H"/>
+        <Type smirks="[$([#1]-[#8]):1]" name="gaff2-ho" class="gaff2-ho" element="H"/>
+        <Type smirks="[$([#1]-[#8]-[#1]):1]" name="tip3p-hw" class="tip3p-hw" element="H"/>
+        <Type smirks="[$([#1]-[#15]):1]" name="gaff2-hp" class="gaff2-hp" element="H"/>
+        <Type smirks="[$([#1]-[#16]):1]" name="gaff2-hs" class="gaff2-hs" element="H"/>
+        <Type smirks="[#6X2:1]" name="gaff2-c1,cg,ch" class="gaff2-c1,cg,ch" element="C"/>
+        <Type smirks="[#6X3:1]" name="gaff2-c,cs,c2,ca,cp,cq,cc,cd,ce,cf,cu,cv,cz" class="gaff2-c,cs,c2,ca,cp,cq,cc,cd,ce,cf,cu,cv,cz" element="C"/>
+        <Type smirks="[#6X4:1]" name="gaff2-c3,cx,cy" class="gaff2-c3,cx,cy" element="C"/>
+        <Type smirks="[#7X1:1]" name="gaff2-n1" class="gaff2-n1" element="N"/>
+        <Type smirks="[#7X2,$([#7X3]~[#0]):1]" name="gaff2-n2,nb,nc,nd,ne,nf" class="gaff2-n2,nb,nc,nd,ne,nf" element="N"/>
+        <Type smirks="[$([#7X2](=[*])=[*]):1]" name="gaff2-n1" class="gaff2-n1" element="N"/>
+        <Type smirks="[$([#7X3](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-n3,no" class="gaff2-n3,no" element="N"/>
+        <Type smirks="[$([#7X3H1](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-n7" class="gaff2-n7" element="N"/>
+        <Type smirks="[$([#7X3H2](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-n8" class="gaff2-n8" element="N"/>
+        <Type smirks="[$([#7X3]-[#6X3]):1]" name="gaff2-nh" class="gaff2-nh" element="N"/>
+        <Type smirks="[$([#7X3H1]-[#6X3]):1]" name="gaff2-nu" class="gaff2-nu" element="N"/>
+        <Type smirks="[$([#7X3H2]-[#6X3]):1]" name="gaff2-nv" class="gaff2-nv" element="N"/>
+        <Type smirks="[$([#7X3+1]=[#6X3]):1]" name="gaff2-nh" class="gaff2-nh" element="N"/>
+        <Type smirks="[$([#7X3H1+1]=[#6X3]):1]" name="gaff2-nu" class="gaff2-nu" element="N"/>
+        <Type smirks="[$([#7X3H2+1]=[#6X3]):1]" name="gaff2-nv" class="gaff2-nv" element="N"/>
+        <Type smirks="[$([#7X3;a](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-na" class="gaff2-na" element="N"/>
+        <Type smirks="[#7X4:1]" name="gaff2-n4" class="gaff2-n4" element="N"/>
+        <Type smirks="[#7X4H1:1]" name="gaff2-nx" class="gaff2-nx" element="N"/>
+        <Type smirks="[#7X4H2:1]" name="gaff2-ny" class="gaff2-ny" element="N"/>
+        <Type smirks="[#7X4H3:1]" name="gaff2-nz" class="gaff2-nz" element="N"/>
+        <Type smirks="[$([#7X3]-[#6X3]=[#8,#16]):1]" name="gaff2-n" class="gaff2-n" element="N"/>
+        <Type smirks="[$([#7X3H1]-[#6X3]=[#8,#16]):1]" name="gaff2-ns" class="gaff2-ns" element="N"/>
+        <Type smirks="[$([#7X3H2]-[#6X3]=[#8,#16]):1]" name="gaff2-nt" class="gaff2-nt" element="N"/>
+        <Type smirks="[#7H4+1:1]" name="gaff2-n+" class="gaff2-n+" element="N"/>
+        <Type smirks="[#7H3+0:1]" name="gaff2-n9" class="gaff2-n9" element="N"/>
+        <Type smirks="[#8:1]" name="gaff2-os" class="gaff2-os" element="O"/>
+        <Type smirks="[#8X1:1]" name="gaff2-o" class="gaff2-o" element="O"/>
+        <Type smirks="[#8H1:1]" name="gaff2-oh" class="gaff2-oh" element="O"/>
+        <Type smirks="[#8H2:1]" name="tip3p-ow" class="tip3p-ow" element="O"/>
+        <Type smirks="[#9:1]" name="gaff2-f" class="gaff2-f" element="F"/>
+        <Type smirks="[#15:1]" name="gaff2-p*" class="gaff2-p*" element="P"/>
+        <Type smirks="[#16:1]" name="gaff2-s*" class="gaff2-s*" element="S"/>
+        <Type smirks="[#17:1]" name="gaff2-cl" class="gaff2-cl" element="Cl"/>
+        <Type smirks="[#35:1]" name="gaff2-br" class="gaff2-br" element="Br"/>
+        <Type smirks="[#53:1]" name="gaff2-i" class="gaff2-i" element="I"/>
+        <Type smirks="[#0:1]" name="EP" class="EP" element="EP"/>
+    </AtomTypes>
+    <CoulombForce coulomb14scale="0.83333333">
+		<BondChargeCorrection bcc="0.0000" smirks="[#6X4:1]-[#6X4:2]"/>
+		<BondChargeCorrection bcc="0.0278" smirks="[#6X4:1]-[#6X3:2]"/>
+		<BondChargeCorrection bcc="-0.0724" smirks="[#6X4:1]-[$([#6X3]=[#7]):2]"/>
+		<BondChargeCorrection bcc="-0.1000" smirks="[#6X4:1]-[$([#6X3]=[#8]):2]"/>
+		<BondChargeCorrection bcc="-0.0009" smirks="[#6X4:1]-[$([#6X3]=[#15]):2]"/>
+		<BondChargeCorrection bcc="0.0058" smirks="[#6X4:1]-[$([#6X3]=[#16]):2]"/>
+		<BondChargeCorrection bcc="0.0222" smirks="[#6X4:1]-[#6X2:2]"/>
+		<BondChargeCorrection bcc="-0.0370" smirks="[#6X4:1]-[$([#6X2]#[#7]):2]"/>
+		<BondChargeCorrection bcc="0.0155" smirks="[#6X4:1]-[#6X3;a;r5:2]"/>
+		<BondChargeCorrection bcc="0.0288" smirks="[#6X4:1]-[#6X3;a;r6:2]"/>
+		<BondChargeCorrection bcc="-0.0193" smirks="[#6X4:1]-[$([#6X3;a;r6]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0122" smirks="[#6X4:1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0347" smirks="[#6X4:1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.0372" smirks="[#6X4:1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0272" smirks="[#6X4:1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0283" smirks="[#6X4:1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.1036" smirks="[#6X4:1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.0930" smirks="[#6X4:1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0519" smirks="[#6X4:1]-[$([#7X3]-[#6X3]):2]"/>
+		<BondChargeCorrection bcc="0.0316" smirks="[#6X4:1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0008" smirks="[#6X4:1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="0.0335" smirks="[#6X4:1]-[#7X3+1;a:2]"/>
+		<BondChargeCorrection bcc="-0.0841" smirks="[#6X4:1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1525" smirks="[#6X4:1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.0752" smirks="[#6X4:1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.1246" smirks="[#6X4:1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.1260" smirks="[#6X4:1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.1215" smirks="[#6X4:1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0806" smirks="[#6X4:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.0957" smirks="[#6X4:1]-[$([#8]-[!#6,$([#6X3]=[!#6])]):2]"/>
+		<BondChargeCorrection bcc="0.1905" smirks="[#6X4:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.4665" smirks="[#6X4:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.1862" smirks="[#6X4:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4278" smirks="[#6X4:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.5128" smirks="[#6X4:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0386" smirks="[#6X4:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1091" smirks="[#6X4:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.1788" smirks="[#6X4:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.2625" smirks="[#6X4:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.0486" smirks="[#6X4:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#6X3:1]-[#6X3:2]"/>
+		<BondChargeCorrection bcc="-0.0760" smirks="[$([#6X3]=[#6]):1]-[$([#6X3]=[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0791" smirks="[$([#6X3]=[#6]):1]-[$([#6X3]=[#8]):2]"/>
+		<BondChargeCorrection bcc="-0.0721" smirks="[$([#6X3]=[#6]):1]-[$([#6X3]=[#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0156" smirks="[$([#6X3]=[#6]):1]-[$([#6X3]=[#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0164" smirks="[$([#6X3]=[#7,#15]):1]-[$([#6X3]=[#8,#16]):2]"/>
+		<BondChargeCorrection bcc="0.0945" smirks="[#6X3:1]-[#6X2:2]"/>
+		<BondChargeCorrection bcc="-0.0464" smirks="[#6X3:1]-[$([#6X2]#[#7]):2]"/>
+		<BondChargeCorrection bcc="0.0067" smirks="[#6X3:1]-[#6X3;a;r5:2]"/>
+		<BondChargeCorrection bcc="0.0083" smirks="[#6X3:1]-[#6X3;a;r6:2]"/>
+		<BondChargeCorrection bcc="-0.0507" smirks="[#6X3:1]-[$([#6X3;a;r6]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0320" smirks="[#6X3:1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0624" smirks="[#6X3:1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="-0.0023" smirks="[#6X3:1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0211" smirks="[#6X3:1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0118" smirks="[#6X3:1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0266" smirks="[#6X3:1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.0369" smirks="[#6X3:1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="-0.0493" smirks="[#6X3:1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.2825" smirks="[#6X3:1]-[#7X3+1;a:2]"/>
+		<BondChargeCorrection bcc="-0.0756" smirks="[#6X3:1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1272" smirks="[#6X3:1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.0249" smirks="[#6X3:1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.1832" smirks="[#6X3:1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.1551" smirks="[#6X3:1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0662" smirks="[#6X3:1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0346" smirks="[#6X3:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.1537" smirks="[#6X3:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3850" smirks="[#6X3:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2324" smirks="[#6X3:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4406" smirks="[#6X3:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.4960" smirks="[#6X3:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0180" smirks="[#6X3:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1154" smirks="[#6X3:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.1500" smirks="[#6X3:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.2118" smirks="[#6X3:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.0294" smirks="[#6X3:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0801" smirks="[$([#6X3]=[#7]):1]-[#6X2:2]"/>
+		<BondChargeCorrection bcc="0.0349" smirks="[$([#6X3]=[#7]):1]-[$([#6X2]#[#7]):2]"/>
+		<BondChargeCorrection bcc="0.0792" smirks="[$([#6X3]=[#7]):1]-[#6X3;a;r5:2]"/>
+		<BondChargeCorrection bcc="0.1224" smirks="[$([#6X3]=[#7]):1]-[#6X3;a;r6:2]"/>
+		<BondChargeCorrection bcc="0.0487" smirks="[$([#6X3]=[#7]):1]-[$([#6X3;a;r6]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="0.0456" smirks="[$([#6X3]=[#7]):1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="0.0383" smirks="[$([#6X3]=[#7]):1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.1149" smirks="[$([#6X3]=[#7]):1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="0.0849" smirks="[$([#6X3]=[#7]):1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0838" smirks="[$([#6X3]=[#7]):1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.1019" smirks="[$([#6X3]=[#7]):1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.1348" smirks="[$([#6X3]=[#7]):1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0613" smirks="[$([#6X3]=[#7]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.0402" smirks="[$([#6X3]=[#7]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1975" smirks="[$([#6X3]=[#7]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.1071" smirks="[$([#6X3]=[#7]):1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.2372" smirks="[$([#6X3]=[#7]):1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.2384" smirks="[$([#6X3]=[#7]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.1412" smirks="[$([#6X3]=[#7]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.1187" smirks="[$([#6X3]=[#7]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.2041" smirks="[$([#6X3]=[#7]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.5033" smirks="[$([#6X3]=[#7]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2791" smirks="[$([#6X3]=[#7]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.5436" smirks="[$([#6X3]=[#7]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.5535" smirks="[$([#6X3]=[#7]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.1288" smirks="[$([#6X3]=[#7]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1707" smirks="[$([#6X3]=[#7]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.2209" smirks="[$([#6X3]=[#7]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.3221" smirks="[$([#6X3]=[#7]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.1935" smirks="[$([#6X3]=[#7]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.1054" smirks="[$([#6X3]=[#8]):1]-[#6X2:2]"/>
+		<BondChargeCorrection bcc="0.0197" smirks="[$([#6X3]=[#8]):1]-[$([#6X2]#[#7]):2]"/>
+		<BondChargeCorrection bcc="0.1005" smirks="[$([#6X3]=[#8]):1]-[#6X3;a;r5:2]"/>
+		<BondChargeCorrection bcc="0.1077" smirks="[$([#6X3]=[#8]):1]-[#6X3;a;r6:2]"/>
+		<BondChargeCorrection bcc="0.0579" smirks="[$([#6X3]=[#8]):1]-[$([#6X3;a;r6]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="0.0657" smirks="[$([#6X3]=[#8]):1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="0.0287" smirks="[$([#6X3]=[#8]):1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.1091" smirks="[$([#6X3]=[#8]):1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="0.0444" smirks="[$([#6X3]=[#8]):1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0512" smirks="[$([#6X3]=[#8]):1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0861" smirks="[$([#6X3]=[#8]):1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="-0.0259" smirks="[$([#6X3]=[#8]):1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0457" smirks="[$([#6X3]=[#8]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.0881" smirks="[$([#6X3]=[#8]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.2339" smirks="[$([#6X3]=[#8]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="-0.0421" smirks="[$([#6X3]=[#8]):1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.2979" smirks="[$([#6X3]=[#8]):1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.2762" smirks="[$([#6X3]=[#8]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.1400" smirks="[$([#6X3]=[#8]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.1220" smirks="[$([#6X3]=[#8]):1]-[#8X2H0:2]"/>
+		<BondChargeCorrection bcc="0.1328" smirks="[$([#6X3]=[#8]):1]-[#8X2H1:2]"/>
+		<BondChargeCorrection bcc="0.1456" smirks="[$([#6X3]=[#8]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.5314" smirks="[$([#6X3]=[#8]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2459" smirks="[$([#6X3]=[#8]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4638" smirks="[$([#6X3]=[#8]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.5796" smirks="[$([#6X3]=[#8]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.1327" smirks="[$([#6X3]=[#8]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1296" smirks="[$([#6X3]=[#8]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.1826" smirks="[$([#6X3]=[#8]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.2939" smirks="[$([#6X3]=[#8]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.1769" smirks="[$([#6X3]=[#8]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0887" smirks="[$([#6X3]=[#15]):1]-[#6X2:2]"/>
+		<BondChargeCorrection bcc="-0.0248" smirks="[$([#6X3]=[#15]):1]-[$([#6X2]#[#7]):2]"/>
+		<BondChargeCorrection bcc="-0.0184" smirks="[$([#6X3]=[#15]):1]-[#6X3;a:2]"/>
+		<BondChargeCorrection bcc="0.0304" smirks="[$([#6X3]=[#15]):1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="-0.0070" smirks="[$([#6X3]=[#15]):1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.0452" smirks="[$([#6X3]=[#15]):1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0339" smirks="[$([#6X3]=[#15]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.1473" smirks="[$([#6X3]=[#15]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1532" smirks="[$([#6X3]=[#15]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.1172" smirks="[$([#6X3]=[#15]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.1213" smirks="[$([#6X3]=[#15]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.1021" smirks="[$([#6X3]=[#15]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3488" smirks="[$([#6X3]=[#15]):1]-[#16:2]"/>
+		<BondChargeCorrection bcc="0.0797" smirks="[$([#6X3]=[#15]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1310" smirks="[$([#6X3]=[#15]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.1678" smirks="[$([#6X3]=[#15]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.2365" smirks="[$([#6X3]=[#15]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.0737" smirks="[$([#6X3]=[#15]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0271" smirks="[$([#6X3]=[#16]):1]-[#6X2:2]"/>
+		<BondChargeCorrection bcc="-0.0398" smirks="[$([#6X3]=[#16]):1]-[$([#6X2]#[#7]):2]"/>
+		<BondChargeCorrection bcc="0.0172" smirks="[$([#6X3]=[#16]):1]-[#6X3;a;r5:2]"/>
+		<BondChargeCorrection bcc="0.0062" smirks="[$([#6X3]=[#16]):1]-[#6X3;a;r6:2]"/>
+		<BondChargeCorrection bcc="0.0125" smirks="[$([#6X3]=[#16]):1]-[$([#6X3;a;r6]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0150" smirks="[$([#6X3]=[#16]):1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0797" smirks="[$([#6X3]=[#16]):1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.0231" smirks="[$([#6X3]=[#16]):1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0503" smirks="[$([#6X3]=[#16]):1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0320" smirks="[$([#6X3]=[#16]):1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0294" smirks="[$([#6X3]=[#16]):1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="-0.0105" smirks="[$([#6X3]=[#16]):1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="-0.0689" smirks="[$([#6X3]=[#16]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.1362" smirks="[$([#6X3]=[#16]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1565" smirks="[$([#6X3]=[#16]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="-0.0059" smirks="[$([#6X3]=[#16]):1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.2216" smirks="[$([#6X3]=[#16]):1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.2663" smirks="[$([#6X3]=[#16]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.1040" smirks="[$([#6X3]=[#16]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0498" smirks="[$([#6X3]=[#16]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.1360" smirks="[$([#6X3]=[#16]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.4103" smirks="[$([#6X3]=[#16]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.1875" smirks="[$([#6X3]=[#16]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4378" smirks="[$([#6X3]=[#16]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.4574" smirks="[$([#6X3]=[#16]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0892" smirks="[$([#6X3]=[#16]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.0704" smirks="[$([#6X3]=[#16]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.1161" smirks="[$([#6X3]=[#16]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.1941" smirks="[$([#6X3]=[#16]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.2113" smirks="[$([#6X3]=[#16]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#6X2:1]-[#6X2:2]"/>
+		<BondChargeCorrection bcc="-0.0590" smirks="[#6X2:1]-[$([#6X2]#[#7]):2]"/>
+		<BondChargeCorrection bcc="-0.0307" smirks="[#6X2:1]-[#6X3;a;r5:2]"/>
+		<BondChargeCorrection bcc="0.0027" smirks="[#6X2:1]-[#6X3;a;r6:2]"/>
+		<BondChargeCorrection bcc="-0.0589" smirks="[#6X2:1]-[$([#6X3;a;r6]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0318" smirks="[#6X2:1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0911" smirks="[#6X2:1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="-0.0126" smirks="[#6X2:1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0430" smirks="[#6X2:1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0810" smirks="[#6X2:1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0401" smirks="[#6X2:1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="-0.0431" smirks="[#6X2:1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="-0.0035" smirks="[#6X2:1]-[$([#7X3]-[#6X3]):2]"/>
+		<BondChargeCorrection bcc="-0.0213" smirks="[#6X2:1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0704" smirks="[#6X2:1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.1089" smirks="[#6X2:1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.0655" smirks="[#6X2:1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.0050" smirks="[#6X2:1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.1727" smirks="[#6X2:1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.1915" smirks="[#6X2:1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0332" smirks="[#6X2:1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="-0.0443" smirks="[#6X2:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.1908" smirks="[#6X2:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3095" smirks="[#6X2:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2203" smirks="[#6X2:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.3664" smirks="[#6X2:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.3608" smirks="[#6X2:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.0679" smirks="[#6X2:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.0878" smirks="[#6X2:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.1140" smirks="[#6X2:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.1526" smirks="[#6X2:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.0368" smirks="[#6X2:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0322" smirks="[$([#6X2]#[#7]):1]-[#6X3;a;r5:2]"/>
+		<BondChargeCorrection bcc="0.0022" smirks="[$([#6X2]#[#7]):1]-[#6X3;a;r6:2]"/>
+		<BondChargeCorrection bcc="-0.0020" smirks="[$([#6X2]#[#7]):1]-[$([#6X3;a;r6]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="0.0262" smirks="[$([#6X2]#[#7]):1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0295" smirks="[$([#6X2]#[#7]):1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.0400" smirks="[$([#6X2]#[#7]):1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="0.0231" smirks="[$([#6X2]#[#7]):1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0025" smirks="[$([#6X2]#[#7]):1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0961" smirks="[$([#6X2]#[#7]):1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.0759" smirks="[$([#6X2]#[#7]):1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0424" smirks="[$([#6X2]#[#7]):1]-[$([#7X3]-[#6X3]):2]"/>
+		<BondChargeCorrection bcc="0.0744" smirks="[$([#6X2]#[#7]):1]-[$([#7X3]-[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="0.0091" smirks="[$([#6X2]#[#7]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.0068" smirks="[$([#6X2]#[#7]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1439" smirks="[$([#6X2]#[#7]):1]-[#7X2+0:2]"/>
+		<BondChargeCorrection bcc="0.2748" smirks="[$([#6X2]#[#7]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0938" smirks="[$([#6X2]#[#7]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.1630" smirks="[$([#6X2]#[#7]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.2325" smirks="[$([#6X2]#[#7]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3310" smirks="[$([#6X2]#[#7]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2578" smirks="[$([#6X2]#[#7]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4155" smirks="[$([#6X2]#[#7]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.4057" smirks="[$([#6X2]#[#7]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0624" smirks="[$([#6X2]#[#7]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1234" smirks="[$([#6X2]#[#7]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.1391" smirks="[$([#6X2]#[#7]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.1774" smirks="[$([#6X2]#[#7]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.2882" smirks="[$([#6X2]#[#7]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0085" smirks="[#6X3;a;r5:1]-[#6X3;a;r6:2]"/>
+		<BondChargeCorrection bcc="-0.0116" smirks="[#6X3;a;r5:1]-[$([#6X3;a;r6]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0353" smirks="[#6X3;a;r5:1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0539" smirks="[#6X3;a;r5:1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.0332" smirks="[#6X3;a;r5:1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0212" smirks="[#6X3;a;r5:1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0567" smirks="[#6X3;a;r5:1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0542" smirks="[#6X3;a;r5:1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.0026" smirks="[#6X3;a;r5:1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0330" smirks="[#6X3;a;r5:1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0041" smirks="[#6X3;a;r5:1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.1043" smirks="[#6X3;a;r5:1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1498" smirks="[#6X3;a;r5:1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.1928" smirks="[#6X3;a;r5:1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0831" smirks="[#6X3;a;r5:1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0369" smirks="[#6X3;a;r5:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.2152" smirks="[#6X3;a;r5:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3306" smirks="[#6X3;a;r5:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2473" smirks="[#6X3;a;r5:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4243" smirks="[#6X3;a;r5:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.4541" smirks="[#6X3;a;r5:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0039" smirks="[#6X3;a;r5:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1481" smirks="[#6X3;a;r5:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.2123" smirks="[#6X3;a;r5:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.2787" smirks="[#6X3;a;r5:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.0152" smirks="[#6X3;a;r5:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#6X3;a;r6:1]-[#6X3;a;r6:2]"/>
+		<BondChargeCorrection bcc="-0.0390" smirks="[#6X3;a;r6:1]-[$([#6X3;a;r6]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0359" smirks="[#6X3;a;r6:1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0695" smirks="[#6X3;a;r6:1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.0083" smirks="[#6X3;a;r6:1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0621" smirks="[#6X3;a;r6:1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0340" smirks="[#6X3;a;r6:1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0363" smirks="[#6X3;a;r6:1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="-0.0037" smirks="[#6X3;a;r6:1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="0.0116" smirks="[#6X3;a;r6:1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="-0.0398" smirks="[#6X3;a;r6:1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.0972" smirks="[#6X3;a;r6:1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1313" smirks="[#6X3;a;r6:1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.1617" smirks="[#6X3;a;r6:1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.1249" smirks="[#6X3;a;r6:1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0274" smirks="[#6X3;a;r6:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.2267" smirks="[#6X3;a;r6:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3747" smirks="[#6X3;a;r6:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2481" smirks="[#6X3;a;r6:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4291" smirks="[#6X3;a;r6:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.4693" smirks="[#6X3;a;r6:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0262" smirks="[#6X3;a;r6:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1306" smirks="[#6X3;a;r6:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.1868" smirks="[#6X3;a;r6:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.2624" smirks="[#6X3;a;r6:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.0147" smirks="[#6X3;a;r6:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[$([#6X3;a;r6]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="0.0036" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0294" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.0494" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0029" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0252" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0675" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.0398" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="-0.1242" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="-0.0199" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.0396" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1713" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.2504" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.1244" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0569" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.2258" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.4165" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2865" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4689" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.5131" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0302" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1530" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.2214" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.3034" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.0547" smirks="[$([#6X3;a;r6]:[#7,#15]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[$([#6X3;a;r5]:[#7,#15]):2]"/>
+		<BondChargeCorrection bcc="-0.0096" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.0555" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0163" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0838" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0644" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.0445" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0580" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0017" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.0328" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1719" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.2487" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0015" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0354" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.2213" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3466" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2763" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4076" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.4955" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.0293" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1498" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.2144" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.2855" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.0383" smirks="[$([#6X3;a;r5]:[#7,#15]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[$([#6X3;a;r5]:[#8]):1]-[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.0692" smirks="[$([#6X3;a;r5]:[#8]):1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="0.0169" smirks="[$([#6X3;a;r5]:[#8]):1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0257" smirks="[$([#6X3;a;r5]:[#8]):1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0918" smirks="[$([#6X3;a;r5]:[#8]):1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.0887" smirks="[$([#6X3;a;r5]:[#8]):1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="0.0297" smirks="[$([#6X3;a;r5]:[#8]):1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0270" smirks="[$([#6X3;a;r5]:[#8]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.0143" smirks="[$([#6X3;a;r5]:[#8]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1908" smirks="[$([#6X3;a;r5]:[#8]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.2551" smirks="[$([#6X3;a;r5]:[#8]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.1279" smirks="[$([#6X3;a;r5]:[#8]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0978" smirks="[$([#6X3;a;r5]:[#8]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.2886" smirks="[$([#6X3;a;r5]:[#8]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3587" smirks="[$([#6X3;a;r5]:[#8]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.3288" smirks="[$([#6X3;a;r5]:[#8]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4619" smirks="[$([#6X3;a;r5]:[#8]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.4924" smirks="[$([#6X3;a;r5]:[#8]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0338" smirks="[$([#6X3;a;r5]:[#8]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.2024" smirks="[$([#6X3;a;r5]:[#8]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.2608" smirks="[$([#6X3;a;r5]:[#8]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.3202" smirks="[$([#6X3;a;r5]:[#8]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.0836" smirks="[$([#6X3;a;r5]:[#8]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[$([#6X3;a;r5]:[#16]):1]-[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0620" smirks="[$([#6X3;a;r5]:[#16]):1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0607" smirks="[$([#6X3;a;r5]:[#16]):1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0223" smirks="[$([#6X3;a;r5]:[#16]):1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="-0.0052" smirks="[$([#6X3;a;r5]:[#16]):1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0719" smirks="[$([#6X3;a;r5]:[#16]):1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="-0.0779" smirks="[$([#6X3;a;r5]:[#16]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.0942" smirks="[$([#6X3;a;r5]:[#16]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1184" smirks="[$([#6X3;a;r5]:[#16]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.2224" smirks="[$([#6X3;a;r5]:[#16]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0530" smirks="[$([#6X3;a;r5]:[#16]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0252" smirks="[$([#6X3;a;r5]:[#16]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.1968" smirks="[$([#6X3;a;r5]:[#16]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3053" smirks="[$([#6X3;a;r5]:[#16]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2616" smirks="[$([#6X3;a;r5]:[#16]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4083" smirks="[$([#6X3;a;r5]:[#16]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.4363" smirks="[$([#6X3;a;r5]:[#16]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.0197" smirks="[$([#6X3;a;r5]:[#16]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1404" smirks="[$([#6X3;a;r5]:[#16]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.2053" smirks="[$([#6X3;a;r5]:[#16]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.2713" smirks="[$([#6X3;a;r5]:[#16]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.0035" smirks="[$([#6X3;a;r5]:[#16]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[$([#6X3;a](:[!#6]):[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0507" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0816" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.0251" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0018" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0013" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.0364" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1558" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.3022" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0962" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0614" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.2181" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3624" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.2794" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4434" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.4805" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0100" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.1961" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.2598" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.3319" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="0.0806" smirks="[$([#6X3;a](:[!#6]):[!#6]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0661" smirks="[#6X3;a:1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.2671" smirks="[#6X3;a:1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#7X4+1:1]-[#7X4+1:2]"/>
+		<BondChargeCorrection bcc="0.0386" smirks="[#7X4+1:1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="0.0805" smirks="[#7X4+1:1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0022" smirks="[#7X4+1:1]-[$([#7X3]-[#6X3]):2]"/>
+		<BondChargeCorrection bcc="0.0307" smirks="[#7X4+1:1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="0.0816" smirks="[#7X4+1:1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="0.2100" smirks="[#7X4+1:1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1122" smirks="[#7X4+1:1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.1175" smirks="[#7X4+1:1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="-0.0058" smirks="[#7X4+1:1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.1791" smirks="[#7X4+1:1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0942" smirks="[#7X4+1:1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.0031" smirks="[#7X4+1:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.0533" smirks="[#7X4+1:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.2644" smirks="[#7X4+1:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.0603" smirks="[#7X4+1:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.2513" smirks="[#7X4+1:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.3590" smirks="[#7X4+1:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0677" smirks="[#7X4+1:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.0276" smirks="[#7X4+1:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.0794" smirks="[#7X4+1:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.0846" smirks="[#7X4+1:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.0316" smirks="[#7X4+1:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#7X3:1]-[#7X3:2]"/>
+		<BondChargeCorrection bcc="-0.0153" smirks="[#7X3:1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="-0.0312" smirks="[#7X3:1]-[$([#7X3]-[#6X3]):2]"/>
+		<BondChargeCorrection bcc="-0.0538" smirks="[#7X3:1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="-0.0971" smirks="[#7X3:1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.1105" smirks="[#7X3:1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.0502" smirks="[#7X3:1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="-0.0097" smirks="[#7X3:1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="-0.0107" smirks="[#7X3:1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.1200" smirks="[#7X3:1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0021" smirks="[#7X3:1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="-0.0155" smirks="[#7X3:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.0647" smirks="[#7X3:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3296" smirks="[#7X3:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.1348" smirks="[#7X3:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.3523" smirks="[#7X3:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.3676" smirks="[#7X3:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.0159" smirks="[#7X3:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="-0.0375" smirks="[#7X3:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.0485" smirks="[#7X3:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.1315" smirks="[#7X3:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.1645" smirks="[#7X3:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#7X3+1:1]-[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.0098" smirks="[#7X3+1:1]-[$([#7X3]-[#6X3]):2]"/>
+		<BondChargeCorrection bcc="0.0322" smirks="[#7X3+1:1]-[$([#7X3]-[#6X3]=[#7,#8,#16]):2]"/>
+		<BondChargeCorrection bcc="0.0116" smirks="[#7X3+1:1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="0.1066" smirks="[#7X3+1:1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.0703" smirks="[#7X3+1:1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="-0.0100" smirks="[#7X3+1:1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.0455" smirks="[#7X3+1:1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.2215" smirks="[#7X3+1:1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0593" smirks="[#7X3+1:1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="-0.0213" smirks="[#7X3+1:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.0359" smirks="[#7X3+1:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.1640" smirks="[#7X3+1:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.1122" smirks="[#7X3+1:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.2364" smirks="[#7X3+1:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.3034" smirks="[#7X3+1:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.0219" smirks="[#7X3+1:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="-0.0268" smirks="[#7X3+1:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.0208" smirks="[#7X3+1:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.0404" smirks="[#7X3+1:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.1518" smirks="[#7X3+1:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[$([#7X3]-[#6X3]):1]-[$([#7X3]-[#6X3]):2]"/>
+		<BondChargeCorrection bcc="-0.0771" smirks="[$([#7X3]-[#6X3]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.1331" smirks="[$([#7X3]-[#6X3]):1]-[#7X3+1;a:2]"/>
+		<BondChargeCorrection bcc="-0.0631" smirks="[$([#7X3]-[#6X3]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.0473" smirks="[$([#7X3]-[#6X3]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="-0.0447" smirks="[$([#7X3]-[#6X3]):1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.0056" smirks="[$([#7X3]-[#6X3]):1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.1246" smirks="[$([#7X3]-[#6X3]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="-0.0145" smirks="[$([#7X3]-[#6X3]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="-0.0168" smirks="[$([#7X3]-[#6X3]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.1270" smirks="[$([#7X3]-[#6X3]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3679" smirks="[$([#7X3]-[#6X3]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.1637" smirks="[$([#7X3]-[#6X3]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.3582" smirks="[$([#7X3]-[#6X3]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.3975" smirks="[$([#7X3]-[#6X3]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0273" smirks="[$([#7X3]-[#6X3]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.0047" smirks="[$([#7X3]-[#6X3]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.0712" smirks="[$([#7X3]-[#6X3]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.1455" smirks="[$([#7X3]-[#6X3]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.1112" smirks="[$([#7X3]-[#6X3]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="-0.0277" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.1090" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#7X3+1;a:2]"/>
+		<BondChargeCorrection bcc="-0.0616" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.0740" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="-0.0279" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.1056" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.0926" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0450" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="-0.0121" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.1491" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3212" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.1277" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.3485" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.3975" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0234" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.0201" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.0974" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.1427" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.0604" smirks="[$([#7X3]-[#6X3]=[#7,#8,#16]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#7X3+0;a:1]-[#7X3+0;a:2]"/>
+		<BondChargeCorrection bcc="-0.0153" smirks="[#7X3+0;a:1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1105" smirks="[#7X3+0;a:1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="-0.0358" smirks="[#7X3+0;a:1]-[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.2521" smirks="[#7X3+0;a:1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.2380" smirks="[#7X3+0;a:1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0343" smirks="[#7X3+0;a:1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="-0.0127" smirks="[#7X3+0;a:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.1844" smirks="[#7X3+0;a:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3017" smirks="[#7X3+0;a:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.1526" smirks="[#7X3+0;a:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.3713" smirks="[#7X3+0;a:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.3922" smirks="[#7X3+0;a:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.0487" smirks="[#7X3+0;a:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.0339" smirks="[#7X3+0;a:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.1194" smirks="[#7X3+0;a:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.1492" smirks="[#7X3+0;a:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.0542" smirks="[#7X3+0;a:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.1417" smirks="[#7X3+1;a:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="-0.0830" smirks="[#7X3+1;a:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[$([#7X3](~[#8X1])~[#8,#7]):1]-[$([#7X3](~[#8X1])~[#8,#7]):2]"/>
+		<BondChargeCorrection bcc="0.1574" smirks="[$([#7X3](~[#8X1])~[#8,#7]):1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.1930" smirks="[$([#7X3](~[#8X1])~[#8,#7]):1]-[#7X2-1:2]"/>
+		<BondChargeCorrection bcc="0.2836" smirks="[$([#7X3](~[#8X1])~[#8,#7]):1]-[$([#7X2]=[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.1169" smirks="[$([#7X3](~[#8X1])~[#8,#7]):1]-[$([#7X2]-,=[#7X2]=,#[#7X1]):2]"/>
+		<BondChargeCorrection bcc="0.1574" smirks="[$([#7X3](~[#8X1])~[#8,#7]):1]~[#8X1:2]"/>
+		<BondChargeCorrection bcc="0.0734" smirks="[$([#7X3](~[#8X1])~[#8,#7]):1]-[#8X2:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#7X2:1]-[#7X2:2]"/>
+		<BondChargeCorrection bcc="-0.0419" smirks="[#7X2:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="-0.0524" smirks="[#7X2:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.2232" smirks="[#7X2:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.0195" smirks="[#7X2:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.3281" smirks="[#7X2:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.3524" smirks="[#7X2:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.0052" smirks="[#7X2:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="-0.0310" smirks="[#7X2:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.0373" smirks="[#7X2:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.0875" smirks="[#7X2:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.2291" smirks="[#7X2:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.4670" smirks="[#7X2-1:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.2384" smirks="[#7X2-1:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#8:1]-[#8:2]"/>
+		<BondChargeCorrection bcc="0.0383" smirks="[#8:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.3155" smirks="[#8X2:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.1731" smirks="[#8X2:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.2641" smirks="[#8X2:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.3232" smirks="[#8X2:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.3741" smirks="[#8X1:1]~[#15:2]"/>
+		<BondChargeCorrection bcc="0.3020" smirks="[#8X1:1]~[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.3227" smirks="[#8X1:1]~[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0677" smirks="[#8:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="-0.0126" smirks="[#8:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.0469" smirks="[#8:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.0680" smirks="[#8:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.2015" smirks="[#8:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#15:1]-[#15:2]"/>
+		<BondChargeCorrection bcc="0.5053" smirks="[#15:1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="-0.0476" smirks="[#15:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.4822" smirks="[#15:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.7830" smirks="[#15:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.1748" smirks="[#15:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="-0.0587" smirks="[#15:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.0287" smirks="[#15:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.2093" smirks="[#15:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.0731" smirks="[#15:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#15X4,$([#15X3]=[*]):1]-[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="-0.4260" smirks="[#15X4,$([#15X3]=[*]):1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="-0.2272" smirks="[#15X4,$([#15X3]=[*]):1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="-0.3558" smirks="[#15X4,$([#15X3]=[*]):1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.2178" smirks="[#15X4,$([#15X3]=[*]):1]-[#9:2]"/>
+		<BondChargeCorrection bcc="-0.2557" smirks="[#15X4,$([#15X3]=[*]):1]-[#17:2]"/>
+		<BondChargeCorrection bcc="-0.2609" smirks="[#15X4,$([#15X3]=[*]):1]-[#35:2]"/>
+		<BondChargeCorrection bcc="-0.0569" smirks="[#15X4,$([#15X3]=[*]):1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.4320" smirks="[#15X4,$([#15X3]=[*]):1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#16X2,#16X1:1]-[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.3129" smirks="[#16X2,#16X1:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.5412" smirks="[#16X2,#16X1:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.0555" smirks="[#16X2,#16X1:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="0.0314" smirks="[#16X2,#16X1:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="0.0585" smirks="[#16X2,#16X1:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="0.1167" smirks="[#16X2,#16X1:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.1422" smirks="[#16X2,#16X1:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#16X3:1]-[#16X3:2]"/>
+		<BondChargeCorrection bcc="-0.0105" smirks="[#16X3:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.2117" smirks="[#16X3:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="-0.1781" smirks="[#16X3:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="-0.1749" smirks="[#16X3:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="-0.0284" smirks="[#16X3:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.3727" smirks="[#16X3:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#16X4:1]-[#16X4:2]"/>
+		<BondChargeCorrection bcc="-0.2198" smirks="[#16X4:1]-[#9:2]"/>
+		<BondChargeCorrection bcc="-0.3252" smirks="[#16X4:1]-[#17:2]"/>
+		<BondChargeCorrection bcc="-0.3051" smirks="[#16X4:1]-[#35:2]"/>
+		<BondChargeCorrection bcc="-0.1483" smirks="[#16X4:1]-[#53:2]"/>
+		<BondChargeCorrection bcc="-0.4986" smirks="[#16X4:1]-[#1:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#6X2:1]=[#6X2:2]"/>
+		<BondChargeCorrection bcc="0.0534" smirks="[#6X2:1]=[#6X3:2]"/>
+		<BondChargeCorrection bcc="0.1701" smirks="[#6X2:1]=[#7:2]"/>
+		<BondChargeCorrection bcc="0.1371" smirks="[#6X2:1]=[#8:2]"/>
+		<BondChargeCorrection bcc="0.4455" smirks="[#6X2:1]=[#16:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#6X3:1]=[#6X3:2]"/>
+		<BondChargeCorrection bcc="0.3116" smirks="[#6X3:1]=[#7X2:2]"/>
+		<BondChargeCorrection bcc="0.0257" smirks="[#6X3:1]=[#7X2+1:2]"/>
+		<BondChargeCorrection bcc="0.2088" smirks="[#6X3:1]=[#7X3+1:2]"/>
+		<BondChargeCorrection bcc="0.1333" smirks="[$([#6X3](=[#7X3H2+])~[#7X3H2]):1]~[#7H2:2]"/>
+		<BondChargeCorrection bcc="0.2621" smirks="[#6X3:1]=[#8:2]"/>
+		<BondChargeCorrection bcc="0.2592" smirks="[$([#6X3](~[#8X1])~[#8X1]):1]~[#8X1:2]"/>
+		<BondChargeCorrection bcc="0.2275" smirks="[#6X3:1]=[#15:2]"/>
+		<BondChargeCorrection bcc="0.3135" smirks="[#6X3:1]=[#16:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#7:1]=[#7:2]"/>
+		<BondChargeCorrection bcc="-0.2344" smirks="[#7X1:1]=,#[#7X2+:2]"/>
+		<BondChargeCorrection bcc="0.1627" smirks="[$([#7X2+](~[#7X2])~[#7X1]):1]-,=[#7X2:2]"/>
+		<BondChargeCorrection bcc="-0.0350" smirks="[#7X2:1]=[#8:2]"/>
+		<BondChargeCorrection bcc="0.0215" smirks="[#7:1]=[#15:2]"/>
+		<BondChargeCorrection bcc="0.6125" smirks="[#7:1]=[#15X4,$([#15X3]=[*]):2]"/>
+		<BondChargeCorrection bcc="0.1453" smirks="[#7:1]=[#16X2,#16X1:2]"/>
+		<BondChargeCorrection bcc="0.3954" smirks="[#7:1]=[#16X3:2]"/>
+		<BondChargeCorrection bcc="0.4237" smirks="[#7:1]=[#16X4:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#15:1]=[#15:2]"/>
+		<BondChargeCorrection bcc="-0.6046" smirks="[#15:1]=[#16:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#6:1]#[#6:2]"/>
+		<BondChargeCorrection bcc="0.3915" smirks="[#6:1]#[#7:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#6:1]:[#6:2]"/>
+		<BondChargeCorrection bcc="-0.0264" smirks="[#6X3;a;r5:1]:[#7:2]"/>
+		<BondChargeCorrection bcc="0.0283" smirks="[#6X3;a;r5:1]:[#7+1:2]"/>
+		<BondChargeCorrection bcc="0.0846" smirks="[#6X3;a;r5:1]:[$([#7]~[#0]):2]"/>
+		<BondChargeCorrection bcc="0.0455" smirks="[#6X3;a;r5:1]:[#8:2]"/>
+		<BondChargeCorrection bcc="0.1833" smirks="[#6X3;a;r5:1]:[#15:2]"/>
+		<BondChargeCorrection bcc="0.2678" smirks="[#6X3;a;r5:1]:[#16:2]"/>
+		<BondChargeCorrection bcc="-0.0024" smirks="[#6X3;a;r6:1]:[#7:2]"/>
+		<BondChargeCorrection bcc="-0.0032" smirks="[#6X3;a;r6:1]:[#7+1:2]"/>
+		<BondChargeCorrection bcc="0.0664" smirks="[#6X3;a;r6:1]:[$([#7]~[#0]):2]"/>
+		<BondChargeCorrection bcc="0.1864" smirks="[#6X3;a;r6:1]:[#8X2,#16X2:2]"/>
+		<BondChargeCorrection bcc="-0.0008" smirks="[#6X3;a:1]:[$([#6X3;a]:[#7]):2]"/>
+		<BondChargeCorrection bcc="-0.0167" smirks="[#6X3;a:1]:[$([#6X3;a]:[#7+1]):2]"/>
+		<BondChargeCorrection bcc="-0.0205" smirks="[#6X3;a:1]:[$([#6X3;a]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.0088" smirks="[#6X3;a:1]:[$([#6X3;a]:[#15]):2]"/>
+		<BondChargeCorrection bcc="0.0315" smirks="[#6X3;a:1]:[$([#6X3;a]:[#16]):2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[$([#6X3;a]:[!#6]):1]:[$([#6X3;a]:[!#6]):2]"/>
+		<BondChargeCorrection bcc="0.0631" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[#6X3;a;r5:2]"/>
+		<BondChargeCorrection bcc="0.0732" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[$([#6X3;a;r5]:[#7]):2]"/>
+		<BondChargeCorrection bcc="-0.0020" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[$([#6X3;a;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.1566" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[$([#6X3;a;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="0.0796" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[#6X3;a;r6:2]"/>
+		<BondChargeCorrection bcc="0.0625" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[$([#6X3;a;r6]:[#7,#8]):2]"/>
+		<BondChargeCorrection bcc="0.0011" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[#7:2]"/>
+		<BondChargeCorrection bcc="0.0020" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[#7+1:2]"/>
+		<BondChargeCorrection bcc="0.1009" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[$([#7]~[#0]):2]"/>
+		<BondChargeCorrection bcc="0.0400" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[#8:2]"/>
+		<BondChargeCorrection bcc="0.2959" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[#16:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[$([#6X3;a](:[a])(:[a]):[a]):1]:[$([#6X3;a](:[a])(:[a]):[a]):2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#7:1]:[#7:2]"/>
+		<BondChargeCorrection bcc="0.3978" smirks="[#7+0:1]:[#7+1:2]"/>
+		<BondChargeCorrection bcc="-0.0071" smirks="[#7;r5:1]:[$([#7;r5]:[#7]~[#0]):2]"/>
+		<BondChargeCorrection bcc="0.0655" smirks="[#7;r5:1]:[$([#7;r5]:[#8]):2]"/>
+		<BondChargeCorrection bcc="0.0137" smirks="[#7;r5:1]:[$([#7;r5]:[#16]):2]"/>
+		<BondChargeCorrection bcc="0.0430" smirks="[$([#7X3]-[!#0]):1]:[$([#7]~[#0]):2]"/>
+		<BondChargeCorrection bcc="0.0236" smirks="[#7:1]:[#8:2]"/>
+		<BondChargeCorrection bcc="0.0807" smirks="[$([#7]~[#0]):1]:[#8:2]"/>
+		<BondChargeCorrection bcc="0.1321" smirks="[#7:1]:[#15:2]"/>
+		<BondChargeCorrection bcc="0.0692" smirks="[$([#7]~[#0]):1]:[#15:2]"/>
+		<BondChargeCorrection bcc="0.2357" smirks="[#7:1]:[#16:2]"/>
+		<BondChargeCorrection bcc="0.1632" smirks="[$([#7]~[#0]):1]:[#16:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#8:1]:[#8:2]"/>
+		<BondChargeCorrection bcc="0.0663" smirks="[#8:1]:[#15:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#15:1]:[#15:2]"/>
+		<BondChargeCorrection bcc="0.0872" smirks="[#15:1]:[#16:2]"/>
+		<BondChargeCorrection bcc="0.0000" smirks="[#16:1]:[#16:2]"/>
+		<BondChargeCorrection smirks="[#0:1]~[#17:2]" bcc="0.0329"/>
+		<BondChargeCorrection smirks="[#0:1]~[#35:2]" bcc="0.0593"/>
+		<BondChargeCorrection smirks="[#0:1]~[#53:2]" bcc="0.0770"/>
+		<BondChargeCorrection smirks="[#0:1]~[#7:2]" bcc="-0.4299"/>
+		<BondChargeCorrection smirks="[#0:1]~[$([#7](:[#6]):[#7]):2]" bcc="-0.5361"/>
+		<BondChargeCorrection smirks="[#0:1]~[$([#7](:[#6]):[#8]):2]" bcc="-0.7177"/>
+		<BondChargeCorrection smirks="[#0:1]~[$([#7](:[#6]):[#16]):2]" bcc="-0.4776"/>
+		<BondChargeCorrection smirks="[#0:1]~[$([#7](:[#7]):[#7]):2]" bcc="-0.5760"/>
+		<BondChargeCorrection smirks="[#0:1]~[$([#7](:[#7]):[#8]):2]" bcc="-0.6450"/>
+		<BondChargeCorrection smirks="[#0:1]~[$([#7](:[#7]):[#16]):2]" bcc="-0.5255"/>
+		<BondChargeCorrection smirks="[#8H2:1]-[#1:2]" bcc="0.0000"/>
+    </CoulombForce>
 </ForceField>

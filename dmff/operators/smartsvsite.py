@@ -41,6 +41,7 @@ class SMARTSVSiteOperator(BaseOperator):
                     meta = {}
                     meta["type"] = info["type"]
                     meta["class"] = info["class"]
+                    meta["charge"] = 0.0
                     vsite = VirtualSite(
                         info["vtype"], alist, wlist, meta=meta)
                     vslist.append(vsite)

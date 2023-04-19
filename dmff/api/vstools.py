@@ -94,5 +94,6 @@ def insertVirtualSites(topdata, vsite_list):
             emol.AddBond(i1, i2, bond.GetBondType())
         rdmol = emol.GetMol()
         newtop._molecules.append(rdmol)
+    newtop.updateMolecules()
     return newtop
 
