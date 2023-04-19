@@ -1,7 +1,6 @@
 from .base import BaseOperator
 from ..api.xmlio import XMLIO
 from ..api.topology import DMFFTopology
-from ..api.hamiltonian import dmff_operators
 from ..utils import DMFFException
 from openmm.app import Topology
 from typing import List
@@ -14,12 +13,17 @@ class SMARTSATypeOperator(BaseOperator):
         self.name = "smarts"
         self.parsers = []
         self.atypes = []
-        for atom in ffinfo["AtomTypes"]:
+        for atom in ffinfo["Operators"]["SMARTSTypeOperator"]:
             if "smarts" in atom:
-                parser = atom["smarts"]
-                atype = (atom["name"], atom["class"], atom["element"])
-                self.parsers.append(parser)
-                self.atypes.append(atype)
+                key = "smarts"
+            elif "smirks" in atom:
+                key = "smirks"
+            parser = atom["attrib"][key]
+            nm = atom["attrib"]["name"]
+            cls = atom["attrib"]["class"] if "class" in atom["attrib"] else nm
+            atype = (nm, cls, atom["attrib"]["element"])
+            self.parsers.append(parser)
+            self.atypes.append(atype)
 
     def operate(self, topdata: DMFFTopology, resname: List[str] = [], **kwargs) -> DMFFTopology:
         atoms = [a for a in topdata.atoms()]

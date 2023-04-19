@@ -13,6 +13,7 @@ class XMLIO:
 
     def __init__(self):
         self._data = {
+            "Operators": [],
             "AtomTypes": [],
             "Residues": [],
             "Forces": {}
@@ -20,6 +21,7 @@ class XMLIO:
 
     def clean(self):
         self._data = {
+            "Operators": [],
             "AtomTypes": [],
             "Residues": [],
             "Forces": {}
@@ -28,8 +30,11 @@ class XMLIO:
     def loadXML(self, xml: str):
         root = ET.parse(xml).getroot()
         for child in root:
+            if child.tag == "Operators":
+                for op in child:
+                    self._data["Operators"].append(op)
             # AtomTypes
-            if child.tag == "AtomTypes":
+            elif child.tag == "AtomTypes":
                 for atom in child:
                     if atom.tag == "Type":
                         self._data["AtomTypes"].append(atom)
@@ -47,11 +52,13 @@ class XMLIO:
 
     def parseXML(self):
         ret = {
+            "Operators": {},
             "AtomTypes": [],
             "Residues": [],
             "Forces": {},
             "Type2Class": {}
         }
+        ret["Operators"] = self.parseOperators()
         ret["AtomTypes"] = self.parseAtomTypes()
         for item in ret["AtomTypes"]:
             if "name" in item and "class" in item:
@@ -59,6 +66,17 @@ class XMLIO:
         ret["Residues"] = self.parseResidues()
         for force in self._data["Forces"].keys():
             ret["Forces"][force] = self.parseForce(self._data["Forces"][force])
+        return ret
+    
+    def parseOperators(self):
+        ret = {}
+        for op in self._data["Operators"]:
+            ret[op.tag] = []
+            for child in op:
+                inner = {}
+                inner["name"] = child.tag
+                inner["attrib"] = child.attrib
+                ret[op.tag].append(inner)
         return ret
 
     def parseAtomTypes(self):
@@ -113,8 +131,16 @@ class XMLIO:
                 ret["node"].append(inner)
         return ret
 
-    def writeXML(self, out: str, ffinfo: dict, write_residues=True, write_atomtypes=True, write_forces=True):
+    def writeXML(self, out: str, ffinfo: dict, write_operators=True, write_residues=True, write_atomtypes=True, write_forces=True):
         root = ET.Element("ForceField")
+        if write_operators:
+            ops = ET.SubElement(root, "Operators")
+            for key in ffinfo["Operators"].keys():
+                op = ffinfo["Operators"][key]
+                op_node = ET.SubElement(ops, key)
+                for inner in op:
+                    new_node = ET.SubElement(op_node, inner["name"])
+                    new_node.attrib = inner["attrib"]
         if write_atomtypes:
             atype = ET.SubElement(root, "AtomTypes")
             for atp in ffinfo["AtomTypes"]:

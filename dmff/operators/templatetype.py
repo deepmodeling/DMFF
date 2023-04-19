@@ -1,7 +1,6 @@
 import networkx as nx
 from networkx.algorithms import isomorphism
 from .base import BaseOperator
-from ..api.hamiltonian import dmff_operators
 from ..api.graph import matchTemplate
 from ..utils import DMFFException
 from ..api.topology import DMFFTopology, Residue

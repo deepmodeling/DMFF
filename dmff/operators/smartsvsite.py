@@ -8,18 +8,11 @@ from rdkit import Chem
 
 
 class SMARTSVSiteOperator(BaseOperator):
-    
-    def __init__(self, filename):
+
+    def __init__(self, ffinfo):
         self.infos = []
-        if isinstance(filename, str):
-            flist = [filename]
-        else:
-            flist = filename
-        for fname in flist:
-            root = ET.parse(fname).getroot()
-            for child in root:
-                if child.tag == "VirtualSite":
-                    self.infos.append(child.attrib)
+        for vsite in ffinfo["Operators"]["SMARTSVSiteOperator"]:
+            self.infos.append(vsite["attrib"])
 
     def operate(self, topdata: DMFFTopology, **kwargs) -> DMFFTopology:
         vslist = []
@@ -28,20 +21,27 @@ class SMARTSVSiteOperator(BaseOperator):
             Chem.SanitizeMol(rdmol)
             atoms = rdmol.GetAtoms()
             for info in self.infos:
-                parser = info["smarts"]
+                parser = info["smarts"] if "smarts" in info else info["smirks"]
                 par = Chem.MolFromSmarts(parser)
                 matches = rdmol.GetSubstructMatches(par)
                 for match in matches:
-                    if info["vtype"] == "average2":
-                        a1idx, a2idx = match[0], match[1]
-                        idx1 = int(atoms[a1idx].GetProp("_Index"))
-                        idx2 = int(atoms[a2idx].GetProp("_Index"))
-                        a1 = topatoms[idx1]
-                        a2 = topatoms[idx2]
-                        w1, w2 = float(info["weight1"]), float(info["weight2"])
-                        meta = {}
-                        meta["type"] = info["type"]
-                        meta["class"] = info["class"]
-                        vsite = VirtualSite(info["vtype"], [a1, a2], [w1, w2], meta=meta)
-                        vslist.append(vsite)
+                    alist = []
+                    for molidx in match:
+                        idx = int(atoms[molidx].GetProp("_Index"))
+                        atom = topatoms[idx]
+                        alist.append(atom)
+                    wlist = []
+                    widx = 1
+                    while True:
+                        key = f"weight{widx}"
+                        if key not in info:
+                            break
+                        wlist.append(float(info[key]))
+                        widx += 1
+                    meta = {}
+                    meta["type"] = info["type"]
+                    meta["class"] = info["class"]
+                    vsite = VirtualSite(
+                        info["vtype"], alist, wlist, meta=meta)
+                    vslist.append(vsite)
         return insertVirtualSites(topdata, vslist)

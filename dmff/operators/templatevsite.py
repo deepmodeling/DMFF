@@ -12,15 +12,7 @@ import networkx as nx
 
 class TemplateVSiteOperator(BaseOperator):
 
-    def __init__(self, filename: Union[str, List[str]]):
-        xmlio = XMLIO()
-        if isinstance(filename, str):
-            xmlio.loadXML(filename)
-        else:
-            for fn in filename:
-                xmlio.loadXML(fn)
-        ffinfo = xmlio.parseXML()
-
+    def __init__(self, ffinfo):
         self.atype_to_elem = {}
         for atype in ffinfo["AtomTypes"]:
             atype, elem = atype["name"], atype["element"]

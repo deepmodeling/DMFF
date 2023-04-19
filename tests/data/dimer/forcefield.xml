@@ -1,0 +1,64 @@
+<ForceField>
+    <Operators>
+        <SMARTSVSiteOperator>
+            <VirtualSite smirks="[#17,#35:1]-[#6X3;a:2]" vtype="2" weight1="0.1600" type="EP" class="EP"/>
+        </SMARTSVSiteOperator>
+        <AM1ChargeOperator>
+            <SQM path="sqm"/>
+        </AM1ChargeOperator>
+        <SMARTSTypeOperator>
+            <Type smirks="[$([#1]-[#6X4]):1]" name="gaff2-hc" class="gaff2-hc" element="H"/>
+            <Type smirks="[$([#1]-[#6X4]-[!#1;!#6]):1]" name="gaff2-h1" class="gaff2-h1" element="H"/>
+            <Type smirks="[$([#1]-[#6X4](-[!#1;!#6])-[!#1;!#6]):1]" name="gaff2-h2" class="gaff2-h2" element="H"/>
+            <Type smirks="[$([#1]-[#6X4](-[!#1;!#6])(-[!#1;!#6])-[!#1;!#6]):1]" name="gaff2-h3" class="gaff2-h3" element="H"/>
+            <Type smirks="[$([#1]-[#6X3,#6X2]):1]" name="gaff2-ha" class="gaff2-ha" element="H"/>
+            <Type smirks="[$([#1]-[#6X3]~[!#1;!#6]):1]" name="gaff2-h4" class="gaff2-h4" element="H"/>
+            <Type smirks="[$([#1]-[#6X3](~[!#1;!#6])~[!#1;!#6]):1]" name="gaff2-h5" class="gaff2-h5" element="H"/>
+            <Type smirks="[$([#1]-[#6X4]~[*+]):1]" name="gaff2-hx" class="gaff2-hx" element="H"/>
+            <Type smirks="[$([#1]-[#7]):1]" name="gaff2-hn" class="gaff2-hn" element="H"/>
+            <Type smirks="[$([#1]-[#8]):1]" name="gaff2-ho" class="gaff2-ho" element="H"/>
+            <Type smirks="[$([#1]-[#8]-[#1]):1]" name="tip3p-hw" class="tip3p-hw" element="H"/>
+            <Type smirks="[$([#1]-[#15]):1]" name="gaff2-hp" element="H"/>
+            <Type smirks="[$([#1]-[#16]):1]" name="gaff2-hs" element="H"/>
+            <Type smirks="[#6X2:1]" name="gaff2-c1,cg,ch" element="C"/>
+            <Type smirks="[#6X3:1]" name="gaff2-c,cs,c2,ca,cp,cq,cc,cd,ce,cf,cu,cv,cz" element="C"/>
+            <Type smirks="[#6X4:1]" name="gaff2-c3,cx,cy" element="C"/>
+            <Type smirks="[#7X1:1]" name="gaff2-n1" element="N"/>
+            <Type smirks="[#7X2,$([#7X3]~[#0]):1]" name="gaff2-n2,nb,nc,nd,ne,nf" element="N"/>
+            <Type smirks="[$([#7X2](=[*])=[*]):1]" name="gaff2-n1" element="N"/>
+            <Type smirks="[$([#7X3](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-n3,no" element="N"/>
+            <Type smirks="[$([#7X3H1](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-n7" element="N"/>
+            <Type smirks="[$([#7X3H2](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-n8" element="N"/>
+            <Type smirks="[$([#7X3]-[#6X3]):1]" name="gaff2-nh" element="N"/>
+            <Type smirks="[$([#7X3H1]-[#6X3]):1]" name="gaff2-nu" element="N"/>
+            <Type smirks="[$([#7X3H2]-[#6X3]):1]" name="gaff2-nv" element="N"/>
+            <Type smirks="[$([#7X3+1]=[#6X3]):1]" name="gaff2-nh" element="N"/>
+            <Type smirks="[$([#7X3H1+1]=[#6X3]):1]" name="gaff2-nu" element="N"/>
+            <Type smirks="[$([#7X3H2+1]=[#6X3]):1]" name="gaff2-nv" element="N"/>
+            <Type smirks="[$([#7X3;a](~[!#0])(~[!#0])(~[!#0])):1]" name="gaff2-na" element="N"/>
+            <Type smirks="[#7X4:1]" name="gaff2-n4" element="N"/>
+            <Type smirks="[#7X4H1:1]" name="gaff2-nx" element="N"/>
+            <Type smirks="[#7X4H2:1]" name="gaff2-ny" element="N"/>
+            <Type smirks="[#7X4H3:1]" name="gaff2-nz" element="N"/>
+            <Type smirks="[$([#7X3]-[#6X3]=[#8,#16]):1]" name="gaff2-n" element="N"/>
+            <Type smirks="[$([#7X3H1]-[#6X3]=[#8,#16]):1]" name="gaff2-ns" element="N"/>
+            <Type smirks="[$([#7X3H2]-[#6X3]=[#8,#16]):1]" name="gaff2-nt" element="N"/>
+            <Type smirks="[#7H4+1:1]" name="gaff2-n+" element="N"/>
+            <Type smirks="[#7H3+0:1]" name="gaff2-n9" element="N"/>
+            <Type smirks="[#8:1]" name="gaff2-os" element="O"/>
+            <Type smirks="[#8X1:1]" name="gaff2-o" element="O"/>
+            <Type smirks="[#8H1:1]" name="gaff2-oh" element="O"/>
+            <Type smirks="[#8H2:1]" name="tip3p-ow" element="O"/>
+            <Type smirks="[#9:1]" name="gaff2-f" element="F"/>
+            <Type smirks="[#15:1]" name="gaff2-p*" element="P"/>
+            <Type smirks="[#16:1]" name="gaff2-s*" element="S"/>
+            <Type smirks="[#17:1]" name="gaff2-cl" element="Cl"/>
+            <Type smirks="[#35:1]" name="gaff2-br" element="Br"/>
+            <Type smirks="[#53:1]" name="gaff2-i" element="I"/>
+            <Type smirks="[#0:1]" name="EP" element="EP"/>
+        </SMARTSTypeOperator>
+        <GAFFTypeOperator>
+            <Antechamber path="antechamber"/>
+        </GAFFTypeOperator>
+    </Operators>
+</ForceField>

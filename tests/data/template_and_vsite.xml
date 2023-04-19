@@ -20,7 +20,7 @@
             <Atom name="H4" type="hc" charge="0.00"/>
             <Atom name="BR" type="br" charge="0.00"/>
             <Atom name="VBR" type="vbr" charge="0.00"/>
-            <VirtualSite type="average2" index="10" atom1="0" atom2="9" weight1="0.5" weight2="0.5"/>
+            <VirtualSite type="2" index="10" atom1="0" atom2="9" weight1="0.5"/>
             <Bond atomName1="N" atomName2="C1"/>
             <Bond atomName1="C1" atomName2="C2"/>
             <Bond atomName1="C2" atomName2="C3"/>

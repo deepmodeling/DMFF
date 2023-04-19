@@ -3,6 +3,7 @@ from .xmlio import XMLIO
 from .paramset import ParamSet
 from .topology import DMFFTopology
 from ..utils import DMFFException
+from ..operators import GAFFTypeOperator, AM1ChargeOperator, SMARTSATypeOperator, SMARTSVSiteOperator, TemplateATypeOperator
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -36,7 +37,7 @@ class Hamiltonian:
     # 存Residue templates
     # 存Generators
 
-    def __init__(self, xmlfiles, operators=["template"]):
+    def __init__(self, xmlfiles, operators=[TemplateATypeOperator]):
         self._xmlio = XMLIO()
         self.generators = {}
         self.templates = []
@@ -62,9 +63,7 @@ class Hamiltonian:
 
         # initialize operators
         for tp in operators:
-            if tp not in dmff_operators:
-                raise DMFFException(f"Operator {tp} is not loaded.")
-            self.operators.append(dmff_operators[tp](self.ffinfo))
+            self.operators.append(tp(self.ffinfo))
 
     def prepTopData(self, topdata: DMFFTopology) -> DMFFTopology:
         # patch atoms using typifiers
@@ -86,8 +85,8 @@ class Hamiltonian:
 
         return efunc_total
 
-    def createJaxPotential(self, topo: app.Topology, operators=["template"], forces=None):
-        topdata = self.prepTopData(topo, operators)
+    def createJaxPotential(self, topo: app.Topology, forces=None):
+        topdata = self.prepTopData(topo)
         efunc = self.buildJaxPotential(topdata, forces)
         return efunc
 

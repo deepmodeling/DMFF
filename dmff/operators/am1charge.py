@@ -14,7 +14,8 @@ def cmd_exists(x):
 
 class AM1ChargeOperator(BaseOperator):
 
-    def __init__(self, sqm="sqm"):
+    def __init__(self, ffinfo: dict):
+        sqm = ffinfo["Operators"]["AM1ChargeOperator"][0]["attrib"]["path"]
         self.find_sqm = cmd_exists(sqm)
         self.sqm = sqm
 

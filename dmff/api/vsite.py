@@ -6,8 +6,8 @@ class VirtualSite:
 
     def __init__(self, vtype, atoms, weights, vatom=None, meta={}):
         # https://manual.gromacs.org/documentation/2019-rc1/reference-manual/functions/interaction-methods.html#virtualsites
-        # vtype: 2, 3, 3fd, 3fad, 3out, 4fdn
-        # only support 2 and 3 for now
+        # vtype: 2, 2fd, 3, 3fd, 3fad, 3out, 4fdn
+        # only support 2, 3, 2fd, 3fd for now
         self.type = vtype 
         self.atoms = atoms
         self.weights = weights
@@ -15,7 +15,7 @@ class VirtualSite:
         self.meta = meta
 
     def __deepcopy__(self, memo):
-        return VirtualSite(self.atoms, self.weights, vatom=self.vatom, meta=self.meta)
+        return VirtualSite(self.type, self.atoms, self.weights, vatom=self.vatom, meta=self.meta)
 
     def __repr__(self):
         s = f"Virtual site type: {self.type} with \natoms: "
