@@ -11,7 +11,7 @@ import jax.numpy as jnp
 
 
 class DMFFTopology:
-    def __init__(self, from_top=None, from_mol=None, residue_name="MOL"):
+    def __init__(self, from_top=None, from_sdf=None, from_rdmol=None, residue_name="MOL"):
         self._chains = []
         self._numResidues = 0
         self._numAtoms = 0
@@ -20,12 +20,16 @@ class DMFFTopology:
         self._vsites = []
         self._bondedAtom = {}
         self.cell = None
+        self._meta = {}
 
         if from_top is not None:
             self._load_omm_top(from_top)
 
-        elif from_mol is not None:
-            self._load_mol(from_mol, residue_name)
+        elif from_sdf is not None:
+            self._load_sdf(from_sdf, residue_name)
+
+        elif from_rdmol is not None:
+            self._load_rdmol(from_rdmol, residue_name)
 
     def __repr__(self):
         nchains = len(self._chains)
@@ -35,7 +39,7 @@ class DMFFTopology:
         return '<%s; %d chains, %d residues, %d atoms, %d bonds>' % (
             type(self).__name__, nchains, nres, natom, nbond)
 
-    def _load_mol(self, filename, residue_name):
+    def _load_sdf(self, filename, residue_name):
         mol = Chem.MolFromMolFile(filename, removeHs=False)
         atoms = [a for a in mol.GetAtoms()]
         bonds = [b for b in mol.GetBonds()]
@@ -57,6 +61,28 @@ class DMFFTopology:
             order = bond.GetBondType()
             self.addBond(top_atoms[idx1], top_atoms[idx2], order)
         self.updateMolecules()
+
+    def _load_rdmol(self, mol, residue_name):
+        atoms = [a for a in mol.GetAtoms()]
+        bonds = [b for b in mol.GetBonds()]
+        chain = self.addChain()
+        res = self.addResidue(residue_name, chain)
+        no_symbol = {}
+        top_atoms = []
+        for atom in atoms:
+            symbol = atom.GetSymbol()
+            if symbol not in no_symbol:
+                no_symbol[symbol] = 0
+            no_symbol[symbol] += 1
+            top_atom = self.addAtom(
+                f"{symbol}{no_symbol[symbol]}", symbol, res)
+            top_atoms.append(top_atom)
+        for bond in bonds:
+            idx1 = bond.GetBeginAtomIdx()
+            idx2 = bond.GetEndAtomIdx()
+            order = bond.GetBondType()
+            self.addBond(top_atoms[idx1], top_atoms[idx2], order)
+        self._molecules.append(mol)
 
     def _load_omm_top(self, top: app.Topology):
         # add atom

@@ -4,6 +4,7 @@ from dmff.operators import SMARTSATypeOperator, SMARTSVSiteOperator, AM1ChargeOp
 from dmff.api.paramset import ParamSet
 from dmff.generators.classical import CoulombGenerator, LennardJonesGenerator
 import jax.numpy as jnp
+import jax
 import openmm.app as app
 import openmm.unit as unit
 from rdkit import Chem
@@ -21,7 +22,7 @@ def load_xml():
 
 def test_load_sdf():
     ffinfo = load_xml()
-    top = DMFFTopology(from_mol="tests/data/dimer/ligand.mol")
+    top = DMFFTopology(from_sdf="tests/data/dimer/ligand.mol")
     smarts_type = SMARTSATypeOperator(ffinfo)
     smarts_vsite = SMARTSVSiteOperator(ffinfo)
     am1_charge = AM1ChargeOperator(ffinfo)
@@ -45,7 +46,7 @@ def test_load_protein():
 def test_build_dimer():
     ffinfo = load_xml()
 
-    mol_top = DMFFTopology(from_mol="tests/data/dimer/ligand.mol")
+    mol_top = DMFFTopology(from_sdf="tests/data/dimer/ligand.mol")
     smarts_type = SMARTSATypeOperator(ffinfo)
     smarts_vsite = SMARTSVSiteOperator(ffinfo)
     am1_charge = AM1ChargeOperator(ffinfo)
@@ -96,8 +97,10 @@ def test_build_dimer():
         e_coul = coul_force(pos, box, pairs, params)
         e_lj = lj_force(pos, box, pairs, params)
         return e_coul + e_lj
-    
+
     print(energy_func(pos, box, pairs, paramset))
+    print(jax.value_and_grad(energy_func, argnums=3)(pos, box, pairs, paramset))
+    print(mol_top._meta["bcc_top_mat"])
 
 
 if __name__ == "__main__":
