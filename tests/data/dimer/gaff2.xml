@@ -16,17 +16,12 @@
 		<Atom sigma="0.347833961248397827" epsilon="0.6677915" type="gaff2-c1,cg,ch"/>
 		<Atom sigma="0.332855045795440674" epsilon="0.4145119" type="gaff2-c,cs,c2,ca,cp,cq,cc,cd,ce,cf,cu,cv,cz"/>
 		<Atom sigma="0.338161081075668335" epsilon="0.4528892" type="gaff2-c3,cx,cy"/>
-		<Atom sigma="0.326387256383895874" epsilon="0.4593785" type="gaff2-n1"/>
 		<Atom sigma="0.331471681594848633" epsilon="0.3934670" type="gaff2-n2,nb,nc,nd,ne,nf"/>
 		<Atom sigma="0.327351838350296021" epsilon="0.4594032" type="gaff2-n1"/>
 		<Atom sigma="0.332706481218338013" epsilon="0.3588123" type="gaff2-n3,no"/>
 		<Atom sigma="0.341414093971252441" epsilon="0.2176652" type="gaff2-n7"/>
 		<Atom sigma="0.353676438331604004" epsilon="0.1335564" type="gaff2-n8"/>
 		<Atom sigma="0.318995207548141479" epsilon="0.8995600" type="gaff2-nh"/>
-		<Atom sigma="0.327338844537734985" epsilon="0.6464619" type="gaff2-nu"/>
-		<Atom sigma="0.330591738224029541" epsilon="0.4684088" type="gaff2-nv"/>
-		<Atom sigma="0.318995207548141479" epsilon="0.8995600" type="gaff2-nh"/>
-		<Atom sigma="0.327904194593429565" epsilon="0.6464280" type="gaff2-nu"/>
 		<Atom sigma="0.333846420049667358" epsilon="0.4685966" type="gaff2-nv"/>
 		<Atom sigma="0.313195019960403442" epsilon="0.8543006" type="gaff2-na"/>
 		<Atom sigma="0.249997586011886597" epsilon="16.2121639" type="gaff2-n4"/>

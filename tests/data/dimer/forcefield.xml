@@ -64,6 +64,7 @@
         <Type smirks="[#0:1]" name="EP" class="EP" element="EP"/>
     </AtomTypes>
     <CoulombForce coulomb14scale="0.83333333">
+		<UseBondChargeCorrection name="MOL"/>
 		<BondChargeCorrection bcc="0.0000" smirks="[#6X4:1]-[#6X4:2]"/>
 		<BondChargeCorrection bcc="0.0278" smirks="[#6X4:1]-[#6X3:2]"/>
 		<BondChargeCorrection bcc="-0.0724" smirks="[#6X4:1]-[$([#6X3]=[#7]):2]"/>

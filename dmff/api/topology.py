@@ -146,7 +146,7 @@ class DMFFTopology:
 
     def sanitize(self):
         for mol in self._molecules:
-            Chem.sanitize(mol)
+            Chem.SanitizeMol(mol)
 
     def parseSMARTS(self, parser, resname=[]):
         atoms = [a for a in self.atoms()]
@@ -156,6 +156,7 @@ class DMFFTopology:
             aidx = [a.index for a in atoms]
         parse = Chem.MolFromSmarts(parser)
         ret = []
+        self.sanitize()
         for mol in self._molecules:
             matches = mol.GetSubstructMatches(parse)
             for match in matches:
@@ -287,82 +288,110 @@ class DMFFTopology:
     def buildVSiteUpdateFunction(self):
         # vtype: 2
         vsites_type_2 = [v for v in self.vsites() if v.type == "2"]
-        self_idx_type_2 = jnp.array(
-            [v.vatom.index for v in vsites_type_2], dtype=int)
-        a1_idx_type_2 = jnp.array(
-            [v.atoms[0].index for v in vsites_type_2], dtype=int)
-        a2_idx_type_2 = jnp.array(
-            [v.atoms[1].index for v in vsites_type_2], dtype=int)
-        w2_idx_type_2 = jnp.array([v.weights[0] for v in vsites_type_2])
-        w1_idx_type_2 = jnp.ones(w2_idx_type_2.shape) - w2_idx_type_2
+        if len(vsites_type_2) > 0:
+            use_type_2 = True
+            self_idx_type_2 = jnp.array(
+                [v.vatom.index for v in vsites_type_2], dtype=int)
+            a1_idx_type_2 = jnp.array(
+                [v.atoms[0].index for v in vsites_type_2], dtype=int)
+            a2_idx_type_2 = jnp.array(
+                [v.atoms[1].index for v in vsites_type_2], dtype=int)
+            w2_idx_type_2 = jnp.array([v.weights[0] for v in vsites_type_2])
+            w1_idx_type_2 = jnp.ones(w2_idx_type_2.shape) - w2_idx_type_2
+        else:
+            use_type_2 = False
 
         # vtype: 3
         vsites_type_3 = [v for v in self.vsites() if v.type == "3"]
-        self_idx_type_3 = jnp.array(
-            [v.vatom.index for v in vsites_type_3], dtype=int)
-        a1_idx_type_3 = jnp.array(
-            [v.atoms[0].index for v in vsites_type_3], dtype=int)
-        a2_idx_type_3 = jnp.array(
-            [v.atoms[1].index for v in vsites_type_3], dtype=int)
-        a3_idx_type_3 = jnp.array(
-            [v.atoms[2].index for v in vsites_type_3], dtype=int)
-        w2_idx_type_3 = jnp.array([v.weights[0] for v in vsites_type_3])
-        w3_idx_type_3 = jnp.array([v.weights[1] for v in vsites_type_3])
-        w1_idx_type_3 = jnp.ones(w2_idx_type_3.shape) - \
-            w2_idx_type_3 - w3_idx_type_3
+        if len(vsites_type_3) > 0:
+            use_type_3 = True
+            self_idx_type_3 = jnp.array(
+                [v.vatom.index for v in vsites_type_3], dtype=int)
+            a1_idx_type_3 = jnp.array(
+                [v.atoms[0].index for v in vsites_type_3], dtype=int)
+            a2_idx_type_3 = jnp.array(
+                [v.atoms[1].index for v in vsites_type_3], dtype=int)
+            a3_idx_type_3 = jnp.array(
+                [v.atoms[2].index for v in vsites_type_3], dtype=int)
+            w2_idx_type_3 = jnp.array([v.weights[0] for v in vsites_type_3])
+            w3_idx_type_3 = jnp.array([v.weights[1] for v in vsites_type_3])
+            w1_idx_type_3 = jnp.ones(w2_idx_type_3.shape) - \
+                w2_idx_type_3 - w3_idx_type_3
+        else:
+            use_type_3 = False
 
         # vtype: 2fd
         vsites_type_2fd = [v for v in self.vsites() if v.type == "2fd"]
-        self_idx_type_2fd = jnp.array(
-            [v.vatom.index for v in vsites_type_2fd], dtype=int)
-        a1_idx_type_2fd = jnp.array(
-            [v.atoms[0].index for v in vsites_type_2fd], dtype=int)
-        a2_idx_type_2fd = jnp.array(
-            [v.atoms[1].index for v in vsites_type_2fd], dtype=int)
-        dist_idx_type_2fd = jnp.array([v.weights[0] for v in vsites_type_2fd])
+        if len(vsites_type_2fd) > 0:
+            use_type_2fd = True
+            self_idx_type_2fd = jnp.array(
+                [v.vatom.index for v in vsites_type_2fd], dtype=int)
+            a1_idx_type_2fd = jnp.array(
+                [v.atoms[0].index for v in vsites_type_2fd], dtype=int)
+            a2_idx_type_2fd = jnp.array(
+                [v.atoms[1].index for v in vsites_type_2fd], dtype=int)
+            dist_idx_type_2fd = jnp.array([v.weights[0] for v in vsites_type_2fd]).reshape((-1, 1))
+        else:
+            use_type_2fd = False
 
         # vtype: 3fd
         vsites_type_3fd = [v for v in self.vsites() if v.type == "3fd"]
-        self_idx_type_3fd = jnp.array(
-            [v.vatom.index for v in vsites_type_3fd], dtype=int)
-        a1_idx_type_3fd = jnp.array(
-            [v.atoms[0].index for v in vsites_type_3fd], dtype=int)
-        a2_idx_type_3fd = jnp.array(
-            [v.atoms[1].index for v in vsites_type_3fd], dtype=int)
-        a3_idx_type_3fd = jnp.array(
-            [v.atoms[2].index for v in vsites_type_3fd], dtype=int)
-        dist_idx_type_3fd = jnp.array([v.weights[0] for v in vsites_type_3fd])
+        if len(vsites_type_3fd) > 0:
+            use_type_3fd = True
+            self_idx_type_3fd = jnp.array(
+                [v.vatom.index for v in vsites_type_3fd], dtype=int)
+            a1_idx_type_3fd = jnp.array(
+                [v.atoms[0].index for v in vsites_type_3fd], dtype=int)
+            a2_idx_type_3fd = jnp.array(
+                [v.atoms[1].index for v in vsites_type_3fd], dtype=int)
+            a3_idx_type_3fd = jnp.array(
+                [v.atoms[2].index for v in vsites_type_3fd], dtype=int)
+            dist_idx_type_3fd = jnp.array([v.weights[0] for v in vsites_type_3fd]).reshape((-1, 1))
+        else:
+            use_type_3fd = False
 
         def update_pos(pos):
             # vtype: 2
-            new_pos_type_2 = pos[a1_idx_type_2, :] * \
-                w1_idx_type_2 + pos[a2_idx_type_2, :] * w2_idx_type_2
-            pos = pos.at[self_idx_type_2, :].set(new_pos_type_2)
+            if use_type_2:
+                new_pos_type_2 = pos[a1_idx_type_2, :] * \
+                    w1_idx_type_2 + pos[a2_idx_type_2, :] * w2_idx_type_2
+                pos = pos.at[self_idx_type_2, :].set(new_pos_type_2)
             # vtype: 3
-            new_pos_type_3 = pos[a1_idx_type_3, :] * w1_idx_type_3 + \
-                pos[a2_idx_type_3, :] * w2_idx_type_3 + \
-                pos[a3_idx_type_3, :] * w3_idx_type_3
-            pos = pos.at[self_idx_type_3, :].set(new_pos_type_3)
+            if use_type_3:
+                new_pos_type_3 = pos[a1_idx_type_3, :] * w1_idx_type_3 + \
+                    pos[a2_idx_type_3, :] * w2_idx_type_3 + \
+                    pos[a3_idx_type_3, :] * w3_idx_type_3
+                pos = pos.at[self_idx_type_3, :].set(new_pos_type_3)
             # vtype: 2fd
-            vvec = pos[a1_idx_type_2fd, :] - pos[a2_idx_type_2fd]
-            rvec = vvec / jnp.linalg.norm(vvec, axis=1)
-            new_pos_type_2fd = pos[a1_idx_type_2fd,
-                                   :] + rvec * dist_idx_type_2fd
-            pos = pos.at[self_idx_type_2fd, :].set(new_pos_type_2fd)
+            if use_type_2fd:
+                vvec = pos[a1_idx_type_2fd, :] - pos[a2_idx_type_2fd]
+                rvec = vvec / jnp.linalg.norm(vvec, axis=1).reshape((-1, 1))
+                new_pos_type_2fd = pos[a1_idx_type_2fd,
+                                    :] + rvec * dist_idx_type_2fd
+                pos = pos.at[self_idx_type_2fd, :].set(new_pos_type_2fd)
             # vtype: 3fd
-            vji = pos[a1_idx_type_3fd, :] - pos[a2_idx_type_3fd, :]
-            vki = pos[a1_idx_type_3fd, :] - pos[a3_idx_type_3fd, :]
-            rji = vji / jnp.linalg.norm(vji, axis=1)
-            rki = vki / jnp.linalg.norm(vki, axis=1)
-            vmid = rji + rki
-            rmid = vmid / jnp.linalg.norm(vmid, axis=1)
-            new_pos_type_3fd = pos[self_idx_type_3fd,
-                                   :] + rmid * dist_idx_type_3fd
-            pos = pos.at[self_idx_type_3fd, :].set(new_pos_type_3fd)
+            if use_type_3fd:
+                vji = pos[a1_idx_type_3fd, :] - pos[a2_idx_type_3fd, :]
+                vki = pos[a1_idx_type_3fd, :] - pos[a3_idx_type_3fd, :]
+                rji = vji / jnp.linalg.norm(vji, axis=1).reshape((-1, 1))
+                rki = vki / jnp.linalg.norm(vki, axis=1).reshape((-1, 1))
+                vmid = rji + rki
+                rmid = vmid / jnp.linalg.norm(vmid, axis=1).reshape((-1, 1))
+
+                new_pos_type_3fd = pos[self_idx_type_3fd,
+                                    :] + rmid * dist_idx_type_3fd
+                pos = pos.at[self_idx_type_3fd, :].set(new_pos_type_3fd)
 
             return pos
 
         return update_pos
+    
+    def addVSiteToPos(self, positions):
+        new_pos = jnp.zeros((self.getNumAtoms(), 3))
+        idx = [a.index for a in self.atoms() if a.meta["element"] != "EP"]
+        new_pos = new_pos.at[idx,:].set(positions[:,:])
+        update_func = self.buildVSiteUpdateFunction()
+        return update_func(new_pos)
 
     def getEquivalentAtoms(self):
         graph = nx.Graph()
@@ -571,7 +600,7 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
         parent = vsite.atoms[0].index
         if vidx not in indices or parent not in indices:
             continue
-        emol.AddBond(idx2ridx[vidx], idx2ridx[parent], Chem.BondType.ZERO)
+        emol.AddBond(idx2ridx[vidx], idx2ridx[parent])
     rdmol = emol.GetMol()
     # rdmol.UpdatePropertyCache()
     # AllChem.EmbedMolecule(rdmol, randomSeed=1)

@@ -27,7 +27,7 @@ class CoulombGenerator:
                 self._bcc_mol.append(node["attrib"]["name"])
             if node["name"] == "BondChargeCorrection":
                 bcc = node["attrib"]["bcc"]
-                parser = node["attrib"]["smarts"]
+                parser = node["attrib"]["smarts"] if "smarts" in node["attrib"] else node["attrib"]["smirks"]
                 bcc_prms.append(float(bcc))
                 self.bcc_parsers.append(parser)
         bcc_prms = jnp.array(bcc_prms)
@@ -105,6 +105,11 @@ class CoulombGenerator:
                 nval = matched_dict[(ii, jj)]
                 top_mat[ii, nval] += 1.
                 top_mat[jj, nval] -= 1.
+
+            for line in top_mat:
+                for item in line:
+                    print(item, end=" ")
+                print()
 
         if nonbondedMethod is not app.PME:
             # do not use PME
