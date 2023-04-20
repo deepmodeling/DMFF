@@ -19,7 +19,7 @@
 <Angle class1="cm" class2="co" class3="cm" angle="2.062630" k="584.923200"/>
 </HarmonicAngleForce>
 <NonbondedForce coulomb14scale="0.5" lj14scale="0.5">
-<Atom type="cm" sigma="0.40" epsilon="0.75" charge="0.2841"/>
-<Atom type="co" sigma="0.40" epsilon="0.75" charge="-0.5682"/>
+<Atom type="cm" sigma="0.50" epsilon="0.75" charge="0.2841"/>
+<Atom type="co" sigma="0.50" epsilon="0.75" charge="-0.5682"/>
 </NonbondedForce>
 </ForceField>
