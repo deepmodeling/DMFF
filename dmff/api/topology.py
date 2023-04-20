@@ -281,6 +281,13 @@ class DMFFTopology:
                         if k != i and k not in j_list:
                             covalent_map[i, k] = n_curr + 1
                             covalent_map[k, i] = n_curr + 1
+        for vsite in self.vsites():
+            self_idx = vsite.vatom.index
+            parent = vsite.atoms[0].index
+            covalent_map[self_idx,:] = covalent_map[parent,:]
+            covalent_map[:,self_idx] = covalent_map[:,parent]
+            covalent_map[self_idx,parent] = 1
+            covalent_map[parent,self_idx] = 1
         if use_jax:
             return jnp.array(covalent_map)
         return covalent_map
