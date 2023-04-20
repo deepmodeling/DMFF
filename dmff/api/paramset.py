@@ -32,12 +32,10 @@ class ParamSet:
 
 
 def flatten_paramset(prmset):
-    print(">>> Flatten")
     return [prmset.parameters], None
 
 
 def unflatten_paramset(aux_data, contents):
-    print(">>> Unflatten")
     print(aux_data, contents)
     ret = ParamSet(data=contents[0])
     return ret
