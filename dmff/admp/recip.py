@@ -430,7 +430,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             return jnp.sum(E_k) * DIELECTRIC
         else:
             return jnp.sum(E_k)
-
+    
     if DO_JIT:
         return jit(pme_recip, static_argnums=())
     else:
@@ -441,6 +441,8 @@ def Ck_1(ksq, kappa, V):
     return 2*jnp.pi/V/ksq * jnp.exp(-ksq/4/kappa**2)
 
 def Ck_6(ksq, kappa, V):
+    thresh = 1e-16
+    ksq = jnp.piecewise(ksq, [ksq<thresh, ksq>=thresh], [lambda x: jnp.array(thresh), lambda x: x])
     x2 = ksq / 4 / kappa**2
     x = jnp.sqrt(x2)
     x3 = x2 * x
@@ -449,6 +451,8 @@ def Ck_6(ksq, kappa, V):
     return sqrt_pi*jnp.pi/2/V*kappa**3 * f / 3
 
 def Ck_8(ksq, kappa, V):
+    thresh = 1e-16
+    ksq = jnp.piecewise(ksq, [ksq<thresh, ksq>=thresh], [lambda x: jnp.array(thresh), lambda x: x])
     x2 = ksq / 4 / kappa**2
     x = jnp.sqrt(x2)
     x4 = x2 * x2
@@ -458,6 +462,8 @@ def Ck_8(ksq, kappa, V):
     return sqrt_pi*jnp.pi/2/V*kappa**5 * f / 45
 
 def Ck_10(ksq, kappa, V):
+    thresh = 1e-16
+    ksq = jnp.piecewise(ksq, [ksq<thresh, ksq>=thresh], [lambda x: jnp.array(thresh), lambda x: x])
     x2 = ksq / 4 / kappa**2
     x = jnp.sqrt(x2)
     x4 = x2 * x2

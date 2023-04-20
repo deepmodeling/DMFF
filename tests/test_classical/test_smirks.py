@@ -54,7 +54,7 @@ def test_vsite(name: str):
     # Chem.MolToMolFile(newmol, f"tests/data/{name}_vsite.mol")
     rdmol_vsite = Chem.MolFromMolFile(f"tests/data/{name}_vsite.mol", removeHs=False)
 
-    pos_vsite = jnp.array(newmol.GetConformer().GetPositions()) / 10
+    pos_vsite = jnp.array(newmol.GetConformer().GetPositions(), dtype=jnp.float32) / 10
     box = jnp.eye(3, dtype=jnp.float32)
     nblist = NeighborList(box, 1.0, pot_vsite.meta["cov_map"])
     nblist.allocate(pos_vsite)
@@ -78,7 +78,7 @@ def test_vsite(name: str):
 
     h_typing = Hamiltonian(f"tests/data/{name}.xml", removeHs=False)
     pot_typing = h_typing.createPotential(top)
-    pos = jnp.array(rdmol.GetConformer().GetPositions()) / 10
+    pos = jnp.array(rdmol.GetConformer().GetPositions(), dtype=jnp.float32) / 10
     box = jnp.eye(3, dtype=jnp.float32)
     nblist = NeighborList(box, 1.0, pot_typing.meta["cov_map"])
     nblist.allocate(pos)
