@@ -91,7 +91,8 @@ class CoulombGenerator:
                                                        self.coeff_method)
 
         if self._use_bcc:
-            top_mat = np.zeros((topdata.getNumAtoms(), self.paramset[self.name]["bcc"].shape[0]))
+            top_mat = np.zeros(
+                (topdata.getNumAtoms(), self.paramset[self.name]["bcc"].shape[0]))
             matched_dict = {}
             for nparser, parser in enumerate(self.bcc_parsers):
                 matches = topdata.parseSMARTS(parser, resname=self._bcc_mol)
@@ -229,12 +230,9 @@ class LennardJonesGenerator:
         methodString = methodMap[nonbondedMethod]
 
         atoms = [a for a in topdata.atoms()]
-        atypes = [
-            a.meta["type"] if
-            ("type" in a.meta and a.meta is not None) else "vs"
-            for a in atoms
-        ]
+        atypes = [a.meta["type"] for a in atoms]
         map_prm = [self.atype_to_idx[atype] for atype in atypes]
+        topdata._meta["lj_map_idx"] = map_prm
 
         # not use nbfix for now
         map_nbfix = []
