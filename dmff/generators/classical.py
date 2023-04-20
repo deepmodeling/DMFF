@@ -106,11 +106,6 @@ class CoulombGenerator:
                 top_mat[ii, nval] += 1.
                 top_mat[jj, nval] -= 1.
 
-            for line in top_mat:
-                for item in line:
-                    print(item, end=" ")
-                print()
-
         if nonbondedMethod is not app.PME:
             # do not use PME
             if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
