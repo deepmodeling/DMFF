@@ -150,72 +150,101 @@ class CoulombGenerator:
 
 
 class LennardJonesGenerator:
+
     def __init__(self, ffinfo: dict, paramset: ParamSet):
         self.name = "LennardJonesForce"
         self.ffinfo = ffinfo
         self.paramset = paramset
         self.lj14scale = float(
             self.ffinfo["Forces"][self.name]["meta"]["lj14scale"])
+        self.nbfix_to_idx = {}
         self.atype_to_idx = {}
         sig_prms, eps_prms = [], []
+        sig_nbfix, eps_nbfix = [], []
         for node in self.ffinfo["Forces"][self.name]["node"]:
-            if node["name"] != "Atom":
-                continue
-            if "type" in node["attrib"]:
-                atype, eps, sig = node["attrib"]["type"], node["attrib"][
-                    "epsilon"], node["attrib"]["sigma"]
-                if atype in self.atype_to_idx:
-                    raise DMFFException(f"Repeat L-J parameters for {atype}")
-                self.atype_to_idx[atype] = len(sig_prms)
-            elif "class" in node["attrib"]:
-                acls, eps, sig = node["attrib"]["class"], node["attrib"][
-                    "epsilon"], node["attrib"]["sigma"]
-                atypes = [
-                    k for k in ffinfo["Type2Class"].keys()
-                    if ffinfo["Type2Class"][k] == acls
-                ]
-                for atype in atypes:
-                    if atype in self.atype_to_idx:
-                        raise DMFFException(
-                            f"Repeat L-J parameters for {atype}")
+            if node["name"] == "Atom":
+                if "type" in node["attrib"]:
+                    atype, eps, sig = node["attrib"]["type"], node["attrib"][
+                        "epsilon"], node["attrib"]["sigma"]
                     self.atype_to_idx[atype] = len(sig_prms)
-            sig_prms.append(float(sig))
-            eps_prms.append(float(eps))
+                elif "class" in node["attrib"]:
+                    acls, eps, sig = node["attrib"]["class"], node["attrib"][
+                        "epsilon"], node["attrib"]["sigma"]
+                    atypes = ffinfo["ClassToType"][acls]
+                    for atype in atypes:
+                        self.atype_to_idx[atype] = len(sig_prms)
+                sig_prms.append(float(sig))
+                eps_prms.append(float(eps))
+            elif node["name"] == "NBFix":
+                if "type1" in node["attrib"]:
+                    atype1, atype2, eps, sig = node["attrib"]["type1"], node["attrib"][
+                        "type2"], node["attrib"]["epsilon"], node["attrib"]["sigma"]
+                    if atype1 not in self.nbfix_to_idx:
+                        self.nbfix_to_idx[atype1] = {}
+                    if atype2 not in self.nbfix_to_idx:
+                        self.nbfix_to_idx[atype2] = {}
+                    self.nbfix_to_idx[atype1][atype2] = len(sig_nbfix)
+                    self.nbfix_to_idx[atype2][atype1] = len(sig_nbfix)
+                elif "class1" in node["attrib"]:
+                    acls1, acls2, eps, sig = node["attrib"]["class1"], node["attrib"][
+                        "class2"], node["attrib"]["epsilon"], node["attrib"]["sigma"]
+                    atypes1 = ffinfo["ClassToType"][acls1]
+                    atypes2 = ffinfo["ClassToType"][acls2]
+                    for atype1 in atypes1:
+                        if atype1 not in self.nbfix_to_idx:
+                            self.nbfix_to_idx[atype1] = {}
+                        for atype2 in atypes2:
+                            if atype2 not in self.nbfix_to_idx:
+                                self.nbfix_to_idx[atype2] = {}
+                            self.nbfix_to_idx[atype1][atype2] = len(sig_nbfix)
+                            self.nbfix_to_idx[atype2][atype1] = len(sig_nbfix)
+                sig_nbfix.append(sig)
+                eps_nbfix.append(eps)
+
         sig_prms = jnp.array(sig_prms)
         eps_prms = jnp.array(eps_prms)
 
-        sig_nbf, eps_nbf = jnp.array([]), jnp.array([])
+        sig_nbfix, eps_nbfix = jnp.array(sig_nbfix), jnp.array(eps_nbfix)
 
         paramset.addField(self.name)
         paramset.addParameter(sig_prms, "sigma", field=self.name)
         paramset.addParameter(eps_prms, "epsilon", field=self.name)
-        paramset.addParameter(sig_nbf, "sigma_nbfix", field=self.name)
-        paramset.addParameter(eps_nbf, "epsilon_nbfix", field=self.name)
+        paramset.addParameter(sig_nbfix, "sigma_nbfix", field=self.name)
+        paramset.addParameter(eps_nbfix, "epsilon_nbfix", field=self.name)
 
     def overwrite(self):
         # paramset to ffinfo
         for nnode in range(len(self.ffinfo["Forces"][self.name]["node"])):
             node = self.ffinfo["Forces"][self.name]["node"][nnode]
-            if node["name"] != "Atom":
-                continue
-            if "type" in node["attrib"]:
-                atype = node["attrib"]["type"]
-                idx = self.atype_to_idx[atype]
+            if node["name"] == "Atom":
+                if "type" in node["attrib"]:
+                    atype = node["attrib"]["type"]
+                    idx = self.atype_to_idx[atype]
 
-            elif "class" in node["attrib"]:
-                acls = node["attrib"]["class"]
-                atypes = [
-                    k for k in self.ffinfo["Type2Class"].keys()
-                    if self.ffinfo["Type2Class"][k] == acls
-                ]
-                idx = self.atype_to_idx[atypes[0]]
+                elif "class" in node["attrib"]:
+                    acls = node["attrib"]["class"]
+                    atypes = self.ffinfo["ClassToType"][acls]
+                    idx = self.atype_to_idx[atypes[0]]
 
-            eps_now = self.paramset[self.name]["epsilon"][idx]
-            sig_now = self.paramset[self.name]["sigma"][idx]
-            self.ffinfo["Forces"][
-                self.name]["node"][nnode]["attrib"]["sigma"] = sig_now
-            self.ffinfo["Forces"][
-                self.name]["node"][nnode]["attrib"]["epsilon"] = eps_now
+                eps_now = self.paramset[self.name]["epsilon"][idx]
+                sig_now = self.paramset[self.name]["sigma"][idx]
+                self.ffinfo["Forces"][
+                    self.name]["node"][nnode]["attrib"]["sigma"] = sig_now
+                self.ffinfo["Forces"][
+                    self.name]["node"][nnode]["attrib"]["epsilon"] = eps_now
+            elif node["name"] == "NBFix":
+                if "type1" in node["attrib"]:
+                    atype1, atype2 = node["attrib"]["type1"], node["attrib"]["type2"]
+                    idx = self.nbfix_to_idx[atype1][atype2]
+                elif "class1" in node["attrib"]:
+                    acls1, acls2 = node["attrib"]["class1"], node["attrib"]["class2"]
+                    atypes1 = self.ffinfo["ClassToType"][acls1]
+                    atypes2 = self.ffinfo["ClassToType"][acls2]
+                    idx = self.nbfix_to_idx[atypes1[0]][atypes2[0]]
+                sig_now = self.paramset[self.name]["sigma_nbfix"][idx]
+                eps_now = self.paramset[self.name]["epsilon_nbfix"][idx]
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["sigma"] = sig_now
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["epsilon"] = eps_now
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
                         nonbondedCutoff, args):
@@ -231,11 +260,23 @@ class LennardJonesGenerator:
 
         atoms = [a for a in topdata.atoms()]
         atypes = [a.meta["type"] for a in atoms]
-        map_prm = [self.atype_to_idx[atype] for atype in atypes]
+        map_prm = []
+        for atype in atypes:
+            if atype not in self.atype_to_idx:
+                raise DMFFException(f"Atom type {atype} not found.")
+            idx = self.atype_to_idx[atype]
+            map_prm.append(idx)
+        map_prm = jnp.array(map_prm)
         topdata._meta["lj_map_idx"] = map_prm
 
         # not use nbfix for now
         map_nbfix = []
+        for atype1 in self.nbfix_to_idx.keys():
+            for atype2 in self.nbfix_to_idx[atype1].keys():
+                nbfix_idx = self.nbfix_to_idx[atype1][atype2]
+                type1_idx = self.atype_to_idx[atype1]
+                type2_idx = self.atype_to_idx[atype2]
+                map_nbfix.append([type1_idx, type2_idx, nbfix_idx])
         map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 3))
 
         if methodString in ["NoCutoff", "CutoffNonPeriodic"]:

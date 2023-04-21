@@ -112,10 +112,8 @@ class LennardJonesLongRangeForce:
             sig_m2 = sig_m1.T
             sig_mat = (sig_m1 + sig_m2) * 0.5
 
-            eps_mat = eps_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(epsfix)
-            eps_mat = eps_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(epsfix)
-            sig_mat = sig_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(sigfix)
-            sig_mat = sig_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(sigfix)
+            eps_mat = eps_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(epsfix[self.map_nbfix[:, 2]])
+            sig_mat = sig_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(sigfix[self.map_nbfix[:, 2]])
 
             volume = jnp.linalg.det(box)
 
