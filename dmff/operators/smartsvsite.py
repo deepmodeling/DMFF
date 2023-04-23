@@ -18,7 +18,6 @@ class SMARTSVSiteOperator(BaseOperator):
         vslist = []
         topatoms = [a for a in topdata.atoms()]
         for rdmol in topdata.molecules():
-            Chem.SanitizeMol(rdmol)
             atoms = rdmol.GetAtoms()
             for info in self.infos:
                 parser = info["smarts"] if "smarts" in info else info["smirks"]

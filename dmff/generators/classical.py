@@ -1,5 +1,6 @@
 from ..api.topology import DMFFTopology
 from ..api.paramset import ParamSet
+from ..api.hamiltonian import _DMFFGenerators
 from ..utils import DMFFException, isinstance_jnp
 from ..admp.pme import setup_ewald_parameters
 import numpy as np
@@ -32,6 +33,9 @@ class CoulombGenerator:
                 self.bcc_parsers.append(parser)
         bcc_prms = jnp.array(bcc_prms)
         paramset.addParameter(bcc_prms, "bcc", field=self.name)
+
+    def getName(self):
+        return self.name
 
     def overwrite(self):
         # paramset to ffinfo
@@ -148,7 +152,7 @@ class CoulombGenerator:
         self._jaxPotential = potential_fn
         return potential_fn
 
-
+_DMFFGenerators["CoulombForce"] = CoulombGenerator
 class LennardJonesGenerator:
 
     def __init__(self, ffinfo: dict, paramset: ParamSet):
@@ -211,6 +215,9 @@ class LennardJonesGenerator:
         paramset.addParameter(eps_prms, "epsilon", field=self.name)
         paramset.addParameter(sig_nbfix, "sigma_nbfix", field=self.name)
         paramset.addParameter(eps_nbfix, "epsilon_nbfix", field=self.name)
+
+    def getName(self):
+        return self.name
 
     def overwrite(self):
         # paramset to ffinfo
@@ -324,3 +331,5 @@ class LennardJonesGenerator:
 
         self._jaxPotential = potential_fn
         return potential_fn
+
+_DMFFGenerators["LennardJonesForce"] = LennardJonesGenerator

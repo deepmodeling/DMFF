@@ -1,15 +1,14 @@
 import openmm.app as app
+import openmm.unit as unit
 from .xmlio import XMLIO
 from .paramset import ParamSet
 from .topology import DMFFTopology
 from ..utils import DMFFException
-from ..operators import GAFFTypeOperator, AM1ChargeOperator, SMARTSATypeOperator, SMARTSVSiteOperator, TemplateATypeOperator
 import jax
 import jax.numpy as jnp
 import numpy as np
 
-dmff_generators = {}
-dmff_operators = {}
+_DMFFGenerators = {}
 
 
 def build_covalent_map(data, max_neighbor):
@@ -37,12 +36,11 @@ class Hamiltonian:
     # 存Residue templates
     # 存Generators
 
-    def __init__(self, xmlfiles, operators=[TemplateATypeOperator]):
+    def __init__(self, xmlfiles):
         self._xmlio = XMLIO()
         self.generators = {}
         self.templates = []
         self.paramset = ParamSet()
-        self.operators = []
 
         if isinstance(xmlfiles, str):
             self._xmlio.loadXML(xmlfiles)
@@ -54,49 +52,28 @@ class Hamiltonian:
 
         # 处理Forces
         for key in ffinfo["Forces"].keys():
-            if key not in dmff_generators:
-                raise BaseException(f"Generator {key} is not implemented.")
-            self.generators[key] = dmff_generators[key](
-                ffinfo["Forces"], self.paramset)
+            if key not in _DMFFGenerators:
+                raise BaseException(f"Generator for {key} is not implemented.")
+            self.generators[key] = _DMFFGenerators[key](
+                ffinfo, self.paramset)
 
-        self.parameters = self.paramset.parameters
-
-        # initialize operators
-        for tp in operators:
-            self.operators.append(tp(self.ffinfo))
-
-    def prepTopData(self, topdata: DMFFTopology) -> DMFFTopology:
-        # patch atoms using typifiers
-        for operator in self.operators:
-            if operator.name not in dmff_operators:
-                raise DMFFException(f"Typifier {operator.name} is not loaded.")
-            operator.operate(topdata)
-        return topdata
-
-    def buildJaxPotential(self, topdata: DMFFTopology, forces=None):
+    def createJaxPotential(self, topdata: DMFFTopology, nonbondedMethod=app.NoCutoff,
+                           nonbondedCutoff=1.0 * unit.nanometer, args={}, forces=None):
         efuncs = {}
-        for gen in self.generators:
+        for key in self.generators:
+            gen = self.generators[key]
             if forces is not None and gen.getName() not in forces:
                 continue
-            efuncs[gen.getName()] = gen.createJaxFunc(topdata)
+            efuncs[gen.getName()] = gen.createPotential(topdata, nonbondedMethod,
+                                                        nonbondedCutoff, args)
 
         def efunc_total(pos, box, pairs, prms):
-            return sum([e(pos, box, pairs, prms) for e in efuncs.items()])
+            return sum([e[1](pos, box, pairs, prms) for e in efuncs.items()])
 
         return efunc_total
 
-    def createJaxPotential(self, topo: app.Topology, forces=None):
-        topdata = self.prepTopData(topo)
-        efunc = self.buildJaxPotential(topdata, forces)
-        return efunc
-
-    def renderXML(self, out: str, residues=True, atomtypes=True, forces=True):
+    def renderXML(self, out: str, residues=True, atomtypes=True, forces=True, operators=True):
         for key in self.generators.keys():
-            self.generators[key].updateParameters(self.ffinfo, self.paramset)
-
-        self._xmlio.writeXML(
-            out,
-            residues=self.residues if residues else [],
-            atomtypes=self.atomtypes if atomtypes else [],
-            forces=self.ffinfo["Forces"] if forces else {}
-        )
+            self.generators[key].overwrite()
+        self._xmlio.writeXML(out, self.ffinfo, write_residues=residues,
+                             write_forces=forces, write_atomtypes=atomtypes, write_operators=operators)

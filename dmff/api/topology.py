@@ -10,6 +10,11 @@ import numpy as np
 import jax.numpy as jnp
 
 
+_standardResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO', 'THR', 'TYR',
+                     'ARG', 'ASP', 'GLN', 'GLY', 'ILE', 'LYS', 'PHE', 'SER', 'TRP', 'VAL',
+                     'A', 'G', 'C', 'U', 'I', 'DA', 'DG', 'DC', 'DT', 'DI']
+
+
 class DMFFTopology:
     def __init__(self, from_top=None, from_sdf=None, from_rdmol=None, residue_name="MOL"):
         self._chains = []
@@ -40,7 +45,7 @@ class DMFFTopology:
             type(self).__name__, nchains, nres, natom, nbond)
 
     def _load_sdf(self, filename, residue_name):
-        mol = Chem.MolFromMolFile(filename, removeHs=False)
+        mol = Chem.MolFromMolFile(filename, removeHs=False, sanitize=False)
         atoms = [a for a in mol.GetAtoms()]
         bonds = [b for b in mol.GetBonds()]
         chain = self.addChain()
@@ -82,7 +87,26 @@ class DMFFTopology:
             idx2 = bond.GetEndAtomIdx()
             order = bond.GetBondType()
             self.addBond(top_atoms[idx1], top_atoms[idx2], order)
-        self._molecules.append(mol)
+
+        newmol = Chem.Mol()
+        emol = Chem.EditableMol(newmol)
+        for natom, atom in enumerate(mol.GetAtoms()):
+            newatom = Chem.Atom(atom.GetSymbol())
+            name = top_atoms[natom].name
+            newatom.SetProp("_Index", f"{natom}")
+            newatom.SetProp("_Name", name)
+            emol.AddAtom(newatom)
+        for bond in mol.GetBonds():
+            i1, i2 = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+            emol.AddBond(i1, i2, bond.GetBondType())
+
+        rdmol = emol.GetMol()
+        for nbond in range(rdmol.GetNumBonds()):
+            bref = mol.GetBondWithIdx(nbond)
+            bnew = rdmol.GetBondWithIdx(nbond)
+            bnew.SetIsAromatic(bref.GetIsAromatic())
+        regularize_aromaticity(rdmol)
+        self._molecules.append(rdmol)
 
     def _load_omm_top(self, top: app.Topology):
         # add atom
@@ -101,7 +125,7 @@ class DMFFTopology:
             a1, a2, order = bond.atom1, bond.atom2, bond.order
             self.addBond(atoms[a1.index], atoms[a2.index], order)
 
-        self.updateMolecules()
+        self.updateMolecules(sanitize=True)
 
         cell_omm = top.getPeriodicBoxVectors()
         if cell_omm is not None:
@@ -147,6 +171,8 @@ class DMFFTopology:
                             weights,
                             vatom=vatom))
 
+        atoms = [a for a in self.atoms()]
+
         # add molecules
         for mol in other.molecules():
             newmol = Chem.Mol()
@@ -161,18 +187,27 @@ class DMFFTopology:
             for bond in mol.GetBonds():
                 i1, i2 = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
                 emol.AddBond(i1, i2, bond.GetBondType())
+
             rdmol = emol.GetMol()
+            for nbond in range(rdmol.GetNumBonds()):
+                bref = mol.GetBondWithIdx(nbond)
+                bnew = rdmol.GetBondWithIdx(nbond)
+                bnew.SetIsAromatic(bref.GetIsAromatic())
+            
+            resname = atoms[idx].residue.name
+            if resname not in _standardResidues:
+                regularize_aromaticity(rdmol)
             self._molecules.append(rdmol)
 
-    def updateMolecules(self):
+    def updateMolecules(self, sanitize=False):
+        atoms = [a for a in self.atoms()]
         self._molecules = []
         decomp_indices = decomptop(self)
         for ind in decomp_indices:
+            resname = atoms[ind[0]].residue.name
             self._molecules.append(top2rdmol(self, ind))
-
-    def sanitize(self):
-        for mol in self._molecules:
-            Chem.SanitizeMol(mol)
+            if sanitize and resname not in _standardResidues:
+                regularize_aromaticity(self._molecules[-1])
 
     def parseSMARTS(self, parser, resname=[]):
         atoms = [a for a in self.atoms()]
@@ -182,7 +217,6 @@ class DMFFTopology:
             aidx = [a.index for a in atoms]
         parse = Chem.MolFromSmarts(parser)
         ret = []
-        self.sanitize()
         for mol in self._molecules:
             matches = mol.GetSubstructMatches(parse)
             for match in matches:
@@ -310,10 +344,10 @@ class DMFFTopology:
         for vsite in self.vsites():
             self_idx = vsite.vatom.index
             parent = vsite.atoms[0].index
-            covalent_map[self_idx,:] = covalent_map[parent,:]
-            covalent_map[:,self_idx] = covalent_map[:,parent]
-            covalent_map[self_idx,parent] = 1
-            covalent_map[parent,self_idx] = 1
+            covalent_map[self_idx, :] = covalent_map[parent, :]
+            covalent_map[:, self_idx] = covalent_map[:, parent]
+            covalent_map[self_idx, parent] = 1
+            covalent_map[parent, self_idx] = 1
         if use_jax:
             return jnp.array(covalent_map)
         return covalent_map
@@ -363,7 +397,8 @@ class DMFFTopology:
                 [v.atoms[0].index for v in vsites_type_2fd], dtype=int)
             a2_idx_type_2fd = jnp.array(
                 [v.atoms[1].index for v in vsites_type_2fd], dtype=int)
-            dist_idx_type_2fd = jnp.array([v.weights[0] for v in vsites_type_2fd]).reshape((-1, 1))
+            dist_idx_type_2fd = jnp.array(
+                [v.weights[0] for v in vsites_type_2fd]).reshape((-1, 1))
         else:
             use_type_2fd = False
 
@@ -379,7 +414,8 @@ class DMFFTopology:
                 [v.atoms[1].index for v in vsites_type_3fd], dtype=int)
             a3_idx_type_3fd = jnp.array(
                 [v.atoms[2].index for v in vsites_type_3fd], dtype=int)
-            dist_idx_type_3fd = jnp.array([v.weights[0] for v in vsites_type_3fd]).reshape((-1, 1))
+            dist_idx_type_3fd = jnp.array(
+                [v.weights[0] for v in vsites_type_3fd]).reshape((-1, 1))
         else:
             use_type_3fd = False
 
@@ -400,7 +436,7 @@ class DMFFTopology:
                 vvec = pos[a1_idx_type_2fd, :] - pos[a2_idx_type_2fd]
                 rvec = vvec / jnp.linalg.norm(vvec, axis=1).reshape((-1, 1))
                 new_pos_type_2fd = pos[a1_idx_type_2fd,
-                                    :] + rvec * dist_idx_type_2fd
+                                       :] + rvec * dist_idx_type_2fd
                 pos = pos.at[self_idx_type_2fd, :].set(new_pos_type_2fd)
             # vtype: 3fd
             if use_type_3fd:
@@ -412,17 +448,17 @@ class DMFFTopology:
                 rmid = vmid / jnp.linalg.norm(vmid, axis=1).reshape((-1, 1))
 
                 new_pos_type_3fd = pos[self_idx_type_3fd,
-                                    :] + rmid * dist_idx_type_3fd
+                                       :] + rmid * dist_idx_type_3fd
                 pos = pos.at[self_idx_type_3fd, :].set(new_pos_type_3fd)
 
             return pos
 
         return update_pos
-    
+
     def addVSiteToPos(self, positions):
         new_pos = jnp.zeros((self.getNumAtoms(), 3))
         idx = [a.index for a in self.atoms() if a.meta["element"] != "EP"]
-        new_pos = new_pos.at[idx,:].set(positions[:,:])
+        new_pos = new_pos.at[idx, :].set(positions[:, :])
         update_func = self.buildVSiteUpdateFunction()
         return update_func(new_pos)
 
@@ -638,3 +674,40 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
     # rdmol.UpdatePropertyCache()
     # AllChem.EmbedMolecule(rdmol, randomSeed=1)
     return rdmol
+
+
+def regularize_aromaticity(mol: Chem.Mol) -> bool:
+    """
+    Regularize Aromaticity for a rdkit.Mol object. Rings with exocyclic double bonds will not be set aromatic.
+    """
+    bInfo = {}
+    for bond in mol.GetBonds():
+        bInfo[(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())] = bond.GetBondType()
+    Chem.SanitizeMol(mol)
+    rings = [tuple(r) for r in Chem.GetSymmSSSR(mol)]
+    repairIdx = [False for _ in rings]
+    patt = Chem.MolFromSmarts("[$([a]=[!R]):1]")
+    for m in mol.GetSubstructMatches(patt):
+        for i, r in enumerate(rings):
+            if m[0] in r:
+                repairIdx[i] = True
+    repairAtomsIdx = []
+    nonrepairAtomsIdx = []
+    for i in range(len(rings)):
+        if repairIdx[i]:
+            repairAtomsIdx += list(rings[i])
+        else:
+            nonrepairAtomsIdx += list(rings[i])
+    repairAtomsIdx = list(set(repairAtomsIdx) - set(nonrepairAtomsIdx))
+    for atIdx in repairAtomsIdx:
+        at = mol.GetAtomWithIdx(atIdx)
+        at.SetIsAromatic(False)
+        for bo in at.GetBonds():
+            atIdx1, atIdx2 = bo.GetBeginAtomIdx(), bo.GetEndAtomIdx()
+            if (atIdx1, atIdx2) in bInfo:
+                btype = bInfo[(atIdx1, atIdx2)]
+            else:
+                btype = bInfo[(atIdx2, atIdx1)]
+            bo.SetIsAromatic(False)
+            bo.SetBondType(btype)
+    return True

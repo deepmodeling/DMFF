@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 import networkx as nx
 from networkx.algorithms import isomorphism
 from .vsite import VirtualSite
-from .topology import DMFFTopology
+from .topology import DMFFTopology, regularize_aromaticity
 from .graph import matchTemplate
 from rdkit import Chem
 
@@ -78,22 +78,27 @@ def insertVirtualSites(topdata, vsite_list):
         for k, v in vsite.meta.items():
             vsite.vatom.meta[k] = v
 
-    for mol in topdata.molecules():
-        # copy a molecule with new index
-        newmol = Chem.Mol()
-        emol = Chem.EditableMol(newmol)
-        for atom in mol.GetAtoms():
-            newatom = Chem.Atom(atom.GetSymbol())
-            idx = int(atom.GetProp("_Index"))
-            name = atom.GetProp("_Name")
-            newatom.SetProp("_Index", f"{newatoms[idx].index}")
-            newatom.SetProp("_Name", name)
-            emol.AddAtom(newatom)
-        for bond in mol.GetBonds():
-            i1, i2 = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-            emol.AddBond(i1, i2, bond.GetBondType())
-        rdmol = emol.GetMol()
-        newtop._molecules.append(rdmol)
-    newtop.updateMolecules()
+    # for mol in topdata.molecules():
+    #     # copy a molecule with new index
+    #     newmol = Chem.Mol()
+    #     emol = Chem.EditableMol(newmol)
+    #     for atom in mol.GetAtoms():
+    #         newatom = Chem.Atom(atom.GetSymbol())
+    #         idx = int(atom.GetProp("_Index"))
+    #         name = atom.GetProp("_Name")
+    #         newatom.SetProp("_Index", f"{newatoms[idx].index}")
+    #         newatom.SetProp("_Name", name)
+    #         emol.AddAtom(newatom)
+    #     for bond in mol.GetBonds():
+    #         i1, i2 = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+    #         emol.AddBond(i1, i2, bond.GetBondType())
+    #     rdmol = emol.GetMol()
+    #     for nbond in range(rdmol.GetNumBonds()):
+    #         bref = mol.GetBondWithIdx(nbond)
+    #         bnew = rdmol.GetBondWithIdx(nbond)
+    #         bnew.SetIsAromatic(bref.GetIsAromatic())
+    #     regularize_aromaticity(rdmol)
+    #     newtop._molecules.append(rdmol)
+    newtop.updateMolecules(sanitize=True)
     return newtop
 

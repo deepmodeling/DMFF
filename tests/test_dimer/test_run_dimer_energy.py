@@ -3,6 +3,7 @@ from dmff.api.topology import DMFFTopology
 from dmff.operators import SMARTSATypeOperator, SMARTSVSiteOperator, AM1ChargeOperator, TemplateATypeOperator
 from dmff.api.paramset import ParamSet
 from dmff.generators.classical import CoulombGenerator, LennardJonesGenerator
+from dmff.api.hamiltonian import Hamiltonian
 import jax.numpy as jnp
 import jax
 import openmm.app as app
@@ -372,6 +373,82 @@ def test_dimer_lj():
     print("Calc inter: ", einter_calc)
 
 
+def test_hamiltonian():
+    hamilt = Hamiltonian(["tests/data/dimer/forcefield.xml", "tests/data/dimer/gaff2.xml", "tests/data/dimer/amber14_prot.xml"])
+    smarts_type = SMARTSATypeOperator(hamilt.ffinfo)
+    smarts_vsite = SMARTSVSiteOperator(hamilt.ffinfo)
+    am1_charge = AM1ChargeOperator(hamilt.ffinfo)
+    print(hamilt.generators)
+
+    print("------- Jax Ener Func --------")
+    # mol1
+    top1 = DMFFTopology(from_sdf="tests/data/dimer/mol1.mol")
+    top1 = smarts_vsite(smarts_type(am1_charge(top1)))
+    pos1 = jnp.array(Chem.MolFromMolFile("tests/data/dimer/mol1.mol", removeHs=False).GetConformer().GetPositions()) * 0.1
+    pos1 = top1.addVSiteToPos(pos1)
+
+    # mol2
+    top2 = DMFFTopology(from_sdf="tests/data/dimer/mol2.mol")
+    top2 = smarts_vsite(smarts_type(am1_charge(top2)))
+    pos2 = jnp.array(Chem.MolFromMolFile("tests/data/dimer/mol2.mol", removeHs=False).GetConformer().GetPositions()) * 0.1
+    pos2 = top2.addVSiteToPos(pos2)
+
+    box = jnp.array([
+        [10.0, 0.0, 0.0],
+        [0.0, 10.0, 0.0],
+        [0.0, 0.0, 10.0]
+    ])
+
+    cov_mat1 = top1.buildCovMat()
+    pairs1 = []
+    for ii in range(top1.getNumAtoms()):
+        for jj in range(ii+1, top1.getNumAtoms()):
+            pairs1.append([ii, jj, cov_mat1[ii, jj]])
+    pairs1 = jnp.array(pairs1, dtype=int)
+
+    force1 = hamilt.createJaxPotential(
+        top1, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={})
+    ener_mol1 = force1(pos1, box, pairs1, hamilt.paramset)
+    print("JAX mol1: ", ener_mol1)
+
+    # mol2_energy
+    cov_mat2 = top2.buildCovMat()
+    pairs2 = []
+    for ii in range(top2.getNumAtoms()):
+        for jj in range(ii+1, top2.getNumAtoms()):
+            pairs2.append([ii, jj, cov_mat2[ii, jj]])
+    pairs2 = jnp.array(pairs2, dtype=int)
+
+    force2 = hamilt.createJaxPotential(
+        top2, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={})
+    ener_mol2 = force2(pos2, box, pairs2, hamilt.paramset)
+    print("JAX mol2", ener_mol2)
+
+    # dimer_energy
+    pos_sum = jnp.concatenate([pos1, pos2], axis=0)
+
+    top = DMFFTopology()
+    top.add(top1)
+    top.add(top2)
+
+    cov_mat_sum = top.buildCovMat()
+    pairs_sum = []
+    for ii in range(top.getNumAtoms()):
+        for jj in range(ii+1, top.getNumAtoms()):
+            pairs_sum.append([ii, jj, cov_mat_sum[ii, jj]])
+    pairs_sum = jnp.array(pairs_sum, dtype=int)
+
+    force_sum = hamilt.createJaxPotential(
+        top, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={})
+    ener_sum = force_sum(pos_sum, box, pairs_sum, hamilt.paramset)
+    print("JAX sum: ", ener_sum)
+
+    # interaction
+    print("JAX Interaction: ", ener_sum - ener_mol1 - ener_mol2)
+
+    hamilt.paramset["LennardJonesForce"]["epsilon"] = hamilt.paramset["LennardJonesForce"]["epsilon"].at[0].set(-1.0)
+    hamilt.renderXML("test.xml")
+
 
 if __name__ == "__main__":
     # test_load_sdf()
@@ -381,3 +458,5 @@ if __name__ == "__main__":
     test_dimer_coul()
     print(">>> Test LJ - NoCutoff")
     test_dimer_lj()
+    print(">>> Use Hamiltonian")
+    test_hamiltonian()
