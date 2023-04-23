@@ -88,24 +88,16 @@ class DMFFTopology:
             order = bond.GetBondType()
             self.addBond(top_atoms[idx1], top_atoms[idx2], order)
 
-        newmol = Chem.Mol()
-        emol = Chem.EditableMol(newmol)
-        for natom, atom in enumerate(mol.GetAtoms()):
-            newatom = Chem.Atom(atom.GetSymbol())
-            name = top_atoms[natom].name
-            newatom.SetProp("_Index", f"{natom}")
-            newatom.SetProp("_Name", name)
-            emol.AddAtom(newatom)
-        for bond in mol.GetBonds():
-            i1, i2 = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-            emol.AddBond(i1, i2, bond.GetBondType())
+        rdmol = mol.__copy__()
+        for natom, atom in enumerate(rdmol.GetAtoms()):
+            atom.SetProp("_Index", f"{natom}")
+            atom.SetProp("_Name", top_atoms[natom].name)
 
-        rdmol = emol.GetMol()
         for nbond in range(rdmol.GetNumBonds()):
             bref = mol.GetBondWithIdx(nbond)
             bnew = rdmol.GetBondWithIdx(nbond)
             bnew.SetIsAromatic(bref.GetIsAromatic())
-        regularize_aromaticity(rdmol)
+        self.regularize_aromaticity(rdmol)
         self._molecules.append(rdmol)
 
     def _load_omm_top(self, top: app.Topology):
@@ -196,7 +188,7 @@ class DMFFTopology:
             
             resname = atoms[idx].residue.name
             if resname not in _standardResidues:
-                regularize_aromaticity(rdmol)
+                self.regularize_aromaticity(rdmol)
             self._molecules.append(rdmol)
 
     def updateMolecules(self, sanitize=False):
@@ -207,7 +199,7 @@ class DMFFTopology:
             resname = atoms[ind[0]].residue.name
             self._molecules.append(top2rdmol(self, ind))
             if sanitize and resname not in _standardResidues:
-                regularize_aromaticity(self._molecules[-1])
+                self.regularize_aromaticity(self._molecules[-1])
 
     def parseSMARTS(self, parser, resname=[]):
         atoms = [a for a in self.atoms()]
@@ -322,6 +314,49 @@ class DMFFTopology:
 
     def vsites(self):
         return iter(self._vsites)
+
+    @classmethod
+    def regularize_aromaticity(cls, mol: Chem.Mol) -> bool:
+        """
+        Regularize Aromaticity for a rdkit.Mol object. Rings with exocyclic double bonds will not be set aromatic.
+        """
+        bInfo = {}
+        for bond in mol.GetBonds():
+            bInfo[(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())] = bond.GetBondType()
+        mol.UpdatePropertyCache()
+        for atom in mol.GetAtoms():
+            if atom.GetSymbol() == "N" and atom.GetExplicitValence() == 4:
+                atom.SetFormalCharge(1)
+            elif atom.GetSymbol() == "O" and atom.GetExplicitValence() == 3:
+                atom.SetFormalCharge(1)
+        Chem.SanitizeMol(mol)
+        rings = [tuple(r) for r in Chem.GetSymmSSSR(mol)]
+        repairIdx = [False for _ in rings]
+        patt = Chem.MolFromSmarts("[$([a]=[!R]):1]")
+        for m in mol.GetSubstructMatches(patt):
+            for i, r in enumerate(rings):
+                if m[0] in r:
+                    repairIdx[i] = True
+        repairAtomsIdx = []
+        nonrepairAtomsIdx = []
+        for i in range(len(rings)):
+            if repairIdx[i]:
+                repairAtomsIdx += list(rings[i])
+            else:
+                nonrepairAtomsIdx += list(rings[i])
+        repairAtomsIdx = list(set(repairAtomsIdx) - set(nonrepairAtomsIdx))
+        for atIdx in repairAtomsIdx:
+            at = mol.GetAtomWithIdx(atIdx)
+            at.SetIsAromatic(False)
+            for bo in at.GetBonds():
+                atIdx1, atIdx2 = bo.GetBeginAtomIdx(), bo.GetEndAtomIdx()
+                if (atIdx1, atIdx2) in bInfo:
+                    btype = bInfo[(atIdx1, atIdx2)]
+                else:
+                    btype = bInfo[(atIdx2, atIdx1)]
+                bo.SetIsAromatic(False)
+                bo.SetBondType(btype)
+        return True
 
     def buildCovMat(self, nmax=6, use_jax=True):
         n_atoms = self.getNumAtoms()
@@ -674,40 +709,3 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
     # rdmol.UpdatePropertyCache()
     # AllChem.EmbedMolecule(rdmol, randomSeed=1)
     return rdmol
-
-
-def regularize_aromaticity(mol: Chem.Mol) -> bool:
-    """
-    Regularize Aromaticity for a rdkit.Mol object. Rings with exocyclic double bonds will not be set aromatic.
-    """
-    bInfo = {}
-    for bond in mol.GetBonds():
-        bInfo[(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())] = bond.GetBondType()
-    Chem.SanitizeMol(mol)
-    rings = [tuple(r) for r in Chem.GetSymmSSSR(mol)]
-    repairIdx = [False for _ in rings]
-    patt = Chem.MolFromSmarts("[$([a]=[!R]):1]")
-    for m in mol.GetSubstructMatches(patt):
-        for i, r in enumerate(rings):
-            if m[0] in r:
-                repairIdx[i] = True
-    repairAtomsIdx = []
-    nonrepairAtomsIdx = []
-    for i in range(len(rings)):
-        if repairIdx[i]:
-            repairAtomsIdx += list(rings[i])
-        else:
-            nonrepairAtomsIdx += list(rings[i])
-    repairAtomsIdx = list(set(repairAtomsIdx) - set(nonrepairAtomsIdx))
-    for atIdx in repairAtomsIdx:
-        at = mol.GetAtomWithIdx(atIdx)
-        at.SetIsAromatic(False)
-        for bo in at.GetBonds():
-            atIdx1, atIdx2 = bo.GetBeginAtomIdx(), bo.GetEndAtomIdx()
-            if (atIdx1, atIdx2) in bInfo:
-                btype = bInfo[(atIdx1, atIdx2)]
-            else:
-                btype = bInfo[(atIdx2, atIdx1)]
-            bo.SetIsAromatic(False)
-            bo.SetBondType(btype)
-    return True

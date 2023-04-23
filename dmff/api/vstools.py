@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 import networkx as nx
 from networkx.algorithms import isomorphism
 from .vsite import VirtualSite
-from .topology import DMFFTopology, regularize_aromaticity
+from .topology import DMFFTopology
 from .graph import matchTemplate
 from rdkit import Chem
 

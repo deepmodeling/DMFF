@@ -25,7 +25,7 @@ class AM1ChargeOperator(BaseOperator):
             atom.meta["charge"] = 0.0
 
         for rdmol in topdata.molecules():
-            Chem.SanitizeMol(rdmol)
+            topdata.regularize_aromaticity(rdmol)
             AllChem.EmbedMolecule(rdmol, randomSeed=10)
             conf = rdmol.GetConformer()
             pos = conf.GetPositions()

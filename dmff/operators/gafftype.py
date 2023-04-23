@@ -23,7 +23,7 @@ class GAFFTypeOperator(BaseOperator):
             aidx = {}
             for na, atom in enumerate(rdmol.GetAtoms()):
                 aidx[na] = int(atom.GetProp("_Index"))
-            Chem.SanitizeMol(rdmol)
+            topdata.regularize_aromaticity(rdmol)
             AllChem.EmbedMolecule(rdmol, randomSeed=1)
             conf = rdmol.GetConformer()
             Chem.MolToMolFile(rdmol, "_tmp.mol")

@@ -30,7 +30,7 @@ class SMARTSATypeOperator(BaseOperator):
     def operate(self, topdata: DMFFTopology, resname: List[str] = [], **kwargs) -> DMFFTopology:
         atoms = [a for a in topdata.atoms()]
         for rdmol in topdata.molecules():
-            Chem.SanitizeMol(rdmol)
+            topdata.regularize_aromaticity(rdmol)
         for nparser, parser in enumerate(self.parsers):
             name, cls, elem = self.atypes[nparser]
             matches = topdata.parseSMARTS(parser, resname=resname)
