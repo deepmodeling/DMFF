@@ -66,17 +66,6 @@ def test_build_dimer():
     for atom in mol_top.atoms():
         print(atom.meta)
 
-    update_func = mol_top.buildVSiteUpdateFunction()
-
-    paramset = ParamSet()
-    coul_gen = CoulombGenerator(ffinfo, paramset)
-    lj_gen = LennardJonesGenerator(ffinfo, paramset)
-
-    coul_force = coul_gen.createPotential(
-        mol_top, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={})
-    lj_force = lj_gen.createPotential(
-        mol_top, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={})
-
     cov_mat = mol_top.buildCovMat()
     pairs = []
     for ii in range(mol_top.getNumAtoms()):
@@ -93,15 +82,10 @@ def test_build_dimer():
         [0.0, 0.0, 10.0]
     ])
 
-    def energy_func(pos, box, pairs, params):
-        newpos = update_func(pos)
-        e_coul = coul_force(pos, box, pairs, params)
-        e_lj = lj_force(pos, box, pairs, params)
-        return e_coul + e_lj
+    hamilt = Hamiltonian(["tests/data/dimer/forcefield.xml", "tests/data/dimer/gaff2.xml", "tests/data/dimer/amber14_prot.xml"])
+    energy_func = hamilt.createJaxPotential(mol_top)
 
-    print(energy_func(pos, box, pairs, paramset))
-    print(jax.value_and_grad(energy_func, argnums=3)(pos, box, pairs, paramset))
-    print(mol_top._meta["bcc_top_mat"])
+    print(energy_func(pos, box, pairs, hamilt.paramset))
 
 def test_dimer_coul():
     ffinfo = load_xml()
@@ -453,7 +437,7 @@ def test_hamiltonian():
 if __name__ == "__main__":
     # test_load_sdf()
     # test_load_protein()
-    # test_build_dimer()
+    test_build_dimer()
     print(">>> Test Coul - NoCutoff")
     test_dimer_coul()
     print(">>> Test LJ - NoCutoff")

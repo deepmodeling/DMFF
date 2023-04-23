@@ -67,8 +67,10 @@ class Hamiltonian:
             efuncs[gen.getName()] = gen.createPotential(topdata, nonbondedMethod,
                                                         nonbondedCutoff, args)
 
+        update_func = topdata.buildVSiteUpdateFunction()
         def efunc_total(pos, box, pairs, prms):
-            return sum([e[1](pos, box, pairs, prms) for e in efuncs.items()])
+            pos_updated = update_func(pos)
+            return sum([e[1](pos_updated, box, pairs, prms) for e in efuncs.items()])
 
         return efunc_total
 
