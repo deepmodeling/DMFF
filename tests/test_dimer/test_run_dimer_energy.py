@@ -435,7 +435,7 @@ def test_hamiltonian():
 
 def test_optax():
     hamilt = Hamiltonian(["tests/data/dimer/forcefield.xml", "tests/data/dimer/gaff2.xml", "tests/data/dimer/amber14_prot.xml"])
-    hamilt.renderXML("test-init.xml")
+    hamilt.renderXML("tests/data/dimer/test-init.xml")
     smarts_type = SMARTSATypeOperator(hamilt.ffinfo)
     smarts_vsite = SMARTSVSiteOperator(hamilt.ffinfo)
     am1_charge = AM1ChargeOperator(hamilt.ffinfo)
@@ -486,19 +486,21 @@ def test_optax():
     updates, opt_state = optimizer.update(grads, opt_state, hamilt.paramset)
     hamilt.paramset = optax.apply_updates(hamilt.paramset, updates)
     print(hamilt.paramset["CoulombForce"]["bcc"][-8])
-    hamilt.renderXML("test-opt.xml")
+    hamilt.renderXML("tests/data/dimer/test-opt.xml")
     print(hamilt.ffinfo["Forces"]["CoulombForce"]["node"][-8])
+    import os
+    os.system("diff tests/data/dimer/test-init.xml tests/data/dimer/test-opt.xml")
 
 
 if __name__ == "__main__":
-    # test_load_sdf()
-    # test_load_protein()
-    # test_build_dimer()
-    # print(">>> Test Coul - NoCutoff")
-    # test_dimer_coul()
-    # print(">>> Test LJ - NoCutoff")
-    # test_dimer_lj()
-    # print(">>> Use Hamiltonian")
-    # test_hamiltonian()
+    test_load_sdf()
+    test_load_protein()
+    test_build_dimer()
+    print(">>> Test Coul - NoCutoff")
+    test_dimer_coul()
+    print(">>> Test LJ - NoCutoff")
+    test_dimer_lj()
+    print(">>> Use Hamiltonian")
+    test_hamiltonian()
     print(">>> Use OPTAX")
     test_optax()
