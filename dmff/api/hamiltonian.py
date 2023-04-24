@@ -76,6 +76,6 @@ class Hamiltonian:
 
     def renderXML(self, out: str, residues=True, atomtypes=True, forces=True, operators=True):
         for key in self.generators.keys():
-            self.generators[key].overwrite()
+            self.generators[key].overwrite(self.paramset)
         self._xmlio.writeXML(out, self.ffinfo, write_residues=residues,
                              write_forces=forces, write_atomtypes=atomtypes, write_operators=operators)

@@ -36,7 +36,6 @@ def flatten_paramset(prmset):
 
 
 def unflatten_paramset(aux_data, contents):
-    print(aux_data, contents)
     ret = ParamSet(data=contents[0])
     return ret
 

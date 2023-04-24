@@ -14,8 +14,7 @@ class CoulombGenerator:
     def __init__(self, ffinfo: dict, paramset: ParamSet):
         self.name = "CoulombForce"
         self.ffinfo = ffinfo
-        self.paramset = paramset
-        self.paramset.addField(self.name)
+        paramset.addField(self.name)
         self.coulomb14scale = float(
             self.ffinfo["Forces"]["CoulombForce"]["meta"]["coulomb14scale"])
         self._use_bcc = False
@@ -33,18 +32,19 @@ class CoulombGenerator:
                 self.bcc_parsers.append(parser)
         bcc_prms = jnp.array(bcc_prms)
         paramset.addParameter(bcc_prms, "bcc", field=self.name)
+        self._bcc_shape = paramset[self.name]["bcc"].shape[0]
 
     def getName(self):
         return self.name
 
-    def overwrite(self):
+    def overwrite(self, paramset):
         # paramset to ffinfo
         if self._use_bcc:
-            bcc_now = self.paramset[self.name]["bcc"]
+            bcc_now = paramset[self.name]["bcc"]
             nbcc = 0
             for nnode, node in enumerate(self.ffinfo["Forces"][self.name]["node"]):
                 if node["name"] == "BondChargeCorrection":
-                    self.ffinfo["Forces"][self.name]["node"][nnode]["bcc"] = bcc_now[nbcc]
+                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["bcc"] = bcc_now[nbcc]
                     nbcc += 1
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
@@ -96,7 +96,7 @@ class CoulombGenerator:
 
         if self._use_bcc:
             top_mat = np.zeros(
-                (topdata.getNumAtoms(), self.paramset[self.name]["bcc"].shape[0]))
+                (topdata.getNumAtoms(), self._bcc_shape))
             matched_dict = {}
             for nparser, parser in enumerate(self.bcc_parsers):
                 matches = topdata.parseSMARTS(parser, resname=self._bcc_mol)
@@ -158,7 +158,6 @@ class LennardJonesGenerator:
     def __init__(self, ffinfo: dict, paramset: ParamSet):
         self.name = "LennardJonesForce"
         self.ffinfo = ffinfo
-        self.paramset = paramset
         self.lj14scale = float(
             self.ffinfo["Forces"][self.name]["meta"]["lj14scale"])
         self.nbfix_to_idx = {}
@@ -219,7 +218,7 @@ class LennardJonesGenerator:
     def getName(self):
         return self.name
 
-    def overwrite(self):
+    def overwrite(self, paramset):
         # paramset to ffinfo
         for nnode in range(len(self.ffinfo["Forces"][self.name]["node"])):
             node = self.ffinfo["Forces"][self.name]["node"][nnode]
@@ -233,8 +232,8 @@ class LennardJonesGenerator:
                     atypes = self.ffinfo["ClassToType"][acls]
                     idx = self.atype_to_idx[atypes[0]]
 
-                eps_now = self.paramset[self.name]["epsilon"][idx]
-                sig_now = self.paramset[self.name]["sigma"][idx]
+                eps_now = paramset[self.name]["epsilon"][idx]
+                sig_now = paramset[self.name]["sigma"][idx]
                 self.ffinfo["Forces"][
                     self.name]["node"][nnode]["attrib"]["sigma"] = sig_now
                 self.ffinfo["Forces"][
@@ -248,8 +247,8 @@ class LennardJonesGenerator:
                     atypes1 = self.ffinfo["ClassToType"][acls1]
                     atypes2 = self.ffinfo["ClassToType"][acls2]
                     idx = self.nbfix_to_idx[atypes1[0]][atypes2[0]]
-                sig_now = self.paramset[self.name]["sigma_nbfix"][idx]
-                eps_now = self.paramset[self.name]["epsilon_nbfix"][idx]
+                sig_now = paramset[self.name]["sigma_nbfix"][idx]
+                eps_now = paramset[self.name]["epsilon_nbfix"][idx]
                 self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["sigma"] = sig_now
                 self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["epsilon"] = eps_now
 
