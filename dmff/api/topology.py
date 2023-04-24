@@ -184,7 +184,7 @@ class DMFFTopology:
                 self.regularize_aromaticity(rdmol)
             self._molecules.append(rdmol)
 
-    def updateMolecules(self, sanitize=False):
+    def updateMolecules(self, sanitize=True):
         atoms = [a for a in self.atoms()]
         self._molecules = []
         decomp_indices = decomptop(self)
