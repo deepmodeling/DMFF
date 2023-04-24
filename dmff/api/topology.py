@@ -58,7 +58,7 @@ class DMFFTopology:
                 no_symbol[symbol] = 0
             no_symbol[symbol] += 1
             top_atom = self.addAtom(
-                f"{symbol}{no_symbol[symbol]}", symbol, res)
+                f"{symbol}{no_symbol[symbol]}", symbol, res, meta={"FormalCharge": atom.GetFormalCharge()})
             top_atoms.append(top_atom)
         for bond in bonds:
             idx1 = bond.GetBeginAtomIdx()
@@ -80,7 +80,7 @@ class DMFFTopology:
                 no_symbol[symbol] = 0
             no_symbol[symbol] += 1
             top_atom = self.addAtom(
-                f"{symbol}{no_symbol[symbol]}", symbol, res)
+                f"{symbol}{no_symbol[symbol]}", symbol, res, meta={"FormalCharge": atom.GetFormalCharge()})
             top_atoms.append(top_atom)
         for bond in bonds:
             idx1 = bond.GetBeginAtomIdx()
@@ -167,20 +167,13 @@ class DMFFTopology:
 
         # add molecules
         for mol in other.molecules():
-            newmol = Chem.Mol()
-            emol = Chem.EditableMol(newmol)
-            for atom in mol.GetAtoms():
-                newatom = Chem.Atom(atom.GetSymbol())
+            rdmol = mol.__copy__()
+            for atom in rdmol.GetAtoms():
                 idx = int(atom.GetProp("_Index")) + offset
                 name = atom.GetProp("_Name")
-                newatom.SetProp("_Index", f"{idx}")
-                newatom.SetProp("_Name", name)
-                emol.AddAtom(newatom)
-            for bond in mol.GetBonds():
-                i1, i2 = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-                emol.AddBond(i1, i2, bond.GetBondType())
+                atom.SetProp("_Index", f"{idx}")
+                atom.SetProp("_Name", name)
 
-            rdmol = emol.GetMol()
             for nbond in range(rdmol.GetNumBonds()):
                 bref = mol.GetBondWithIdx(nbond)
                 bnew = rdmol.GetBondWithIdx(nbond)
@@ -280,6 +273,8 @@ class DMFFTopology:
             id = str(self._numAtoms + 1)
         if meta is None:
             meta = {}
+            meta["element"] = element
+        else:
             meta["element"] = element
         atom = Atom(name, element, self._numAtoms, residue, id, meta)
         self._numAtoms += 1
@@ -687,6 +682,8 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
             ratm = Chem.Atom(atm.element)
         ratm.SetProp("_Index", f"{atm.index}")
         ratm.SetProp("_Name", atm.name)
+        if "FormalCharge" in atm.meta.keys():
+            ratm.SetFormalCharge(atm.meta["FormalCharge"])
         emol.AddAtom(ratm)
         idx2ridx[atm.index] = na
         na += 1

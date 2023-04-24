@@ -22,6 +22,7 @@
 		<Atom sigma="0.341414093971252441" epsilon="0.2176652" type="gaff2-n7"/>
 		<Atom sigma="0.353676438331604004" epsilon="0.1335564" type="gaff2-n8"/>
 		<Atom sigma="0.318995207548141479" epsilon="0.8995600" type="gaff2-nh"/>
+		<Atom sigma="0.3279041821987333"   epsilon="0.646428"  type="gaff2-nu"/>
 		<Atom sigma="0.333846420049667358" epsilon="0.4685966" type="gaff2-nv"/>
 		<Atom sigma="0.313195019960403442" epsilon="0.8543006" type="gaff2-na"/>
 		<Atom sigma="0.249997586011886597" epsilon="16.2121639" type="gaff2-n4"/>
