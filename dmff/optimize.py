@@ -31,17 +31,29 @@ def genOptimizer(optimizer="adam",
                  clip=10.0,
                  periodic=None,
                  transition_steps=1000,
+                 warmup_steps=0,
                  decay_rate=0.99,
                  options: dict={}):
-    options["learning_rate"] = learning_rate
+    if decay_rate == 1.0 and warmup_steps == 0:
+        options["learning_rate"] = learning_rate
     # Exponential decay of the learning rate.
-    scheduler = optax.exponential_decay(init_value=learning_rate,
-                                        transition_steps=transition_steps,
-                                        decay_rate=decay_rate)
+    elif warmup_steps == 0:
+        scheduler = optax.exponential_decay(init_value=learning_rate,
+                                            transition_steps=transition_steps,
+                                            decay_rate=decay_rate)
+        options["learning_rate"] = scheduler
+    else:
+        scheduler = optax.warmup_exponential_decay_schedule(init_value=0, peak_value=learning_rate,
+                                                            warmup_steps=warmup_steps,
+                                                            transition_steps=transition_steps,
+                                                            decay_rate=decay_rate)
+        options["learning_rate"] = scheduler
 
     # Combining gradient transforms using `optax.chain`.
     if optimizer == "sgd":
         chain = [optax.sgd(**options), optax.clip(clip)]
+    elif optimizer == "nesterov":
+        chain = [optax.sgd(nesterov=True, **options), optax.clip(clip)]
     elif optimizer == "adam":
         chain = [optax.adam(**options), optax.clip(clip)]
     elif optimizer == "adagrad":
