@@ -105,22 +105,31 @@ class OpenMMSampleState(SampleState):
                  parameter,
                  topology,
                  temperature=300.0,
-                 pressure=0.0):
+                 pressure=0.0,
+                 useDispersionCorrection=False,
+                 useSwitchingFunction=False,
+                 **args):
         super(OpenMMSampleState, self).__init__(temperature, name)
         self._pressure = pressure
         # create a context
         pdb = app.PDBFile(topology)
         ff = app.ForceField(parameter)
-        system = ff.createSystem(pdb.topology,
-                                 nonbondedMethod=app.PME,
-                                 nonbondedCutoff=0.9 * unit.nanometer,
-                                 constraints=None,
-                                 rigidWater=False)
+
+        # default settings
+        if 'nonbondedMethod' not in args:
+            args['nonbondedMethod'] = app.PME
+        if 'nonbondedCutoff' not in args:
+            args['nonbondedCutoff'] = 0.9 * unit.nanometer
+        if 'constraints' not in args:
+            args['constraints'] = None
+        if 'rigidWater' not in args:
+            args['rigidWater'] = False
+        system = ff.createSystem(pdb.topology, **args)
 
         for force in system.getForces():
             if isinstance(force, mm.NonbondedForce):
-                force.setUseDispersionCorrection(False)
-                force.setUseSwitchingFunction(False)
+                force.setUseDispersionCorrection(useDispersionCorrection)
+                force.setUseSwitchingFunction(useSwitchingFunction)
 
         integ = mm.LangevinIntegrator(0 * unit.kelvin, 5 / unit.picosecond,
                                       1.0 * unit.femtosecond)
