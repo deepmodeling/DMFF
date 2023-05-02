@@ -606,15 +606,19 @@ class NonbondedJaxGenerator:
 
         # Build BondChargeCorrection
         bccs = self.fftree.get_attribs("NonbondedForce/BondChargeCorrection", "bcc")
-        self.paramtree[self.name]['bcc'] = jnp.array(bccs).reshape(-1, 1)
         self.useBCC = len(bccs) > 0
+        if self.useBCC:
+            self.paramtree[self.name]['bcc'] = jnp.array(bccs).reshape(-1, 1)
+            
 
         # Build VirtualSite
         vsite_types = self.fftree.get_attribs("NonbondedForce/VirtualSite", "vtype")
-        self.paramtree[self.name]['vsite_types'] = jnp.array(vsite_types, dtype=int)
         vsite_distance = self.fftree.get_attribs("NonbondedForce/VirtualSite", "distance")
-        self.paramtree[self.name]['vsite_distances'] = jnp.array(vsite_distance)
         self.useVsite = len(vsite_types) > 0
+        if self.useVsite:
+            self.paramtree[self.name]['vsite_types'] = jnp.array(vsite_types, dtype=int)
+            self.paramtree[self.name]['vsite_distances'] = jnp.array(vsite_distance)
+            
 
     def overwrite(self):
         # write coulomb14scale
