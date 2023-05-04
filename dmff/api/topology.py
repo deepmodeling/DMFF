@@ -465,8 +465,7 @@ class DMFFTopology:
             if use_type_2fd:
                 vvec = pos[a1_idx_type_2fd, :] - pos[a2_idx_type_2fd]
                 rvec = vvec / jnp.linalg.norm(vvec, axis=1).reshape((-1, 1))
-                new_pos_type_2fd = pos[a1_idx_type_2fd,
-                                       :] + rvec * dist_idx_type_2fd
+                new_pos_type_2fd = pos[a1_idx_type_2fd, :] + rvec * dist_idx_type_2fd
                 pos = pos.at[self_idx_type_2fd, :].set(new_pos_type_2fd)
             # vtype: 3fd
             if use_type_3fd:
@@ -477,8 +476,7 @@ class DMFFTopology:
                 vmid = rji + rki
                 rmid = vmid / jnp.linalg.norm(vmid, axis=1).reshape((-1, 1))
 
-                new_pos_type_3fd = pos[self_idx_type_3fd,
-                                       :] + rmid * dist_idx_type_3fd
+                new_pos_type_3fd = pos[a1_idx_type_3fd, :] + rmid * dist_idx_type_3fd
                 pos = pos.at[self_idx_type_3fd, :].set(new_pos_type_3fd)
 
             return pos
