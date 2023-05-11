@@ -490,6 +490,7 @@ def test_optax():
     print(hamilt.ffinfo["Forces"]["CoulombForce"]["node"][-8])
     import os
     os.system("diff tests/data/dimer/test-init.xml tests/data/dimer/test-opt.xml")
+    print(hamilt.paramset.mask)
 
 
 if __name__ == "__main__":

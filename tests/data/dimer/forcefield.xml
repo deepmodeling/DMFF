@@ -763,6 +763,6 @@
 		<BondChargeCorrection smirks="[#0:1]~[$([#7](:[#7]):[#7]):2]" bcc="-0.5760"/>
 		<BondChargeCorrection smirks="[#0:1]~[$([#7](:[#7]):[#8]):2]" bcc="-0.6450"/>
 		<BondChargeCorrection smirks="[#0:1]~[$([#7](:[#7]):[#16]):2]" bcc="-0.5255"/>
-		<BondChargeCorrection smirks="[#8H2:1]-[#1:2]" bcc="0.0000"/>
+		<BondChargeCorrection smirks="[#8H2:1]-[#1:2]" bcc="0.0000" mask="true"/>
     </CoulombForce>
 </ForceField>

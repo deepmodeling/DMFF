@@ -21,6 +21,7 @@ class CoulombGenerator:
         self._bcc_mol = []
         self.bcc_parsers = []
         bcc_prms = []
+        bcc_mask = []
         for node in self.ffinfo["Forces"]["CoulombForce"]["node"]:
             if node["name"] == "UseBondChargeCorrection":
                 self._use_bcc = True
@@ -30,8 +31,13 @@ class CoulombGenerator:
                 parser = node["attrib"]["smarts"] if "smarts" in node["attrib"] else node["attrib"]["smirks"]
                 bcc_prms.append(float(bcc))
                 self.bcc_parsers.append(parser)
+                if "mask" in node["attrib"] and node["attrib"]["mask"].upper() == "TRUE":
+                    bcc_mask.append(0.0)
+                else:
+                    bcc_mask.append(1.0)
         bcc_prms = jnp.array(bcc_prms)
-        paramset.addParameter(bcc_prms, "bcc", field=self.name)
+        bcc_mask = jnp.array(bcc_mask)
+        paramset.addParameter(bcc_prms, "bcc", field=self.name, mask=bcc_mask)
         self._bcc_shape = paramset[self.name]["bcc"].shape[0]
 
     def getName(self):
@@ -152,7 +158,10 @@ class CoulombGenerator:
         self._jaxPotential = potential_fn
         return potential_fn
 
+
 _DMFFGenerators["CoulombForce"] = CoulombGenerator
+
+
 class LennardJonesGenerator:
 
     def __init__(self, ffinfo: dict, paramset: ParamSet):
@@ -163,7 +172,9 @@ class LennardJonesGenerator:
         self.nbfix_to_idx = {}
         self.atype_to_idx = {}
         sig_prms, eps_prms = [], []
+        sig_mask, eps_mask = [], []
         sig_nbfix, eps_nbfix = [], []
+        sig_nbf_mask, eps_nbf_mask = [], []
         for node in self.ffinfo["Forces"][self.name]["node"]:
             if node["name"] == "Atom":
                 if "type" in node["attrib"]:
@@ -178,6 +189,12 @@ class LennardJonesGenerator:
                         self.atype_to_idx[atype] = len(sig_prms)
                 sig_prms.append(float(sig))
                 eps_prms.append(float(eps))
+                if "mask" in node["attrib"] and node["attrib"]["mask"].upper() == "TRUE":
+                    sig_mask.append(0.0)
+                    eps_mask.append(0.0)
+                else:
+                    sig_mask.append(1.0)
+                    eps_mask.append(1.0)
             elif node["name"] == "NBFix":
                 if "type1" in node["attrib"]:
                     atype1, atype2, eps, sig = node["attrib"]["type1"], node["attrib"][
@@ -203,17 +220,27 @@ class LennardJonesGenerator:
                             self.nbfix_to_idx[atype2][atype1] = len(sig_nbfix)
                 sig_nbfix.append(sig)
                 eps_nbfix.append(eps)
+                if "mask" in node["attrib"] and node["attrib"]["mask"].upper() == "TRUE":
+                    sig_nbf_mask.append(0.0)
+                    eps_nbf_mask.append(0.0)
+                else:
+                    sig_nbf_mask.append(1.0)
+                    eps_nbf_mask.append(1.0)
 
         sig_prms = jnp.array(sig_prms)
         eps_prms = jnp.array(eps_prms)
+        sig_mask = jnp.array(sig_mask)
+        eps_mask = jnp.array(eps_mask)
 
         sig_nbfix, eps_nbfix = jnp.array(sig_nbfix), jnp.array(eps_nbfix)
+        sig_nbf_mask = jnp.array(sig_nbf_mask)
+        eps_nbf_mask = jnp.array(eps_nbf_mask)
 
         paramset.addField(self.name)
-        paramset.addParameter(sig_prms, "sigma", field=self.name)
-        paramset.addParameter(eps_prms, "epsilon", field=self.name)
-        paramset.addParameter(sig_nbfix, "sigma_nbfix", field=self.name)
-        paramset.addParameter(eps_nbfix, "epsilon_nbfix", field=self.name)
+        paramset.addParameter(sig_prms, "sigma", field=self.name, mask=sig_mask)
+        paramset.addParameter(eps_prms, "epsilon", field=self.name, mask=eps_mask)
+        paramset.addParameter(sig_nbfix, "sigma_nbfix", field=self.name, mask=sig_nbf_mask)
+        paramset.addParameter(eps_nbfix, "epsilon_nbfix", field=self.name, mask=eps_nbf_mask)
 
     def getName(self):
         return self.name
@@ -330,5 +357,6 @@ class LennardJonesGenerator:
 
         self._jaxPotential = potential_fn
         return potential_fn
+
 
 _DMFFGenerators["LennardJonesForce"] = LennardJonesGenerator
