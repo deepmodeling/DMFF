@@ -670,12 +670,12 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
     idx2ridx = {}
     na = 0
     for atm in top.atoms():
-        if atm.element is None:
+        if not atm.index in indices:
+            continue
+        elif atm.element is None:
             continue
         elif atm.element in ["none", "EP", "None", "NONE"]:
             ratm = Chem.Atom(0)
-        elif not atm.index in indices:
-            continue
         else:
             ratm = Chem.Atom(atm.element)
         ratm.SetProp("_Index", f"{atm.index}")
