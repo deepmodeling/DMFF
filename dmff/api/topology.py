@@ -688,7 +688,10 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
     for bnd in top.bonds():
         if bnd.atom1.index not in indices or bnd.atom2.index not in indices:
             continue
-        if bnd.order is None:
+        if (bnd.atom1.element in [None, "none", "EP", "None", "NONE"]) or (
+                bnd.atom2.element in [None, "none", "EP", "None", "NONE"]):
+            order = 0
+        elif bnd.order is None:
             order = 1
         else:
             order = bnd.order
