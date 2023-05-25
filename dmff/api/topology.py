@@ -484,8 +484,9 @@ class DMFFTopology:
         return update_pos
 
     def addVSiteToPos(self, positions):
+        vsite_indices = [vsite.vatom.index for vsite in self.vsites()]
         new_pos = jnp.zeros((self.getNumAtoms(), 3))
-        idx = [a.index for a in self.atoms() if a.meta["element"] != "EP"]
+        idx = [a.index for a in self.atoms() if a.index not in vsite_indices]
         new_pos = new_pos.at[idx, :].set(positions[:, :])
         update_func = self.buildVSiteUpdateFunction()
         return update_func(new_pos)
@@ -695,8 +696,9 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
             order = 1
         else:
             order = bnd.order
-        emol.AddBond(idx2ridx[bnd.atom1.index], idx2ridx[bnd.atom2.index],
-                     Chem.BondType(order))
+        if not emol.GetMol().GetBondBetweenAtoms(idx2ridx[bnd.atom1.index], idx2ridx[bnd.atom2.index]):
+            emol.AddBond(idx2ridx[bnd.atom1.index], idx2ridx[bnd.atom2.index],
+                         Chem.BondType(order))
     for vsite in top.vsites():
         vidx = vsite.vatom.index
         parent = vsite.atoms[0].index
