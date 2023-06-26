@@ -11,7 +11,7 @@ from tqdm import tqdm, trange
 import openmm as mm
 import openmm.app as app
 import openmm.unit as unit
-from dmff import NeighborList, NeighborListFreud
+from dmff import NeighborListFreud
 
 
 def buildTrajEnergyFunction(potential_func,
@@ -148,6 +148,41 @@ class Sample:
                 self.energy_data[state.name] = np.array(
                     [state.calc_energy(self.trajectory)])
 
+
+class MBARSimpleEstimator:
+    def __init__(self, traj, ref_energies, base_energies = None, temperature = 300.0):
+        self.beta = 1. / temperature / 8.314 * 1000.
+        self.positions = jnp.array(traj.xyz)
+        self.cell = jnp.array(traj.unitcell_vectors)
+        self.ref_energies = jnp.array(ref_energies) * self.beta
+        if base_energies is None:
+            self.base_energies = jnp.zeros(ref_energies.shape)
+        else:
+            self.base_energies = jnp.array(base_energies) * self.beta
+
+    def _build_umat(self):
+        nk = np.array([self.positions.shape[0], 0])
+        umat = np.zeros((nk.shape[0], nk.sum()))
+        umat[0,:] = self.ref_energies[:]
+        return umat, nk
+    
+    def optimize_mbar(self, initialize="BAR"):
+        umat, nk = self._build_umat()
+        self._mbar = MBAR(umat, nk, initialize=initialize)
+        self._umat_jax = jax.numpy.array(umat)
+        self._free_energy_jax = jax.numpy.array(self._mbar.f_k)
+        self._nk_jax = jax.numpy.array(nk)
+
+    def estimate_weight(self, uinit):
+        unew = uinit * self.beta + self.base_energies
+        unew_max = unew.max()
+        du_1 = self._free_energy_jax.reshape((-1, 1)) - self._umat_jax
+        delta_u = du_1 + unew.reshape((1, -1)) - unew_max - du_1.min()
+        cm = 1. / (jax.numpy.exp(delta_u) * jax.numpy.array(self._nk_jax).reshape(
+            (-1, 1))).sum(axis=0)
+        weight = cm / cm.sum()
+        return weight
+        
 
 class MBAREstimator:
     def __init__(self):
