@@ -35,10 +35,7 @@ def buildTrajEnergyFunction(potential_func,
                              [cc[0], cc[1], cc[2]]])
             positions = jnp.array(frame.xyz[0, :, :])
             if usePBC:
-                if useFreud:
-                    nbobj = NeighborListFreud(box, cutoff, cov_map)
-                else:
-                    nbobj = NeighborList(box, cutoff, cov_map)
+                nbobj = NeighborListFreud(box, cutoff, cov_map)
                 nbobj.capacity_multiplier = 1
                 pairs = nbobj.allocate(positions)
                 pairs_list.append(pairs)
@@ -149,38 +146,26 @@ class Sample:
                     [state.calc_energy(self.trajectory)])
 
 
-class MBARSimpleEstimator:
-    def __init__(self, traj, ref_energies, base_energies = None, temperature = 300.0):
+class ReweightEstimator:
+    def __init__(self, ref_energies, base_energies = None, volume = None, temperature = 300.0, pressure = 1.0):
         self.beta = 1. / temperature / 8.314 * 1000.
-        self.positions = jnp.array(traj.xyz)
-        self.cell = jnp.array(traj.unitcell_vectors)
-        self.ref_energies = jnp.array(ref_energies) * self.beta
+        self.ref_energies = jnp.array(ref_energies)
         if base_energies is None:
             self.base_energies = jnp.zeros(ref_energies.shape)
         else:
-            self.base_energies = jnp.array(base_energies) * self.beta
-
-    def _build_umat(self):
-        nk = np.array([self.positions.shape[0], 0])
-        umat = np.zeros((nk.shape[0], nk.sum()))
-        umat[0,:] = self.ref_energies[:]
-        return umat, nk
-    
-    def optimize_mbar(self, initialize="BAR"):
-        umat, nk = self._build_umat()
-        self._mbar = MBAR(umat, nk, initialize=initialize)
-        self._umat_jax = jax.numpy.array(umat)
-        self._free_energy_jax = jax.numpy.array(self._mbar.f_k)
-        self._nk_jax = jax.numpy.array(nk)
+            self.base_energies = jnp.array(base_energies)
+        if volume is not None:
+            self.pv = jnp.array(volume * pressure * 0.06023)
+        else:
+            self.pv = jnp.zeros(ref_energies.shape)
 
     def estimate_weight(self, uinit):
-        unew = uinit * self.beta + self.base_energies
-        unew_max = unew.max()
-        du_1 = self._free_energy_jax.reshape((-1, 1)) - self._umat_jax
-        delta_u = du_1 + unew.reshape((1, -1)) - unew_max - du_1.min()
-        cm = 1. / (jax.numpy.exp(delta_u) * jax.numpy.array(self._nk_jax).reshape(
-            (-1, 1))).sum(axis=0)
-        weight = cm / cm.sum()
+        unew = (uinit + self.base_energies + self.pv) * self.beta
+        uref = (self.ref_energies + self.pv) * self.beta
+        deltaU = unew - uref
+        deltaU = deltaU - deltaU.max()
+        weight = jnp.exp(- deltaU)
+        weight = weight / weight.mean()
         return weight
         
 
