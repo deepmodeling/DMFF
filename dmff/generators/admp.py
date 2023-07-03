@@ -1127,7 +1127,7 @@ class ADMPPmeGenerator:
             self.axis_indices = np.array(self.axis_indices)
             self.axis_types = np.array(self.axis_types)
         else:
-            self.axis_types = None
+            self.axis_types = np.zeros(n_atoms, dtype=int)
             self.axis_indices = None
 
         if "ethresh" in args:

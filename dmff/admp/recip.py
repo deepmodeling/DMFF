@@ -343,7 +343,8 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             """
             N_half = N.reshape(3)
             kx, ky, kz = [jnp.roll(jnp.arange(- (N_half[i] - 1) // 2, (N_half[i] + 1) // 2 ), - (N_half[i] - 1) // 2) for i in range(3)]
-            kpts_int = jnp.hstack([ki.flatten()[:,jnp.newaxis] for ki in jnp.meshgrid(kz, kx, ky)])
+            # kpts_int = jnp.hstack([ki.flatten()[:,jnp.newaxis] for ki in jnp.meshgrid(kz, kx, ky)])
+            kpts_int = jnp.hstack([ki.flatten()[:,jnp.newaxis] for ki in jnp.meshgrid(kx, ky, kz, indexing='ij')])
             return kpts_int 
 
 
@@ -362,7 +363,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                     4 * K, K=K1*K2*K3, contains kx, ky, kz, k^2 for each kpoint
             '''
             # in this array, a*, b*, c* (without 2*pi) are arranged in column
-            box_inv = jnp.linalg.inv(box)
+            box_inv = jnp.linalg.inv(box).T
             # K * 3, coordinate in reciprocal space
             kpts = 2 * jnp.pi * kpts_int.dot(box_inv)
             ksq = jnp.sum(kpts**2, axis=1)
