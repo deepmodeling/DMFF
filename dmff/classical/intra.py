@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+from dmff.admp.spatial import v_pbc_shift
 from jax import grad, value_and_grad, vmap
 
 
@@ -29,11 +30,48 @@ def dihedral(i, j, k, l):
     return r
 
 
+def distance_periodic(p1v, p2v, box):
+    box_inv = jnp.linalg.inv(box)
+    dpv = v_pbc_shift(p1v - p2v, box, box_inv)
+    return jnp.sqrt(jnp.sum(jnp.power(dpv, 2), axis=1))
+
+
+def angle_periodic(p1v, p2v, p3v, box):
+    box_inv = jnp.linalg.inv(box)
+    dv1 = v_pbc_shift(p2v - p1v, box, box_inv)
+    dv2 = v_pbc_shift(p2v - p3v, box, box_inv)
+    v1 = dv1 / jnp.reshape(distance(p1v, p2v), (-1, 1))
+    v2 = dv2 / jnp.reshape(distance(p2v, p3v), (-1, 1))
+    vxx = v1[:, 0] * v2[:, 0]
+    vyy = v1[:, 1] * v2[:, 1]
+    vzz = v1[:, 2] * v2[:, 2]
+    return jnp.arccos(vxx + vyy + vzz)
+
+
+def dihedral_periodic(i, j, k, l, box):
+    b1, b2, b3 = j - i, k - j, l - k
+    box_inv = jnp.linalg.inv(box)
+    b1f = v_pbc_shift(b1, box, box_inv)
+    b2f = v_pbc_shift(b2, box, box_inv)
+    b3f = v_pbc_shift(b3, box, box_inv)
+
+    c1 = vmap(jnp.cross, (0, 0))(b2f, b3f)
+    c2 = vmap(jnp.cross, (0, 0))(b1f, b2f)
+
+    p1 = (b1f * c1).sum(-1)
+    p1 = p1 * jnp.sqrt((b2f * b2f).sum(-1))
+    p2 = (c1 * c2).sum(-1)
+
+    r = vmap(jnp.arctan2, (0, 0))(p1, p2)
+    return r
+
+
 class HarmonicBondJaxForce:
-    def __init__(self, p1idx, p2idx, prmidx):
+    def __init__(self, p1idx, p2idx, prmidx, usePBC=False):
         self.p1idx = p1idx
         self.p2idx = p2idx
         self.prmidx = prmidx
+        self.usePBC = usePBC
         self.refresh_calculators()
 
     def generate_get_energy(self):
@@ -42,7 +80,10 @@ class HarmonicBondJaxForce:
             p2 = positions[self.p2idx,:]
             kprm = k[self.prmidx]
             b0prm = length[self.prmidx]
-            dist = distance(p1, p2)
+            if self.usePBC:
+                dist = distance_periodic(p1, p2, box)
+            else:
+                dist = distance(p1, p2)
             return jnp.sum(0.5 * kprm * jnp.power(dist - b0prm, 2))
 
         return get_energy
@@ -63,11 +104,12 @@ class HarmonicBondJaxForce:
 
 
 class HarmonicAngleJaxForce:
-    def __init__(self, p1idx, p2idx, p3idx, prmidx):
+    def __init__(self, p1idx, p2idx, p3idx, prmidx, usePBC=False):
         self.p1idx = p1idx
         self.p2idx = p2idx
         self.p3idx = p3idx
         self.prmidx = prmidx
+        self.usePBC = usePBC
         self.refresh_calculators()
 
     def generate_get_energy(self):
@@ -77,7 +119,10 @@ class HarmonicAngleJaxForce:
             p3 = positions[self.p3idx,:]
             kprm = k[self.prmidx]
             theta0prm = theta0[self.prmidx]
-            ang = angle(p1, p2, p3)
+            if self.usePBC:
+                ang = angle_periodic(p1, p2, p3, box)
+            else:
+                ang = angle(p1, p2, p3)
             return jnp.sum(0.5 * kprm * jnp.power(ang - theta0prm, 2))
 
         return get_energy
@@ -98,13 +143,14 @@ class HarmonicAngleJaxForce:
 
 
 class PeriodicTorsionJaxForce:
-    def __init__(self, p1idx, p2idx, p3idx, p4idx, prmidx, order):
+    def __init__(self, p1idx, p2idx, p3idx, p4idx, prmidx, order, usePBC=False):
         self.p1idx = p1idx
         self.p2idx = p2idx
         self.p3idx = p3idx
         self.p4idx = p4idx
         self.prmidx = prmidx
         self.order = order
+        self.usePBC = usePBC
         self.refresh_calculators()
 
     def generate_get_energy(self):
@@ -115,7 +161,10 @@ class PeriodicTorsionJaxForce:
             p4 = positions[self.p4idx,:]
             kp = k[self.prmidx]
             psip = psi[self.prmidx]
-            dih = dihedral(p1, p2, p3, p4)
+            if self.usePBC:
+                dih = dihedral_periodic(p1, p2, p3, p4, box)
+            else:
+                dih = dihedral(p1, p2, p3, p4)
             ener = kp * (1 + jnp.cos(self.order * dih - psip))
             return jnp.sum(ener)
 

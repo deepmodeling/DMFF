@@ -74,6 +74,13 @@ class HarmonicBondJaxGenerator:
         Args:
             Those args are the same as those in createSystem.
         """
+
+        # set PBC
+        if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
+            ifPBC = True
+        else:
+            ifPBC = False
+
         self._meta = {}
 
         # initialize typemap
@@ -120,7 +127,7 @@ class HarmonicBondJaxGenerator:
         self._meta["HarmonicBondForce_atom2"] = map_atom2
         self._meta["HarmonicBondForce_param"] = map_param
 
-        bforce = HarmonicBondJaxForce(map_atom1, map_atom2, map_param)
+        bforce = HarmonicBondJaxForce(map_atom1, map_atom2, map_param, usePBC=ifPBC)
         self._force_latest = bforce
 
         def potential_fn(positions, box, pairs, params):
@@ -163,6 +170,12 @@ class HarmonicAngleJaxGenerator:
                                self.paramtree[self.name]["k"])
 
     def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
+        # set PBC
+        if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
+            ifPBC = True
+        else:
+            ifPBC = False
+
         self._meta = {}
 
         matcher = TypeMatcher(self.fftree, "HarmonicAngleForce/Angle")
@@ -218,7 +231,7 @@ class HarmonicAngleJaxGenerator:
         self._meta["HarmonicAngleForce_param"] = map_param
 
         aforce = HarmonicAngleJaxForce(map_atom1, map_atom2, map_atom3,
-                                       map_param)
+                                       map_param, usePBC=ifPBC)
         self._force_latest = aforce
 
         def potential_fn(positions, box, pairs, params):
@@ -357,6 +370,11 @@ class PeriodicTorsionJaxGenerator:
         """
         Create force for torsions
         """
+        # set PBC
+        if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
+            ifPBC = True
+        else:
+            ifPBC = False
 
         # Proper Torsions
         proper_matcher = TypeMatcher(self.fftree,
@@ -491,7 +509,7 @@ class PeriodicTorsionJaxGenerator:
                                     jnp.array(map_prop_atom2[p], dtype=int),
                                     jnp.array(map_prop_atom3[p], dtype=int),
                                     jnp.array(map_prop_atom4[p], dtype=int),
-                                    jnp.array(map_prop_param[p], dtype=int), p)
+                                    jnp.array(map_prop_param[p], dtype=int), p, usePBC=ifPBC)
             for p in range(1, self.max_pred_prop + 1)
         ]
         imprs = [
@@ -499,7 +517,7 @@ class PeriodicTorsionJaxGenerator:
                                     jnp.array(map_impr_atom2[p], dtype=int),
                                     jnp.array(map_impr_atom3[p], dtype=int),
                                     jnp.array(map_impr_atom4[p], dtype=int),
-                                    jnp.array(map_impr_param[p], dtype=int), p)
+                                    jnp.array(map_impr_param[p], dtype=int), p, usePBC=ifPBC)
             for p in range(1, self.max_pred_impr + 1)
         ]
         self._props_latest = props
