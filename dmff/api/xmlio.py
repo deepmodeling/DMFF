@@ -119,7 +119,13 @@ class XMLIO:
                 if item.tag == "Bond":
                     res["bonds"].append(item.attrib)
                 if item.tag == "ExternalBond":
-                    res["externals"].append(item.attrib["atomName"])
+                    if "atomName" in item.attrib:
+                        res["externals"].append(item.attrib["atomName"])
+                    elif "from" in item.attrib:
+                        idx = int(item.attrib["from"])
+                        res["externals"].append(res["particles"][idx]["name"])
+                    else:
+                        raise ValueError("ExternalBond must have atomName or from")
             ret.append(res)
         return ret
 

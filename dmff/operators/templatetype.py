@@ -36,7 +36,13 @@ class TemplateATypeOperator(BaseOperator):
             graph.add_node(atom["name"], element=elem,
                            external_bond=external_bond, **atom)
         for bond in resinfo["bonds"]:
-            a1, a2 = bond["atomName1"], bond["atomName2"]
+            if "atomName1" in bond and "atomName2" in bond:
+                a1, a2 = bond["atomName1"], bond["atomName2"]
+            elif "from" in bond and "to" in bond:
+                idx1, idx2 = int(bond["from"]), int(bond["to"])
+                a1, a2 = resinfo["particles"][idx1]["name"], resinfo["particles"][idx2]["name"]
+            else:
+                raise DMFFException("Cannot find bond information")
             graph.add_edge(a1, a2, btype="bond")
         # vsite
         idx2name = {v: k for k, v in name2idx.items()}
