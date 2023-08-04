@@ -143,7 +143,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             """
             Computes second derivative of the cardinal B-spline function
             """
-            if order != 6:
+            if order == 6:
 
                 u2 = u ** 2
                 u3 = u ** 3
