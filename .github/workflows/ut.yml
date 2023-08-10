@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.9]
+        python-version: [3.10]
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -22,7 +22,7 @@ jobs:
           conda create -n dmff python=${{ matrix.python-version }} numpy openmm==7.7.0 pytest rdkit biopandas openbabel -c conda-forge
           conda activate dmff
           pip install --upgrade pip
-          pip install jax==0.3.15 jaxlib==0.3.15 jax_md==0.2.0 mdtraj==1.9.7 pymbar==4.0.1 tqdm
+          pip install jax==0.4.1 jaxlib==0.4.1 jax_md==0.2.5 mdtraj==1.9.7 pymbar==4.0.1 tqdm
       - name: Install DMFF
         run: |
           source $CONDA/bin/activate dmff && pip install .
