@@ -108,6 +108,8 @@ class OpenMMSampleState(SampleState):
                  pressure=0.0,
                  useDispersionCorrection=False,
                  useSwitchingFunction=False,
+                 platform="CPU",
+                 properties={},
                  **args):
         super(OpenMMSampleState, self).__init__(temperature, name)
         self._pressure = pressure
@@ -126,6 +128,9 @@ class OpenMMSampleState(SampleState):
             args['rigidWater'] = False
         system = ff.createSystem(pdb.topology, **args)
 
+        platform = mm.Platform.getPlatformByName(platform)
+        platform_properties = properties
+
         for force in system.getForces():
             if isinstance(force, mm.NonbondedForce):
                 force.setUseDispersionCorrection(useDispersionCorrection)
@@ -133,7 +138,7 @@ class OpenMMSampleState(SampleState):
 
         integ = mm.LangevinIntegrator(0 * unit.kelvin, 5 / unit.picosecond,
                                       1.0 * unit.femtosecond)
-        self.ctx = mm.Context(system, integ)
+        self.ctx = mm.Context(system, integ, platform, platform_properties)
 
     def calc_energy_frame(self, frame):
         self.ctx.setPositions(frame.openmm_positions(0))

@@ -63,6 +63,7 @@ class TestState:
                                            pressure=1.0,
                                            useDispersionCorrection=useDispersionCorrection,
                                            useSwitchingFunction=useSwitchingFunction,
+                                           platform='Reference',
                                            nonbondedMethod=nbmethod,
                                            nonbondedCutoff=rc)
     
