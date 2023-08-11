@@ -589,6 +589,7 @@ class NonbondedJaxGenerator:
     def extract(self):
         self.from_residue = self.fftree.get_attribs(
             "NonbondedForce/UseAttributeFromResidue", "name")
+        self.from_residue = list(set(self.from_residue))
         self.from_force = [
             i for i in ["charge", "sigma", "epsilon"]
             if i not in self.from_residue
@@ -1006,7 +1007,6 @@ class NonbondedJaxGenerator:
                                                   params[self.name]['sigma'],
                                                   params[self.name]['epsfix'],
                                                   params[self.name]['sigfix'])
-
                     return ljE + coulE + ljDispEnergy
                 else:
                     return ljE + coulE
