@@ -16,6 +16,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Debugging with tmate
+        uses: mxschmitt/action-tmate@v3.16
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
