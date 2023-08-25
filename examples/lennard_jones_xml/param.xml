@@ -1,0 +1,25 @@
+<ForceField>
+  <AtomTypes>
+    <Type class="HT" element="H" mass="1.008" name="HT"/>
+    <Type class="OT" element="O" mass="15.9994" name="OT"/>
+    <Type class="SOD" element="Na" mass="22.98977" name="SOD"/>
+  </AtomTypes>
+  <Residues>
+    <Residue name="TP3F">
+      <Atom charge="-0.83" name="OH2" type="OT"/>
+      <Atom charge="0.415" name="H1" type="HT"/>
+      <Atom charge="0.415" name="H2" type="HT"/>
+      <Bond atomName1="OH2" atomName2="H1"/>
+      <Bond atomName1="OH2" atomName2="H2"/>
+    </Residue>
+    <Residue name="SOD">
+      <Atom charge="1.0" name="SOD" type="SOD"/>
+    </Residue>
+  </Residues>
+  <LennardJonesForce lj14scale="1.0">
+    <Atom epsilon="0.0" sigma="1.0" type="HT"/>
+    <Atom epsilon="0.410032" sigma="0.3194050084276745" type="OT"/>
+    <Atom epsilon="0.1962296" sigma="0.2513670733232967" type="SOD"/>
+    <NBFixPair epsilon="0.01" sigma="1.0" type1="HT" type2="SOD"/>
+  </LennardJonesForce>
+</ForceField>
