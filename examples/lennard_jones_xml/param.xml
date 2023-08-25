@@ -20,6 +20,6 @@
     <Atom epsilon="0.0" sigma="1.0" type="HT"/>
     <Atom epsilon="0.410032" sigma="0.3194050084276745" type="OT"/>
     <Atom epsilon="0.1962296" sigma="0.2513670733232967" type="SOD"/>
-    <NBFixPair epsilon="0.01" sigma="1.0" type1="HT" type2="SOD"/>
+    <NBFixPair epsilon="0.01" sigma="0.25" type1="HT" type2="SOD"/>
   </LennardJonesForce>
 </ForceField>
