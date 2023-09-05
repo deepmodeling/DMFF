@@ -65,11 +65,10 @@ class LennardJonesForce:
             sig_m1 = jnp.repeat(sigma.reshape((-1, 1)), sigma.shape[0], axis=1)
             sig_m2 = sig_m1.T
             sig_mat = (sig_m1 + sig_m2) * 0.5
-
-            eps_mat = eps_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(epsfix)
-            eps_mat = eps_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(epsfix)
-            sig_mat = sig_mat.at[self.map_nbfix[:, 0], self.map_nbfix[:, 1]].set(sigfix)
-            sig_mat = sig_mat.at[self.map_nbfix[:, 1], self.map_nbfix[:, 0]].set(sigfix)
+            
+            for _map in self.map_nbfix:
+                eps_mat = eps_mat.at[_map[0],_map[1]].set(epsfix[_map[2]])
+                sig_mat = sig_mat.at[_map[0],_map[1]].set(sigfix[_map[2]])
 
             colv_pair = pairs[:, 2]
             mscale_pair = mscales[colv_pair-1] # in mscale vector, the 0th item is 1-2 scale, the 1st item is 1-3 scale, etc...
