@@ -195,7 +195,7 @@ class LennardJonesGenerator:
                 else:
                     sig_mask.append(1.0)
                     eps_mask.append(1.0)
-            elif node["name"] == "NBFix":
+            elif node["name"] == "NBFixPair":
                 if "type1" in node["attrib"]:
                     atype1, atype2, eps, sig = node["attrib"]["type1"], node["attrib"][
                         "type2"], node["attrib"]["epsilon"], node["attrib"]["sigma"]
@@ -218,8 +218,8 @@ class LennardJonesGenerator:
                                 self.nbfix_to_idx[atype2] = {}
                             self.nbfix_to_idx[atype1][atype2] = len(sig_nbfix)
                             self.nbfix_to_idx[atype2][atype1] = len(sig_nbfix)
-                sig_nbfix.append(sig)
-                eps_nbfix.append(eps)
+                sig_nbfix.append(float(sig))
+                eps_nbfix.append(float(eps))
                 if "mask" in node["attrib"] and node["attrib"]["mask"].upper() == "TRUE":
                     sig_nbf_mask.append(0.0)
                     eps_nbf_mask.append(0.0)
@@ -265,7 +265,8 @@ class LennardJonesGenerator:
                     self.name]["node"][nnode]["attrib"]["sigma"] = sig_now
                 self.ffinfo["Forces"][
                     self.name]["node"][nnode]["attrib"]["epsilon"] = eps_now
-            elif node["name"] == "NBFix":
+            # have not tested for NBFixPair overwrite
+            elif node["name"] == "NBFixPair":
                 if "type1" in node["attrib"]:
                     atype1, atype2 = node["attrib"]["type1"], node["attrib"]["type2"]
                     idx = self.nbfix_to_idx[atype1][atype2]
