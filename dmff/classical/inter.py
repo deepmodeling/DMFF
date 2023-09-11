@@ -70,7 +70,7 @@ class LennardJonesForce:
                 eps_mat = eps_mat.at[_map[0],_map[1]].set(epsfix[_map[2]])
                 eps_mat = eps_mat.at[_map[1],_map[0]].set(epsfix[_map[2]])
                 sig_mat = sig_mat.at[_map[0],_map[1]].set(sigfix[_map[2]])
-                sig_mat = sig_mat.at[_map[1],_map[0]].set(sigfix[_map[1]])
+                sig_mat = sig_mat.at[_map[1],_map[0]].set(sigfix[_map[2]])
 
             colv_pair = pairs[:, 2]
             mscale_pair = mscales[colv_pair-1] # in mscale vector, the 0th item is 1-2 scale, the 1st item is 1-3 scale, etc...
