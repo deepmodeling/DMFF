@@ -22,21 +22,21 @@ class TestADMPAPI:
                 ADMPPmeForce, # polarized
             )
         """
-        rc = 4.0
+        rc = 0.4
         H = Hamiltonian('tests/data/admp.xml')
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
-        potential = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
+        potential = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.nanometer, ethresh=5e-4, step_pol=5)
         generators = H.getGenerators()
         
         yield generators
 
     def test_ADMPPmeForce(self, generators):
 
-        rc = 4.0
+        rc = 0.4
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
-        positions = np.array(pdb.positions._value) * 10
+        positions = np.array(pdb.positions._value)
         a, b, c = pdb.topology.getPeriodicBoxVectors()
-        box = np.array([a._value, b._value, c._value]) * 10
+        box = np.array([a._value, b._value, c._value])
         # neighbor list
         
         gen = generators[1]
@@ -52,11 +52,11 @@ class TestADMPAPI:
     def test_ADMPPmeForce_jit(self, generators):
         
         gen = generators[1]
-        rc = 4.0
+        rc = 0.4
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
-        positions = jnp.array(pdb.positions._value) * 10
+        positions = jnp.array(pdb.positions._value)
         a, b, c = pdb.topology.getPeriodicBoxVectors()
-        box = jnp.array([a._value, b._value, c._value]) * 10
+        box = jnp.array([a._value, b._value, c._value])
         gen = generators[1]
         covalent_map = gen.covalent_map
         # neighbor list

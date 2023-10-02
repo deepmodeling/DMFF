@@ -116,12 +116,17 @@ class ADMPDispGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            # Assume nm for frontend functions, still uses Angstrom for backend
+            positions = positions * 10
+            box = box * 10
+
             params = params[self.name]
             mScales = params["mScales"]
             a_list = (params["A"][map_atomtype] / 2625.5
                       )  # kj/mol to au, as expected by TT_damping kernel
             b_list = params["B"][map_atomtype] * 0.0529177249  # nm^-1 to au
             q_list = params["Q"][map_atomtype]
+            # the input parameters are assumed to be in nm too, need to convert to Angstrom
             c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)
             c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
             c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
@@ -278,6 +283,8 @@ class ADMPDispPmeGenerator:
         pot_fn_lr = disp_force.get_energy
 
         def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
             params = params[self.name]
             mScales = params["mScales"]
             C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
@@ -378,6 +385,8 @@ class QqTtDampingGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
             params = params[self.name]
             mScales = params["mScales"]
             b_list = params["B"][map_atomtype] / 10  # convert to A^-1
@@ -482,6 +491,8 @@ class SlaterDampingGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
             params = params[self.name]
             mScales = params["mScales"]
             b_list = params["B"][map_atomtype] / 10  # convert to A^-1
@@ -578,6 +589,8 @@ class SlaterExGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
             params = params[self.name]
             mScales = params["mScales"]
             a_list = params["A"][map_atomtype]
@@ -625,6 +638,8 @@ class SlaterSrEsGenerator(SlaterExGenerator):
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
             params = params[self.name]
             mScales = params["mScales"]
             a_list = params["A"][map_atomtype]
@@ -1141,6 +1156,8 @@ class ADMPPmeGenerator:
         self.pme_force = pme_force
 
         def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
             params = params['ADMPPmeForce']
             mScales = params["mScales"]
             Q_local = params["Q_local"][map_atomtype]
