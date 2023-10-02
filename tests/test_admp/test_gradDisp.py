@@ -31,10 +31,10 @@ class TestGradDispersion:
     def test_admp_slater(self, pdb, prm, values):
         pdb = app.PDBFile(pdb)
         H = Hamiltonian(prm) 
-        rc = 15
+        rc = 1.5
         pots = H.createPotential(
             pdb.topology, 
-            nonbondedCutoff=rc*unit.angstrom, 
+            nonbondedCutoff=rc*unit.nanometer, 
             nonbondedMethod=app.CutoffPeriodic, 
             ethresh=1e-4)
 
@@ -43,9 +43,9 @@ class TestGradDispersion:
         params = H.getParameters()
 
         # init positions used to set up neighbor list
-        pos = jnp.array(pdb.positions._value) * 10
+        pos = jnp.array(pdb.positions._value)
         n_atoms = len(pos)
-        box = jnp.array(pdb.topology.getPeriodicBoxVectors()._value) * 10
+        box = jnp.array(pdb.topology.getPeriodicBoxVectors()._value)
 
         # nn list initial allocation
         nbl = NeighborList(box, rc, H.getGenerators()[0].covalent_map)
