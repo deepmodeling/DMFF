@@ -101,7 +101,8 @@ def generate_construct_local_frames(axis_types, axis_indices):
         vec_y = jnp.zeros((n_sites, 3))
         # Z-Only
         x_of_vec_z = jnp.round(jnp.abs(vec_z[:,0]))
-        vec_x_Zonly = jnp.array([1.-x_of_vec_z, x_of_vec_z, jnp.zeros_like(x_of_vec_z)]).T
+        vec_x_Zonly = jnp.array([1.-x_of_vec_z, x_of_vec_z, jnp.zeros_like(x_of_vec_z)]).T[Zonly_filter]
+
         vec_x = vec_x.at[Zonly_filter].set(vec_x_Zonly)
         # for those that are not Z-Only, get normalized vecX
         vec_x_not_Zonly = positions[x_atoms[not_Zonly_filter]] - positions[not_Zonly_filter]

@@ -27,10 +27,10 @@ class TestADMPSlaterTypeFunction:
     def test_admp_slater(self, pdb, prm, values):
         pdb_AB = app.PDBFile(pdb)
         H_AB = Hamiltonian(prm)
-        rc = 15
+        rc = 1.5
         pots_AB = H_AB.createPotential(
             pdb_AB.topology, 
-            nonbondedCutoff=rc*unit.angstrom, 
+            nonbondedCutoff=rc*unit.nanometer, 
             nonbondedMethod=app.CutoffPeriodic, 
             ethresh=1e-4)
 
@@ -47,9 +47,9 @@ class TestADMPSlaterTypeFunction:
         paramtree = H_AB.getParameters()
 
         # init positions used to set up neighbor list
-        pos_AB0 = jnp.array(pdb_AB.positions._value) * 10
+        pos_AB0 = jnp.array(pdb_AB.positions._value)
         n_atoms = len(pos_AB0)
-        box = jnp.array(pdb_AB.topology.getPeriodicBoxVectors()._value) * 10
+        box = jnp.array(pdb_AB.topology.getPeriodicBoxVectors()._value)
 
         # nn list initial allocation
         nbl_AB = NeighborList(box, rc, H_AB.getGenerators()[0].covalent_map)
