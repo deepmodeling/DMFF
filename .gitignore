@@ -785,11 +785,3 @@ FodyWeavers.xsd
 
 # hmtff cache
 *.hmtff/
-
-# Ignore the useless files in the openmm_deepmd_plugin directory
-**/build
-**/.vscode
-**/__pycache__
-*.dcd
-**/output
-**/.devcontainer
