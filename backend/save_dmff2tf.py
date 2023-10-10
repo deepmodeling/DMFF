@@ -3,11 +3,9 @@ from dmff import NeighborList
 import jax
 import jax.numpy as jnp
 from jax.experimental import jax2tf
-# The model is saved in double precision by default. 
-# Since forces accuracy in double precision is needed in molecular dynamics simulations, 
-# we need to enable double precision in JAX.
-from jax import config
-config.update("jax_enable_x64", True)
+# The model is saved in float32 precision by default. 
+#from jax import config
+#config.update("jax_enable_x64", True)
 import openmm.app as app
 import openmm.unit as unit
 import tensorflow as tf
@@ -71,6 +69,6 @@ if __name__ == "__main__":
     )
     dmff_model = tf.Module()
     dmff_model.f = tf.function(f_tf, autograph=False,
-                            input_signature=[tf.TensorSpec(shape=[natoms,3], dtype=tf.float64), tf.TensorSpec(shape=[3,3], dtype=tf.float64), tf.TensorSpec(shape=tf.TensorShape([None, 2]), dtype=tf.int32)])
+                            input_signature=[tf.TensorSpec(shape=[natoms,3], dtype=tf.float32), tf.TensorSpec(shape=[3,3], dtype=tf.float32), tf.TensorSpec(shape=tf.TensorShape([None, 2]), dtype=tf.int32)])
     
     tf.saved_model.save(dmff_model, output_dir, options=tf.saved_model.SaveOptions(experimental_custom_gradients=True))
