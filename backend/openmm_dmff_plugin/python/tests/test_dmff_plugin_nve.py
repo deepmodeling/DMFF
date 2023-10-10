@@ -15,7 +15,7 @@ except:
 from OpenMMDMFFPlugin import DMFFModel
 
 
-def test_dmff_nve(nsteps = 1000, time_step = 0.2, platform_name = "Reference", output_temp_dir = "/tmp/openmm_dmff_plugin_test_nve_output", energy_std_tol = 0.0005 ):
+def test_dmff_nve(nsteps = 1000, time_step = 0.2, platform_name = "Reference", output_temp_dir = "/tmp/openmm_dmff_plugin_test_nve_output", energy_std_tol = 0.005 ):
     if not os.path.exists(output_temp_dir):
         os.mkdir(output_temp_dir)
     
@@ -83,7 +83,7 @@ def test_dmff_nve(nsteps = 1000, time_step = 0.2, platform_name = "Reference", o
     # Check the total energy fluctuations over # of atoms is smaller than energy_std_tol, unit in kJ/mol.
     print("Total energy std: %.4f kJ/mol"%(np.std(total_energy)))
     print("Mean total energy: %.4f kJ/mol"%(np.mean(total_energy)))
-    #assert(np.std(total_energy) / num_atoms < energy_std_tol)    
+    assert(np.std(total_energy) / num_atoms < energy_std_tol)    
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
