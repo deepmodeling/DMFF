@@ -35,7 +35,7 @@ jobs:
       - name: Install OpenMM DMFF Plugin
         run: |
           source $CONDA/bin/activate dmff_omm
-          cd ${GITHU_WORKSPACE}/backend/openmm_dmff_plugin
+          cd ${GITHUB_WORKSPACE}/backend/openmm_dmff_plugin
           mkdir build && cd build
           export OPENMM_INSTALLED_DIR=$CONDA_PREFIX
           export CPPFLOW_INSTALLED_DIR=$CONDA_PREFIX
