@@ -19,11 +19,9 @@ jobs:
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
-          conda create -n dmff -y python=${{ matrix.python-version }} numpy openmm==7.7.0 mdtraj=1.9.7 pytest rdkit biopandas openbabel -c conda-forge
-          conda activate dmff
-          pip install --upgrade pip
-          pip install jax==0.3.15 jaxlib==0.3.15 jax_md==0.2.0 pymbar==4.0.1 chex==0.1.4 dm-haiku==0.0.7 tqdm
-          conda install -c deepmodeling -y libtensorflow_cc=2.9.0=cuda116h4bf587c_0
+          conda create -n dmff_omm -y python=${{ matrix.python-version }} numpy openmm==7.7.0 pytest -c conda-forge
+          conda activate dmff_omm
+          conda install -c deepmodeling -y libtensorflow_cc=2.9.0=cpu_h681ccd4_0
           mkdir /tmp/omm_dmff_working_dir
           cd /tmp/omm_dmff_working_dir
           wget https://github.com/tensorflow/tensorflow/archive/refs/tags/v2.9.1.tar.gz
@@ -36,7 +34,7 @@ jobs:
           cp -r include/cppflow ${CONDA_PREFIX}/include/
       - name: Install OpenMM DMFF Plugin
         run: |
-          source $CONDA/bin/activate dmff
+          source $CONDA/bin/activate dmff_omm
           cd ${GITHU_WORKSPACE}/backend/openmm_dmff_plugin
           mkdir build && cd build
           export OPENMM_INSTALLED_DIR=$CONDA_PREFIX
@@ -47,5 +45,5 @@ jobs:
           make PythonInstall
       - name: Run Tests
         run: |
-          source $CONDA/bin/activate dmff
+          source $CONDA/bin/activate dmff_omm
           python -m OpenMMDMFFPlugin.tests.test_dmff_plugin_nve -n 100
