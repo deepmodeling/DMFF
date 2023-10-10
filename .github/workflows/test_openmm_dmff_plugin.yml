@@ -25,9 +25,9 @@ jobs:
           pip install setuptools==59.5.0
           mkdir /tmp/omm_dmff_working_dir
           cd /tmp/omm_dmff_working_dir
-          wget https://github.com/tensorflow/tensorflow/archive/refs/tags/v2.9.0.tar.gz
-          tar -xvf v2.9.0.tar.gz
-          cp -r tensorflow-2.9.0/tensorflow/c ${CONDA_PREFIX}/include/tensorflow/
+          wget https://github.com/tensorflow/tensorflow/archive/refs/tags/v2.9.1.tar.gz
+          tar -xvf v2.9.1.tar.gz
+          cp -r tensorflow-2.9.1/tensorflow/c ${CONDA_PREFIX}/include/tensorflow/
           git clone https://github.com/serizba/cppflow.git
           cd cppflow
           git apply ${GITHUB_WORKSPACE}/backend/openmm_dmff_plugin/tests/cppflow_empty_constructor.patch
