@@ -19,9 +19,9 @@ jobs:
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
-          conda create -n dmff_omm -y python=${{ matrix.python-version }} numpy openmm pytest -c conda-forge
+          conda create -n dmff_omm -y python=${{ matrix.python-version }} numpy openmm=7.7 -c conda-forge
           conda activate dmff_omm
-          conda install -y libtensorflow_cc=2.9.0=cpu_h681ccd4_0 -c deepmodeling
+          conda install -y libtensorflow_cc=2.9.1 -c conda-forge
           mkdir /tmp/omm_dmff_working_dir
           cd /tmp/omm_dmff_working_dir
           wget https://github.com/tensorflow/tensorflow/archive/refs/tags/v2.9.0.tar.gz
