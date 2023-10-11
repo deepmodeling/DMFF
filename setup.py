@@ -10,7 +10,7 @@ try:
     from m2r import parse_from_file
 
     readme = parse_from_file(readme_file)
-except ImportError:
+except (ImportError, AttributeError) as e:
     with open(readme_file) as f:
         readme = f.read()
 

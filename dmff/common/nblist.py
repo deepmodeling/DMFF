@@ -64,3 +64,7 @@ class NeighborListFreud:
     @property
     def positions(self):
         return self._positions
+
+
+class NeighborList(NeighborListFreud):
+    ...
