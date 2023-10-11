@@ -732,11 +732,190 @@ class PeriodicTorsionGenerator:
 _DMFFGenerators["PeriodicTorsionForce"] = PeriodicTorsionGenerator
 
 
-# class NonbondedGenerator:
-#     ...
+class NonbondedGenerator:
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        self.name = "NonbondedForce"
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
+        self.coulomb14scale = float(
+            self.ffinfo["Forces"]["NonbondedForce"]["meta"].get("coulomb14scale", 0.8333333333333334))
+        self.lj14scale = float(
+            self.ffinfo["Forces"]["NonbondedForce"]["meta"].get("lj14scale", 0.5))
+        self.key_type = None
+        
+        charge_in_residue = False
+        for node in self.ffinfo["Forces"]["NonbondedForce"]["node"]:
+            if not charge_in_residue and node["name"] == "UseAttributeFromResidue":
+                if node["attrib"]["name"] == "charge":
+                    charge_in_residue = True
+        if not charge_in_residue:
+            raise DMFFException("NonbondedForce with charge in Atom nodes is not supported yet.")
+        
+        types, sigma, epsilon, atom_mask = [], [], [], []
+        for node in self.ffinfo["Forces"]["NonbondedForce"]["node"]:
+            if node["name"] == "Atom":
+                attribs = node["attrib"]
+                self.key_type = None
+                if "type" in attribs:
+                    self.key_type = "type"
+                elif "class" in attribs:
+                    self.key_type = "class"
+                types.append(attribs[self.key_type])
+                sigma.append(float(attribs["sigma"]))
+                epsilon.append(float(attribs["epsilon"]))
+                mask = 1.0
+                if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                    mask = 0.0
+                atom_mask.append(mask)
+
+        sigma = jnp.array(sigma)
+        epsilon = jnp.array(epsilon)
+        atom_mask = jnp.array(atom_mask)
+        self.atom_keys = types
+        paramset.addParameter(sigma, "sigma", field=self.name, mask=atom_mask)
+        paramset.addParameter(epsilon, "epsilon", field=self.name, mask=atom_mask)
+
+    def getName(self):
+        return self.name
+
+    def overwrite(self, paramset):
+        sigma = paramset[self.name]["sigma"]
+        epsilon = paramset[self.name]["epsilon"]
+        atom_mask = paramset.mask[self.name]["sigma"]
+
+        node2atom = [i for i in range(len(self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Atom"]
+
+        for natom in range(len(self.atom_keys)):
+            nnode = node2atom[natom]
+            sig_new = sigma[natom]
+            eps_new = epsilon[natom]
+            mask = atom_mask[natom]
+            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["sigma"] = str(sig_new)
+            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["epsilon"] = str(eps_new)
+            if mask < 0.999:
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+
+    def _find_atype_key_index(self, atype: str):
+        for n, i in enumerate(self.atom_keys):
+            if i == atype:
+                return n
+        return None
+    
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
+                        nonbondedCutoff, args):
+        methodMap = {
+            app.NoCutoff: "NoCutoff",
+            app.CutoffPeriodic: "CutoffPeriodic",
+            app.CutoffNonPeriodic: "CutoffNonPeriodic",
+            app.PME: "PME",
+        }
+        methodString = methodMap[nonbondedMethod]
+        if nonbondedMethod not in methodMap:
+            raise DMFFException("Illegal nonbonded method for NonbondedForce")
+
+        isNoCut = False
+        if nonbondedMethod is app.NoCutoff:
+            isNoCut = True
+
+        mscales_coul = jnp.array([0.0, 0.0, self.coulomb14scale, 1.0, 1.0,
+                                  1.0])
+        mscales_lj = jnp.array([0.0, 0.0, self.lj14scale, 1.0, 1.0,
+                                1.0])
+
+        # coulomb
+        # set PBC
+        if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
+            ifPBC = True
+        else:
+            ifPBC = False
+
+        charges = [a.meta["charge"] for a in topdata.atoms()]
+        charges = jnp.array(charges)
+
+        if unit.is_quantity(nonbondedCutoff):
+            r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
+        else:
+            r_cut = nonbondedCutoff
+
+        # PME Settings
+        if nonbondedMethod is app.PME:
+            cell = topdata.getPeriodicBoxVectors()
+            box = jnp.array(cell)
+            self.ethresh = args.get("ethresh", 1e-6)
+            self.coeff_method = args.get("PmeCoeffMethod", "openmm")
+            self.fourier_spacing = args.get("PmeSpacing", 0.1)
+            kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, self.ethresh,
+                                                       box,
+                                                       self.fourier_spacing,
+                                                       self.coeff_method)
+        if nonbondedMethod is not app.PME:
+            # do not use PME
+            if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
+                # use Reaction Field
+                coulforce = CoulReactionFieldForce(r_cut, isPBC=ifPBC)
+            if nonbondedMethod is app.NoCutoff:
+                # use NoCutoff
+                coulforce = CoulNoCutoffForce()
+        else:
+            coulforce = CoulombPMEForce(r_cut, kappa, (K1, K2, K3))
+
+        coulenergy = coulforce.generate_get_energy()
+
+        # LJ
+        atypes = [a.meta["type"] for a in topdata.atoms()]
+        map_prm = []
+        for atype in atypes:
+            pidx = self._find_atype_key_index(atype)
+            if pidx is None:
+                raise DMFFException(f"Atom type {atype} not found.")
+            map_prm.append(pidx)
+        map_prm = jnp.array(map_prm)
+
+        # not use nbfix for now
+        map_nbfix = []
+        map_nbfix = jnp.array(map_nbfix, dtype=int).reshape((-1, 3))
+        eps_nbfix = jnp.array(map_nbfix, dtype=float).reshape((-1, 3))
+        sig_nbfix = jnp.array(map_nbfix, dtype=float).reshape((-1, 3))
+
+        if methodString in ["NoCutoff", "CutoffNonPeriodic"]:
+            isPBC = False
+            if methodString == "NoCutoff":
+                isNoCut = True
+            else:
+                isNoCut = False
+        else:
+            isPBC = True
+            isNoCut = False
+
+        ljforce = LennardJonesForce(0.0,
+                                    r_cut,
+                                    map_prm,
+                                    map_nbfix,
+                                    isSwitch=False,
+                                    isPBC=isPBC,
+                                    isNoCut=isNoCut)
+        ljenergy = ljforce.generate_get_energy()
+
+        def potential_fn(positions, box, pairs, params):
+
+            # check whether args passed into potential_fn are jnp.array and differentiable
+            # note this check will be optimized away by jit
+            # it is jit-compatiable
+            isinstance_jnp(positions, box, params)
+
+            coulE = coulenergy(positions, box, pairs, charges,
+                                mscales_coul)
+            
+            ljE = ljenergy(positions, box, pairs, params[self.name]["epsilon"],
+                            params[self.name]["sigma"], eps_nbfix, sig_nbfix, mscales_lj)
+
+            return coulE + ljE
+
+        self._jaxPotential = potential_fn
+        return potential_fn
 
 
-# _DMFFGenerators["NonbondedForce"] = NonbondedGenerator
+_DMFFGenerators["NonbondedForce"] = NonbondedGenerator
 
 
 class CoulombGenerator:
