@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     forcegroups = forcegroupify(system)
     integrator = mm.VerletIntegrator(0.1)
-    context = mm.Context(system, integrator)
+    context = mm.Context(system, integrator, mm.Platform.getPlatformByName("Reference"))
     context.setPositions(pdb.positions)
     state = context.getState(getEnergy=True)
     energy = state.getPotentialEnergy()
@@ -80,3 +80,6 @@ if __name__ == "__main__":
 
     nbE = pot.dmff_potentials['NonbondedForce']
     print("Nonbonded:", nbE(positions, box, pairs, params))
+
+    etotal = pot.getPotentialFunc()
+    print("Total:", etotal(positions, box, pairs, params))
