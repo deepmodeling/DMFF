@@ -7,9 +7,10 @@ import numpy as np
 import jax.numpy as jnp
 import openmm.app as app
 import openmm.unit as unit
-from ..classical.intra import HarmonicBondJaxForce, HarmonicAngleJaxForce
+from ..classical.intra import HarmonicBondJaxForce, HarmonicAngleJaxForce, PeriodicTorsionJaxForce
 from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce, CoulReactionFieldForce, LennardJonesForce
 from typing import Tuple, List, Union, Callable
+
 
 class HarmonicBondGenerator:
     """
@@ -44,22 +45,23 @@ class HarmonicBondGenerator:
         paramset : ParamSet
             The parameter set.
         """
-        self.name = "HarmonicBondForce" 
-        self.ffinfo = ffinfo 
-        paramset.addField(self.name) 
+        self.name = "HarmonicBondForce"
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
         self.key_type = None
 
-        bond_keys, bond_params, bond_mask = [], [], [] 
+        bond_keys, bond_params, bond_mask = [], [], []
         for node in self.ffinfo["Forces"][self.name]["node"]:
             attribs = node["attrib"]
-            
+
             if self.key_type is None:
                 if "type1" in attribs:
                     self.key_type = "type"
                 elif "class1" in attribs:
                     self.key_type = "class"
                 else:
-                    raise ValueError("Cannot find key type for HarmonicBondForce.")
+                    raise ValueError(
+                        "Cannot find key type for HarmonicBondForce.")
             key = (attribs[self.key_type + "1"], attribs[self.key_type + "2"])
             bond_keys.append(key)
 
@@ -67,7 +69,7 @@ class HarmonicBondGenerator:
             r0 = float(attribs["length"])
             bond_params.append([k, r0])
 
-            # when the node has mask attribute, it means that the parameter is not trainable. 
+            # when the node has mask attribute, it means that the parameter is not trainable.
             # the gradient of this parameter will be zero.
             mask = 1.0
             if "mask" in attribs and attribs["mask"].upper() == "TRUE":
@@ -79,10 +81,12 @@ class HarmonicBondGenerator:
         bond_k = jnp.array([i[0] for i in bond_params])
         bond_mask = jnp.array(bond_mask)
 
+        # register parameters to ParamSet
+        paramset.addParameter(bond_length, "length",
+                              field=self.name, mask=bond_mask)
+        # register parameters to ParamSet
+        paramset.addParameter(bond_k, "k", field=self.name, mask=bond_mask)
 
-        paramset.addParameter(bond_length, "length", field=self.name, mask=bond_mask) # register parameters to ParamSet
-        paramset.addParameter(bond_k, "k", field=self.name, mask=bond_mask) # register parameters to ParamSet
-        
     def getName(self) -> str:
         """
         Returns the name of the force field.
@@ -93,8 +97,7 @@ class HarmonicBondGenerator:
             The name of the force field.
         """
         return self.name
-    
-    
+
     def overwrite(self, paramset: ParamSet) -> None:
         """
         Overwrites the parameter set.
@@ -104,23 +107,29 @@ class HarmonicBondGenerator:
         paramset : ParamSet
             The parameter set.
         """
-        bond_node_indices = [i for i in range(len(self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Bond"]
+        bond_node_indices = [i for i in range(len(
+            self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Bond"]
 
         bond_length = paramset[self.name]["length"]
         bond_k = paramset[self.name]["k"]
         bond_msks = paramset.mask[self.name]["length"]
         for nnode, key in enumerate(self.bond_keys):
-            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"] = {}
-            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"][f"{self.key_type}1"] = key[0]
-            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"][f"{self.key_type}2"] = key[1]
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"] = {
+            }
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}1"] = key[0]
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}2"] = key[1]
             r0 = bond_length[nnode]
             k = bond_k[nnode]
             mask = bond_msks[nnode]
-            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"]["k"] = str(k)
-            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"]["length"] = str(r0)
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]
+                                                     ]["attrib"]["k"] = str(k)
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]
+                                                     ]["attrib"]["length"] = str(r0)
             if mask < 0.999:
-                self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"]["mask"] = "true"
-
+                self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]
+                                                         ]["attrib"]["mask"] = "true"
 
     def _find_key_index(self, key: Tuple[str, str]) -> int:
         """
@@ -142,7 +151,7 @@ class HarmonicBondGenerator:
             if k[0] == key[1] and k[1] == key[0]:
                 return i
         return None
-    
+
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
                         nonbondedCutoff, args):
         """
@@ -182,20 +191,23 @@ class HarmonicBondGenerator:
         bond_a1 = jnp.array(bond_a1)
         bond_a2 = jnp.array(bond_a2)
         bond_indices = jnp.array(bond_indices)
-        
+
         # 创建势函数
-        harmonic_bond_force = HarmonicBondJaxForce(bond_a1, bond_a2, bond_indices)
+        harmonic_bond_force = HarmonicBondJaxForce(
+            bond_a1, bond_a2, bond_indices)
         harmonic_bond_energy = harmonic_bond_force.generate_get_energy()
-        
+
         # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
         def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
             isinstance_jnp(positions, box, params)
-            energy = harmonic_bond_energy(positions, box, pairs, params[self.name]["k"], params[self.name]["length"])
+            energy = harmonic_bond_energy(
+                positions, box, pairs, params[self.name]["k"], params[self.name]["length"])
             return energy
 
         self._jaxPotential = potential_fn
         return potential_fn
-    
+
+
 # register the generator
 _DMFFGenerators["HarmonicBondForce"] = HarmonicBondGenerator
 
@@ -233,30 +245,32 @@ class HarmonicAngleGenerator:
         paramset : ParamSet
             The parameter set.
         """
-        self.name = "HarmonicAngleForce" 
-        self.ffinfo = ffinfo 
-        paramset.addField(self.name) 
+        self.name = "HarmonicAngleForce"
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
         self.key_type = None
 
-        angle_keys, angle_params, angle_mask = [], [], [] 
+        angle_keys, angle_params, angle_mask = [], [], []
         for node in self.ffinfo["Forces"][self.name]["node"]:
             attribs = node["attrib"]
-            
+
             if self.key_type is None:
                 if "type1" in attribs:
                     self.key_type = "type"
                 elif "class1" in attribs:
                     self.key_type = "class"
                 else:
-                    raise ValueError("Cannot find key type for HarmonicAngleForce.")
-            key = (attribs[self.key_type + "1"], attribs[self.key_type + "2"], attribs[self.key_type + "3"])
+                    raise ValueError(
+                        "Cannot find key type for HarmonicAngleForce.")
+            key = (attribs[self.key_type + "1"],
+                   attribs[self.key_type + "2"], attribs[self.key_type + "3"])
             angle_keys.append(key)
 
             k = float(attribs["k"])
             r0 = float(attribs["angle"])
             angle_params.append([k, r0])
 
-            # when the node has mask attribute, it means that the parameter is not trainable. 
+            # when the node has mask attribute, it means that the parameter is not trainable.
             # the gradient of this parameter will be zero.
             mask = 1.0
             if "mask" in attribs and attribs["mask"].upper() == "TRUE":
@@ -268,10 +282,12 @@ class HarmonicAngleGenerator:
         angle_k = jnp.array([i[0] for i in angle_params])
         angle_mask = jnp.array(angle_mask)
 
+        # register parameters to ParamSet
+        paramset.addParameter(angle_theta, "angle",
+                              field=self.name, mask=angle_mask)
+        # register parameters to ParamSet
+        paramset.addParameter(angle_k, "k", field=self.name, mask=angle_mask)
 
-        paramset.addParameter(angle_theta, "angle", field=self.name, mask=angle_mask) # register parameters to ParamSet
-        paramset.addParameter(angle_k, "k", field=self.name, mask=angle_mask) # register parameters to ParamSet
-        
     def getName(self) -> str:
         """
         Returns the name of the force field.
@@ -282,8 +298,7 @@ class HarmonicAngleGenerator:
             The name of the force field.
         """
         return self.name
-    
-    
+
     def overwrite(self, paramset: ParamSet) -> None:
         """
         Overwrites the parameter set.
@@ -293,23 +308,29 @@ class HarmonicAngleGenerator:
         paramset : ParamSet
             The parameter set.
         """
-        angle_node_indices = [i for i in range(len(self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Angle"]
+        angle_node_indices = [i for i in range(len(
+            self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Angle"]
 
         angle_theta = paramset[self.name]["angle"]
         angle_k = paramset[self.name]["k"]
         angle_msks = paramset.mask[self.name]["angle"]
         for nnode, key in enumerate(self.bond_keys):
-            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"] = {}
-            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"][f"{self.key_type}1"] = key[0]
-            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"][f"{self.key_type}2"] = key[1]
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"] = {
+            }
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}1"] = key[0]
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}2"] = key[1]
             theta0 = angle_theta[nnode]
             k = angle_k[nnode]
             mask = angle_msks[nnode]
-            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"]["k"] = str(k)
-            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"]["angle"] = str(theta0)
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                     ]["attrib"]["k"] = str(k)
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                     ]["attrib"]["angle"] = str(theta0)
             if mask < 0.999:
-                self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"]["mask"] = "true"
-
+                self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                         ]["attrib"]["mask"] = "true"
 
     def _find_key_index(self, key: Tuple[str, str]) -> int:
         """
@@ -331,7 +352,7 @@ class HarmonicAngleGenerator:
             if k[0] == key[2] and k[1] == key[1] and k[2] == key[0]:
                 return i
         return None
-    
+
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
                         nonbondedCutoff, args):
         """
@@ -391,22 +412,332 @@ class HarmonicAngleGenerator:
         angle_a2 = jnp.array(angle_a2)
         angle_a3 = jnp.array(angle_a3)
         angle_indices = jnp.array(angle_indices)
-        
+
         # 创建势函数
-        harmonic_angle_force = HarmonicAngleJaxForce(angle_a1, angle_a2, angle_a3, angle_indices)
+        harmonic_angle_force = HarmonicAngleJaxForce(
+            angle_a1, angle_a2, angle_a3, angle_indices)
         harmonic_angle_energy = harmonic_angle_force.generate_get_energy()
-        
+
         # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
         def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
             isinstance_jnp(positions, box, params)
-            energy = harmonic_angle_energy(positions, box, pairs, params[self.name]["k"], params[self.name]["angle"])
+            energy = harmonic_angle_energy(
+                positions, box, pairs, params[self.name]["k"], params[self.name]["angle"])
             return energy
 
         self._jaxPotential = potential_fn
         return potential_fn
-    
+
+
 # register the generator
 _DMFFGenerators["HarmonicAngleForce"] = HarmonicAngleGenerator
+
+
+class PeriodicTorsionGenerator:
+
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        """
+        Initializes a PeriodicTorsionForce object.
+
+        Args:
+        - ffinfo (dict): A dictionary containing force field information.
+        - paramset (ParamSet): A ParamSet object to register parameters.
+
+        Raises:
+        - ValueError: If the ordering of PeriodicTorsionForce is not "amber".
+
+        Returns:
+        - None
+        """
+        self.name = "PeriodicTorsionForce"
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
+        self._use_smarts = False
+
+        if "ordering" in self.ffinfo["Forces"][self.name] and self.ffinfo["Forces"][self.name]["ordering"] != "amber":
+            raise ValueError("PeriodicTorsionForce ordering must be amber")
+
+        proper_keys, proper_periods, proper_prms = [], [], []
+        proper_key_to_prms = {}
+        improper_keys, improper_periods, improper_prms = [], [], []
+        improper_key_to_prms = {}
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            attribs = node["attrib"]
+            self.key_type = None
+            if "type1" in attribs:
+                self.key_type = "type"
+            elif "class1" in attribs:
+                self.key_type = "class"
+            key = (attribs[self.key_type + "1"], attribs[self.key_type + "2"],
+                   attribs[self.key_type + "3"], attribs[self.key_type + "4"])
+            if node["name"] == "Proper":
+                proper_keys.append(key)
+            elif node["name"] == "Improper":
+                improper_keys.append(key)
+
+            mask = 1.0
+            if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                mask = 0.0
+
+            for period_key in attribs.keys():
+                if "periodicity" not in period_key:
+                    continue
+                order = int(period_key.replace("periodicity", ""))
+                period = int(attribs[period_key])
+                phase = float(attribs["phase" + str(order)])
+                k = float(attribs["k" + str(order)])
+                if node["name"] == "Proper":
+                    proper_periods.append(period)
+                    proper_prms.append([phase, k, mask])
+                    if len(proper_keys) - 1 not in proper_key_to_prms:
+                        proper_key_to_prms[len(proper_keys) - 1] = []
+                    proper_key_to_prms[len(
+                        proper_keys) - 1].append(len(proper_periods) - 1)
+                elif node["name"] == "Improper":
+                    improper_periods.append(period)
+                    improper_prms.append([phase, k, mask])
+                    if len(improper_keys) - 1 not in improper_key_to_prms:
+                        improper_key_to_prms[len(improper_keys) - 1] = []
+                    improper_key_to_prms[len(
+                        improper_keys) - 1].append(len(improper_periods) - 1)
+
+        self.proper_keys = proper_keys
+        self.proper_periods = jnp.array(proper_periods)
+        self.proper_key_to_prms = proper_key_to_prms
+        proper_phase = jnp.array([i[0] for i in proper_prms])
+        proper_k = jnp.array([i[1] for i in proper_prms])
+        proper_mask = jnp.array([i[2] for i in proper_prms])
+        # register parameters to ParamSet
+        paramset.addParameter(proper_phase, "proper_phase",
+                              field=self.name, mask=proper_mask)
+        paramset.addParameter(proper_k, "proper_k",
+                              field=self.name, mask=proper_mask)
+
+        self.imp_keys = improper_keys
+        self.imp_periods = jnp.array(improper_periods)
+        self.imp_key_to_prms = improper_key_to_prms
+        improper_phase = jnp.array([i[0] for i in improper_prms])
+        improper_k = jnp.array([i[1] for i in improper_prms])
+        improper_mask = jnp.array([i[2] for i in improper_prms])
+        # register parameters to ParamSet
+        paramset.addParameter(improper_phase, "improper_phase",
+                              field=self.name, mask=improper_mask)
+        paramset.addParameter(improper_k, "improper_k",
+                              field=self.name, mask=improper_mask)
+
+    def getName(self):
+        return self.name
+
+    def overwrite(self, paramset):
+        # paramset to ffinfo
+        proper_node_indices = [i for i in range(len(
+            self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Proper"]
+        improper_node_indices = [i for i in range(len(
+            self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Improper"]
+
+        proper_phase = paramset[self.name]["proper_phase"]
+        proper_k = paramset[self.name]["proper_k"]
+        proper_msks = paramset.mask[self.name]["proper"]
+        for nnode, key in enumerate(self.proper_keys):
+            self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]]["attrib"] = {
+            }
+            self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}1"] = key[0]
+            self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}2"] = key[1]
+            self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}3"] = key[2]
+            self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}4"] = key[3]
+            for nitem, item in enumerate(self.proper_key_to_prms[nnode]):
+                phase, k = proper_phase[item], proper_k[item]
+                mask = proper_msks[item]
+                self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                         ]["attrib"]["periodicity" + str(nitem + 1)] = str(self.proper_periods[item])
+                self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                         ]["attrib"]["phase" + str(nitem + 1)] = str(phase)
+                self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                         ]["attrib"]["k" + str(nitem + 1)] = str(k)
+            if mask < 0.999:
+                self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                         ]["attrib"]["mask"] = "true"
+
+        improper_phase = paramset[self.name]["improper_phase"]
+        improper_k = paramset[self.name]["improper_k"]
+        improper_msks = paramset.mask[self.name]["improper"]
+        for nnode, key in enumerate(self.imp_keys):
+            self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]]["attrib"] = {
+            }
+            self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}1"] = key[0]
+            self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}2"] = key[1]
+            self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}3"] = key[2]
+            self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}4"] = key[3]
+            for nitem, item in enumerate(self.imp_key_to_prms[nnode]):
+                phase = improper_phase[item]
+                k = improper_k[item]
+                mask = improper_msks[item]
+                self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                         ]["attrib"]["periodicity" + str(nitem + 1)] = str(self.imp_periods[item])
+                self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                         ]["attrib"]["phase" + str(nitem + 1)] = str(phase)
+                self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                         ]["attrib"]["k" + str(nitem + 1)] = str(k)
+            if mask < 0.999:
+                self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                         ]["attrib"]["mask"] = "true"
+
+    def _find_proper_key_index(self, key: Tuple[str, str, str, str]) -> int:
+        wc_patch = []
+        for i, k in enumerate(self.proper_keys):
+            if k[0] in ["", key[0]] and k[1] in ["", key[1]] and k[2] in ["", key[2]] and k[3] in ["", key[3]]:
+                if "" in k:
+                    wc_patch.append(i)
+                else:
+                    return i
+            if k[0] in ["", key[3]] and k[1] in ["", key[2]] and k[2] in ["", key[1]] and k[3] in ["", key[0]]:
+                if "" in k:
+                    wc_patch.append(i)
+                else:
+                    return i
+        if len(wc_patch) > 0:
+            return wc_patch[0]
+        return None
+
+    def _find_improper_key_index(self, key: Tuple[str, str, str, str]):
+        pre_orders = [(0, 1, 2, 3), (0, 1, 3, 2), (0, 2, 1, 3),
+                      (0, 2, 3, 1), (0, 3, 1, 2), (0, 3, 2, 1)]
+        for i, k in enumerate(self.imp_keys):
+            for order in pre_orders:
+                if k[0] == key[0] and k[1] in ["", key[order[1]]] and k[2] in ["", key[order[2]]] and k[3] in ["", key[order[3]]]:
+                    return i, order
+        return None, None
+
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
+                        nonbondedCutoff, args):
+        proper_list = []
+
+        acenters = {}
+        atoms = [a for a in topdata.atoms()]
+        for bond in topdata.bonds():
+            a1, a2 = bond.atom1, bond.atom2
+            i1, i2 = a1.index, a2.index
+            if i1 not in acenters:
+                acenters[i1] = []
+            acenters[i1].append(i2)
+            if i2 not in acenters:
+                acenters[i2] = []
+            acenters[i2].append(i1)
+
+        # find rotamers and loop over proper torsions on the rotamer
+        for bond in topdata.bonds():
+            a1, a2 = bond.atom1, bond.atom2
+            i1, i2 = a1.index, a2.index
+            alinks1 = [i for i in acenters[i1] if i != i2]
+            alinks2 = [i for i in acenters[i2] if i != i1]
+            for i3 in alinks1:
+                for i4 in alinks2:
+                    if i3 != i4:
+                        proper_list.append(
+                            (atoms[i3], atoms[i1], atoms[i2], atoms[i4]))
+
+        impr_list = []
+        # find atoms that link with three other atoms
+        import itertools as it
+        for i1 in acenters:
+            if len(acenters[i1]) < 3:
+                continue
+            for item in it.combinations(acenters[i1], 3):
+                impr_list.append(
+                    (atoms[i1], atoms[item[0]], atoms[item[1]], atoms[item[2]]))
+
+        # create potential
+        proper_a1, proper_a2, proper_a3, proper_a4, proper_indices, proper_period = [
+        ], [], [], [], [], []
+        for proper in proper_list:
+            pidx = self._find_proper_key_index(
+                (proper[0].meta[self.key_type], proper[1].meta[self.key_type], proper[2].meta[self.key_type], proper[3].meta[self.key_type]))
+            if pidx is None:
+                continue
+
+            prm_indices = self.proper_key_to_prms[pidx]
+            for prm_idx in prm_indices:
+                prm_period = self.proper_periods[prm_idx]
+                proper_a1.append(proper[0].index)
+                proper_a2.append(proper[1].index)
+                proper_a3.append(proper[2].index)
+                proper_a4.append(proper[3].index)
+                proper_indices.append(prm_idx)
+                proper_period.append(prm_period)
+
+        proper_a1 = jnp.array(proper_a1)
+        proper_a2 = jnp.array(proper_a2)
+        proper_a3 = jnp.array(proper_a3)
+        proper_a4 = jnp.array(proper_a4)
+        proper_indices = jnp.array(proper_indices)
+        proper_period = jnp.array(proper_period)
+
+        improper_a1, improper_a2, improper_a3, improper_a4, improper_indices, improper_period = [], [], [], [], [], []
+        for improper in impr_list:
+            iidx, order = self._find_improper_key_index(
+                (improper[0].meta[self.key_type], improper[1].meta[self.key_type], improper[2].meta[self.key_type], improper[3].meta[self.key_type]))
+            if iidx is None:
+                continue
+
+            prm_indices = self.imp_key_to_prms[iidx]
+            for prm_idx in prm_indices:
+                prm_period = self.imp_periods[prm_idx]
+                improper_a1.append(improper[order[0]].index)
+                improper_a2.append(improper[order[1]].index)
+                improper_a3.append(improper[order[2]].index)
+                improper_a4.append(improper[order[3]].index)
+                improper_indices.append(prm_idx)
+                improper_period.append(prm_period)
+        improper_a1 = jnp.array(improper_a1)
+        improper_a2 = jnp.array(improper_a2)
+        improper_a3 = jnp.array(improper_a3)
+        improper_a4 = jnp.array(improper_a4)
+        improper_indices = jnp.array(improper_indices)
+        improper_period = jnp.array(improper_period)
+
+        proper_func = PeriodicTorsionJaxForce(
+            proper_a1, proper_a2, proper_a3, proper_a4, proper_indices, proper_period)
+        proper_energy = proper_func.generate_get_energy()
+        improper_func = PeriodicTorsionJaxForce(
+            improper_a1, improper_a2, improper_a3, improper_a4, improper_indices, improper_period)
+        improper_energy = improper_func.generate_get_energy()
+
+        if len(improper_a1) == 0:
+            def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+                isinstance_jnp(positions, box, params)
+                proper_energy_ = proper_energy(
+                    positions, box, pairs, params[self.name]["proper_k"], params[self.name]["proper_phase"])
+                return proper_energy_
+        else:
+            def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+                isinstance_jnp(positions, box, params)
+                proper_energy_ = proper_energy(
+                    positions, box, pairs, params[self.name]["proper_k"], params[self.name]["proper_phase"])
+                improper_energy_ = improper_energy(
+                    positions, box, pairs, params[self.name]["improper_k"], params[self.name]["improper_phase"])
+                return proper_energy_ + improper_energy_
+
+        self._jaxPotential = potential_fn
+        return potential_fn
+
+
+_DMFFGenerators["PeriodicTorsionForce"] = PeriodicTorsionGenerator
+
+
+# class NonbondedGenerator:
+#     ...
+
+
+# _DMFFGenerators["NonbondedForce"] = NonbondedGenerator
+
 
 class CoulombGenerator:
     def __init__(self, ffinfo: dict, paramset: ParamSet):
@@ -514,8 +845,7 @@ class CoulombGenerator:
                 nval = matched_dict[(ii, jj)]
                 top_mat[ii, nval] += 1.
                 top_mat[jj, nval] -= 1.
-
-        topdata._meta["bcc_top_mat"] = top_mat
+            topdata._meta["bcc_top_mat"] = top_mat
 
         if nonbondedMethod is not app.PME:
             # do not use PME
@@ -635,10 +965,14 @@ class LennardJonesGenerator:
         eps_nbf_mask = jnp.array(eps_nbf_mask)
 
         paramset.addField(self.name)
-        paramset.addParameter(sig_prms, "sigma", field=self.name, mask=sig_mask)
-        paramset.addParameter(eps_prms, "epsilon", field=self.name, mask=eps_mask)
-        paramset.addParameter(sig_nbfix, "sigma_nbfix", field=self.name, mask=sig_nbf_mask)
-        paramset.addParameter(eps_nbfix, "epsilon_nbfix", field=self.name, mask=eps_nbf_mask)
+        paramset.addParameter(
+            sig_prms, "sigma", field=self.name, mask=sig_mask)
+        paramset.addParameter(eps_prms, "epsilon",
+                              field=self.name, mask=eps_mask)
+        paramset.addParameter(sig_nbfix, "sigma_nbfix",
+                              field=self.name, mask=sig_nbf_mask)
+        paramset.addParameter(eps_nbfix, "epsilon_nbfix",
+                              field=self.name, mask=eps_nbf_mask)
 
     def getName(self):
         return self.name

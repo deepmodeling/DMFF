@@ -42,6 +42,8 @@ class Potential:
         self.meta = {}
         self.topology = topology
         self.meta["cov_map"] = topology.buildCovMat()
+        for key in self.topology._meta:
+            self.meta[key] = self.topology._meta[key]
 
     def add(self, name, func):
         self.dmff_potentials[name] = func
