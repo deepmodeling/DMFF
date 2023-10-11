@@ -7,8 +7,197 @@ import numpy as np
 import jax.numpy as jnp
 import openmm.app as app
 import openmm.unit as unit
+from ..classical.intra import HarmonicBondJaxForce
 from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce, CoulReactionFieldForce, LennardJonesForce
+from typing import Tuple, List, Union, Callable
 
+class HarmonicBondGenerator:
+    """
+    A class for generating harmonic bond force field parameters.
+
+    Attributes:
+    -----------
+    name : str
+        The name of the force field.
+    ffinfo : dict
+        The force field information.
+    key_type : str
+        The type of the key.
+    bond_keys : list of tuple
+        The keys of the bonds.
+    bond_params : list of tuple
+        The parameters of the bonds.
+    bond_mask : list of float
+        The mask of the bonds.
+    _use_smarts : bool
+        Whether to use SMARTS.
+    """
+
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        """
+        Initializes the HarmonicBondGenerator.
+
+        Parameters:
+        -----------
+        ffinfo : dict
+            The force field information.
+        paramset : ParamSet
+            The parameter set.
+        """
+        self.name = "HarmonicBondForce" 
+        self.ffinfo = ffinfo 
+        paramset.addField(self.name) 
+        self.key_type = None
+
+        bond_keys, bond_params, bond_mask = [], [], [] 
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            attribs = node["attrib"]
+            
+            if self.key_type is None:
+                if "type1" in attribs:
+                    self.key_type = "type"
+                elif "class1" in attribs:
+                    self.key_type = "class"
+                else:
+                    raise ValueError("Cannot find key type for HarmonicBondForce.")
+            key = (attribs[self.key_type + "1"], attribs[self.key_type + "2"])
+            bond_keys.append(key)
+
+            k = float(attribs["k"])
+            r0 = float(attribs["length"])
+            bond_params.append([k, r0])
+
+            # when the node has mask attribute, it means that the parameter is not trainable. 
+            # the gradient of this parameter will be zero.
+            mask = 1.0
+            if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                mask = 0.0
+            bond_mask.append(mask)
+
+        self.bond_keys = bond_keys
+        bond_length = jnp.array([i[1] for i in bond_params])
+        bond_k = jnp.array([i[0] for i in bond_params])
+        bond_mask = jnp.array(bond_mask)
+
+
+        paramset.addParameter(bond_length, "length", field=self.name, mask=bond_mask) # register parameters to ParamSet
+        paramset.addParameter(bond_k, "k", field=self.name, mask=bond_mask) # register parameters to ParamSet
+        
+    def getName(self) -> str:
+        """
+        Returns the name of the force field.
+
+        Returns:
+        --------
+        str
+            The name of the force field.
+        """
+        return self.name
+    
+    
+    def overwrite(self, paramset: ParamSet) -> None:
+        """
+        Overwrites the parameter set.
+
+        Parameters:
+        -----------
+        paramset : ParamSet
+            The parameter set.
+        """
+        bond_node_indices = [i for i in range(len(self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Bond"]
+
+        bond_length = paramset[self.name]["length"]
+        bond_k = paramset[self.name]["k"]
+        bond_msks = paramset.mask[self.name]["length"]
+        for nnode, key in enumerate(self.bond_keys):
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"] = {}
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"][f"{self.key_type}1"] = key[0]
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"][f"{self.key_type}2"] = key[1]
+            r0 = bond_length[nnode]
+            k = bond_k[nnode]
+            mask = bond_msks[nnode]
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"]["k"] = str(k)
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"]["length"] = str(r0)
+            if mask < 0.999:
+                self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"]["mask"] = "true"
+
+
+    def _find_key_index(self, key: Tuple[str, str]) -> int:
+        """
+        Finds the index of the key.
+
+        Parameters:
+        -----------
+        key : tuple of str
+            The key.
+
+        Returns:
+        --------
+        int
+            The index of the key.
+        """
+        for i, k in enumerate(self.bond_keys):
+            if k[0] == key[0] and k[1] == key[1]:
+                return i
+            if k[0] == key[1] and k[1] == key[0]:
+                return i
+        return None
+    
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
+                        nonbondedCutoff, args):
+        """
+        Creates the potential.
+
+        Parameters:
+        -----------
+        topdata : DMFFTopology
+            The topology data.
+        nonbondedMethod : str
+            The nonbonded method.
+        nonbondedCutoff : float
+            The nonbonded cutoff.
+        args : list
+            The arguments.
+
+        Returns:
+        --------
+        function
+            The potential function.
+        """
+        # 按照HarmonicBondForce的要求遍历体系中所有的bond，进行匹配
+        bond_a1, bond_a2, bond_indices = [], [], []
+        for bond in topdata.bonds():
+            a1, a2 = bond.atom1, bond.atom2
+            i1, i2 = a1.index, a2.index
+            if self.key_type == "type":
+                key = (a1.meta["type"], a2.meta["type"])
+            elif self.key_type == "class":
+                key = (a1.meta["class"], a2.meta["class"])
+            idx = self._find_key_index(key)
+            if idx is None:
+                continue
+            bond_a1.append(i1)
+            bond_a2.append(i2)
+            bond_indices.append(idx)
+        bond_a1 = jnp.array(bond_a1)
+        bond_a2 = jnp.array(bond_a2)
+        bond_indices = jnp.array(bond_indices)
+        
+        # 创建势函数
+        harmonic_bond_force = HarmonicBondJaxForce(bond_a1, bond_a2, bond_indices)
+        harmonic_bond_energy = harmonic_bond_force.generate_get_energy()
+        
+        # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+            isinstance_jnp(positions, box, params)
+            energy = harmonic_bond_energy(positions, box, pairs, params[self.name]["k"], params[self.name]["length"])
+            return energy
+
+        self._jaxPotential = potential_fn
+        return potential_fn
+    
+# register the generator
+_DMFFGenerators["HarmonicBondForce"] = HarmonicBondGenerator
 
 class CoulombGenerator:
     def __init__(self, ffinfo: dict, paramset: ParamSet):

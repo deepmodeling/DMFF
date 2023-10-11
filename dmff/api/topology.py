@@ -117,7 +117,7 @@ class DMFFTopology:
             a1, a2, order = bond.atom1, bond.atom2, bond.order
             self.addBond(atoms[a1.index], atoms[a2.index], order)
 
-        self.updateMolecules(sanitize=True)
+        self.updateMolecules(sanitize=False)
 
         cell_omm = top.getPeriodicBoxVectors()
         if cell_omm is not None:
