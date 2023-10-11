@@ -7,7 +7,7 @@ import numpy as np
 import jax.numpy as jnp
 import openmm.app as app
 import openmm.unit as unit
-from ..classical.intra import HarmonicBondJaxForce
+from ..classical.intra import HarmonicBondJaxForce, HarmonicAngleJaxForce
 from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce, CoulReactionFieldForce, LennardJonesForce
 from typing import Tuple, List, Union, Callable
 
@@ -198,6 +198,215 @@ class HarmonicBondGenerator:
     
 # register the generator
 _DMFFGenerators["HarmonicBondForce"] = HarmonicBondGenerator
+
+
+class HarmonicAngleGenerator:
+    """
+    A class for generating harmonic angle force field parameters.
+
+    Attributes:
+    -----------
+    name : str
+        The name of the force field.
+    ffinfo : dict
+        The force field information.
+    key_type : str
+        The type of the key.
+    angle_keys : list of tuple
+        The keys of the bonds.
+    angle_params : list of tuple
+        The parameters of the bonds.
+    angle_mask : list of float
+        The mask of the bonds.
+    _use_smarts : bool
+        Whether to use SMARTS.
+    """
+
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        """
+        Initializes the HarmonicAngleGenerator.
+
+        Parameters:
+        -----------
+        ffinfo : dict
+            The force field information.
+        paramset : ParamSet
+            The parameter set.
+        """
+        self.name = "HarmonicAngleForce" 
+        self.ffinfo = ffinfo 
+        paramset.addField(self.name) 
+        self.key_type = None
+
+        angle_keys, angle_params, angle_mask = [], [], [] 
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            attribs = node["attrib"]
+            
+            if self.key_type is None:
+                if "type1" in attribs:
+                    self.key_type = "type"
+                elif "class1" in attribs:
+                    self.key_type = "class"
+                else:
+                    raise ValueError("Cannot find key type for HarmonicAngleForce.")
+            key = (attribs[self.key_type + "1"], attribs[self.key_type + "2"], attribs[self.key_type + "3"])
+            angle_keys.append(key)
+
+            k = float(attribs["k"])
+            r0 = float(attribs["angle"])
+            angle_params.append([k, r0])
+
+            # when the node has mask attribute, it means that the parameter is not trainable. 
+            # the gradient of this parameter will be zero.
+            mask = 1.0
+            if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                mask = 0.0
+            angle_mask.append(mask)
+
+        self.angle_keys = angle_keys
+        angle_theta = jnp.array([i[1] for i in angle_params])
+        angle_k = jnp.array([i[0] for i in angle_params])
+        angle_mask = jnp.array(angle_mask)
+
+
+        paramset.addParameter(angle_theta, "angle", field=self.name, mask=angle_mask) # register parameters to ParamSet
+        paramset.addParameter(angle_k, "k", field=self.name, mask=angle_mask) # register parameters to ParamSet
+        
+    def getName(self) -> str:
+        """
+        Returns the name of the force field.
+
+        Returns:
+        --------
+        str
+            The name of the force field.
+        """
+        return self.name
+    
+    
+    def overwrite(self, paramset: ParamSet) -> None:
+        """
+        Overwrites the parameter set.
+
+        Parameters:
+        -----------
+        paramset : ParamSet
+            The parameter set.
+        """
+        angle_node_indices = [i for i in range(len(self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Angle"]
+
+        angle_theta = paramset[self.name]["angle"]
+        angle_k = paramset[self.name]["k"]
+        angle_msks = paramset.mask[self.name]["angle"]
+        for nnode, key in enumerate(self.bond_keys):
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"] = {}
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"][f"{self.key_type}1"] = key[0]
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"][f"{self.key_type}2"] = key[1]
+            theta0 = angle_theta[nnode]
+            k = angle_k[nnode]
+            mask = angle_msks[nnode]
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"]["k"] = str(k)
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"]["angle"] = str(theta0)
+            if mask < 0.999:
+                self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"]["mask"] = "true"
+
+
+    def _find_key_index(self, key: Tuple[str, str]) -> int:
+        """
+        Finds the index of the key.
+
+        Parameters:
+        -----------
+        key : tuple of str
+            The key.
+
+        Returns:
+        --------
+        int
+            The index of the key.
+        """
+        for i, k in enumerate(self.angle_keys):
+            if k[0] == key[0] and k[1] == key[1] and k[2] == key[2]:
+                return i
+            if k[0] == key[2] and k[1] == key[1] and k[2] == key[0]:
+                return i
+        return None
+    
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
+                        nonbondedCutoff, args):
+        """
+        Creates the potential.
+
+        Parameters:
+        -----------
+        topdata : DMFFTopology
+            The topology data.
+        nonbondedMethod : str
+            The nonbonded method.
+        nonbondedCutoff : float
+            The nonbonded cutoff.
+        args : list
+            The arguments.
+
+        Returns:
+        --------
+        function
+            The potential function.
+        """
+        angle_a1, angle_a2, angle_a3, angle_indices = [], [], [], []
+        angles = []
+        acenters = {}
+        for bond in topdata.bonds():
+            a1, a2 = bond.atom1, bond.atom2
+            i1, i2 = a1.index, a2.index
+            if i1 not in acenters:
+                acenters[i1] = [a1]
+            acenters[i1].append(a2)
+            if i2 not in acenters:
+                acenters[i2] = [a2]
+            acenters[i2].append(a1)
+        for icenter in acenters:
+            if len(acenters[icenter]) < 3:
+                continue
+            acenter = acenters[icenter][0]
+            alinks = acenters[icenter][1:]
+            for ii in range(len(alinks)):
+                for jj in range(ii+1, len(alinks)):
+                    angles.append((alinks[ii], acenter, alinks[jj]))
+        for angle in angles:
+            a1, a2, a3 = angle
+            i1, i2, i3 = a1.index, a2.index, a3.index
+            if self.key_type == "type":
+                key = (a1.meta["type"], a2.meta["type"], a3.meta["type"])
+            elif self.key_type == "class":
+                key = (a1.meta["class"], a2.meta["class"], a3.meta["class"])
+            idx = self._find_key_index(key)
+            if idx is None:
+                continue
+            angle_a1.append(i1)
+            angle_a2.append(i2)
+            angle_a3.append(i3)
+            angle_indices.append(idx)
+        angle_a1 = jnp.array(angle_a1)
+        angle_a2 = jnp.array(angle_a2)
+        angle_a3 = jnp.array(angle_a3)
+        angle_indices = jnp.array(angle_indices)
+        
+        # 创建势函数
+        harmonic_angle_force = HarmonicAngleJaxForce(angle_a1, angle_a2, angle_a3, angle_indices)
+        harmonic_angle_energy = harmonic_angle_force.generate_get_energy()
+        
+        # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+            isinstance_jnp(positions, box, params)
+            energy = harmonic_angle_energy(positions, box, pairs, params[self.name]["k"], params[self.name]["angle"])
+            return energy
+
+        self._jaxPotential = potential_fn
+        return potential_fn
+    
+# register the generator
+_DMFFGenerators["HarmonicAngleForce"] = HarmonicAngleGenerator
 
 class CoulombGenerator:
     def __init__(self, ffinfo: dict, paramset: ParamSet):
