@@ -91,21 +91,23 @@ def test_run_coul_and_lj_nocutoff():
     pos = jnp.array(pos)
     mol = build_test_C4H10()
     mol.setPeriodicBoxVectors(np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]) * 3.0)
-    cov_mat = mol.buildCovMat()
-    print(cov_mat)
     atoms = [a for a in mol.atoms()]
 
-    smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
     xmlio = XMLIO()
     xmlio.loadXML("tests/data/smarts_test1.xml")
+    xmlio.loadXML("tests/data/smarts_and_vsite.xml")
     xmlio.loadXML("tests/data/inter_test.xml")
     ffinfo = xmlio.parseXML()
-    gaffTypeOP = GAFFTypeOperator()
-    am1ChargeOP = AM1ChargeOperator()
+    smartsVSOP = SMARTSVSiteOperator(ffinfo)
+    gaffTypeOP = GAFFTypeOperator(ffinfo)
+    am1ChargeOP = AM1ChargeOperator(ffinfo)
     mol_vsite = am1ChargeOP(gaffTypeOP(smartsVSOP(mol)))
     for atom in mol_vsite.atoms():
-        #print(atom.meta)
+        print(atom.meta)
         pass
+
+    cov_mat = mol.buildCovMat()
+    print(cov_mat)
 
     paramset = ParamSet()
     box = mol.getPeriodicBoxVectors(use_jax=True)
@@ -162,17 +164,17 @@ def test_run_coul_and_lj_pme():
     mol.setPeriodicBoxVectors(np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]) * 2.5)
     cov_mat = mol.buildCovMat()
 
-    smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
     xmlio = XMLIO()
     xmlio.loadXML("tests/data/smarts_test1.xml")
+    xmlio.loadXML("tests/data/smarts_and_vsite.xml")
     xmlio.loadXML("tests/data/inter_test.xml")
     ffinfo = xmlio.parseXML()
-    gaffTypeOP = GAFFTypeOperator()
-    am1ChargeOP = AM1ChargeOperator()
+    smartsVSOP = SMARTSVSiteOperator(ffinfo)
+    gaffTypeOP = GAFFTypeOperator(ffinfo)
+    am1ChargeOP = AM1ChargeOperator(ffinfo)
     mol_vsite = am1ChargeOP(gaffTypeOP(smartsVSOP(mol)))
     for atom in mol_vsite.atoms():
-        #print(atom.meta)
-        pass
+        print(atom.meta)
 
     paramset = ParamSet()
     generator = CoulombGenerator(ffinfo, paramset)

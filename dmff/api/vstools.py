@@ -100,5 +100,9 @@ def insertVirtualSites(topdata, vsite_list):
     #     regularize_aromaticity(rdmol)
     #     newtop._molecules.append(rdmol)
     newtop.updateMolecules(sanitize=True)
+
+    # copy box info to newtop
+    if topdata.cell is not None:
+        newtop.setPeriodicBoxVectors(topdata.getPeriodicBoxVectors(use_jax=False))
     return newtop
 

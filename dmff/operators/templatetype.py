@@ -25,8 +25,10 @@ class TemplateATypeOperator(BaseOperator):
     def generate_template(self, resinfo):
         graph = nx.Graph()
         name2idx = {}
+        names = []
         for na, atom in enumerate(resinfo["particles"]):
             name = atom["name"]
+            names.append(name)
             atype = atom["type"]
             elem = self.atomtypes[atype][1]
             if elem is None:
@@ -36,7 +38,11 @@ class TemplateATypeOperator(BaseOperator):
             graph.add_node(atom["name"], element=elem,
                            external_bond=external_bond, **atom)
         for bond in resinfo["bonds"]:
-            a1, a2 = bond["atomName1"], bond["atomName2"]
+            try:
+                a1, a2 = bond["atomName1"], bond["atomName2"]
+            except KeyError:
+                i1, i2 = int(bond["from"]), int(bond["to"])
+                a1, a2 = names[i1], names[i2]
             graph.add_edge(a1, a2, btype="bond")
         # vsite
         idx2name = {v: k for k, v in name2idx.items()}

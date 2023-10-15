@@ -97,6 +97,7 @@
     <Type element="S" name="ss" class="ss" mass="32.06"/>
     <Type element="S" name="sx" class="sx" mass="32.06"/>
     <Type element="S" name="sy" class="sy" mass="32.06"/>
+    <Type element="EP" name="vs" class="vs" mass="0.0"/>
   </AtomTypes>
     <CoulombForce coulomb14scale="0.833333">
     </CoulombForce>

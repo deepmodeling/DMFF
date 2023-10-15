@@ -108,6 +108,8 @@ class PeriodicTorsionJaxForce:
         self.refresh_calculators()
 
     def generate_get_energy(self):
+        if len(self.p1idx) == 0:
+            return lambda positions, box, pairs, k, psi: 0.0
         def get_energy(positions, box, pairs, k, psi):
             p1 = positions[self.p1idx,:]
             p2 = positions[self.p2idx,:]

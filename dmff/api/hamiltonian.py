@@ -4,6 +4,7 @@ from .xmlio import XMLIO
 from .paramset import ParamSet
 from .topology import DMFFTopology
 from ..operators.templatetype import TemplateATypeOperator
+from ..operators.templatevsite import TemplateVSiteOperator
 from ..utils import DMFFException
 import jax
 import jax.numpy as jnp
@@ -48,7 +49,9 @@ class Potential:
     def add(self, name, func):
         self.dmff_potentials[name] = func
 
-    def getPotentialFunc(self, names=[]):
+    def getPotentialFunc(self, names: list=[]):
+        if isinstance(names, str):
+            names = [names]
         if len(names) == 0:
             names = self.dmff_potentials.keys()
         def efunc(positions, box, pairs, prms):
@@ -83,22 +86,25 @@ class Hamiltonian:
             else:
                 self.generators[key] = _DMFFGenerators[key](
                     ffinfo, self.paramset)
+                
+    def getGenerators(self):
+        return [g for g in self.generators.values()]
 
-    def createJaxPotential(self, topdata: Union[DMFFTopology, app.Topology], nonbondedMethod=app.NoCutoff,
-                           nonbondedCutoff=1.0 * unit.nanometer, args={}, forces=None):
+    def createPotential(self, topdata: Union[DMFFTopology, app.Topology], nonbondedMethod=app.NoCutoff,
+                           nonbondedCutoff=1.0 * unit.nanometer, **kwargs):
         if isinstance(topdata, app.Topology):
             topdata = DMFFTopology(from_top=topdata)
             # initialize template operator
+            vsite = TemplateVSiteOperator(self.ffinfo)
+            topdata = vsite(topdata)
             template = TemplateATypeOperator(self.ffinfo)
             topdata = template(topdata)
 
         efuncs = {}
         for key in self.generators:
             gen = self.generators[key]
-            if forces is not None and gen.getName() not in forces:
-                continue
             efuncs[gen.getName()] = gen.createPotential(topdata, nonbondedMethod,
-                                                        nonbondedCutoff, args)
+                                                        nonbondedCutoff, **kwargs)
 
         update_func = topdata.buildVSiteUpdateFunction()
         potential = Potential(topdata, update_func)

@@ -1,6 +1,10 @@
-from dmff.api.vstools import VSiteTool
-from dmff.api.topology import TopologyData
+from dmff.api import DMFFTopology
 from dmff.api.hamiltonian import Hamiltonian
+from dmff.operators.smartsvsite import SMARTSVSiteOperator
+from dmff.operators.templatevsite import TemplateVSiteOperator
+from dmff.operators.templatetype import TemplateATypeOperator
+from dmff.operators.smartstype import SMARTSATypeOperator
+from dmff.utils import DMFFException
 import openmm.app as app
 import openmm.unit as unit
 
@@ -9,73 +13,53 @@ def test_template_vs_and_template_atype():
     print("TEMPLATE VS & TEMPLATE ATYPE")
     pdb = app.PDBFile("tests/data/template_vsite.pdb")
     top = pdb.topology
-    topdata = TopologyData(top)
-
-    vstool = VSiteTool(template_files=["tests/data/template_and_vsite.xml"])
-    topdata = vstool.addVSite(topdata)
-
-    for nres in range(topdata.topology.getNumResidues()):
-        topdata.setOperatorToResidue(nres, "template")
-
+    topdata = DMFFTopology(top)
     hamilt = Hamiltonian("tests/data/template_and_vsite.xml")
-    hamilt.prepTopData(topdata)
-    for ameta in topdata.atom_meta:
-        print(ameta)
+
+    # add vsite
+    op = TemplateVSiteOperator(hamilt.ffinfo)
+    op2 = TemplateATypeOperator(hamilt.ffinfo)
+    topdata = op(topdata)
+    topdata = op2(topdata)
+
+    for atom in topdata.atoms():
+        print(atom.meta)
+        if "type" not in atom.meta:
+            raise DMFFException(f"Atomtype of {atom} not found.")
 
 
 def test_smarts_vs_and_template_atype():
     print("SMARTS VS & TEMPLATE ATYPE")
     pdb = app.PDBFile("tests/data/template_vsite.pdb")
     top = pdb.topology
-    topdata = TopologyData(top)
-
-    vstool = VSiteTool(smarts_files=["tests/data/smarts_and_vsite.xml"])
-    topdata = vstool.addVSite(topdata)
-
-    for nres in range(topdata.topology.getNumResidues()):
-        topdata.setOperatorToResidue(nres, "template")
-
-    hamilt = Hamiltonian("tests/data/template_and_vsite.xml")
-    hamilt.prepTopData(topdata)
-    for ameta in topdata.atom_meta:
-        print(ameta)
+    topdata = DMFFTopology(top)
+    hamilt = Hamiltonian("tests/data/template_and_vsite.xml", "tests/data/smarts_and_vsite.xml")
+    op = SMARTSVSiteOperator(hamilt.ffinfo)
+    op2 = TemplateATypeOperator(hamilt.ffinfo)
+    topdata = op(topdata)
+    topdata = op2(topdata)
+    
+    for atom in topdata.atoms():
+        print(atom.meta)
+        if "type" not in atom.meta:
+            raise DMFFException(f"Atomtype of {atom} not found.")
 
 def test_smarts_vs_and_smarts_atype():
     print("SMARTS VS & SMARTS ATYPE")
     pdb = app.PDBFile("tests/data/template_vsite.pdb")
     top = pdb.topology
-    topdata = TopologyData(top)
-
-    vstool = VSiteTool(smarts_files=["tests/data/smarts_and_vsite.xml"])
-    topdata = vstool.addVSite(topdata)
-
-    for nres in range(topdata.topology.getNumResidues()):
-        topdata.setOperatorToResidue(nres, "smarts")
-
-    hamilt = Hamiltonian("tests/data/smarts_test1.xml")
-    hamilt.prepTopData(topdata)
-    for ameta in topdata.atom_meta:
-        print(ameta)
-
-def test_template_vs_and_smarts_atype():
-    print("TEMPLATE VS & SMARTS ATYPE")
-    pdb = app.PDBFile("tests/data/template_vsite.pdb")
-    top = pdb.topology
-    topdata = TopologyData(top)
-
-    vstool = VSiteTool(template_files=["tests/data/template_and_vsite.xml"])
-    topdata = vstool.addVSite(topdata)
-
-    for nres in range(topdata.topology.getNumResidues()):
-        topdata.setOperatorToResidue(nres, "smarts")
-
-    hamilt = Hamiltonian("tests/data/smarts_test1.xml")
-    hamilt.prepTopData(topdata)
-    for ameta in topdata.atom_meta:
-        print(ameta)
+    topdata = DMFFTopology(top)
+    hamilt = Hamiltonian("tests/data/smarts_test1.xml", "tests/data/smarts_and_vsite.xml")
+    op = SMARTSVSiteOperator(hamilt.ffinfo)
+    op2 = SMARTSATypeOperator(hamilt.ffinfo)
+    topdata = op(topdata)
+    topdata = op2(topdata)
+    for atom in topdata.atoms():
+        print(atom.meta)
+        if "type" not in atom.meta:
+            raise DMFFException(f"Atomtype of {atom} not found.")
 
 if __name__ == "__main__":
     test_template_vs_and_template_atype()
     test_smarts_vs_and_template_atype()
     test_smarts_vs_and_smarts_atype()
-    test_template_vs_and_smarts_atype()

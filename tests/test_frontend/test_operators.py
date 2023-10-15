@@ -41,7 +41,10 @@ def test_better_top():
 def test_add_vsite_from_template():
     mol = build_test_mol()
     print(mol)
-    templateVSOP = TemplateVSiteOperator("tests/data/template_and_vsite.xml")
+    xmlio = XMLIO()
+    xmlio.loadXML("tests/data/template_and_vsite.xml")
+    ffinfo = xmlio.parseXML()
+    templateVSOP = TemplateVSiteOperator(ffinfo)
     mol_vsite = templateVSOP(mol)
     for atom in mol_vsite.atoms():
         print(atom)
@@ -49,7 +52,10 @@ def test_add_vsite_from_template():
 def test_add_vsite_from_smarts():
     mol = build_test_mol()
     print(mol)
-    smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
+    xmlio = XMLIO()
+    xmlio.loadXML("tests/data/smarts_and_vsite.xml")
+    ffinfo = xmlio.parseXML()
+    smartsVSOP = SMARTSVSiteOperator(ffinfo)
     mol_vsite = smartsVSOP(mol)
     for atom in mol_vsite.atoms():
         print(atom)
@@ -68,10 +74,10 @@ def test_add_atype_from_smarts():
 
 def test_add_atype_from_template():
     mol = build_test_mol()
-    templateVSOP = TemplateVSiteOperator("tests/data/template_and_vsite.xml")
     xmlio = XMLIO()
     xmlio.loadXML("tests/data/template_and_vsite.xml")
     ffinfo = xmlio.parseXML()
+    templateVSOP = TemplateVSiteOperator(ffinfo)
     templateATypeOP = TemplateATypeOperator(ffinfo)
     mol_vsite = templateATypeOP(templateVSOP(mol))
     for atom in mol_vsite.atoms():
@@ -79,11 +85,12 @@ def test_add_atype_from_template():
 
 def test_add_atype_from_smarts_with_vs():
     top = DMFFTopology()
-    smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
     mol = build_test_mol()
     xmlio = XMLIO()
     xmlio.loadXML("tests/data/smarts_test1.xml")
+    xmlio.loadXML("tests/data/smarts_and_vsite.xml")
     ffinfo = xmlio.parseXML()
+    smartsVSOP = SMARTSVSiteOperator(ffinfo)
     smartsATypeOP = SMARTSATypeOperator(ffinfo)
     mol = smartsATypeOP(smartsVSOP(mol))
     top.add(mol)
@@ -92,12 +99,13 @@ def test_add_atype_from_smarts_with_vs():
 
 def test_add_am1_charge():
     mol = build_test_mol()
-    smartsVSOP = SMARTSVSiteOperator("tests/data/smarts_and_vsite.xml")
     xmlio = XMLIO()
     xmlio.loadXML("tests/data/smarts_test1.xml")
+    xmlio.loadXML("tests/data/smarts_and_vsite.xml")
     ffinfo = xmlio.parseXML()
+    smartsVSOP = SMARTSVSiteOperator(ffinfo)
     smartsATypeOP = SMARTSATypeOperator(ffinfo)
-    am1ChargeOP = AM1ChargeOperator()
+    am1ChargeOP = AM1ChargeOperator(ffinfo)
     mol_vsite = am1ChargeOP(smartsATypeOP(smartsVSOP(mol)))
     for atom in mol_vsite.atoms():
         print(atom.meta)

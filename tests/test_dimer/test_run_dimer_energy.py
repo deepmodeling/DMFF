@@ -83,9 +83,9 @@ def test_build_dimer():
     ])
 
     hamilt = Hamiltonian(["tests/data/dimer/forcefield.xml", "tests/data/dimer/gaff2.xml", "tests/data/dimer/amber14_prot.xml"])
-    energy_func = hamilt.createJaxPotential(mol_top)
+    energy_func = hamilt.createPotential(mol_top)
 
-    print(energy_func(pos, box, pairs, hamilt.paramset))
+    print(energy_func.getPotentialFunc()(pos, box, pairs, hamilt.paramset))
 
 def test_dimer_coul():
     ffinfo = load_xml()
@@ -358,7 +358,7 @@ def test_dimer_lj():
 
 
 def test_hamiltonian():
-    hamilt = Hamiltonian(["tests/data/dimer/forcefield.xml", "tests/data/dimer/gaff2.xml", "tests/data/dimer/amber14_prot.xml"])
+    hamilt = Hamiltonian("tests/data/dimer/forcefield.xml", "tests/data/dimer/gaff2.xml", "tests/data/dimer/amber14_prot.xml")
     smarts_type = SMARTSATypeOperator(hamilt.ffinfo)
     smarts_vsite = SMARTSVSiteOperator(hamilt.ffinfo)
     am1_charge = AM1ChargeOperator(hamilt.ffinfo)
@@ -390,8 +390,8 @@ def test_hamiltonian():
             pairs1.append([ii, jj, cov_mat1[ii, jj]])
     pairs1 = jnp.array(pairs1, dtype=int)
 
-    force1 = hamilt.createJaxPotential(
-        top1, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={})
+    force1 = hamilt.createPotential(
+        top1, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={}).getPotentialFunc()
     ener_mol1 = force1(pos1, box, pairs1, hamilt.paramset)
     print("JAX mol1: ", ener_mol1)
 
@@ -403,8 +403,8 @@ def test_hamiltonian():
             pairs2.append([ii, jj, cov_mat2[ii, jj]])
     pairs2 = jnp.array(pairs2, dtype=int)
 
-    force2 = hamilt.createJaxPotential(
-        top2, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={})
+    force2 = hamilt.createPotential(
+        top2, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={}).getPotentialFunc()
     ener_mol2 = force2(pos2, box, pairs2, hamilt.paramset)
     print("JAX mol2", ener_mol2)
 
@@ -422,8 +422,8 @@ def test_hamiltonian():
             pairs_sum.append([ii, jj, cov_mat_sum[ii, jj]])
     pairs_sum = jnp.array(pairs_sum, dtype=int)
 
-    force_sum = hamilt.createJaxPotential(
-        top, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={})
+    force_sum = hamilt.createPotential(
+        top, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={}).getPotentialFunc()
     ener_sum = force_sum(pos_sum, box, pairs_sum, hamilt.paramset)
     print("JAX sum: ", ener_sum)
 
@@ -434,7 +434,7 @@ def test_hamiltonian():
     hamilt.renderXML("test.xml")
 
 def test_optax():
-    hamilt = Hamiltonian(["tests/data/dimer/forcefield.xml", "tests/data/dimer/gaff2.xml", "tests/data/dimer/amber14_prot.xml"])
+    hamilt = Hamiltonian("tests/data/dimer/forcefield.xml", "tests/data/dimer/gaff2.xml", "tests/data/dimer/amber14_prot.xml")
     hamilt.renderXML("tests/data/dimer/test-init.xml")
     smarts_type = SMARTSATypeOperator(hamilt.ffinfo)
     smarts_vsite = SMARTSVSiteOperator(hamilt.ffinfo)
@@ -472,8 +472,8 @@ def test_optax():
             pairs_sum.append([ii, jj, cov_mat_sum[ii, jj]])
     pairs_sum = jnp.array(pairs_sum, dtype=int)
 
-    force_sum = hamilt.createJaxPotential(
-        top, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={})
+    force_sum = hamilt.createPotential(
+        top, nonbondedMethod=app.NoCutoff, nonbondedCutoff=1.0, args={}).getPotentialFunc()
     ener_sum = force_sum(pos_sum, box, pairs_sum, hamilt.paramset)
     print("JAX sum: ", ener_sum)
 

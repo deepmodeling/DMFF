@@ -1,8 +1,8 @@
 import openmm.app as app
 import openmm.unit as unit
-from dmff.api.topology import TopologyData
+from dmff.api.topology import DMFFTopology
 from dmff.api.xmlio import XMLIO
-from dmff.operators.smartstype import SMARTSOperator
+from dmff.operators.smartstype import SMARTSATypeOperator
 import json
 import pytest
 
@@ -36,21 +36,20 @@ def build_test_mol():
 
 def test_atype_from_smarts_single():
     top = build_test_mol()
-    topdata = TopologyData(top)
-    topdata.setOperatorToResidue(0, "smarts")
+    topdata = DMFFTopology(from_top=top)
 
     io = XMLIO()
     io.loadXML("tests/data/smarts_test1.xml")
     ret = io.parseXML()
 
-    operator = SMARTSOperator(ret)
-    operator.operate(topdata)
+    operator = SMARTSATypeOperator(ret)
+    topdata = operator(topdata)
 
     reftype = ["n1", "c1", "c2", "c2", "c1", "hc", "hc", "hc", "hc", "hn"]
-    for na, a in enumerate(topdata.atom_meta):
-        print(a)
-    for na, a in enumerate(topdata.atom_meta):
-        assert a["type"] == reftype[na]
+    for na, a in enumerate(topdata.atoms()):
+        print(a.meta)
+    for na, a in enumerate(topdata.atoms()):
+        assert a.meta["type"] == reftype[na]
 
 
 if __name__ == "__main__":

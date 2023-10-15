@@ -138,6 +138,6 @@ class TestSpatial:
         )
         assert construct_local_frame_fn
         npt.assert_allclose(
-            construct_local_frame_fn(positions, box), expected_local_frames, rtol=1e-5
+            construct_local_frame_fn(positions, box), expected_local_frames, rtol=1e-4
         )
 

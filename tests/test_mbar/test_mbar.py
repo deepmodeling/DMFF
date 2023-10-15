@@ -61,7 +61,7 @@ class TestMBAR:
         df, utgt, uref = mbar.estimate_free_energy_difference(
             target_state,
             ref_state1,
-            target_parameters=h.paramtree,
+            target_parameters=h.paramset.parameters,
             return_energy=True)
 
         # calc reference using PyMBAR
@@ -80,7 +80,7 @@ class TestMBAR:
         df, utgt, uref = mbar.estimate_free_energy_difference(
             target_state,
             ref_state2,
-            target_parameters=h.paramtree,
+            target_parameters=h.paramset.parameters,
             return_energy=True)
 
         # calc reference using PyMBAR
@@ -99,7 +99,7 @@ class TestMBAR:
         df, utgt, uref = mbar.estimate_free_energy_difference(
             target_state,
             ref_state2,
-            target_parameters=h.paramtree,
+            target_parameters=h.paramset.parameters,
             return_energy=True)
 
         # calc reference using PyMBAR
@@ -234,7 +234,7 @@ class TestMBAR:
         mbar.optimize_mbar()
 
         weight, ulist = mbar.estimate_weight(target_state,
-                                             h.paramtree,
+                                             h.paramset.parameters,
                                              return_energy=True)
 
         # calc reference using PyMBAR

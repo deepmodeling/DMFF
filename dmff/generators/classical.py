@@ -53,7 +53,6 @@ class HarmonicBondGenerator:
         bond_keys, bond_params, bond_mask = [], [], []
         for node in self.ffinfo["Forces"][self.name]["node"]:
             attribs = node["attrib"]
-
             if self.key_type is None:
                 if "type1" in attribs:
                     self.key_type = "type"
@@ -153,7 +152,7 @@ class HarmonicBondGenerator:
         return None
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, args):
+                        nonbondedCutoff, **kwargs):
         """
         Creates the potential.
 
@@ -354,7 +353,7 @@ class HarmonicAngleGenerator:
         return None
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, args):
+                        nonbondedCutoff, **kwargs):
         """
         Creates the potential.
 
@@ -453,6 +452,7 @@ class PeriodicTorsionGenerator:
         self.ffinfo = ffinfo
         paramset.addField(self.name)
         self._use_smarts = False
+        self.key_type = None
 
         if "ordering" in self.ffinfo["Forces"][self.name] and self.ffinfo["Forces"][self.name]["ordering"] != "amber":
             raise ValueError("PeriodicTorsionForce ordering must be amber")
@@ -463,7 +463,6 @@ class PeriodicTorsionGenerator:
         improper_key_to_prms = {}
         for node in self.ffinfo["Forces"][self.name]["node"]:
             attribs = node["attrib"]
-            self.key_type = None
             if "type1" in attribs:
                 self.key_type = "type"
             elif "class1" in attribs:
@@ -654,7 +653,14 @@ class PeriodicTorsionGenerator:
 
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, args):
+                        nonbondedCutoff, **kwargs):
+        
+        if self.key_type is None:
+            def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+                return 0.0
+            self._jaxPotential = potential_fn
+            return potential_fn
+
         proper_list = []
 
         acenters = {}
@@ -746,20 +752,13 @@ class PeriodicTorsionGenerator:
             improper_a1, improper_a2, improper_a3, improper_a4, improper_indices, improper_period)
         improper_energy = improper_func.generate_get_energy()
 
-        if len(improper_a1) == 0:
-            def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
-                isinstance_jnp(positions, box, params)
-                proper_energy_ = proper_energy(
-                    positions, box, pairs, params[self.name]["proper_k"], params[self.name]["proper_phase"])
-                return proper_energy_
-        else:
-            def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
-                isinstance_jnp(positions, box, params)
-                proper_energy_ = proper_energy(
-                    positions, box, pairs, params[self.name]["proper_k"], params[self.name]["proper_phase"])
-                improper_energy_ = improper_energy(
-                    positions, box, pairs, params[self.name]["improper_k"], params[self.name]["improper_phase"])
-                return proper_energy_ + improper_energy_
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+            isinstance_jnp(positions, box, params)
+            proper_energy_ = proper_energy(
+                positions, box, pairs, params[self.name]["proper_k"], params[self.name]["proper_phase"])
+            improper_energy_ = improper_energy(
+                positions, box, pairs, params[self.name]["improper_k"], params[self.name]["improper_phase"])
+            return proper_energy_ + improper_energy_
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -778,14 +777,13 @@ class NonbondedGenerator:
         self.lj14scale = float(
             self.ffinfo["Forces"]["NonbondedForce"]["meta"].get("lj14scale", 0.5))
         self.key_type = None
+        self.type_to_charge = {}
         
-        charge_in_residue = False
+        self.charge_in_residue = False
         for node in self.ffinfo["Forces"]["NonbondedForce"]["node"]:
-            if not charge_in_residue and node["name"] == "UseAttributeFromResidue":
+            if not self.charge_in_residue and node["name"] == "UseAttributeFromResidue":
                 if node["attrib"]["name"] == "charge":
-                    charge_in_residue = True
-        if not charge_in_residue:
-            raise DMFFException("NonbondedForce with charge in Atom nodes is not supported yet.")
+                    self.charge_in_residue = True
         
         types, sigma, epsilon, atom_mask = [], [], [], []
         for node in self.ffinfo["Forces"]["NonbondedForce"]["node"]:
@@ -803,6 +801,10 @@ class NonbondedGenerator:
                 if "mask" in attribs and attribs["mask"].upper() == "TRUE":
                     mask = 0.0
                 atom_mask.append(mask)
+                if not self.charge_in_residue:
+                    if "charge" not in attribs:
+                        raise ValueError("No charge information found in NonbondedForce or Residues.")
+                    self.type_to_charge[attribs[self.key_type]] = float(attribs["charge"])
 
         sigma = jnp.array(sigma)
         epsilon = jnp.array(epsilon)
@@ -838,7 +840,7 @@ class NonbondedGenerator:
         return None
     
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, args):
+                        nonbondedCutoff, **kwargs):
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",
@@ -865,8 +867,12 @@ class NonbondedGenerator:
         else:
             ifPBC = False
 
-        charges = [a.meta["charge"] for a in topdata.atoms()]
-        charges = jnp.array(charges)
+        if self.charge_in_residue:
+            charges = [a.meta["charge"] for a in topdata.atoms()]
+            charges = jnp.array(charges)
+        else:
+            types = [a.meta[self.key_type] for a in topdata.atoms()]
+            charges = jnp.array([self.type_to_charge[i] for i in types])
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -876,12 +882,11 @@ class NonbondedGenerator:
         # PME Settings
         if nonbondedMethod is app.PME:
             cell = topdata.getPeriodicBoxVectors()
-            box = jnp.array(cell)
-            self.ethresh = args.get("ethresh", 1e-6)
-            self.coeff_method = args.get("PmeCoeffMethod", "openmm")
-            self.fourier_spacing = args.get("PmeSpacing", 0.1)
+            self.ethresh = kwargs.get("ethresh", 1e-6)
+            self.coeff_method = kwargs.get("PmeCoeffMethod", "openmm")
+            self.fourier_spacing = kwargs.get("PmeSpacing", 0.1)
             kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, self.ethresh,
-                                                       box,
+                                                       cell,
                                                        self.fourier_spacing,
                                                        self.coeff_method)
         if nonbondedMethod is not app.PME:
@@ -898,7 +903,7 @@ class NonbondedGenerator:
         coulenergy = coulforce.generate_get_energy()
 
         # LJ
-        atypes = [a.meta["type"] for a in topdata.atoms()]
+        atypes = [a.meta[self.key_type] for a in topdata.atoms()]
         map_prm = []
         for atype in atypes:
             pidx = self._find_atype_key_index(atype)
@@ -998,7 +1003,7 @@ class CoulombGenerator:
                     nbcc += 1
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, args):
+                        nonbondedCutoff, **kwargs):
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",
@@ -1036,9 +1041,9 @@ class CoulombGenerator:
         if nonbondedMethod is app.PME:
             cell = topdata.getPeriodicBoxVectors()
             box = jnp.array(cell)
-            self.ethresh = args.get("ethresh", 1e-6)
-            self.coeff_method = args.get("PmeCoeffMethod", "openmm")
-            self.fourier_spacing = args.get("PmeSpacing", 0.1)
+            self.ethresh = kwargs.get("ethresh", 1e-6)
+            self.coeff_method = kwargs.get("PmeCoeffMethod", "openmm")
+            self.fourier_spacing = kwargs.get("PmeSpacing", 0.1)
             kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, self.ethresh,
                                                        box,
                                                        self.fourier_spacing,
@@ -1228,7 +1233,7 @@ class LennardJonesGenerator:
                 self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["epsilon"] = eps_now
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, args):
+                        nonbondedCutoff, **kwargs):
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",

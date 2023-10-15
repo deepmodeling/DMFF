@@ -34,11 +34,14 @@ class AM1ChargeOperator(BaseOperator):
                 f.write(f" &qmmm\n")
                 f.write(f" qm_theory='AM1', qmcharge={tot_charge},\n")
                 f.write(f" /\n")
+                real_indices = []
                 for natom, atom in enumerate(rdmol.GetAtoms()):
                     anum = atom.GetAtomicNum()
                     aname = atom.GetProp("_Name")
-                    x, y, z = pos[natom]
-                    f.write(f" {anum} {aname} {x:16.8f} {y:16.8f} {z:16.8f}\n")
+                    if anum > 0:
+                        x, y, z = pos[natom]
+                        f.write(f" {anum} {aname} {x:16.8f} {y:16.8f} {z:16.8f}\n")
+                        real_indices.append(natom)
             subprocess.run([self.sqm, "-O", '-i', 'tmp.in', '-o', 'tmp.out'])
             with open('tmp.out', "r") as f:
                 text = f.readlines()
@@ -49,9 +52,10 @@ class AM1ChargeOperator(BaseOperator):
             if len(line_with_text) != 2:
                 raise DMFFException("AM1 charge error.")
             start, end = line_with_text
-            for natom, atom in enumerate(rdmol.GetAtoms()):
-                charge = float(text[start+natom+1].strip().split()[-1])
-                idx = int(atom.GetProp("_Index"))
+            ratoms = [a for a in rdmol.GetAtoms()]
+            for nreal, ireal in enumerate(real_indices):
+                charge = float(text[start+nreal+1].strip().split()[-1])
+                idx = int(ratoms[ireal].GetProp("_Index"))
                 atoms[idx].meta["charge"] = charge
             eqv_info = topdata.getEquivalentAtoms()
             finished_atoms = []

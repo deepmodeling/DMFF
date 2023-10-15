@@ -12,7 +12,7 @@ class TestADMPAPI:
     """ Test ADMP related generators
     """
     
-    @pytest.fixture(scope='class', name='generators')
+    @pytest.fixture(scope='class', name='potential')
     def test_init(self):
         """load generators from XML file
 
@@ -26,11 +26,10 @@ class TestADMPAPI:
         H = Hamiltonian('tests/data/admp.xml')
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         potential = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
-        generators = H.getGenerators()
         
-        yield generators
+        yield potential, H.paramset
 
-    def test_ADMPPmeForce(self, generators):
+    def test_ADMPPmeForce(self, potential, paramset):
 
         rc = 4.0
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
@@ -39,31 +38,27 @@ class TestADMPAPI:
         box = np.array([a._value, b._value, c._value]) * 10
         # neighbor list
         
-        gen = generators[1]
-        covalent_map = gen.covalent_map
+        covalent_map = potential.meta["cov_map"]
 
         nblist = NeighborList(box, rc, covalent_map)
         nblist.allocate(positions)
         pairs = nblist.pairs
-        pot = gen.getJaxPotential()
-        energy = pot(positions, box, pairs, gen.paramtree)
+        pot = potential.getPotentialFunc()
+        energy = pot(positions, box, pairs, paramset)
 
         
-    def test_ADMPPmeForce_jit(self, generators):
+    def test_ADMPPmeForce_jit(self, potential, paramset):
         
-        gen = generators[1]
         rc = 4.0
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         positions = jnp.array(pdb.positions._value) * 10
         a, b, c = pdb.topology.getPeriodicBoxVectors()
         box = jnp.array([a._value, b._value, c._value]) * 10
-        gen = generators[1]
-        covalent_map = gen.covalent_map
+        covalent_map = potential.meta["cov_map"]
         # neighbor list
         nblist = NeighborList(box, rc, covalent_map)
         nblist.allocate(positions)
         pairs = nblist.pairs
 
-        pot = gen.getJaxPotential()
-        j_pot_pme = jit(value_and_grad(pot))
-        energy = j_pot_pme(positions, box, pairs, gen.paramtree)
+        j_pot_pme = jit(value_and_grad(potential))
+        energy = j_pot_pme(positions, box, pairs, paramset.parameters)

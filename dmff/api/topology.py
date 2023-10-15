@@ -14,6 +14,23 @@ _standardResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO', 'TH
                      'ARG', 'ASP', 'GLN', 'GLY', 'ILE', 'LYS', 'PHE', 'SER', 'TRP', 'VAL',
                      'A', 'G', 'C', 'U', 'I', 'DA', 'DG', 'DC', 'DT', 'DI']
 
+EMBED_W1 = np.random.random((117, 117))
+
+elem_to_index = {'EP': 0, 'H': 1, 'HE': 2, 'LI': 3, 'BE': 4, 'B': 5, 'C': 6, 'N': 7, 'O': 8, 
+                 'F': 9, 'NE': 10, 'NA': 11, 'MG': 12, 'AL': 13, 'SI': 14, 'P': 15, 'S': 16, 
+                 'CL': 17, 'AR': 18, 'K': 19, 'CA': 20, 'SC': 21, 'TI': 22, 'V': 23, 'CR': 24, 
+                 'MN': 25, 'FE': 26, 'CO': 27, 'NI': 28, 'CU': 29, 'ZN': 30, 'GA': 31, 'GE': 32, 
+                 'AS': 33, 'SE': 34, 'BR': 35, 'KR': 36, 'RB': 37, 'SR': 38, 'Y': 39, 'ZR': 40, 
+                 'NB': 41, 'MO': 42, 'TC': 43, 'RU': 44, 'RH': 45, 'PD': 46, 'AG': 47, 'CD': 48, 
+                 'IN': 49, 'SN': 50, 'SB': 51, 'TE': 52, 'I': 53, 'XE': 54, 'CS': 55, 'BA': 56, 
+                 'LA': 57, 'CE': 58, 'PR': 59, 'ND': 60, 'PM': 61, 'SM': 62, 'EU': 63, 'GD': 64, 
+                 'TB': 65, 'DY': 66, 'HO': 67, 'ER': 68, 'TM': 69, 'YB': 70, 'LU': 71, 'HF': 72, 
+                 'TA': 73, 'W': 74, 'RE': 75, 'OS': 76, 'IR': 77, 'PT': 78, 'AU': 79, 'HG': 80, 
+                 'TL': 81, 'PB': 82, 'BI': 83, 'PO': 84, 'AT': 85, 'RN': 86, 'FR': 87, 'RA': 88, 
+                 'AC': 89, 'TH': 90, 'PA': 91, 'U': 92, 'NP': 93, 'PU': 94, 'AM': 95, 'CM': 96, 
+                 'BK': 97, 'CF': 98, 'ES': 99, 'FM': 100, 'MD': 101, 'NO': 102, 'LR': 103, 
+                 'RF': 104, 'DB': 105, 'SG': 106, 'BH': 107, 'HS': 108, 'MT': 109, 'DS': 110, 
+                 'RG': 111, 'UUB': 112, 'UUT': 113, 'UUQ': 114, 'UUP': 115, 'UUH': 116}
 
 class DMFFTopology:
     def __init__(self, from_top=None, from_sdf=None, from_rdmol=None, residue_name="MOL"):
@@ -192,7 +209,11 @@ class DMFFTopology:
             resname = atoms[ind[0]].residue.name
             self._molecules.append(top2rdmol(self, ind))
             if sanitize and resname not in _standardResidues:
-                self.regularize_aromaticity(self._molecules[-1])
+                try:
+                    self.regularize_aromaticity(self._molecules[-1])
+                except BaseException as e:
+                    print(e)
+                    print("Warning: aromaticity regularize failed for residue %s" % resname)
 
     def parseSMARTS(self, parser, resname=[]):
         atoms = [a for a in self.atoms()]
@@ -492,29 +513,8 @@ class DMFFTopology:
         return update_func(new_pos)
 
     def getEquivalentAtoms(self):
-        graph = nx.Graph()
-        for atom in self.atoms():
-            elem = atom.meta["element"]
-            if elem == "EP":
-                continue
-            graph.add_node(atom.index, elem=elem)
-        for bond in self.bonds():
-            a1, a2 = bond.atom1, bond.atom2
-            graph.add_edge(a1.index, a2.index, btype="bond")
-
-        def match_node(n1, n2):
-            return n1["elem"] == n2["elem"]
-
-        ismags = nx.isomorphism.ISMAGS(graph, graph, node_match=match_node)
-        isomorphisms = list(ismags.isomorphisms_iter(symmetry=False))
-        eq_atoms = {}
-        for atom in self.atoms():
-            elem = atom.meta["element"]
-            if elem == "EP":
-                eq_atoms[atom.index] = [atom.index]
-            eq_atoms[atom.index] = list(
-                set([i[atom.index] for i in isomorphisms]))
-        return eq_atoms
+        eqv_atoms = get_eqv_atoms(self)
+        return eqv_atoms
 
     def getPeriodicBoxVectors(self, use_jax=True):
         if use_jax:
@@ -709,3 +709,46 @@ def top2rdmol(top, indices) -> Chem.rdchem.Mol:
     # rdmol.UpdatePropertyCache()
     # AllChem.EmbedMolecule(rdmol, randomSeed=1)
     return rdmol
+
+
+def mol_to_graph_matrix(topdata: DMFFTopology) -> Tuple[np.ndarray, np.ndarray]:
+    num_atom = topdata.getNumAtoms()
+    adj = np.zeros((num_atom, num_atom))
+    node_features = np.zeros((num_atom, 117))
+    atoms = [a for a in topdata.atoms()]
+    for i in range(num_atom):
+        adj[i, i] = 1
+        node_features[i, elem_to_index[atoms[i].element.upper()]] = 1
+    for bond in topdata.bonds():
+        adj[bond.atom1.index, bond.atom2.index] = 1
+        adj[bond.atom2.index, bond.atom1.index] = 1
+    for vsite in topdata.vsites():
+        adj[vsite.vatom.index, vsite.atoms[0].index] = 1
+        adj[vsite.atoms[0].index, vsite.vatom.index] = 1
+    return adj, node_features
+
+
+def get_embed(topdata: DMFFTopology):
+    adj, node = mol_to_graph_matrix(topdata)
+    natom = adj.shape[0]
+    support = np.dot(node, EMBED_W1)
+    out = np.dot(adj, support)
+    out = np.dot(out, EMBED_W1)
+    out = np.dot(adj, out)
+    return out
+
+
+def get_eqv_atoms(topdata: DMFFTopology):
+    embed = get_embed(topdata)
+    natom, nfeat = embed.shape[0], embed.shape[1]
+    dist = np.power(
+        embed.reshape((natom, 1, nfeat)) - embed.reshape((1, natom, nfeat)), 2
+    ).sum(axis=2)
+    eqv_list = []
+    for na in range(natom):
+        eqv_list.append([na])
+        for nb in range(natom):
+            if dist[na, nb] < 1e-2 and na != nb:
+                eqv_list[-1].append(nb)
+    return eqv_list
+

@@ -52,7 +52,7 @@ if __name__ == "__main__":
     
     
     h = Hamiltonian("gaff-2.11.xml", "lig-prm.xml")
-    pot = h.createJaxPotential(pdb.topology, nonbondedMethod=app.NoCutoff)
+    pot = h.createPotential(pdb.topology, nonbondedMethod=app.NoCutoff)
     params = h.getParameters()
 
     positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)

@@ -12,6 +12,7 @@ import os
 class GAFFTypeOperator(BaseOperator):
 
     def __init__(self, ffinfo: dict):
+        print(ffinfo["Operators"]["GAFFTypeOperator"])
         antechamber = ffinfo["Operators"]["GAFFTypeOperator"][0]["attrib"]["path"]
         self.find_antechamber = cmd_exists(antechamber)
         self.antechamber = antechamber

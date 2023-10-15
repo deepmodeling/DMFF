@@ -32,7 +32,7 @@ class TemplateVSiteOperator(BaseOperator):
             name = atom["name"]
             atype = atom["type"]
             elem = self.atype_to_elem[atype]
-            if elem is None:
+            if elem is None or elem == "EP":
                 continue
             name2idx[name] = na
             external_bond = name in template["externals"]

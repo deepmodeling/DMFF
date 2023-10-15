@@ -27,10 +27,10 @@ class TestVdW:
         nblist.allocate(pos)
         pairs = nblist.pairs
         ljE = potential.getPotentialFunc()
-        energy = ljE(pos, box, pairs, h.paramtree)
+        energy = ljE(pos, box, pairs, h.paramset.parameters)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(ljE)(pos, box, pairs, h.paramtree)
+        energy = jax.jit(ljE)(pos, box, pairs, h.paramset.parameters)
         npt.assert_almost_equal(energy, value, decimal=3)
         
 
@@ -50,10 +50,10 @@ class TestVdW:
         nblist.allocate(pos)
         pairs = nblist.pairs
         ljE = potential.getPotentialFunc()
-        energy = ljE(pos, box, pairs, h.paramtree)
+        energy = ljE(pos, box, pairs, h.paramset)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(ljE)(pos, box, pairs, h.paramtree)
+        energy = jax.jit(ljE)(pos, box, pairs, h.paramset.parameters)
         npt.assert_almost_equal(energy, value, decimal=3)
         
     def test_lj_params_check(self):
@@ -70,7 +70,7 @@ class TestVdW:
         pairs = nblist.pairs 
         ljE = potential.getPotentialFunc()
         with pytest.raises(TypeError):
-            energy = ljE(pos, box, pairs, h.getGenerators()[0].paramtree)
+            energy = ljE(pos, box, pairs, h.paramset.parameters)
             
-        energy = jax.jit(ljE)(pos, box, pairs, h.paramtree)  # jit will optimized away type check
-        force = jax.grad(jax.jit(ljE))(pos, box, pairs, h.paramtree)
+        energy = jax.jit(ljE)(pos, box, pairs, h.paramset.parameters)  # jit will optimized away type check
+        force = jax.grad(jax.jit(ljE))(pos, box, pairs, h.paramset.parameters)
