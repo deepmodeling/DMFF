@@ -12,7 +12,7 @@ class TestADMPAPI:
     """ Test ADMP related generators
     """
     
-    @pytest.fixture(scope='class', name='potential')
+    @pytest.fixture(scope='class', name='pot_prm')
     def test_init(self):
         """load generators from XML file
 
@@ -29,8 +29,8 @@ class TestADMPAPI:
         
         yield potential, H.paramset
 
-    def test_ADMPPmeForce(self, potential, paramset):
-
+    def test_ADMPPmeForce(self, pot_prm):
+        potential, paramset = pot_prm
         rc = 4.0
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         positions = np.array(pdb.positions._value) * 10
@@ -47,8 +47,8 @@ class TestADMPAPI:
         energy = pot(positions, box, pairs, paramset)
 
         
-    def test_ADMPPmeForce_jit(self, potential, paramset):
-        
+    def test_ADMPPmeForce_jit(self, pot_prm):
+        potential, paramset = pot_prm
         rc = 4.0
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         positions = jnp.array(pdb.positions._value) * 10
@@ -59,6 +59,7 @@ class TestADMPAPI:
         nblist = NeighborList(box, rc, covalent_map)
         nblist.allocate(positions)
         pairs = nblist.pairs
-
-        j_pot_pme = jit(value_and_grad(potential))
+        
+        pot = potential.getPotentialFunc()
+        j_pot_pme = jit(value_and_grad(pot))
         energy = j_pot_pme(positions, box, pairs, paramset.parameters)
