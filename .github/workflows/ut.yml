@@ -23,8 +23,8 @@ jobs:
           conda install pip
           conda update pip
           conda install numpy openmm pytest rdkit biopandas openbabel -c conda-forge
-          pip install jax networkx
-          pip install mdtraj==1.9.7 pymbar==4.0.1
+          conda install -c conda-forge mdtraj
+          pip install jax jaxlib networkx pymbar==4.0.1
       - name: Install DMFF
         run: |
           source $CONDA/bin/activate
