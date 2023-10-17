@@ -656,10 +656,10 @@ class PeriodicTorsionGenerator:
                         nonbondedCutoff, **kwargs):
         
         if self.key_type is None:
-            def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
-                return 0.0
-            self._jaxPotential = potential_fn
-            return potential_fn
+            def potential_fn_zero(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+                return jnp.zeros((1,))
+            self._jaxPotential = potential_fn_zero
+            return potential_fn_zero
 
         proper_list = []
 
