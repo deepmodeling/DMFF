@@ -633,7 +633,6 @@ def pme_real_kernel(dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscal
         energy: 
             float, realspace interaction energy between the sites
     '''
-
     cc, cd, dd_m0, dd_m1, cq, dq_m0, dq_m1, qq_m0, qq_m1, qq_m2 = calc_e_perm(dr, mscales, kappa, lmax)
     if lpol:
         cud, dud_m0, dud_m1, udq_m0, udq_m1, udud_m0, udud_m1 = calc_e_ind(dr, thole1, thole2, dmp, pscales, dscales, kappa, lmax)

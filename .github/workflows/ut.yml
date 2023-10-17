@@ -22,8 +22,8 @@ jobs:
           $CONDA/bin/conda update -n base -c defaults conda
           conda install pip
           conda update pip
-          conda install numpy openmm pytest rdkit biopandas openbabel -c conda-forge
-          conda install -c conda-forge mdtraj ambertools
+          conda install numpy openmm pytest rdkit biopandas openbabel -c conda-forge -y
+          conda install -c conda-forge mdtraj ambertools -y
           pip install jax jaxlib networkx parmed pymbar==4.0.1
       - name: Install DMFF
         run: |
