@@ -8,7 +8,7 @@ import jax.lax as lax
 import jax.nn.initializers
 import jax.numpy as jnp
 import numpy as np
-from dmff.sgnn.graph import MAX_VALENCE, TopGraph, from_pdb
+from .graph import MAX_VALENCE, TopGraph, from_pdb
 from dmff.utils import jit_condition
 from jax import value_and_grad, vmap
 

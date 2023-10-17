@@ -37,6 +37,7 @@ class TestState:
                 ]
         
         for ff_setting in ff_settings:
+            print(ff_setting)
             nbmethod = ff_setting['nonbondedMethod']
             rc = ff_setting['nonbondedCutoff']
             useDispersionCorrection = ff_setting['useDispersionCorrection']
@@ -70,7 +71,7 @@ class TestState:
             # check consistency
             traj = md.load(traj1, top=pdb)[20::4]
     
-            ene1 = target_state.calc_energy(traj, H.paramtree)
+            ene1 = target_state.calc_energy(traj, H.paramset.parameters)
             ene2 = omm_state.calc_energy(traj)
     
             if nbmethod == app.PME:

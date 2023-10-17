@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import openmm.app as app
 import openmm.unit as unit
 from ..classical.intra import HarmonicBondJaxForce, HarmonicAngleJaxForce, PeriodicTorsionJaxForce
-from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce, CoulReactionFieldForce, LennardJonesForce
+from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce, CoulReactionFieldForce, LennardJonesForce, LennardJonesLongRangeForce
 from typing import Tuple, List, Union, Callable
 
 
@@ -937,6 +937,36 @@ class NonbondedGenerator:
                                     isNoCut=isNoCut)
         ljenergy = ljforce.generate_get_energy()
 
+        # dispersion correction
+        use_disp_corr = False
+        if "useDispersionCorrection" in kwargs and kwargs["useDispersionCorrection"]:
+            use_disp_corr = True
+            numTypes = len(self.atom_keys)
+            countVec = np.zeros(numTypes, dtype=int)
+            countMat = np.zeros((numTypes, numTypes), dtype=int)
+            types, count = np.unique(map_prm, return_counts=True)
+            for typ, cnt in zip(types, count):
+                countVec[typ] += cnt
+            for i in range(numTypes):
+                for j in range(i, numTypes):
+                    if i != j:
+                        countMat[i, j] = countVec[i] * countVec[j]
+                    else:
+                        countMat[i, j] = countVec[i] * (countVec[i] - 1) // 2
+            assert np.sum(countMat) == len(map_prm) * (len(map_prm) - 1) // 2
+
+            coval_map = topdata.buildCovMat()
+            colv_pairs = np.argwhere(
+                np.logical_and(coval_map > 0, coval_map <= 3))
+            for pair in colv_pairs:
+                if pair[0] <= pair[1]:
+                    tmp = (map_prm[pair[0]], map_prm[pair[1]])
+                    t1, t2 = min(tmp), max(tmp)
+                    countMat[t1, t2] -= 1
+
+            ljDispCorrForce = LennardJonesLongRangeForce(r_cut, map_prm, map_nbfix, countMat)
+            ljDispEnergyFn = ljDispCorrForce.generate_get_energy()
+
         def potential_fn(positions, box, pairs, params):
 
             # check whether args passed into potential_fn are jnp.array and differentiable
@@ -949,8 +979,12 @@ class NonbondedGenerator:
             
             ljE = ljenergy(positions, box, pairs, params[self.name]["epsilon"],
                             params[self.name]["sigma"], eps_nbfix, sig_nbfix, mscales_lj)
-
-            return coulE + ljE
+            if use_disp_corr:
+                ljdispE = ljDispEnergyFn(box, params[self.name]["epsilon"],
+                            params[self.name]["sigma"], eps_nbfix, sig_nbfix)
+                return coulE + ljE + ljdispE
+            else:
+                return coulE + ljE
 
         self._jaxPotential = potential_fn
         return potential_fn
