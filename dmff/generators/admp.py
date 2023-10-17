@@ -164,12 +164,17 @@ class ADMPDispGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            # Assume nm for frontend functions, still uses Angstrom for backend
+            positions = positions * 10
+            box = box * 10
+
             params = params[self.name]
             mScales = self.mScales
             a_list = (params["A"][map_atomtype] / 2625.5
                       )  # kj/mol to au, as expected by TT_damping kernel
             b_list = params["B"][map_atomtype] * 0.0529177249  # nm^-1 to au
             q_list = params["Q"][map_atomtype]
+            # the input parameters are assumed to be in nm too, need to convert to Angstrom
             c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)
             c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
             c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
@@ -317,6 +322,8 @@ class ADMPDispPmeGenerator:
         pot_fn_lr = disp_force.get_energy
 
         def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
             params = params[self.name]
             mScales = params["mScales"]
             C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
@@ -417,6 +424,8 @@ class QqTtDampingGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
             params = params[self.name]
             mScales = params["mScales"]
             b_list = params["B"][map_atomtype] / 10  # convert to A^-1
@@ -521,6 +530,8 @@ class SlaterDampingGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
             params = params[self.name]
             mScales = params["mScales"]
             b_list = params["B"][map_atomtype] / 10  # convert to A^-1
@@ -617,6 +628,8 @@ class SlaterExGenerator:
                                                   static_args={})
 
         def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
             params = params[self.name]
             mScales = params["mScales"]
             a_list = params["A"][map_atomtype]
@@ -638,26 +651,65 @@ _DMFFGenerators["SlaterExForce"] = SlaterExGenerator
 
 
 # Here are all the short range "charge penetration" terms
-# They all have the exchange form
+# They all have the exchange form with minus sign
 class SlaterSrEsGenerator(SlaterExGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterSrEsForce"
 
+    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
+                    args):
 
-class SlaterSrPolGenerator(SlaterExGenerator):
+        n_atoms = len(data.atoms)
+        # build index map
+        map_atomtype = np.zeros(n_atoms, dtype=int)
+        for i in range(n_atoms):
+            atype = data.atomType[data.atoms[i]]
+            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
+        self.map_atomtype = map_atomtype
+        # build covalent map
+        self.covalent_map = build_covalent_map(data, 6)
+
+        self._meta["cov_map"] = self.covalent_map
+        self._meta[self.name+"_map_atomtype"] = self.map_atomtype
+
+        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
+                                                  static_args={})
+
+        def potential_fn(positions, box, pairs, params):
+            positions = positions * 10
+            box = box * 10
+            params = params[self.name]
+            mScales = params["mScales"]
+            a_list = params["A"][map_atomtype]
+            b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+            
+            # add minus sign
+            return - pot_fn_sr(positions, box, pairs, mScales, a_list, b_list)
+
+        self._jaxPotential = potential_fn
+        # self._top_data = data
+
+    def getJaxPotential(self):
+        return self._jaxPotential
+        
+    def getMetaData(self):
+        return self._meta
+
+
+class SlaterSrPolGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterSrPolForce"
 
 
-class SlaterSrDispGenerator(SlaterExGenerator):
+class SlaterSrDispGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterSrDispForce"
 
 
-class SlaterDhfGenerator(SlaterExGenerator):
+class SlaterDhfGenerator(SlaterSrEsGenerator):
     def __init__(self, ff):
         super().__init__(ff)
         self.name = "SlaterDhfForce"
@@ -1055,7 +1107,7 @@ class ADMPPmeGenerator:
             axis_indices = np.array([axis_indices[i] for i in range(n_atoms)])
             axis_types = np.array([axis_types[i] for i in range(n_atoms)])
         else:
-            axis_types = None
+            axis_types = np.zeros(n_atoms, dtype=int)
             axis_indices = None
 
         if "ethresh" in kwargs:

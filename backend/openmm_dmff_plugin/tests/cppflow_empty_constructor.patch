@@ -1,0 +1,75 @@
+diff --git a/include/cppflow/model.h b/include/cppflow/model.h
+index 368e145..88e47e6 100644
+--- a/include/cppflow/model.h
++++ b/include/cppflow/model.h
+@@ -68,6 +68,8 @@ class model {
+                  const TYPE type = TYPE::SAVED_MODEL);
+   model(const model &model) = default;
+   model(model &&model) = default;
++  model();
++  void init(const std::string& filename, const TYPE type = TYPE::SAVED_MODEL);
+ 
+   ~model() = default;
+ 
+@@ -144,6 +146,61 @@ inline model::model(const std::string &filename, const TYPE type) {
+   status_check(this->status.get());
+ }
+ 
++inline model::model(){
++}
++
++inline void model::init(const std::string &filename, const TYPE type){
++  this->status = {TF_NewStatus(), &TF_DeleteStatus};
++  this->graph = {TF_NewGraph(), TF_DeleteGraph};
++
++  // Create the session.
++  std::unique_ptr<TF_SessionOptions, decltype(&TF_DeleteSessionOptions)>
++      session_options = {TF_NewSessionOptions(), TF_DeleteSessionOptions};
++
++  auto session_deleter = [this](TF_Session* sess) {
++    TF_DeleteSession(sess, this->status.get());
++    status_check(this->status.get());
++  };
++
++  if (type == TYPE::SAVED_MODEL) {
++    std::unique_ptr<TF_Buffer, decltype(&TF_DeleteBuffer)> run_options = {
++        TF_NewBufferFromString("", 0), TF_DeleteBuffer};
++    std::unique_ptr<TF_Buffer, decltype(&TF_DeleteBuffer)> meta_graph = {
++        TF_NewBuffer(), TF_DeleteBuffer};
++
++    int tag_len = 1;
++    const char* tag = "serve";
++    this->session = {
++        TF_LoadSessionFromSavedModel(session_options.get(), run_options.get(),
++                                     filename.c_str(), &tag, tag_len,
++                                     this->graph.get(), meta_graph.get(),
++                                     this->status.get()), session_deleter};
++  } else if (type == TYPE::FROZEN_GRAPH)  {
++    this->session = {TF_NewSession(this->graph.get(), session_options.get(),
++                                   this->status.get()),
++                     session_deleter};
++    status_check(this->status.get());
++
++    // Import the graph definition
++    TF_Buffer* def = readGraph(filename);
++    if (def == nullptr) {
++      throw std::runtime_error("Failed to import graph def from file");
++    }
++
++    std::unique_ptr<TF_ImportGraphDefOptions,
++                    decltype(&TF_DeleteImportGraphDefOptions)> graph_opts = {
++        TF_NewImportGraphDefOptions(), TF_DeleteImportGraphDefOptions};
++    TF_GraphImportGraphDef(this->graph.get(), def, graph_opts.get(),
++                           this->status.get());
++    TF_DeleteBuffer(def);
++  } else {
++    throw std::runtime_error("Model type unknown");
++  }
++
++  status_check(this->status.get());
++
++}
++
+ inline std::vector<std::string> model::get_operations() const {
+   std::vector<std::string> result;
+   size_t pos = 0;

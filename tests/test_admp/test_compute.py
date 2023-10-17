@@ -22,7 +22,7 @@ class TestADMPAPI:
                 ADMPPmeForce, # polarized
             )
         """
-        rc = 4.0
+        rc = 0.4
         H = Hamiltonian('tests/data/admp.xml')
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         potential = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)

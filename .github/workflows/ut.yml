@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8]
+        python-version: [3.9]
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -27,9 +27,13 @@ jobs:
           pip install jax jaxlib networkx parmed pymbar==4.0.1
       - name: Install DMFF
         run: |
-          source $CONDA/bin/activate
-          pip install .
+          source $CONDA/bin/activate dmff && pip install .
       - name: Run Tests
         run: |
-          source $CONDA/bin/activate
-          pytest -vs tests/     
+          source $CONDA/bin/activate dmff
+          pytest -vs tests/test_classical/*
+          pytest -vs tests/test_common/*
+          pytest -vs tests/test_admp/*
+          pytest -vs tests/test_api.py
+          pytest -vs tests/test_utils.py
+          pytest -vs tests/test_mbar/*     
