@@ -19,12 +19,10 @@ jobs:
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
-          $CONDA/bin/conda update -n base -c defaults conda
-          conda install pip
-          conda update pip
-          conda install numpy openmm pytest rdkit biopandas openbabel -c conda-forge -y
-          conda install -c conda-forge mdtraj ambertools -y
-          pip install jax jaxlib networkx parmed pymbar==4.0.1
+          conda create -n dmff -y python=${{ matrix.python-version }} numpy openmm==7.7.0 pytest rdkit biopandas openbabel mdtraj ambertools -c conda-forge
+          conda activate dmff
+          pip install --upgrade pip
+          pip install jax jaxlib networkx parmed pymbar==4.0.1 chex==0.1.4 tqdm
       - name: Install DMFF
         run: |
           source $CONDA/bin/activate dmff && pip install .

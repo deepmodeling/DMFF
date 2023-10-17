@@ -70,6 +70,7 @@ class ADMPDispGenerator:
         C6 = jnp.array(C6)
         C8 = jnp.array(C8)
         C10 = jnp.array(C10)
+        self.atom_keys = np.array(self.atom_keys)
         atom_mask = jnp.array(atom_mask)
         paramset.addParameter(A, "A", field=self.name, mask=atom_mask)
         paramset.addParameter(B, "B", field=self.name, mask=atom_mask)
@@ -216,10 +217,11 @@ class ADMPDispPmeGenerator:
         default_scales = [0.0, 0.0, 0.0, 1.0, 1.0]
 
         mScales = [
-            self.ffinfo["Forces"][self.name]["meta"].get(f'mScale1{i}', default_scales[i-2])
+            float(self.ffinfo["Forces"][self.name]["meta"].get(f'mScale1{i}', default_scales[i-2]))
             for i in range(2, 7)
         ]
         mScales.append(1.0)
+        self.mScales = jnp.array(mScales)
 
         C6, C8, C10 = [], [], []
         self.atom_keys = []
@@ -243,6 +245,7 @@ class ADMPDispPmeGenerator:
         C8 = jnp.array(C8)
         C10 = jnp.array(C10)
         atom_mask = jnp.array(atom_mask)
+        self.atom_keys = np.array(self.atom_keys)
         paramset.addParameter(C6, "C6", field=self.name, mask=atom_mask)
         paramset.addParameter(C8, "C8", field=self.name, mask=atom_mask)
         paramset.addParameter(C10, "C10", field=self.name, mask=atom_mask)
@@ -298,9 +301,6 @@ class ADMPDispPmeGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = self._find_atype_key_index(atype)
 
-        self._meta["cov_map"] = self.covalent_map
-        self._meta["ADMPDispPmeForce_map_atomtype"] = self.map_atomtype
-
         # here box is only used to setup ewald parameters, no need to be differentiable
         if lpme:
             box = topdata.getPeriodicBoxVectors() * 10
@@ -325,7 +325,6 @@ class ADMPDispPmeGenerator:
             positions = positions * 10
             box = box * 10
             params = params[self.name]
-            mScales = params["mScales"]
             C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
             C8_list = params["C8"][map_atomtype] * 1e8
             C10_list = params["C10"][map_atomtype] * 1e10
@@ -333,11 +332,12 @@ class ADMPDispPmeGenerator:
             c8_list = jnp.sqrt(C8_list)
             c10_list = jnp.sqrt(C10_list)
             c_list = jnp.vstack((c6_list, c8_list, c10_list))
-            E_lr = pot_fn_lr(positions, box, pairs, c_list.T, mScales)
+            E_lr = pot_fn_lr(positions, box, pairs, c_list.T, self.mScales)
             return -E_lr
 
         self._jaxPotential = potential_fn
         # self._top_data = data
+        return potential_fn
 
     def getJaxPotential(self):
         return self._jaxPotential
@@ -354,71 +354,86 @@ class QqTtDampingGenerator:
     This one calculates the tang-tonnies damping of charge-charge interaction
     E = \sum_ij exp(-B*r)*(1+B*r)*q_i*q_j/r
     """
-    def __init__(self, ff):
-        self.ff = ff
-        self.fftree = ff.fftree
-        self._jaxPotential = None
-        self.paramtree = ff.paramtree
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        self.ffinfo = ffinfo
         self._jaxPotnetial = None
         self.name = "QqTtDampingForce"
-        self._meta = {}
+        paramset.addField(self.name)
+        self.key_type = None
+        self.atom_keys = []
 
-    def extract(self):
         # get mscales
-        mScales = [
-            self.fftree.get_attribs(f'{self.name}', f'mScale1{i}')[0]
+        default_scales = [0.0, 0.0, 0.0, 1.0, 1.0]
+
+        self.mScales = [
+            float(self.ffinfo["Forces"][self.name]["meta"].get(f'mScale1{i}', default_scales[i-2]))
             for i in range(2, 7)
         ]
-        mScales.append(1.0)
-        self.paramtree[self.name] = {}
-        self.paramtree[self.name]['mScales'] = jnp.array(mScales)
+        self.mScales.append(1.0)
+        self.mScales = jnp.array(self.mScales)
+        
         # get atomtypes
-        atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', f'type')
-        if type(atomTypes[0]) != str:
-            self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
-        else:
-            self.atomTypes = np.array(atomTypes)
-        # get atomic parameters
-        B = self.fftree.get_attribs(f'{self.name}/Atom', f'B')
-        Q = self.fftree.get_attribs(f'{self.name}/Atom', f'Q')
-        self.paramtree[self.name]['B'] = jnp.array(B)
-        self.paramtree[self.name]['Q'] = jnp.array(Q)
+        B, Q = [], []
+        atom_mask = []
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            if node["name"] == "Atom":
+                attribs = node["attrib"]
+                if "type" in attribs:
+                    self.key_type = "type"
+                elif "class" in attribs:
+                    self.key_type = "class"
+                self.atom_keys.append(attribs[self.key_type])
+                B.append(float(attribs["B"]))
+                Q.append(float(attribs["Q"]))
+                mask = 1.0
+                if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                    mask = 0.0
+                atom_mask.append(mask)
+        B = jnp.array(B)
+        Q = jnp.array(Q)
+        atom_mask = jnp.array(atom_mask)
+        self.atom_keys = np.array(self.atom_keys)
+        paramset.addParameter(B, "B", field=self.name, mask=atom_mask)
+        paramset.addParameter(Q, "Q", field=self.name, mask=atom_mask)
+        
+    def getName(self) -> str:
+        return self.name
 
     def overwrite(self):
+        B = self.paramtree[self.name]["B"]
+        Q = self.paramtree[self.name]["Q"]
+        atom_mask = self.paramtree.mask[self.name]["B"]
+        
+        nnode = 0
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            if node["name"] == "Atom":
+                attribs = node["attrib"]
+                B_new = B[nnode]
+                Q_new = Q[nnode]
+                mask = atom_mask[nnode]
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(B_new)
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["Q"] = str(Q_new)
+                if mask < 0.999:
+                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+                nnode += 1
 
-        self.fftree.set_attrib(f'{self.name}', 'mScale12',
-                               [self.paramtree[self.name]['mScales'][0]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale13',
-                               [self.paramtree[self.name]['mScales'][1]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale14',
-                               [self.paramtree[self.name]['mScales'][2]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale15',
-                               [self.paramtree[self.name]['mScales'][3]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale16',
-                               [self.paramtree[self.name]['mScales'][4]])
-
-        self.fftree.set_attrib(f'{self.name}/Atom', 'B',
-                               self.paramtree[self.name]['B'])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'Q',
-                               self.paramtree[self.name]['Q'])
+    def _find_atype_key_index(self, atype: str):
+        for n, i in enumerate(self.atom_keys):
+            if i == atype:
+                return n
+        return None
 
     # on working
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
-                    args):
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
+                    **kwargs):
 
-        n_atoms = len(data.atoms)
+        n_atoms = topdata.getNumAtoms()
+        atoms = [a for a in topdata.atoms()]
         # build index map
         map_atomtype = np.zeros(n_atoms, dtype=int)
         for i in range(n_atoms):
-            atype = data.atomType[data.atoms[i]]
-            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
-        self.map_atomtype = map_atomtype
-
-        # build covalent map
-        self.covalent_map = build_covalent_map(data, 6)
-
-        self._meta["cov_map"] = self.covalent_map
-        self._meta["QqTtDampingForce_map_atomtype"] = self.map_atomtype
+            atype = atoms[i].meta[self.key_type]
+            map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
         pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel,
                                                   static_args={})
@@ -427,14 +442,14 @@ class QqTtDampingGenerator:
             positions = positions * 10
             box = box * 10
             params = params[self.name]
-            mScales = params["mScales"]
             b_list = params["B"][map_atomtype] / 10  # convert to A^-1
             q_list = params["Q"][map_atomtype]
 
-            E_sr = pot_fn_sr(positions, box, pairs, mScales, b_list, q_list)
+            E_sr = pot_fn_sr(positions, box, pairs, self.mScales, b_list, q_list)
             return E_sr
 
         self._jaxPotential = potential_fn
+        return potential_fn
 
     def getJaxPotential(self):
         return self._jaxPotential
@@ -454,76 +469,90 @@ class SlaterDampingGenerator:
     fn = f_tt(x, n)
     x = br - (2*br2 + 3*br) / (br2 + 3*br + 3)
     """
-    def __init__(self, ff):
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
         self.name = "SlaterDampingForce"
-        self.ff = ff
-        self.fftree = ff.fftree
-        self.paramtree = ff.paramtree
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
         self._jaxPotential = None
-        self._meta = {}
-
-    def extract(self):
+        
         # get mscales
-        mScales = [
-            self.fftree.get_attribs(f'{self.name}', f'mScale1{i}')[0]
+        default_scales = [0.0, 0.0, 0.0, 1.0, 1.0]
+        self.mScales = [
+            float(self.ffinfo["Forces"][self.name]["meta"].get(f'mScale1{i}', default_scales[i-2]))
             for i in range(2, 7)
         ]
-        mScales.append(1.0)
-        self.paramtree[self.name] = {}
-        self.paramtree[self.name]['mScales'] = jnp.array(mScales)
+        self.mScales.append(1.0)
+        self.mScales = jnp.array(self.mScales)
+        
         # get atomtypes
-        atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', f'type')
-        if type(atomTypes[0]) != str:
-            self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
-        else:
-            self.atomTypes = np.array(atomTypes)
-        # get atomic parameters
-        B = self.fftree.get_attribs(f'{self.name}/Atom', f'B')
-        C6 = self.fftree.get_attribs(f'{self.name}/Atom', f'C6')
-        C8 = self.fftree.get_attribs(f'{self.name}/Atom', f'C8')
-        C10 = self.fftree.get_attribs(f'{self.name}/Atom', f'C10')
-        self.paramtree[self.name]['B'] = jnp.array(B)
-        self.paramtree[self.name]['C6'] = jnp.array(C6)
-        self.paramtree[self.name]['C8'] = jnp.array(C8)
-        self.paramtree[self.name]['C10'] = jnp.array(C10)
+        self.atom_keys = []
+        B, C6, C8, C10 = [], [], [], []
+        atom_mask = []
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            if node["name"] == "Atom":
+                attribs = node["attrib"]
+                if "type" in attribs:
+                    self.key_type = "type"
+                elif "class" in attribs:
+                    self.key_type = "class"
+                self.atom_keys.append(attribs[self.key_type])
+                B.append(float(attribs["B"]))
+                C6.append(float(attribs["C6"]))
+                C8.append(float(attribs["C8"]))
+                C10.append(float(attribs["C10"]))
+                mask = 1.0
+                if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                    mask = 0.0
+                atom_mask.append(mask)
+        B = jnp.array(B)
+        C6 = jnp.array(C6)
+        C8 = jnp.array(C8)
+        C10 = jnp.array(C10)
+        atom_mask = jnp.array(atom_mask)
+        self.atom_keys = np.array(self.atom_keys)
+        paramset.addParameter(B, "B", field=self.name, mask=atom_mask)
+        paramset.addParameter(C6, "C6", field=self.name, mask=atom_mask)
+        paramset.addParameter(C8, "C8", field=self.name, mask=atom_mask)
+        paramset.addParameter(C10, "C10", field=self.name, mask=atom_mask)
+        
+    def getName(self) -> str:
+        return self.name
 
     def overwrite(self):
+        B = self.paramtree[self.name]["B"]
+        C6 = self.paramtree[self.name]["C6"]
+        C8 = self.paramtree[self.name]["C8"]
+        C10 = self.paramtree[self.name]["C10"]
+        atom_mask = self.paramtree.mask[self.name]["B"]
+        
+        nnode = 0
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            if node["name"] == "Atom":
+                attribs = node["attrib"]
+                B_new = B[nnode]
+                C6_new = C6[nnode]
+                C8_new = C8[nnode]
+                C10_new = C10[nnode]
+                mask = atom_mask[nnode]
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(B_new)
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C6"] = str(C6_new)
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C8"] = str(C8_new)
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = str(C10_new)
+                if mask < 0.999:
+                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+                nnode += 1
 
-        self.fftree.set_attrib(f'{self.name}', 'mScale12',
-                               [self.paramtree[self.name]['mScales'][0]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale13',
-                               [self.paramtree[self.name]['mScales'][1]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale14',
-                               [self.paramtree[self.name]['mScales'][2]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale15',
-                               [self.paramtree[self.name]['mScales'][3]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale16',
-                               [self.paramtree[self.name]['mScales'][4]])
 
-        self.fftree.set_attrib(f'{self.name}/Atom', 'B',
-                               [self.paramtree[self.name]['B']])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'C6',
-                               [self.paramtree[self.name]['C6']])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'C8',
-                               [self.paramtree[self.name]['C8']])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'C10',
-                               [self.paramtree[self.name]['C10']])
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
+                    **kwargs):
 
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
-                    args):
-
-        n_atoms = len(data.atoms)
+        n_atoms = topdata.getNumAtoms()
+        atoms = [a for a in topdata.atoms()]
         # build index map
         map_atomtype = np.zeros(n_atoms, dtype=int)
         for i in range(n_atoms):
-            atype = data.atomType[data.atoms[i]]
-            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
-        self.map_atomtype = map_atomtype
-        # build covalent map
-        self.covalent_map = build_covalent_map(data, 6)
-
-        self._meta["cov_map"] = self.covalent_map
-        self._meta[self.name+"_map_atomtype"] = self.map_atomtype
+            atype = atoms[i].meta[self.key_type]
+            map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
         # WORKING
         pot_fn_sr = generate_pairwise_interaction(slater_disp_damping_kernel,
@@ -533,24 +562,21 @@ class SlaterDampingGenerator:
             positions = positions * 10
             box = box * 10
             params = params[self.name]
-            mScales = params["mScales"]
             b_list = params["B"][map_atomtype] / 10  # convert to A^-1
             c6_list = jnp.sqrt(params["C6"][map_atomtype] *
                                1e6)  # to kj/mol * A**6
             c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
             c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
-            E_sr = pot_fn_sr(positions, box, pairs, mScales, b_list, c6_list,
+            E_sr = pot_fn_sr(positions, box, pairs, self.mScales, b_list, c6_list,
                              c8_list, c10_list)
             return E_sr
 
         self._jaxPotential = potential_fn
         # self._top_data = data
+        return potential_fn
 
     def getJaxPotential(self):
         return self._jaxPotential
-        
-    def getMetaData(self):
-        return self._meta
 
 
 _DMFFGenerators['SlaterDampingForce'] = SlaterDampingGenerator
@@ -561,68 +587,81 @@ class SlaterExGenerator:
     This one computes the Slater-ISA type exchange interaction
     u = \sum_ij A * (1/3*(Br)^2 + Br + 1)
     """
-    def __init__(self, ff):
-        self.name = "SlaterExForce"
-        self.ff = ff
-        self.fftree = ff.fftree
-        self.paramtree = ff.paramtree
+    def __init__(self, ffinfo: dict, paramset: ParamSet, default_name = None):
+        if default_name is None:
+            self.name = "SlaterExForce"
+        else:
+            self.name = default_name
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
         self._jaxPotential = None
-        self._meta = {}
-
-    def extract(self):
+        self.key_type = None
+        
         # get mscales
-        mScales = [
-            self.fftree.get_attribs(f'{self.name}', f'mScale1{i}')[0]
+        default_scales = [0.0, 0.0, 0.0, 1.0, 1.0]
+        self.mScales = [
+            float(self.ffinfo["Forces"][self.name]["meta"].get(f'mScale1{i}', default_scales[i-2]))
             for i in range(2, 7)
         ]
-        mScales.append(1.0)
-        self.paramtree[self.name] = {}
-        self.paramtree[self.name]['mScales'] = jnp.array(mScales)
+        self.mScales.append(1.0)
+        self.mScales = jnp.array(self.mScales)
+
         # get atomtypes
-        atomTypes = self.fftree.get_attribs(f'{self.name}/Atom', f'type')
-        if type(atomTypes[0]) != str:
-            self.atomTypes = np.array(atomTypes, dtype=int).astype(str)
-        else:
-            self.atomTypes = np.array(atomTypes)
-        # get atomic parameters
-        A = self.fftree.get_attribs(f'{self.name}/Atom', f'A')
-        B = self.fftree.get_attribs(f'{self.name}/Atom', f'B')
-        self.paramtree[self.name]['A'] = jnp.array(A)
-        self.paramtree[self.name]['B'] = jnp.array(B)
+        self.atom_keys = []
+        A, B = [], []
+        atom_mask = []
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            if node["name"] == "Atom":
+                attribs = node["attrib"]
+                if "type" in attribs:
+                    self.key_type = "type"
+                elif "class" in attribs:
+                    self.key_type = "class"
+                self.atom_keys.append(attribs[self.key_type])
+                A.append(float(attribs["A"]))
+                B.append(float(attribs["B"]))
+                mask = 1.0
+                if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                    mask = 0.0
+                atom_mask.append(mask)
+        A = jnp.array(A)
+        B = jnp.array(B)
+        atom_mask = jnp.array(atom_mask)
+        self.atom_keys = np.array(self.atom_keys)
+        paramset.addParameter(A, "A", field=self.name, mask=atom_mask)
+        paramset.addParameter(B, "B", field=self.name, mask=atom_mask)
+
+    def getName(self) -> str:
+        return self.name
 
     def overwrite(self):
+        A = self.paramtree[self.name]["A"]
+        B = self.paramtree[self.name]["B"]
+        atom_mask = self.paramtree.mask[self.name]["B"]
+        
+        nnode = 0
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            if node["name"] == "Atom":
+                attribs = node["attrib"]
+                A_new = A[nnode]
+                B_new = B[nnode]
+                mask = atom_mask[nnode]
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["A"] = str(A_new)
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(B_new)
+                if mask < 0.999:
+                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+                nnode += 1
 
-        self.fftree.set_attrib(f'{self.name}', 'mScale12',
-                               [self.paramtree[self.name]['mScales'][0]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale13',
-                               [self.paramtree[self.name]['mScales'][1]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale14',
-                               [self.paramtree[self.name]['mScales'][2]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale15',
-                               [self.paramtree[self.name]['mScales'][3]])
-        self.fftree.set_attrib(f'{self.name}', 'mScale16',
-                               [self.paramtree[self.name]['mScales'][4]])
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
+                    **kwargs):
 
-        self.fftree.set_attrib(f'{self.name}/Atom', 'A',
-                               [self.paramtree[self.name]['A']])
-        self.fftree.set_attrib(f'{self.name}/Atom', 'B',
-                               [self.paramtree[self.name]['B']])
-
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
-                    args):
-
-        n_atoms = len(data.atoms)
+        n_atoms = topdata.getNumAtoms()
+        atoms = [a for a in topdata.atoms()]
         # build index map
         map_atomtype = np.zeros(n_atoms, dtype=int)
         for i in range(n_atoms):
-            atype = data.atomType[data.atoms[i]]
-            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
-        self.map_atomtype = map_atomtype
-        # build covalent map
-        self.covalent_map = build_covalent_map(data, 6)
-
-        self._meta["cov_map"] = self.covalent_map
-        self._meta[self.name+"_map_atomtype"] = self.map_atomtype
+            atype = atoms[i].meta[self.key_type]
+            map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
                                                   static_args={})
@@ -631,14 +670,14 @@ class SlaterExGenerator:
             positions = positions * 10
             box = box * 10
             params = params[self.name]
-            mScales = params["mScales"]
             a_list = params["A"][map_atomtype]
             b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
 
-            return pot_fn_sr(positions, box, pairs, mScales, a_list, b_list)
+            return pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list)
 
         self._jaxPotential = potential_fn
         # self._top_data = data
+        return potential_fn
 
     def getJaxPotential(self):
         return self._jaxPotential
@@ -653,25 +692,22 @@ _DMFFGenerators["SlaterExForce"] = SlaterExGenerator
 # Here are all the short range "charge penetration" terms
 # They all have the exchange form with minus sign
 class SlaterSrEsGenerator(SlaterExGenerator):
-    def __init__(self, ff):
-        super().__init__(ff)
-        self.name = "SlaterSrEsForce"
+    def __init__(self, ffinfo: dict, paramset: ParamSet, default_name=None):
+        if default_name is None:
+            super().__init__(ffinfo, paramset, default_name="SlaterSrEsForce")
+        else:
+            super().__init__(ffinfo, paramset, default_name=default_name)
 
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
-                    args):
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
+                    **kwargs):
 
-        n_atoms = len(data.atoms)
+        n_atoms = topdata.getNumAtoms()
+        atoms = [a for a in topdata.atoms()]
         # build index map
         map_atomtype = np.zeros(n_atoms, dtype=int)
         for i in range(n_atoms):
-            atype = data.atomType[data.atoms[i]]
-            map_atomtype[i] = np.where(self.atomTypes == atype)[0][0]
-        self.map_atomtype = map_atomtype
-        # build covalent map
-        self.covalent_map = build_covalent_map(data, 6)
-
-        self._meta["cov_map"] = self.covalent_map
-        self._meta[self.name+"_map_atomtype"] = self.map_atomtype
+            atype = atoms[i].meta[self.key_type]
+            map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
                                                   static_args={})
@@ -680,39 +716,32 @@ class SlaterSrEsGenerator(SlaterExGenerator):
             positions = positions * 10
             box = box * 10
             params = params[self.name]
-            mScales = params["mScales"]
             a_list = params["A"][map_atomtype]
             b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
             
             # add minus sign
-            return - pot_fn_sr(positions, box, pairs, mScales, a_list, b_list)
+            return - pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list)
 
         self._jaxPotential = potential_fn
         # self._top_data = data
+        return potential_fn
 
     def getJaxPotential(self):
         return self._jaxPotential
-        
-    def getMetaData(self):
-        return self._meta
 
 
 class SlaterSrPolGenerator(SlaterSrEsGenerator):
-    def __init__(self, ff):
-        super().__init__(ff)
-        self.name = "SlaterSrPolForce"
-
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        super().__init__(ffinfo, paramset, default_name="SlaterSrPolForce")
 
 class SlaterSrDispGenerator(SlaterSrEsGenerator):
-    def __init__(self, ff):
-        super().__init__(ff)
-        self.name = "SlaterSrDispForce"
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        super().__init__(ffinfo, paramset, default_name="SlaterSrDispForce")
 
 
 class SlaterDhfGenerator(SlaterSrEsGenerator):
-    def __init__(self, ff):
-        super().__init__(ff)
-        self.name = "SlaterDhfForce"
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        super().__init__(ffinfo, paramset, default_name="SlaterDhfForce")
 
 
 # register all parsers

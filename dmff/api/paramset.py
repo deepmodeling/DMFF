@@ -47,6 +47,8 @@ class ParamSet:
         field: str
             The name of the new field.
         """
+        if field in self.parameters:
+            return
         self.parameters[field] = {}
         self.mask[field] = {}
 
