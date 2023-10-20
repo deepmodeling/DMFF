@@ -72,6 +72,7 @@ def generate_construct_local_frames(axis_types, axis_indices):
     Bisector_filter = (axis_types == Bisector)
     ZBisect_filter = (axis_types == ZBisect)
     ThreeFold_filter = (axis_types == ThreeFold)
+    NoAxisType_filter = (axis_types == NoAxisType)
     
     def construct_local_frames(positions, box):
         '''
@@ -139,6 +140,13 @@ def generate_construct_local_frames(axis_types, axis_indices):
         vec_x = normalize(vec_x - vec_z * xz_projection, axis=1)
         # up to this point, x-axis should be ready
         vec_y = jnp.cross(vec_z, vec_x)
+        
+        # NoAxisType
+        if np.sum(NoAxisType_filter) > 0:
+            vec_y = vec_y.at[NoAxisType_filter].set(jnp.array([0,1,0]))
+            vec_z = vec_z.at[NoAxisType_filter].set(jnp.array([0,0,1]))
+            vec_x = vec_x.at[NoAxisType_filter].set(jnp.array([1,0,0]))
+
 
         return jnp.stack((vec_x, vec_y, vec_z), axis=1)
 
