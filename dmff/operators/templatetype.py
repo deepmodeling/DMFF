@@ -93,11 +93,6 @@ class TemplateATypeOperator(BaseOperator):
             graph = self.generate_residue_graph(topdata, res)
             all_fail = True
             for ntemp, template in enumerate(templates):
-                # debug 
-                # print(res)
-                # print(template)
-                # print(dir(template))
-                # print('-------')
                 is_matched, _, atype_dict = matchTemplate(graph, template)
                 if is_matched:
                     all_fail = False

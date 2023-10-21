@@ -54,7 +54,6 @@ if __name__ == "__main__":
     h = Hamiltonian("gaff-2.11.xml", "lig-prm.xml")
     pot = h.createPotential(pdb.topology, nonbondedMethod=app.NoCutoff)
     params = h.getParameters()
-    print(params)
 
     positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
     positions = jnp.array(positions)
@@ -84,3 +83,4 @@ if __name__ == "__main__":
 
     etotal = pot.getPotentialFunc()
     print("Total:", etotal(positions, box, pairs, params))
+
