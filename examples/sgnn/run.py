@@ -1,45 +1,44 @@
 #!/usr/bin/env python
 import sys
-import numpy as np
+import jax
 import jax.numpy as jnp
-import jax.lax as lax
-from jax import vmap, value_and_grad
-import dmff
-from dmff.sgnn.gnn import MolGNNForce
-from dmff.utils import jit_condition
-from dmff.sgnn.graph import MAX_VALENCE
-from dmff.sgnn.graph import TopGraph, from_pdb
+import openmm.app as app
+import openmm.unit as unit
+from dmff.api import Hamiltonian
+from dmff.common import nblist
+from jax import value_and_grad
 import pickle
-import re
-from collections import OrderedDict
-from functools import partial
-
 
 if __name__ == '__main__':
-    # params = load_params('benchmark/model1.pickle')
-    G = from_pdb('peg4.pdb')
-    model = MolGNNForce(G, nn=1)
-    model.load_params('model1.pickle')
-    E = model.get_energy(G.positions, G.box, model.params)
+    
+    H = Hamiltonian('peg.xml')
+    app.Topology.loadBondDefinitions("residues.xml")
+    pdb = app.PDBFile("peg4.pdb")
+    rc = 0.6
+    # generator stores all force field parameters
+    pots = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.nanometer, ethresh=5e-4)
 
-    with open('set_test_lowT.pickle', 'rb') as ifile:
+    # construct inputs
+    positions = jnp.array(pdb.positions._value)
+    a, b, c = pdb.topology.getPeriodicBoxVectors()
+    box = jnp.array([a._value, b._value, c._value])
+    # neighbor list
+    nbl = nblist.NeighborList(box, rc, pots.meta['cov_map']) 
+    nbl.allocate(positions)
+
+  
+    paramset = H.getParameters()
+    # params = paramset.parameters
+
+    with open('test_backend/set_test_lowT.pickle', 'rb') as ifile:
         data = pickle.load(ifile)
 
-    # pos = jnp.array(data['positions'][0:100])
-    # box = jnp.tile(jnp.eye(3) * 50, (100, 1, 1))
-    pos = jnp.array(data['positions'][0])
-    box = jnp.eye(3) * 50
+    # input in nm
+    pos = jnp.array(data['positions'][0:20]) / 10
+    box = jnp.eye(3) * 5
 
-    # energies = model.batch_forward(pos, box, model.params)
-    E, F = value_and_grad(model.get_energy, argnums=(0))(pos, box, model.params)
-    F = -F
-    print('Energy:', E)
-    print('Force')
-    print(F)
+    efunc = jax.jit(pots.getPotentialFunc())
+    efunc_vmap = jax.vmap(jax.jit(pots.getPotentialFunc()), in_axes=(0, None, None, None), out_axes=0)
+    print(efunc(pos[0], box, nbl.pairs, paramset))
+    print(efunc_vmap(pos, box, nbl.pairs, paramset))
 
-    # test batch processing
-    pos = jnp.array(data['positions'][:20])
-    box = jnp.tile(box, (20, 1, 1))
-    E = model.batch_forward(pos, box, model.params)
-    print('Batched Energies:')
-    print(E)
