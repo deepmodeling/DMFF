@@ -69,7 +69,7 @@ def E_constP(q, lagmt, const_list, const_vals):
 @jit_condition()
 def mask_to_zero(v, mask):
     return jnp.piecewise(
-        v, [mask < 1e-5, mask >= 1e-5], [lambda x: CONST_0, lambda x: v]
+        v, [mask < 1e-4, mask >= 1e-4], [lambda x: CONST_0, lambda x: v]
     )
 
 
