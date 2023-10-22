@@ -29,13 +29,18 @@ def mask_index(idx, max_idx):
     return jnp.piecewise(
         idx, [idx < max_idx, idx >= max_idx], [lambda x: CONST_1, lambda x: CONST_0]
     )
+
+
 mask_index = jax.vmap(mask_index, in_axes=(0, None))
+
 
 @jit_condition()
 def group_sum(val_list, indices):
     max_idx = val_list.shape[0]
     mask = mask_index(indices, max_idx)
     return jnp.sum(val_list[indices] * mask)
+
+
 group_sum = jax.vmap(group_sum, in_axes=(None, 0))
 
 
