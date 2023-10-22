@@ -1219,6 +1219,20 @@ def from_pdb(pdb):
     return TopGraph(list_atom_elems, bonds, positions=positions, box=box)
 
 
+# def from_dmff_top(topdata):
+#     '''
+#     Build the sGNN TopGraph object from a DMFFTopology object
+
+#     Parameters
+#     ----------
+#     topdata: DMFFTopology data
+#     '''
+#     list_atom_elems = np.array([a.element for a in topdata.atoms()])
+#     bonds = np.array([np.sort([b.atom1.index, b.atom2.index]) for b in topdata.bonds()])
+#     n_atoms = len(list_atom_elems)
+#     return TopGraph(list_atom_elems, bonds, positions=jnp.zeros((n_atoms, 3)), box=jnp.eye(3)*10)
+
+
 def validation():
     G = from_pdb('peg4.pdb')
     nn = 1

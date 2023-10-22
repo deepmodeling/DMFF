@@ -13,18 +13,19 @@ if __name__ == '__main__':
     
     H = Hamiltonian('forcefield.xml')
     pdb = app.PDBFile("waterbox_31ang.pdb")
-    rc = 6
+    rc = 0.6
     # generator stores all force field parameters
     params = H.getParameters()
     
-    pot_pme = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom).dmff_potentials['ADMPPmeForce']
+    pots = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.nanometer)
+    pot_pme = pots.dmff_potentials['ADMPPmeForce']
 
     # construct inputs
-    positions = jnp.array(pdb.positions._value) * 10
+    positions = jnp.array(pdb.positions._value)
     a, b, c = pdb.topology.getPeriodicBoxVectors()
-    box = jnp.array([a._value, b._value, c._value]) * 10
+    box = jnp.array([a._value, b._value, c._value])
     # neighbor list
-    nbl = nblist.NeighborList(box, rc, H.getGenerators()[0].covalent_map)
+    nbl = nblist.NeighborList(box, rc, pots.meta['cov_map'])
     nbl.allocate(positions)
 
     E_pme, F_pme = value_and_grad(pot_pme)(positions, box, nbl.pairs, params)

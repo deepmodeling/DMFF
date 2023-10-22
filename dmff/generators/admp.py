@@ -822,15 +822,28 @@ class ADMPPmeGenerator:
             kzs.append(kz)
             # record multipoles
             c0.append(float(attribs["c0"]))
-            dX.append(float(attribs["dX"]))
-            dY.append(float(attribs["dY"]))
-            dZ.append(float(attribs["dZ"]))
-            qXX.append(float(attribs["qXX"]))
-            qYY.append(float(attribs["qYY"]))
-            qZZ.append(float(attribs["qZZ"]))
-            qXY.append(float(attribs["qXY"]))
-            qXZ.append(float(attribs["qXZ"]))
-            qYZ.append(float(attribs["qYZ"]))
+            if self.lmax >= 1:
+                dX.append(float(attribs["dX"]))
+                dY.append(float(attribs["dY"]))
+                dZ.append(float(attribs["dZ"]))
+            else:
+                dX.append(0.0)
+                dY.append(0.0)
+                dZ.append(0.0)
+            if self.lmax >= 2:
+                qXX.append(float(attribs["qXX"]))
+                qYY.append(float(attribs["qYY"]))
+                qZZ.append(float(attribs["qZZ"]))
+                qXY.append(float(attribs["qXY"]))
+                qXZ.append(float(attribs["qXZ"]))
+                qYZ.append(float(attribs["qYZ"]))
+            else:
+                qXX.append(0.0)
+                qYY.append(0.0)
+                qZZ.append(0.0)
+                qXY.append(0.0)
+                qXZ.append(0.0)
+                qYZ.append(0.0)
             mask = 1.0
             if "mask" in attribs and attribs["mask"].upper() == "TRUE":
                 mask = 0.0
@@ -1146,6 +1159,7 @@ class ADMPPmeGenerator:
         pme_force = ADMPPmeForce(box, axis_types, axis_indices, rc,
                                  self.ethresh, self.lmax, self.lpol, lpme,
                                  self.step_pol)
+        self.pme_force = pme_force
 
         def potential_fn(positions, box, pairs, params):
             positions = positions * 10

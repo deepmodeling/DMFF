@@ -13,7 +13,7 @@ from rdkit.Chem import AllChem
 
 def matchTemplate(graph, template):
     if graph.number_of_nodes() != template.number_of_nodes():
-        print("Node with different number of nodes.")
+        # print("Node with different number of nodes.")
         return False, {}, {}
 
     def match_func(n1, n2):

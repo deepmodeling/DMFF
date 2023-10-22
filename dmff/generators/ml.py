@@ -1,0 +1,74 @@
+from ..api.topology import DMFFTopology
+from ..api.paramset import ParamSet
+from ..api.hamiltonian import _DMFFGenerators
+from ..utils import DMFFException, isinstance_jnp
+from ..utils import jit_condition
+import numpy as np
+import jax
+import jax.numpy as jnp
+import openmm.app as app
+import openmm.unit as unit
+import pickle
+
+from ..sgnn.graph import MAX_VALENCE, TopGraph, from_pdb
+from ..sgnn.gnn import MolGNNForce, prm_transform_f2i
+
+
+class SGNNGenerator:
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+
+        self.name = "SGNNForce"
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
+        self.key_type = None
+
+        self.file = self.ffinfo["Forces"][self.name]["meta"]["file"]
+        self.nn = int(self.ffinfo["Forces"][self.name]["meta"]["nn"])
+        self.pdb = self.ffinfo["Forces"][self.name]["meta"]["pdb"]
+
+        # load ML potential parameters
+        with open(self.file, 'rb') as ifile:
+            params = pickle.load(ifile)
+
+        # convert to jnp array
+        for k in params:
+            params[k] = jnp.array(params[k])
+            # set mask to all true
+            paramset.addParameter(params[k], k, field=self.name, mask=jnp.ones(params[k].shape))
+
+        # mask = jax.tree_util.tree_map(lambda x: jnp.ones(x.shape), params)
+        # paramset.addParameter(params, "params", field=self.name, mask=mask)
+       
+
+    def getName(self) -> str:
+        return self.name
+
+    def overwrite(self, paramset):
+        # do not use xml to handle ML potentials
+        # for ML potentials, xml only documents param file path
+        # so for ML potentials, overwrite function overwrites the file directly
+        with open(self.file, 'wb') as ofile:
+            pickle.dump(paramset[self.name], ofile)
+        return
+
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs):
+        self.G = from_pdb(self.pdb)
+        n_atoms = topdata.getNumAtoms()
+        self.model = MolGNNForce(self.G, nn=self.nn)
+        n_layers = self.model.n_layers
+        def potential_fn(positions, box, pairs, params):
+            # convert unit to angstrom
+            positions = positions * 10
+            box = box * 10
+            prms = prm_transform_f2i(params[self.name], n_layers)
+            return self.model.get_energy(positions, box, prms)
+
+        self._jaxPotential = potential_fn
+        return potential_fn
+
+    def getJaxPotential(self):
+        return self._jaxPotential
+
+
+_DMFFGenerators["SGNNForce"] = SGNNGenerator
+

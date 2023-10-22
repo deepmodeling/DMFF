@@ -33,4 +33,5 @@ jobs:
           pytest -vs tests/test_common/test_*
           pytest -vs tests/test_admp/test_*
           pytest -vs tests/test_utils.py
-          pytest -vs tests/test_mbar/test_*  
+          pytest -vs tests/test_mbar/test_* 
+          pytest -vs tests/test_sgnn/test_*

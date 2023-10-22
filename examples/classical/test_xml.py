@@ -83,3 +83,4 @@ if __name__ == "__main__":
 
     etotal = pot.getPotentialFunc()
     print("Total:", etotal(positions, box, pairs, params))
+
