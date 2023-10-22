@@ -155,43 +155,11 @@
    <Atom name="N001" type="2" charge="-0.018003"/>
   </Residue>
  </Residues>
-
- <CoulombForce  lmax="0" coulomb14scale="1.0" 
-     mScale12="1.00" mScale13="1.00" mScale14="1.00" mScale15="1.00" mScale16="1.00"
-     pScale12="0.00" pScale13="0.00" pScale14="0.00" pScale15="0.00" pScale16="0.00" 
-     dScale12="0.00" dScale13="0.00" dScale14="0.00" dScale15="0.00" dScale16="0.00">
-   <Atom type="1"
-             c0="-0.803721"
-             />
-   <Atom type="2"
-             c0="-0.803721"
-             />
-   <Atom type="3"
-             c0="-0.803721"
-             />
-   <Atom type="4"
-             c0="-0.803721"
-             />
-   <Atom type="5"
-             c0="-0.803721"
-             />
- </CoulombForce> 
- <ADMPQeqForce  DampMod="3" NeutralFlag="True" SlabFlag="False" ConstQFlag="True" PbcFlag="True" 
-            >
-   <QeqAtom type="1"
-             chi="1.39198761e+02"  J="-6.51683561e-01" eta="0.08360402"  
-             />
-   <QeqAtom type="2"
-             chi="1.47411181e+02"  J="-3.42450470e-02" eta="0.08360402" 
-             />
-   <QeqAtom type="3"
-             chi="7.58342711e+01"  J="-5.62083783e-01" eta="0.08360402" 
-             />
-   <QeqAtom type="4"
-             chi="1.40533063e+02"  J="-6.33544439e-01" eta="0.08360402" 
-             />
-   <QeqAtom type="5"
-             chi="1.37525951e+02"  J="-6.63409032e-01" eta="0.08360402" 
-             />
+ <ADMPQeqForce coulomb14scale="1.0" DampMod="3" >
+   <Atom type="1" chi="1.39198761e+02"  J="-6.51683561e-01" eta="0.08360402" />
+   <Atom type="2" chi="1.47411181e+02"  J="-3.42450470e-02" eta="0.08360402" />
+   <Atom type="3" chi="7.58342711e+01"  J="-5.62083783e-01" eta="0.08360402" />
+   <Atom type="4" chi="1.40533063e+02"  J="-6.33544439e-01" eta="0.08360402" />
+   <Atom type="5" chi="1.37525951e+02"  J="-6.63409032e-01" eta="0.08360402" />
  </ADMPQeqForce>
 </ForceField>

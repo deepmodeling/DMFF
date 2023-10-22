@@ -1030,10 +1030,14 @@ class CoulombGenerator:
         # paramset to ffinfo
         if self._use_bcc:
             bcc_now = paramset[self.name]["bcc"]
+            mask_list = paramset.mask[self.name]["bcc"]
             nbcc = 0
             for nnode, node in enumerate(self.ffinfo["Forces"][self.name]["node"]):
                 if node["name"] == "BondChargeCorrection":
+                    mask = mask_list[nbcc]
                     self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["bcc"] = bcc_now[nbcc]
+                    if mask < 0.999:
+                        self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
                     nbcc += 1
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
@@ -1076,8 +1080,7 @@ class CoulombGenerator:
         if nonbondedMethod is app.PME:
             cell = topdata.getPeriodicBoxVectors()
             box = jnp.array(cell)
-           # self.ethresh = kwargs.get("ethresh", 1e-6)
-            self.ethresh = kwargs.get("ethresh", 5e-4) #for qeq calculation
+            self.ethresh = kwargs.get("ethresh", 1e-5)
             self.coeff_method = kwargs.get("PmeCoeffMethod", "openmm")
             self.fourier_spacing = kwargs.get("PmeSpacing", 0.1)
             kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, self.ethresh,
