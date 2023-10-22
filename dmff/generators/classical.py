@@ -1030,10 +1030,14 @@ class CoulombGenerator:
         # paramset to ffinfo
         if self._use_bcc:
             bcc_now = paramset[self.name]["bcc"]
+            mask_list = paramset.mask[self.name]["bcc"]
             nbcc = 0
             for nnode, node in enumerate(self.ffinfo["Forces"][self.name]["node"]):
                 if node["name"] == "BondChargeCorrection":
+                    mask = mask_list[nbcc]
                     self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["bcc"] = bcc_now[nbcc]
+                    if mask < 0.999:
+                        self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
                     nbcc += 1
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
@@ -1054,6 +1058,7 @@ class CoulombGenerator:
         mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0,
                                   1.0])  # mscale for PME
         mscales_coul = mscales_coul.at[2].set(self.coulomb14scale)
+        self.mscales_coul = mscales_coul # for qeq calculation
 
         # set PBC
         if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
@@ -1075,7 +1080,7 @@ class CoulombGenerator:
         if nonbondedMethod is app.PME:
             cell = topdata.getPeriodicBoxVectors()
             box = jnp.array(cell)
-            self.ethresh = kwargs.get("ethresh", 1e-6)
+            self.ethresh = kwargs.get("ethresh", 1e-5)
             self.coeff_method = kwargs.get("PmeCoeffMethod", "openmm")
             self.fourier_spacing = kwargs.get("PmeSpacing", 0.1)
             kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, self.ethresh,
@@ -1120,7 +1125,8 @@ class CoulombGenerator:
                 topology_matrix=top_mat if self._use_bcc else None)
 
         coulenergy = coulforce.generate_get_energy()
-
+        self.coulforce = coulforce  #for qeq calculation
+        self.coulenergy = coulenergy #for qeq calculation
         def potential_fn(positions, box, pairs, params):
 
             # check whether args passed into potential_fn are jnp.array and differentiable
