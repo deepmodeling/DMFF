@@ -27,10 +27,10 @@ if __name__ == '__main__':
     H_A = Hamiltonian(ff)
     H_B = Hamiltonian(ff)
 
-    rc = 15
+    rc = 1.45
 
     # get potential functions
-    pots_AB = H_AB.createPotential(pdb_AB.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
+    pots_AB = H_AB.createPotential(pdb_AB.topology, nonbondedCutoff=rc*nanometer, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
     pot_pme_AB = pots_AB.dmff_potentials['ADMPPmeForce']
     pot_disp_AB = pots_AB.dmff_potentials['ADMPDispPmeForce']
     pot_ex_AB = pots_AB.dmff_potentials['SlaterExForce']
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     pot_dhf_AB = pots_AB.dmff_potentials['SlaterDhfForce']
     pot_dmp_es_AB = pots_AB.dmff_potentials['QqTtDampingForce']
     pot_dmp_disp_AB = pots_AB.dmff_potentials['SlaterDampingForce']
-    pots_A = H_A.createPotential(pdb_A.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
+    pots_A = H_A.createPotential(pdb_A.topology, nonbondedCutoff=rc*nanometer, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
     pot_pme_A = pots_A.dmff_potentials['ADMPPmeForce']
     pot_disp_A = pots_A.dmff_potentials['ADMPDispPmeForce']
     pot_ex_A = pots_A.dmff_potentials['SlaterExForce']
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     pot_dhf_A = pots_A.dmff_potentials['SlaterDhfForce']
     pot_dmp_es_A = pots_A.dmff_potentials['QqTtDampingForce']
     pot_dmp_disp_A = pots_A.dmff_potentials['SlaterDampingForce']
-    pots_B = H_B.createPotential(pdb_B.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
+    pots_B = H_B.createPotential(pdb_B.topology, nonbondedCutoff=rc*nanometer, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
     pot_pme_B = pots_B.dmff_potentials['ADMPPmeForce']
     pot_disp_B = pots_B.dmff_potentials['ADMPDispPmeForce']
     pot_ex_B = pots_B.dmff_potentials['SlaterExForce']
@@ -66,22 +66,22 @@ if __name__ == '__main__':
     pme_generator_B = H_B.getGenerators()[0]
 
     # init positions used to set up neighbor list
-    pos_AB0 = jnp.array(pdb_AB.positions._value) * 10
+    pos_AB0 = jnp.array(pdb_AB.positions._value)
     n_atoms = len(pos_AB0)
     n_atoms_A = n_atoms // 2
     n_atoms_B = n_atoms // 2
-    pos_A0 = jnp.array(pdb_AB.positions._value[:n_atoms_A]) * 10
-    pos_B0 = jnp.array(pdb_AB.positions._value[n_atoms_A:n_atoms]) * 10
-    box = jnp.array(pdb_AB.topology.getPeriodicBoxVectors()._value) * 10
+    pos_A0 = jnp.array(pdb_AB.positions._value[:n_atoms_A])
+    pos_B0 = jnp.array(pdb_AB.positions._value[n_atoms_A:n_atoms])
+    box = jnp.array(pdb_AB.topology.getPeriodicBoxVectors()._value)
 
     # nn list initial allocation
-    nbl_AB = nblist.NeighborList(box, rc, H_AB.getGenerators()[0].covalent_map)
+    nbl_AB = nblist.NeighborList(box, rc, pots_AB.meta["cov_map"])
     nbl_AB.allocate(pos_AB0)
     pairs_AB = nbl_AB.pairs
-    nbl_A = nblist.NeighborList(box, rc, H_A.getGenerators()[0].covalent_map)
+    nbl_A = nblist.NeighborList(box, rc, pots_A.meta["cov_map"])
     nbl_A.allocate(pos_A0)
     pairs_A = nbl_A.pairs
-    nbl_B = nblist.NeighborList(box, rc, H_B.getGenerators()[0].covalent_map)
+    nbl_B = nblist.NeighborList(box, rc, pots_B.meta["cov_map"])
     nbl_B.allocate(pos_B0)
     pairs_B = nbl_B.pairs
 
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     params_dmp_disp['C10'] = params['C10']
     # long range parameters
     params_espol = {}
-    for k in ['mScales', 'pScales', 'dScales', 'Q_local', 'pol', 'tholes']:
+    for k in ['mScales', 'pScales', 'dScales', 'Q_local', 'pol', 'thole']:
         params_espol[k] = params[k]
     params_disp = {}
     for k in ['B', 'C6', 'C8', 'C10', 'mScales']:
@@ -173,8 +173,8 @@ if __name__ == '__main__':
             E_dhf_ref = scan_res['dhf'][ipt]
             E_tot_ref = scan_res['tot'][ipt]
 
-            pos_A = jnp.array(scan_res['posA'][ipt])
-            pos_B = jnp.array(scan_res['posB'][ipt])
+            pos_A = jnp.array(scan_res['posA'][ipt]) / 10
+            pos_B = jnp.array(scan_res['posB'][ipt]) / 10
             pos_AB = jnp.concatenate([pos_A, pos_B], axis=0)
 
             #####################
@@ -200,7 +200,7 @@ if __name__ == '__main__':
             map_poltype = pme_generator_AB.map_poltype
             Q_local = params['Q_local'][map_atypes]
             pol = params['pol'][map_poltype]
-            tholes = params['tholes'][map_poltype]
+            tholes = params['thole'][map_poltype]
             pme_force = pme_generator_AB.pme_force
             E_AB_nonpol = pme_force.energy_fn(pos_AB, box, pairs_AB, Q_local, U_ind_AB, pol, tholes, params['mScales'], params['pScales'], params['dScales'])
             E_es = E_AB_nonpol - E_A - E_B

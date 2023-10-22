@@ -139,6 +139,7 @@ class ADMPDispGenerator:
         for i in range(n_atoms):
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = self._find_atype_key_index(atype)
+        self.map_atomtype = map_atomtype
         # here box is only used to setup ewald parameters, no need to be differentiable
         if lpme:
             box = topdata.getPeriodicBoxVectors() * 10
@@ -301,6 +302,8 @@ class ADMPDispPmeGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = self._find_atype_key_index(atype)
 
+        self.map_atomtype = map_atomtype
+
         # here box is only used to setup ewald parameters, no need to be differentiable
         if lpme:
             box = topdata.getPeriodicBoxVectors() * 10
@@ -435,6 +438,7 @@ class QqTtDampingGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
+        self.map_atomtype = map_atomtype
         pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel,
                                                   static_args={})
 
@@ -554,6 +558,8 @@ class SlaterDampingGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
+        self.map_atomtype = map_atomtype
+
         # WORKING
         pot_fn_sr = generate_pairwise_interaction(slater_disp_damping_kernel,
                                                   static_args={})
@@ -663,6 +669,8 @@ class SlaterExGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
+        self.map_atomtype = map_atomtype
+
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
                                                   static_args={})
 
@@ -708,6 +716,8 @@ class SlaterSrEsGenerator(SlaterExGenerator):
         for i in range(n_atoms):
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
+
+        self.map_atomtype = map_atomtype
 
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
                                                   static_args={})
@@ -981,6 +991,9 @@ class ADMPPmeGenerator:
             map_atomtype[i] = self._find_multipole_key_index(atype)
             if self.lpol:
                 map_poltype[i] = self._find_polarize_key_index(atype)
+
+        self.map_poltype = map_poltype
+        self.map_atomtype = map_atomtype
 
         # here box is only used to setup ewald parameters, no need to be differentiable
         if lpme:
