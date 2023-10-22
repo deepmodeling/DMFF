@@ -25,20 +25,20 @@ from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
 
 
 @jit_condition()
-def group_sum(val_list, indices):
-    max_idx = indices.max()
-    exceed = jnp.piecewise(
-        indices,
-        [indices < max_idx, indices >= max_idx],
-        [lambda x: CONST_1, lambda x: CONST_0],
+def mask_index(idx, max_idx):
+    return jnp.piecewise(
+        idx, [idx < max_idx, idx >= max_idx], [lambda x: CONST_1, lambda x: CONST_0]
     )
-    return jnp.sum(val_list[indices] * exceed)
+mask_index = jax.vmap(mask_index, in_axes=(0, None))
+
+@jit_condition()
+def group_sum(val_list, indices):
+    max_idx = val_list.shape[0]
+    mask = mask_index(indices, max_idx)
+    return jnp.sum(val_list[indices] * mask)
+group_sum = jax.vmap(group_sum, in_axes=(None, 0))
 
 
-group_sum_vmap = jax.vmap(group_sum, in_axes=(None, 0))
-
-
-# @jit_condition
 def padding_consts(const_list, max_idx):
     max_length = max([len(i) for i in const_list])
     new_const_list = np.zeros((len(const_list), max_length)) + max_idx
@@ -50,13 +50,13 @@ def padding_consts(const_list, max_idx):
 
 @jit_condition()
 def E_constQ(q, lagmt, const_list, const_vals):
-    constraint = (group_sum_vmap(q, const_list) - const_vals) * lagmt
+    constraint = (group_sum(q, const_list) - const_vals) * lagmt
     return jnp.sum(constraint)
 
 
 @jit_condition()
 def E_constP(q, lagmt, const_list, const_vals):
-    constraint = group_sum_vmap(q, const_list) * const_vals
+    constraint = group_sum(q, const_list) * const_vals
     return jnp.sum(constraint)
 
 
@@ -202,10 +202,10 @@ class ADMPQeqForce:
         constQ: bool = True,
         pbc_flag: bool = True,
     ):
-        if not isinstance(const_vals, jnp.ndarray):
-            self.const_vals = jnp.array(const_vals)
-        else:
-            self.const_vals = const_vals
+        const_vals = np.array(const_vals)
+        if neutral_flag:
+            const_vals = const_vals - np.sum(const_vals) / len(const_vals)
+        self.const_vals = jnp.array(const_vals)
         assert len(const_list) == len(
             const_vals
         ), "const_list and const_vals must have the same length"
@@ -290,8 +290,6 @@ class ADMPQeqForce:
             b_0 = jax.lax.stop_gradient(b_0)
             q_0 = b_0[:-n_const]
             lagmt_0 = b_0[-n_const:]
-            print("Q:", q_0)
-            print("Lagrange_multi:", lagmt_0)
 
             energy = E_full(
                 q_0,

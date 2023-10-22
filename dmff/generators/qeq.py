@@ -95,9 +95,9 @@ class ADMPQeqGenerator:
             J0 = J[nidx]
             eta0 = eta[nidx]
             mask = atom_mask[nidx]
-            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["chi"] = str(chi0)
-            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["J"] = str(J0)
-            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["eta"] = str(eta0)
+            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["chi"] = chi0
+            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["J"] = J0
+            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["eta"] = eta0
             if mask < 0.999:
                 self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["mask"] = "true"
 
@@ -177,7 +177,7 @@ class ADMPQeqGenerator:
                 aidx = [a.index for a in r.atoms()]
                 const_list.append(aidx)
                 const_vals.append(sum(init_q[aidx]))
-                
+
         qeq_force = ADMPQeqForce(
             init_q, r_cut, kappa, K, damp_mod=self.damp_mod,
             const_list=const_list, const_vals=const_vals,
