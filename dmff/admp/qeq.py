@@ -141,17 +141,6 @@ def E_corr(pos, box, pairs, q, kappa, neutral_flag=True):
     return jnp.sum(e_corr)
 
 
-@jit_condition
-def E_CoulNocutoff(pos, box, pairs, q, ds):
-    e = q[pairs[:, 0]] * q[pairs[:, 1]] / ds * DIELECTRIC
-    return jnp.sum(e)
-
-
-@jit_condition
-def E_Coul(pos, box, pairs, q, ds):
-    return 0.0
-
-
 @jit_condition(static_argnums=[3])
 def ds_pairs(positions, box, pairs, pbc_flag):
     pos1 = positions[pairs[:, 0]]
@@ -206,7 +195,9 @@ class ADMPQeqForce:
         slab_flag: bool = False,
         constQ: bool = True,
         pbc_flag: bool = True,
+        has_aux=False,
     ):
+        self.has_aux = has_aux
         const_vals = np.array(const_vals)
         if neutral_flag:
             const_vals = const_vals - np.sum(const_vals) / len(const_vals)
@@ -258,10 +249,13 @@ class ADMPQeqForce:
             e2 = self.e_sr(pos * 10, box * 10, pairs, q, eta, ds * 10, buffer_scales)
             e3 = self.e_site(chi, J, q)
             e4 = self.coul_energy(pos, box, pairs, q, mscales)
-            e5 = E_corr(
-                pos * 10.0, box * 10.0, pairs, q, self.kappa / 10, self.neutral_flag
-            )
-            return e1 + e2 + e3 + e4 + e5
+            if self.slab_flag:
+                e5 = E_corr(
+                    pos * 10.0, box * 10.0, pairs, q, self.kappa / 10, self.neutral_flag
+                )
+                return e1 + e2 + e3 + e4 + e5
+            else:
+                return e1 + e2 + e3 + e4
 
         grad_E_full = grad(E_full, argnums=(0, 1))
 
@@ -279,18 +273,30 @@ class ADMPQeqForce:
             g = jnp.concatenate((g1, g2))
             return g
 
-        def get_energy(positions, box, pairs, mscales, eta, chi, J):
+        def get_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
             pos = positions
             ds = ds_pairs(pos, box, pairs, self.pbc_flag)
             buffer_scales = pair_buffer_scales(pairs)
 
             n_const = len(self.init_lagmt)
-            b_value = jnp.concatenate((self.init_q, self.init_lagmt))
+            if self.has_aux:
+                b_value = jnp.concatenate((aux["q"], aux["lagmt"]))
+            else:
+                b_value = jnp.concatenate([self.init_q, self.init_lagmt])
             rf = jaxopt.ScipyRootFinding(
                 optimality_fun=E_grads, method="hybr", jit=False, tol=1e-10
             )
             b_0, _ = rf.run(
-                b_value, chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
+                b_value,
+                chi,
+                J,
+                positions,
+                box,
+                pairs,
+                eta,
+                ds,
+                buffer_scales,
+                mscales,
             )
             b_0 = jax.lax.stop_gradient(b_0)
             q_0 = b_0[:-n_const]
@@ -309,6 +315,11 @@ class ADMPQeqForce:
                 buffer_scales,
                 mscales,
             )
-            return energy
-
+            if self.has_aux:
+                aux["q"] = q_0
+                aux["lagmt"] = lagmt_0
+                return energy, aux
+            else:
+                return energy
+            
         return get_energy

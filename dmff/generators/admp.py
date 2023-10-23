@@ -10,19 +10,17 @@ import openmm.unit as unit
 from ..admp.disp_pme import ADMPDispPmeForce
 from ..admp.multipole import convert_cart2harm, convert_harm2cart
 from ..admp.pairwise import (
-    TT_damping_qq_c6_kernel, 
+    TT_damping_qq_c6_kernel,
     generate_pairwise_interaction,
-    slater_disp_damping_kernel, 
+    slater_disp_damping_kernel,
     slater_sr_kernel,
-    TT_damping_qq_kernel
+    TT_damping_qq_kernel,
 )
 from ..admp.pme import ADMPPmeForce
 
 
-
 class ADMPDispGenerator:
     def __init__(self, ffinfo: dict, paramset: ParamSet):
-
         self.name = "ADMPDispForce"
         self.ffinfo = ffinfo
         paramset.addField(self.name)
@@ -37,7 +35,11 @@ class ADMPDispGenerator:
         default_scales = [0.0, 0.0, 0.0, 1.0, 1.0]
 
         mScales = [
-            float(self.ffinfo["Forces"][self.name]["meta"].get(f'mScale1{i}', default_scales[i-2]))
+            float(
+                self.ffinfo["Forces"][self.name]["meta"].get(
+                    f"mScale1{i}", default_scales[i - 2]
+                )
+            )
             for i in range(2, 7)
         ]
         mScales.append(1.0)
@@ -81,7 +83,7 @@ class ADMPDispGenerator:
 
     def getName(self):
         return self.name
-    
+
     def overwrite(self, paramset):
         atom_mask = paramset.mask[self.name]["sigma"]
         A = paramset[self.name]["A"]
@@ -91,7 +93,11 @@ class ADMPDispGenerator:
         C8 = paramset[self.name]["C8"]
         C10 = paramset[self.name]["C10"]
 
-        node2atom = [i for i in range(len(self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Atom"]
+        node2atom = [
+            i
+            for i in range(len(self.ffinfo["Forces"][self.name]["node"]))
+            if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Atom"
+        ]
 
         for natom in range(len(self.atom_keys)):
             nnode = node2atom[natom]
@@ -105,11 +111,19 @@ class ADMPDispGenerator:
             self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["A"] = str(A_new)
             self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(B_new)
             self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["Q"] = str(Q_new)
-            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C6"] = str(C6_new)
-            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C8"] = str(C8_new)
-            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = str(C10_new)
+            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C6"] = str(
+                C6_new
+            )
+            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C8"] = str(
+                C8_new
+            )
+            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = str(
+                C10_new
+            )
             if mask < 0.999:
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"][
+                    "mask"
+                ] = "true"
 
     def _find_atype_key_index(self, atype: str):
         for n, i in enumerate(self.atom_keys):
@@ -117,9 +131,9 @@ class ADMPDispGenerator:
                 return n
         return None
 
-    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
-                    **kwargs):
-
+    def createPotential(
+        self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs
+    ):
         methodMap = {
             app.CutoffPeriodic: "CutoffPeriodic",
             app.NoCutoff: "NoCutoff",
@@ -148,21 +162,18 @@ class ADMPDispGenerator:
         if unit.is_quantity(nonbondedCutoff):
             rc = nonbondedCutoff.value_in_unit(unit.angstrom)
         else:
-            rc = nonbondedCutoff * 10.
+            rc = nonbondedCutoff * 10.0
 
         # get calculator
         if "ethresh" in kwargs:
             self.ethresh = kwargs["ethresh"]
 
-        Force_DispPME = ADMPDispPmeForce(box,
-                                         rc,
-                                         self.ethresh,
-                                         self.pmax,
-                                         lpme=lpme)
+        Force_DispPME = ADMPDispPmeForce(box, rc, self.ethresh, self.pmax, lpme=lpme)
         self.disp_pme_force = Force_DispPME
         pot_fn_lr = Force_DispPME.get_energy
-        pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_c6_kernel,
-                                                  static_args={})
+        pot_fn_sr = generate_pairwise_interaction(
+            TT_damping_qq_c6_kernel, static_args={}
+        )
 
         def potential_fn(positions, box, pairs, params):
             # Assume nm for frontend functions, still uses Angstrom for backend
@@ -171,8 +182,9 @@ class ADMPDispGenerator:
 
             params = params[self.name]
             mScales = self.mScales
-            a_list = (params["A"][map_atomtype] / 2625.5
-                      )  # kj/mol to au, as expected by TT_damping kernel
+            a_list = (
+                params["A"][map_atomtype] / 2625.5
+            )  # kj/mol to au, as expected by TT_damping kernel
             b_list = params["B"][map_atomtype] * 0.0529177249  # nm^-1 to au
             q_list = params["Q"][map_atomtype]
             # the input parameters are assumed to be in nm too, need to convert to Angstrom
@@ -181,8 +193,9 @@ class ADMPDispGenerator:
             c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
             c_list = jnp.vstack((c6_list, c8_list, c10_list))
 
-            E_sr = pot_fn_sr(positions, box, pairs, mScales, a_list, b_list,
-                             q_list, c_list[0])
+            E_sr = pot_fn_sr(
+                positions, box, pairs, mScales, a_list, b_list, q_list, c_list[0]
+            )
             E_lr = pot_fn_lr(positions, box, pairs, c_list.T, mScales)
             return E_sr - E_lr
 
@@ -194,7 +207,7 @@ class ADMPDispGenerator:
         return self._jaxPotential
 
 
-_DMFFGenerators['ADMPDispForce'] = ADMPDispGenerator
+_DMFFGenerators["ADMPDispForce"] = ADMPDispGenerator
 
 
 class ADMPDispPmeGenerator:
@@ -202,6 +215,7 @@ class ADMPDispPmeGenerator:
     This one computes the undamped C6/C8/C10 interactions
     u = \sum_{ij} c6/r^6 + c8/r^8 + c10/r^10
     """
+
     def __init__(self, ffinfo, paramset):
         self.name = "ADMPDispPmeForce"
         self.ffinfo = ffinfo
@@ -217,7 +231,11 @@ class ADMPDispPmeGenerator:
         default_scales = [0.0, 0.0, 0.0, 1.0, 1.0]
 
         mScales = [
-            float(self.ffinfo["Forces"][self.name]["meta"].get(f'mScale1{i}', default_scales[i-2]))
+            float(
+                self.ffinfo["Forces"][self.name]["meta"].get(
+                    f"mScale1{i}", default_scales[i - 2]
+                )
+            )
             for i in range(2, 7)
         ]
         mScales.append(1.0)
@@ -252,14 +270,18 @@ class ADMPDispPmeGenerator:
 
     def getName(self):
         return self.name
-    
+
     def overwrite(self, paramset):
         atom_mask = paramset.mask[self.name]["sigma"]
         C6 = paramset[self.name]["C6"]
         C8 = paramset[self.name]["C8"]
         C10 = paramset[self.name]["C10"]
 
-        node2atom = [i for i in range(len(self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Atom"]
+        node2atom = [
+            i
+            for i in range(len(self.ffinfo["Forces"][self.name]["node"]))
+            if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Atom"
+        ]
 
         for natom in range(len(self.atom_keys)):
             nnode = node2atom[natom]
@@ -267,11 +289,19 @@ class ADMPDispPmeGenerator:
             C8_new = C8[natom]
             C10_new = C10[natom]
             mask = atom_mask[natom]
-            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C6"] = str(C6_new)
-            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C8"] = str(C8_new)
-            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = str(C10_new)
+            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C6"] = str(
+                C6_new
+            )
+            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C8"] = str(
+                C8_new
+            )
+            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = str(
+                C10_new
+            )
             if mask < 0.999:
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"][
+                    "mask"
+                ] = "true"
 
     def _find_atype_key_index(self, atype: str):
         for n, i in enumerate(self.atom_keys):
@@ -279,8 +309,9 @@ class ADMPDispPmeGenerator:
                 return n
         return None
 
-    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
-                    **kwargs):
+    def createPotential(
+        self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs
+    ):
         methodMap = {
             app.CutoffPeriodic: "CutoffPeriodic",
             app.NoCutoff: "NoCutoff",
@@ -310,30 +341,47 @@ class ADMPDispPmeGenerator:
         if unit.is_quantity(nonbondedCutoff):
             rc = nonbondedCutoff.value_in_unit(unit.angstrom)
         else:
-            rc = nonbondedCutoff * 10.
+            rc = nonbondedCutoff * 10.0
 
         # get calculator
         if "ethresh" in kwargs:
             self.ethresh = kwargs["ethresh"]
 
-        disp_force = ADMPDispPmeForce(box, rc, self.ethresh, self.pmax,
-                                      lpme)
+        disp_force = ADMPDispPmeForce(box, rc, self.ethresh, self.pmax, lpme)
         self.disp_force = disp_force
         pot_fn_lr = disp_force.get_energy
 
-        def potential_fn(positions, box, pairs, params):
-            positions = positions * 10
-            box = box * 10
-            params = params[self.name]
-            C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
-            C8_list = params["C8"][map_atomtype] * 1e8
-            C10_list = params["C10"][map_atomtype] * 1e10
-            c6_list = jnp.sqrt(C6_list)
-            c8_list = jnp.sqrt(C8_list)
-            c10_list = jnp.sqrt(C10_list)
-            c_list = jnp.vstack((c6_list, c8_list, c10_list))
-            E_lr = pot_fn_lr(positions, box, pairs, c_list.T, self.mScales)
-            return -E_lr
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+
+            def potential_fn(positions, box, pairs, params, aux):
+                positions = positions * 10
+                box = box * 10
+                params = params[self.name]
+                C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
+                C8_list = params["C8"][map_atomtype] * 1e8
+                C10_list = params["C10"][map_atomtype] * 1e10
+                c6_list = jnp.sqrt(C6_list)
+                c8_list = jnp.sqrt(C8_list)
+                c10_list = jnp.sqrt(C10_list)
+                c_list = jnp.vstack((c6_list, c8_list, c10_list))
+                E_lr = pot_fn_lr(positions, box, pairs, c_list.T, self.mScales)
+                return -E_lr, aux
+
+        else:
+
+            def potential_fn(positions, box, pairs, params):
+                positions = positions * 10
+                box = box * 10
+                params = params[self.name]
+                C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
+                C8_list = params["C8"][map_atomtype] * 1e8
+                C10_list = params["C10"][map_atomtype] * 1e10
+                c6_list = jnp.sqrt(C6_list)
+                c8_list = jnp.sqrt(C8_list)
+                c10_list = jnp.sqrt(C10_list)
+                c_list = jnp.vstack((c6_list, c8_list, c10_list))
+                E_lr = pot_fn_lr(positions, box, pairs, c_list.T, self.mScales)
+                return -E_lr
 
         self._jaxPotential = potential_fn
         # self._top_data = data
@@ -341,12 +389,12 @@ class ADMPDispPmeGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
-        
+
     def getMetaData(self):
         return self._meta
 
 
-_DMFFGenerators['ADMPDispPmeForce'] = ADMPDispPmeGenerator
+_DMFFGenerators["ADMPDispPmeForce"] = ADMPDispPmeGenerator
 
 
 class QqTtDampingGenerator:
@@ -354,6 +402,7 @@ class QqTtDampingGenerator:
     This one calculates the tang-tonnies damping of charge-charge interaction
     E = \sum_ij exp(-B*r)*(1+B*r)*q_i*q_j/r
     """
+
     def __init__(self, ffinfo: dict, paramset: ParamSet):
         self.ffinfo = ffinfo
         self._jaxPotnetial = None
@@ -366,12 +415,16 @@ class QqTtDampingGenerator:
         default_scales = [0.0, 0.0, 0.0, 1.0, 1.0]
 
         self.mScales = [
-            float(self.ffinfo["Forces"][self.name]["meta"].get(f'mScale1{i}', default_scales[i-2]))
+            float(
+                self.ffinfo["Forces"][self.name]["meta"].get(
+                    f"mScale1{i}", default_scales[i - 2]
+                )
+            )
             for i in range(2, 7)
         ]
         self.mScales.append(1.0)
         self.mScales = jnp.array(self.mScales)
-        
+
         # get atomtypes
         B, Q = [], []
         atom_mask = []
@@ -395,7 +448,7 @@ class QqTtDampingGenerator:
         self.atom_keys = np.array(self.atom_keys)
         paramset.addParameter(B, "B", field=self.name, mask=atom_mask)
         paramset.addParameter(Q, "Q", field=self.name, mask=atom_mask)
-        
+
     def getName(self) -> str:
         return self.name
 
@@ -403,7 +456,7 @@ class QqTtDampingGenerator:
         B = self.paramtree[self.name]["B"]
         Q = self.paramtree[self.name]["Q"]
         atom_mask = self.paramtree.mask[self.name]["B"]
-        
+
         nnode = 0
         for node in self.ffinfo["Forces"][self.name]["node"]:
             if node["name"] == "Atom":
@@ -411,10 +464,16 @@ class QqTtDampingGenerator:
                 B_new = B[nnode]
                 Q_new = Q[nnode]
                 mask = atom_mask[nnode]
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(B_new)
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["Q"] = str(Q_new)
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(
+                    B_new
+                )
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["Q"] = str(
+                    Q_new
+                )
                 if mask < 0.999:
-                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"][
+                        "mask"
+                    ] = "true"
                 nnode += 1
 
     def _find_atype_key_index(self, atype: str):
@@ -424,9 +483,9 @@ class QqTtDampingGenerator:
         return None
 
     # on working
-    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
-                    **kwargs):
-
+    def createPotential(
+        self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs
+    ):
         n_atoms = topdata.getNumAtoms()
         atoms = [a for a in topdata.atoms()]
         # build index map
@@ -435,31 +494,44 @@ class QqTtDampingGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
-        pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel,
-                                                  static_args={})
+        pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel, static_args={})
 
-        def potential_fn(positions, box, pairs, params):
-            positions = positions * 10
-            box = box * 10
-            params = params[self.name]
-            b_list = params["B"][map_atomtype] / 10  # convert to A^-1
-            q_list = params["Q"][map_atomtype]
+        if "has_aux" in kwargs and kwargs["has_aux"]:
 
-            E_sr = pot_fn_sr(positions, box, pairs, self.mScales, b_list, q_list)
-            return E_sr
+            def potential_fn(positions, box, pairs, params, aux):
+                positions = positions * 10
+                box = box * 10
+                params = params[self.name]
+                b_list = params["B"][map_atomtype] / 10  # convert to A^-1
+                q_list = params["Q"][map_atomtype]
+
+                E_sr = pot_fn_sr(positions, box, pairs, self.mScales, b_list, q_list)
+                return E_sr, aux
+
+        else:
+
+            def potential_fn(positions, box, pairs, params):
+                positions = positions * 10
+                box = box * 10
+                params = params[self.name]
+                b_list = params["B"][map_atomtype] / 10  # convert to A^-1
+                q_list = params["Q"][map_atomtype]
+
+                E_sr = pot_fn_sr(positions, box, pairs, self.mScales, b_list, q_list)
+                return E_sr
 
         self._jaxPotential = potential_fn
         return potential_fn
 
     def getJaxPotential(self):
         return self._jaxPotential
-        
+
     def getMetaData(self):
         return self._meta
 
 
 # register all parsers
-_DMFFGenerators['QqTtDampingForce'] = QqTtDampingGenerator
+_DMFFGenerators["QqTtDampingForce"] = QqTtDampingGenerator
 
 
 class SlaterDampingGenerator:
@@ -469,21 +541,26 @@ class SlaterDampingGenerator:
     fn = f_tt(x, n)
     x = br - (2*br2 + 3*br) / (br2 + 3*br + 3)
     """
+
     def __init__(self, ffinfo: dict, paramset: ParamSet):
         self.name = "SlaterDampingForce"
         self.ffinfo = ffinfo
         paramset.addField(self.name)
         self._jaxPotential = None
-        
+
         # get mscales
         default_scales = [0.0, 0.0, 0.0, 1.0, 1.0]
         self.mScales = [
-            float(self.ffinfo["Forces"][self.name]["meta"].get(f'mScale1{i}', default_scales[i-2]))
+            float(
+                self.ffinfo["Forces"][self.name]["meta"].get(
+                    f"mScale1{i}", default_scales[i - 2]
+                )
+            )
             for i in range(2, 7)
         ]
         self.mScales.append(1.0)
         self.mScales = jnp.array(self.mScales)
-        
+
         # get atomtypes
         self.atom_keys = []
         B, C6, C8, C10 = [], [], [], []
@@ -514,7 +591,7 @@ class SlaterDampingGenerator:
         paramset.addParameter(C6, "C6", field=self.name, mask=atom_mask)
         paramset.addParameter(C8, "C8", field=self.name, mask=atom_mask)
         paramset.addParameter(C10, "C10", field=self.name, mask=atom_mask)
-        
+
     def getName(self) -> str:
         return self.name
 
@@ -524,7 +601,7 @@ class SlaterDampingGenerator:
         C8 = self.paramtree[self.name]["C8"]
         C10 = self.paramtree[self.name]["C10"]
         atom_mask = self.paramtree.mask[self.name]["B"]
-        
+
         nnode = 0
         for node in self.ffinfo["Forces"][self.name]["node"]:
             if node["name"] == "Atom":
@@ -534,18 +611,27 @@ class SlaterDampingGenerator:
                 C8_new = C8[nnode]
                 C10_new = C10[nnode]
                 mask = atom_mask[nnode]
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(B_new)
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C6"] = str(C6_new)
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C8"] = str(C8_new)
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = str(C10_new)
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(
+                    B_new
+                )
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C6"] = str(
+                    C6_new
+                )
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C8"] = str(
+                    C8_new
+                )
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = str(
+                    C10_new
+                )
                 if mask < 0.999:
-                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"][
+                        "mask"
+                    ] = "true"
                 nnode += 1
 
-
-    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
-                    **kwargs):
-
+    def createPotential(
+        self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs
+    ):
         n_atoms = topdata.getNumAtoms()
         atoms = [a for a in topdata.atoms()]
         # build index map
@@ -555,21 +641,53 @@ class SlaterDampingGenerator:
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
         # WORKING
-        pot_fn_sr = generate_pairwise_interaction(slater_disp_damping_kernel,
-                                                  static_args={})
+        pot_fn_sr = generate_pairwise_interaction(
+            slater_disp_damping_kernel, static_args={}
+        )
 
-        def potential_fn(positions, box, pairs, params):
-            positions = positions * 10
-            box = box * 10
-            params = params[self.name]
-            b_list = params["B"][map_atomtype] / 10  # convert to A^-1
-            c6_list = jnp.sqrt(params["C6"][map_atomtype] *
-                               1e6)  # to kj/mol * A**6
-            c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
-            c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
-            E_sr = pot_fn_sr(positions, box, pairs, self.mScales, b_list, c6_list,
-                             c8_list, c10_list)
-            return E_sr
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+
+            def potential_fn(positions, box, pairs, params, aux):
+                positions = positions * 10
+                box = box * 10
+                params = params[self.name]
+                b_list = params["B"][map_atomtype] / 10  # convert to A^-1
+                c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)  # to kj/mol * A**6
+                c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
+                c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
+                E_sr = pot_fn_sr(
+                    positions,
+                    box,
+                    pairs,
+                    self.mScales,
+                    b_list,
+                    c6_list,
+                    c8_list,
+                    c10_list,
+                )
+                return E_sr, aux
+
+        else:
+
+            def potential_fn(positions, box, pairs, params):
+                positions = positions * 10
+                box = box * 10
+                params = params[self.name]
+                b_list = params["B"][map_atomtype] / 10  # convert to A^-1
+                c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)  # to kj/mol * A**6
+                c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
+                c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
+                E_sr = pot_fn_sr(
+                    positions,
+                    box,
+                    pairs,
+                    self.mScales,
+                    b_list,
+                    c6_list,
+                    c8_list,
+                    c10_list,
+                )
+                return E_sr
 
         self._jaxPotential = potential_fn
         # self._top_data = data
@@ -579,7 +697,7 @@ class SlaterDampingGenerator:
         return self._jaxPotential
 
 
-_DMFFGenerators['SlaterDampingForce'] = SlaterDampingGenerator
+_DMFFGenerators["SlaterDampingForce"] = SlaterDampingGenerator
 
 
 class SlaterExGenerator:
@@ -587,7 +705,8 @@ class SlaterExGenerator:
     This one computes the Slater-ISA type exchange interaction
     u = \sum_ij A * (1/3*(Br)^2 + Br + 1)
     """
-    def __init__(self, ffinfo: dict, paramset: ParamSet, default_name = None):
+
+    def __init__(self, ffinfo: dict, paramset: ParamSet, default_name=None):
         if default_name is None:
             self.name = "SlaterExForce"
         else:
@@ -596,11 +715,15 @@ class SlaterExGenerator:
         paramset.addField(self.name)
         self._jaxPotential = None
         self.key_type = None
-        
+
         # get mscales
         default_scales = [0.0, 0.0, 0.0, 1.0, 1.0]
         self.mScales = [
-            float(self.ffinfo["Forces"][self.name]["meta"].get(f'mScale1{i}', default_scales[i-2]))
+            float(
+                self.ffinfo["Forces"][self.name]["meta"].get(
+                    f"mScale1{i}", default_scales[i - 2]
+                )
+            )
             for i in range(2, 7)
         ]
         self.mScales.append(1.0)
@@ -638,7 +761,7 @@ class SlaterExGenerator:
         A = self.paramtree[self.name]["A"]
         B = self.paramtree[self.name]["B"]
         atom_mask = self.paramtree.mask[self.name]["B"]
-        
+
         nnode = 0
         for node in self.ffinfo["Forces"][self.name]["node"]:
             if node["name"] == "Atom":
@@ -646,15 +769,21 @@ class SlaterExGenerator:
                 A_new = A[nnode]
                 B_new = B[nnode]
                 mask = atom_mask[nnode]
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["A"] = str(A_new)
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(B_new)
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["A"] = str(
+                    A_new
+                )
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(
+                    B_new
+                )
                 if mask < 0.999:
-                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"][
+                        "mask"
+                    ] = "true"
                 nnode += 1
 
-    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
-                    **kwargs):
-
+    def createPotential(
+        self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs
+    ):
         n_atoms = topdata.getNumAtoms()
         atoms = [a for a in topdata.atoms()]
         # build index map
@@ -663,17 +792,32 @@ class SlaterExGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
-        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
-                                                  static_args={})
+        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel, static_args={})
 
-        def potential_fn(positions, box, pairs, params):
-            positions = positions * 10
-            box = box * 10
-            params = params[self.name]
-            a_list = params["A"][map_atomtype]
-            b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+        if "has_aux" in kwargs and kwargs["has_aux"]:
 
-            return pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list)
+            def potential_fn(positions, box, pairs, params, aux):
+                positions = positions * 10
+                box = box * 10
+                params = params[self.name]
+                a_list = params["A"][map_atomtype]
+                b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+
+                return (
+                    pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list),
+                    aux,
+                )
+
+        else:
+
+            def potential_fn(positions, box, pairs, params):
+                positions = positions * 10
+                box = box * 10
+                params = params[self.name]
+                a_list = params["A"][map_atomtype]
+                b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+
+                return pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list)
 
         self._jaxPotential = potential_fn
         # self._top_data = data
@@ -681,7 +825,7 @@ class SlaterExGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
-        
+
     def getMetaData(self):
         return self._meta
 
@@ -698,9 +842,9 @@ class SlaterSrEsGenerator(SlaterExGenerator):
         else:
             super().__init__(ffinfo, paramset, default_name=default_name)
 
-    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
-                    **kwargs):
-
+    def createPotential(
+        self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs
+    ):
         n_atoms = topdata.getNumAtoms()
         atoms = [a for a in topdata.atoms()]
         # build index map
@@ -709,18 +853,34 @@ class SlaterSrEsGenerator(SlaterExGenerator):
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
-        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
-                                                  static_args={})
+        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel, static_args={})
 
-        def potential_fn(positions, box, pairs, params):
-            positions = positions * 10
-            box = box * 10
-            params = params[self.name]
-            a_list = params["A"][map_atomtype]
-            b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
-            
-            # add minus sign
-            return - pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list)
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+
+            def potential_fn(positions, box, pairs, params, aux):
+                positions = positions * 10
+                box = box * 10
+                params = params[self.name]
+                a_list = params["A"][map_atomtype]
+                b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+
+                # add minus sign
+                return (
+                    -pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list),
+                    aux,
+                )
+
+        else:
+
+            def potential_fn(positions, box, pairs, params):
+                positions = positions * 10
+                box = box * 10
+                params = params[self.name]
+                a_list = params["A"][map_atomtype]
+                b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+
+                # add minus sign
+                return -pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list)
 
         self._jaxPotential = potential_fn
         # self._top_data = data
@@ -733,6 +893,7 @@ class SlaterSrEsGenerator(SlaterExGenerator):
 class SlaterSrPolGenerator(SlaterSrEsGenerator):
     def __init__(self, ffinfo: dict, paramset: ParamSet):
         super().__init__(ffinfo, paramset, default_name="SlaterSrPolForce")
+
 
 class SlaterSrDispGenerator(SlaterSrEsGenerator):
     def __init__(self, ffinfo: dict, paramset: ParamSet):
@@ -753,8 +914,7 @@ _DMFFGenerators["SlaterDhfForce"] = SlaterDhfGenerator
 
 class ADMPPmeGenerator:
     def __init__(self, ffinfo: dict, paramset: ParamSet):
-
-        self.name = 'ADMPPmeForce'
+        self.name = "ADMPPmeForce"
         self.ffinfo = ffinfo
         paramset.addField(self.name)
 
@@ -773,15 +933,27 @@ class ADMPPmeGenerator:
         default_dscales = [1.0, 1.0, 1.0, 1.0, 1.0]
 
         mScales = [
-            float(self.ffinfo["Forces"][self.name]["meta"].get(f"mScale1{i}", default_mscales[i-2]))
+            float(
+                self.ffinfo["Forces"][self.name]["meta"].get(
+                    f"mScale1{i}", default_mscales[i - 2]
+                )
+            )
             for i in range(2, 7)
         ]
         pScales = [
-            float(self.ffinfo["Forces"][self.name]["meta"].get(f"pScale1{i}", default_pscales[i-2]))
+            float(
+                self.ffinfo["Forces"][self.name]["meta"].get(
+                    f"pScale1{i}", default_pscales[i - 2]
+                )
+            )
             for i in range(2, 7)
         ]
         dScales = [
-            float(self.ffinfo["Forces"][self.name]["meta"].get(f"dScale1{i}", default_dscales[i-2]))
+            float(
+                self.ffinfo["Forces"][self.name]["meta"].get(
+                    f"dScale1{i}", default_dscales[i - 2]
+                )
+            )
             for i in range(2, 7)
         ]
 
@@ -794,15 +966,34 @@ class ADMPPmeGenerator:
         self.dScales = jnp.array(dScales)
 
         # check if polarize
-        polarize_nodes = [node for node in self.ffinfo["Forces"][self.name]["node"] if node["name"] == "Polarize"]
+        polarize_nodes = [
+            node
+            for node in self.ffinfo["Forces"][self.name]["node"]
+            if node["name"] == "Polarize"
+        ]
         if len(polarize_nodes) > 0:
             self.lpol = True
         else:
             self.lpol = False
 
         # get atom types
-        multipole_nodes = [node for node in self.ffinfo["Forces"][self.name]["node"] if node["name"] in ["Multipole", "Atom"]]
-        c0, dX, dY, dZ, qXX, qYY, qZZ, qXY, qXZ, qYZ = [], [], [], [], [], [], [], [], [], []
+        multipole_nodes = [
+            node
+            for node in self.ffinfo["Forces"][self.name]["node"]
+            if node["name"] in ["Multipole", "Atom"]
+        ]
+        c0, dX, dY, dZ, qXX, qYY, qZZ, qXY, qXZ, qYZ = (
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+        )
         kxs, kys, kzs = [], [], []
         multipole_masks = []
         for nnode, node in enumerate(multipole_nodes):
@@ -852,9 +1043,9 @@ class ADMPPmeGenerator:
 
         # invoke by `self.kStrings["kz"][itype]`
         self.kStrings = {}
-        self.kStrings['kx'] = kxs
-        self.kStrings['ky'] = kys
-        self.kStrings['kz'] = kzs
+        self.kStrings["kx"] = kxs
+        self.kStrings["ky"] = kys
+        self.kStrings["kz"] = kzs
 
         # assume that polarize tag match the per atom type
         # pol_XX = self.fftree.get_attribs(f'{self.name}/Polarize', 'polarizabilityXX')
@@ -870,16 +1061,25 @@ class ADMPPmeGenerator:
                 polarizabilityXX = float(node["attrib"]["polarizabilityXX"])
                 polarizabilityYY = float(node["attrib"]["polarizabilityYY"])
                 polarizabilityZZ = float(node["attrib"]["polarizabilityZZ"])
-                pol.append((polarizabilityXX + polarizabilityYY + polarizabilityZZ) / 3.0)
+                pol.append(
+                    (polarizabilityXX + polarizabilityYY + polarizabilityZZ) / 3.0
+                )
                 thole.append(float(node["attrib"]["thole"]))
                 mask = 1.0
-                if "mask" in node["attrib"] and node["attrib"]["mask"].upper() == "TRUE":
+                if (
+                    "mask" in node["attrib"]
+                    and node["attrib"]["mask"].upper() == "TRUE"
+                ):
                     mask = 0.0
                 polarizability_masks.append(mask)
             polarizability_masks = jnp.array(polarizability_masks)
             pol = jnp.array(pol) * 1000.0
-            paramset.addParameter(pol, "pol", field=self.name, mask=polarizability_masks)
-            paramset.addParameter(jnp.array(thole), "thole", field=self.name, mask=polarizability_masks)
+            paramset.addParameter(
+                pol, "pol", field=self.name, mask=polarizability_masks
+            )
+            paramset.addParameter(
+                jnp.array(thole), "thole", field=self.name, mask=polarizability_masks
+            )
 
         n_atoms = len(self.multipole_types)
 
@@ -918,30 +1118,28 @@ class ADMPPmeGenerator:
         return self.name
 
     def overwrite(self, paramset):
-
-        Q_global = convert_harm2cart(paramset[self.name]['Q_local'],
-                                     self.lmax)
+        Q_global = convert_harm2cart(paramset[self.name]["Q_local"], self.lmax)
 
         n_multipole, n_pol = 0, 0
         for nnode in range(len(self.ffinfo["Forces"][self.name]["node"])):
             node = self.ffinfo["Forces"][self.name]["node"][nnode]
             if node["name"] in ["Atom", "Multipole"]:
-                node['c0'] = Q_global[n_multipole, 0]
-                node['dX'] = Q_global[n_multipole, 1]
-                node['dY'] = Q_global[n_multipole, 2]
-                node['dZ'] = Q_global[n_multipole, 3]
-                node['qXX'] = Q_global[n_multipole, 4]
-                node['qYY'] = Q_global[n_multipole, 5]
-                node['qZZ'] = Q_global[n_multipole, 6]
-                node['qXY'] = Q_global[n_multipole, 7]
-                node['qXZ'] = Q_global[n_multipole, 8]
-                node['qYZ'] = Q_global[n_multipole, 9]
+                node["c0"] = Q_global[n_multipole, 0]
+                node["dX"] = Q_global[n_multipole, 1]
+                node["dY"] = Q_global[n_multipole, 2]
+                node["dZ"] = Q_global[n_multipole, 3]
+                node["qXX"] = Q_global[n_multipole, 4]
+                node["qYY"] = Q_global[n_multipole, 5]
+                node["qZZ"] = Q_global[n_multipole, 6]
+                node["qXY"] = Q_global[n_multipole, 7]
+                node["qXZ"] = Q_global[n_multipole, 8]
+                node["qYZ"] = Q_global[n_multipole, 9]
                 n_multipole += 1
-            elif node['name'] == 'Polarize':
-                node['polarizabilityXX'] = paramset[self.name]['pol'][n_pol] * 0.001
-                node['polarizabilityYY'] = paramset[self.name]['pol'][n_pol] * 0.001
-                node['polarizabilityZZ'] = paramset[self.name]['pol'][n_pol] * 0.001
-                node['thole'] = paramset[self.name]['thole'][n_pol]
+            elif node["name"] == "Polarize":
+                node["polarizabilityXX"] = paramset[self.name]["pol"][n_pol] * 0.001
+                node["polarizabilityYY"] = paramset[self.name]["pol"][n_pol] * 0.001
+                node["polarizabilityZZ"] = paramset[self.name]["pol"][n_pol] * 0.001
+                node["thole"] = paramset[self.name]["thole"][n_pol]
                 n_pol += 1
 
     def _find_multipole_key_index(self, atype: str):
@@ -949,16 +1147,16 @@ class ADMPPmeGenerator:
             if i == atype:
                 return n
         return None
-    
+
     def _find_polarize_key_index(self, atype: str):
         for n, i in enumerate(self.polarize_types):
             if i == atype:
                 return n
         return None
 
-    def createPotential(self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff,
-                    **kwargs):
-
+    def createPotential(
+        self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs
+    ):
         methodMap = {
             app.CutoffPeriodic: "CutoffPeriodic",
             app.NoCutoff: "NoCutoff",
@@ -977,7 +1175,9 @@ class ADMPPmeGenerator:
 
         atoms = [a for a in topdata.atoms()]
         for i in range(n_atoms):
-            atype =atoms[i].meta[self.key_type] # convert str to int to match atomTypes
+            atype = atoms[i].meta[
+                self.key_type
+            ]  # convert str to int to match atomTypes
             map_atomtype[i] = self._find_multipole_key_index(atype)
             if self.lpol:
                 map_poltype[i] = self._find_polarize_key_index(atype)
@@ -991,7 +1191,7 @@ class ADMPPmeGenerator:
         if unit.is_quantity(nonbondedCutoff):
             rc = nonbondedCutoff.value_in_unit(unit.angstrom)
         else:
-            rc = nonbondedCutoff * 10.
+            rc = nonbondedCutoff * 10.0
 
         # build covalent map
         covalent_map = topdata.buildCovMat()
@@ -999,7 +1199,6 @@ class ADMPPmeGenerator:
         # the following code is the direct transplant of forcefield.py in openmm 7.4.0
 
         if self.lmax > 0:
-
             # setting up axis_indices and axis_type
             ZThenX = 0
             Bisector = 1
@@ -1014,9 +1213,11 @@ class ADMPPmeGenerator:
             patched_atoms = np.zeros(n_atoms, dtype=int)
             for i_type_rev in range(len(self.multipole_types)):
                 i_type = len(self.multipole_types) - i_type_rev - 1
-                t = self.multipole_types[i_type] # reverse
+                t = self.multipole_types[i_type]  # reverse
                 # find all the atoms patched the multipole type
-                i_atoms = [i for i in range(n_atoms) if atoms[i].meta[self.key_type] == t]
+                i_atoms = [
+                    i for i in range(n_atoms) if atoms[i].meta[self.key_type] == t
+                ]
                 for i_atom in i_atoms:
                     if patched_atoms[i_atom] > 0:
                         continue
@@ -1025,17 +1226,25 @@ class ADMPPmeGenerator:
                     kx = self.kStrings["kx"][i_type]
                     ky = self.kStrings["ky"][i_type]
 
-                    axisType = ZThenX # Z, X, -1
+                    axisType = ZThenX  # Z, X, -1
                     if kz is None:
-                        axisType = NoAxisType # -1, -1, -1
+                        axisType = NoAxisType  # -1, -1, -1
                     if kz is not None and kx is None:
-                        axisType = ZOnly # Z, -1, -1
-                    if (kz is not None and kz[0] == "-") or (kx is not None and kx[0] == "-"):
-                        axisType = Bisector # Z, X, -1
-                    if (kx is not None and kx[0] == "-") and (ky is not None and ky[0] == "-"):
-                        axisType = ZBisect # Z, Y, X
-                    if (kz is not None and kz[0] == "-") and (kx is not None and kx[0] == "-") and (ky is not None and ky[0] == "-"):
-                        axisType = ThreeFold # Z, Y, X
+                        axisType = ZOnly  # Z, -1, -1
+                    if (kz is not None and kz[0] == "-") or (
+                        kx is not None and kx[0] == "-"
+                    ):
+                        axisType = Bisector  # Z, X, -1
+                    if (kx is not None and kx[0] == "-") and (
+                        ky is not None and ky[0] == "-"
+                    ):
+                        axisType = ZBisect  # Z, Y, X
+                    if (
+                        (kz is not None and kz[0] == "-")
+                        and (kx is not None and kx[0] == "-")
+                        and (ky is not None and ky[0] == "-")
+                    ):
+                        axisType = ThreeFold  # Z, Y, X
 
                     zaxis = -1
                     xaxis = -1
@@ -1140,50 +1349,97 @@ class ADMPPmeGenerator:
 
                     axis_types[i_atom] = axisType
                     axis_indices[i_atom] = [zaxis, xaxis, yaxis]
-                    patched_atoms[i_atom] = 1   
+                    patched_atoms[i_atom] = 1
 
             for i_atom in range(patched_atoms.shape[0]):
                 if patched_atoms[i_atom] < 0.5:
                     raise DMFFException("Atom %d not matched in forcefield!" % i_atom)
-                
+
             axis_indices = np.array([axis_indices[i] for i in range(n_atoms)])
             axis_types = np.array([axis_types[i] for i in range(n_atoms)])
         else:
             axis_types = np.zeros(n_atoms, dtype=int)
             axis_indices = None
 
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+        else:
+            has_aux = False
+
         if "ethresh" in kwargs:
             self.ethresh = kwargs["ethresh"]
         if "step_pol" in kwargs:
             self.step_pol = kwargs["step_pol"]
-        pme_force = ADMPPmeForce(box, axis_types, axis_indices, rc,
-                                 self.ethresh, self.lmax, self.lpol, lpme,
-                                 self.step_pol)
+        pme_force = ADMPPmeForce(
+            box,
+            axis_types,
+            axis_indices,
+            rc,
+            self.ethresh,
+            self.lmax,
+            self.lpol,
+            lpme,
+            self.step_pol,
+            has_aux
+        )
         self.pme_force = pme_force
 
-        def potential_fn(positions, box, pairs, params):
-            positions = positions * 10
-            box = box * 10
-            Q_local = params['ADMPPmeForce']["Q_local"][map_atomtype]
-            if self.lpol:
-                pol = params['ADMPPmeForce']["pol"][map_poltype]
-                tholes = params['ADMPPmeForce']["thole"][map_poltype]
+        if "has_aux" in kwargs and kwargs["has_aux"]:
 
-                return pme_force.get_energy(
-                    positions,
-                    box,
-                    pairs,
-                    Q_local,
-                    pol,
-                    tholes,
-                    self.mScales,
-                    self.pScales,
-                    self.dScales,
-                    pme_force.U_ind,
-                )
-            else:
-                return pme_force.get_energy(positions, box, pairs, Q_local,
-                                            self.mScales)
+            def potential_fn(positions, box, pairs, params, aux):
+                positions = positions * 10
+                box = box * 10
+                Q_local = params["ADMPPmeForce"]["Q_local"][map_atomtype]
+                if self.lpol:
+                    pol = params["ADMPPmeForce"]["pol"][map_poltype]
+                    tholes = params["ADMPPmeForce"]["thole"][map_poltype]
+
+                    return pme_force.get_energy(
+                        positions,
+                        box,
+                        pairs,
+                        Q_local,
+                        pol,
+                        tholes,
+                        self.mScales,
+                        self.pScales,
+                        self.dScales,
+                        pme_force.U_ind,
+                        aux
+                    )
+                else:
+                    return (
+                        pme_force.get_energy(
+                            positions, box, pairs, Q_local, self.mScales, aux
+                        )
+                    )
+
+        else:
+
+            def potential_fn(positions, box, pairs, params):
+                positions = positions * 10
+                box = box * 10
+                Q_local = params["ADMPPmeForce"]["Q_local"][map_atomtype]
+                if self.lpol:
+                    pol = params["ADMPPmeForce"]["pol"][map_poltype]
+                    tholes = params["ADMPPmeForce"]["thole"][map_poltype]
+
+                    return pme_force.get_energy(
+                        positions,
+                        box,
+                        pairs,
+                        Q_local,
+                        pol,
+                        tholes,
+                        self.mScales,
+                        self.pScales,
+                        self.dScales,
+                        pme_force.U_ind,
+                    )
+                else:
+                    return pme_force.get_energy(
+                        positions, box, pairs, Q_local, self.mScales
+                    )
 
         self._jaxPotential = potential_fn
         return potential_fn

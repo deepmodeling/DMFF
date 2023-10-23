@@ -42,7 +42,7 @@ class ADMPPmeForce:
     The so called "environment paramters" means parameters that do not need to be differentiable
     '''
 
-    def __init__(self, box, axis_type, axis_indices, rc, ethresh, lmax, lpol=False, lpme=True, steps_pol=None):
+    def __init__(self, box, axis_type, axis_indices, rc, ethresh, lmax, lpol=False, lpme=True, steps_pol=None, has_aux=False):
         '''
         Initialize the ADMPPmeForce calculator.
 
@@ -93,6 +93,7 @@ class ADMPPmeForce:
         self.steps_pol = steps_pol
         # self.n_atoms = int(covalent_map.shape[0]) # len(axis_type)
         self.n_atoms = len(axis_type)
+        self.has_aux = has_aux
 
         # setup calculators
         self.refresh_calculators()
@@ -102,12 +103,20 @@ class ADMPPmeForce:
     def generate_get_energy(self):
         # if the force field is not polarizable
         if not self.lpol:
-            def get_energy(positions, box, pairs, Q_local, mScales):
-                return energy_pme(positions, box, pairs,
-                                 Q_local, None, None, None,
-                                 mScales, None, None, 
-                                 self.construct_local_frames, self.pme_recip,
-                                 self.kappa, self.K1, self.K2, self.K3, self.lmax, False, lpme=self.lpme)
+            if self.has_aux:
+                def get_energy(positions, box, pairs, Q_local, mScales, aux):
+                    return energy_pme(positions, box, pairs,
+                                    Q_local, None, None, None,
+                                    mScales, None, None, 
+                                    self.construct_local_frames, self.pme_recip,
+                                    self.kappa, self.K1, self.K2, self.K3, self.lmax, False, lpme=self.lpme), aux
+            else:
+                def get_energy(positions, box, pairs, Q_local, mScales):
+                    return energy_pme(positions, box, pairs,
+                                    Q_local, None, None, None,
+                                    mScales, None, None, 
+                                    self.construct_local_frames, self.pme_recip,
+                                    self.kappa, self.K1, self.K2, self.K3, self.lmax, False, lpme=self.lpme)
             return get_energy
         else:
             # this is the bare energy calculator, with Uind as explicit input
@@ -122,17 +131,31 @@ class ADMPPmeForce:
             self.grad_pos_fn = grad(self.energy_fn, argnums=(0))
             self.U_ind = jnp.zeros((self.n_atoms, 3))
             # this is the wrapper that include a Uind optimizer
-            def get_energy(
-                    positions, box, pairs, 
-                    Q_local, pol, tholes, mScales, pScales, dScales, 
-                    U_init=self.U_ind):
-                self.U_ind, self.lconverg, self.n_cycle = self.optimize_Uind(
-                        positions, box, pairs, Q_local, pol, tholes, 
-                        mScales, pScales, dScales, 
-                        U_init=U_init, steps_pol=self.steps_pol)
-                # here we rely on Feynman-Hellman theorem, drop the term dV/dU*dU/dr !
-                # self.U_ind = jax.lax.stop_gradient(U_ind)
-                return self.energy_fn(positions, box, pairs, Q_local, self.U_ind, pol, tholes, mScales, pScales, dScales)
+            if self.has_aux:
+                def get_energy(
+                        positions, box, pairs, 
+                        Q_local, pol, tholes, mScales, pScales, dScales, 
+                        aux):
+                    self.U_ind, self.lconverg, self.n_cycle = self.optimize_Uind(
+                            positions, box, pairs, Q_local, pol, tholes, 
+                            mScales, pScales, dScales, 
+                            U_init=aux["U_ind"], steps_pol=self.steps_pol)
+                    # here we rely on Feynman-Hellman theorem, drop the term dV/dU*dU/dr !
+                    # self.U_ind = jax.lax.stop_gradient(U_ind)
+                    aux["U_ind"] = self.U_ind
+                    return self.energy_fn(positions, box, pairs, Q_local, self.U_ind, pol, tholes, mScales, pScales, dScales), aux
+            else:
+                def get_energy(
+                        positions, box, pairs, 
+                        Q_local, pol, tholes, mScales, pScales, dScales, 
+                        U_init=self.U_ind):
+                    self.U_ind, self.lconverg, self.n_cycle = self.optimize_Uind(
+                            positions, box, pairs, Q_local, pol, tholes, 
+                            mScales, pScales, dScales, 
+                            U_init=U_init, steps_pol=self.steps_pol)
+                    # here we rely on Feynman-Hellman theorem, drop the term dV/dU*dU/dr !
+                    # self.U_ind = jax.lax.stop_gradient(U_ind)
+                    return self.energy_fn(positions, box, pairs, Q_local, self.U_ind, pol, tholes, mScales, pScales, dScales)
             return get_energy
 
 

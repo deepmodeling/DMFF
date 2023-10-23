@@ -53,7 +53,7 @@ class LennardJonesForce:
             
             return E
 
-        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix, mscales):
+        def get_energy(positions, box, pairs, epsilon, sigma, epsfix, sigfix, mscales, aux=None):
             
             pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
             mask = pair_buffer_scales(pairs[:, :2])
@@ -84,7 +84,10 @@ class LennardJonesForce:
             eps_scale = eps * mscale_pair
 
             E_inter = get_LJ_energy(dr_vec, sig, eps_scale, box)
-            return jnp.sum(E_inter * mask)
+            if aux is None:
+                return jnp.sum(E_inter * mask)
+            else:
+                return jnp.sum(E_inter * mask), aux
 
         return get_energy
 
