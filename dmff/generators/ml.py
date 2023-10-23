@@ -56,12 +56,20 @@ class SGNNGenerator:
         n_atoms = topdata.getNumAtoms()
         self.model = MolGNNForce(self.G, nn=self.nn)
         n_layers = self.model.n_layers
-        def potential_fn(positions, box, pairs, params):
+
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions, box, pairs, params, aux=None):
             # convert unit to angstrom
             positions = positions * 10
             box = box * 10
             prms = prm_transform_f2i(params[self.name], n_layers)
-            return self.model.get_energy(positions, box, prms)
+            if has_aux:
+                return self.model.get_energy(positions, box, prms), aux
+            else:
+                return self.model.get_energy(positions, box, prms)
 
         self._jaxPotential = potential_fn
         return potential_fn

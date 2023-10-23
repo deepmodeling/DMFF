@@ -175,7 +175,11 @@ class ADMPDispGenerator:
             TT_damping_qq_c6_kernel, static_args={}
         )
 
-        def potential_fn(positions, box, pairs, params):
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions, box, pairs, params, aux=None):
             # Assume nm for frontend functions, still uses Angstrom for backend
             positions = positions * 10
             box = box * 10
@@ -197,7 +201,10 @@ class ADMPDispGenerator:
                 positions, box, pairs, mScales, a_list, b_list, q_list, c_list[0]
             )
             E_lr = pot_fn_lr(positions, box, pairs, c_list.T, mScales)
-            return E_sr - E_lr
+            if has_aux:
+                return E_sr - E_lr, aux
+            else:
+                return E_sr - E_lr
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -352,35 +359,25 @@ class ADMPDispPmeGenerator:
         pot_fn_lr = disp_force.get_energy
 
         if "has_aux" in kwargs and kwargs["has_aux"]:
-
-            def potential_fn(positions, box, pairs, params, aux):
-                positions = positions * 10
-                box = box * 10
-                params = params[self.name]
-                C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
-                C8_list = params["C8"][map_atomtype] * 1e8
-                C10_list = params["C10"][map_atomtype] * 1e10
-                c6_list = jnp.sqrt(C6_list)
-                c8_list = jnp.sqrt(C8_list)
-                c10_list = jnp.sqrt(C10_list)
-                c_list = jnp.vstack((c6_list, c8_list, c10_list))
-                E_lr = pot_fn_lr(positions, box, pairs, c_list.T, self.mScales)
-                return -E_lr, aux
-
+            has_aux = True
         else:
+            has_aux = False
 
-            def potential_fn(positions, box, pairs, params):
-                positions = positions * 10
-                box = box * 10
-                params = params[self.name]
-                C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
-                C8_list = params["C8"][map_atomtype] * 1e8
-                C10_list = params["C10"][map_atomtype] * 1e10
-                c6_list = jnp.sqrt(C6_list)
-                c8_list = jnp.sqrt(C8_list)
-                c10_list = jnp.sqrt(C10_list)
-                c_list = jnp.vstack((c6_list, c8_list, c10_list))
-                E_lr = pot_fn_lr(positions, box, pairs, c_list.T, self.mScales)
+        def potential_fn(positions, box, pairs, params, aux = None):
+            positions = positions * 10
+            box = box * 10
+            params = params[self.name]
+            C6_list = params["C6"][map_atomtype] * 1e6  # to kj/mol * A**6
+            C8_list = params["C8"][map_atomtype] * 1e8
+            C10_list = params["C10"][map_atomtype] * 1e10
+            c6_list = jnp.sqrt(C6_list)
+            c8_list = jnp.sqrt(C8_list)
+            c10_list = jnp.sqrt(C10_list)
+            c_list = jnp.vstack((c6_list, c8_list, c10_list))
+            E_lr = pot_fn_lr(positions, box, pairs, c_list.T, self.mScales)
+            if has_aux:
+                return -E_lr, aux
+            else:
                 return -E_lr
 
         self._jaxPotential = potential_fn
@@ -496,28 +493,21 @@ class QqTtDampingGenerator:
 
         pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel, static_args={})
 
+        has_aux = False
         if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
 
-            def potential_fn(positions, box, pairs, params, aux):
-                positions = positions * 10
-                box = box * 10
-                params = params[self.name]
-                b_list = params["B"][map_atomtype] / 10  # convert to A^-1
-                q_list = params["Q"][map_atomtype]
+        def potential_fn(positions, box, pairs, params, aux = None):
+            positions = positions * 10
+            box = box * 10
+            params = params[self.name]
+            b_list = params["B"][map_atomtype] / 10  # convert to A^-1
+            q_list = params["Q"][map_atomtype]
 
-                E_sr = pot_fn_sr(positions, box, pairs, self.mScales, b_list, q_list)
+            E_sr = pot_fn_sr(positions, box, pairs, self.mScales, b_list, q_list)
+            if has_aux:
                 return E_sr, aux
-
-        else:
-
-            def potential_fn(positions, box, pairs, params):
-                positions = positions * 10
-                box = box * 10
-                params = params[self.name]
-                b_list = params["B"][map_atomtype] / 10  # convert to A^-1
-                q_list = params["Q"][map_atomtype]
-
-                E_sr = pot_fn_sr(positions, box, pairs, self.mScales, b_list, q_list)
+            else:
                 return E_sr
 
         self._jaxPotential = potential_fn
@@ -645,48 +635,31 @@ class SlaterDampingGenerator:
             slater_disp_damping_kernel, static_args={}
         )
 
+        has_aux = False
         if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
 
-            def potential_fn(positions, box, pairs, params, aux):
-                positions = positions * 10
-                box = box * 10
-                params = params[self.name]
-                b_list = params["B"][map_atomtype] / 10  # convert to A^-1
-                c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)  # to kj/mol * A**6
-                c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
-                c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
-                E_sr = pot_fn_sr(
-                    positions,
-                    box,
-                    pairs,
-                    self.mScales,
-                    b_list,
-                    c6_list,
-                    c8_list,
-                    c10_list,
-                )
+        def potential_fn(positions, box, pairs, params, aux={}):
+            positions = positions * 10
+            box = box * 10
+            params = params[self.name]
+            b_list = params["B"][map_atomtype] / 10  # convert to A^-1
+            c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)  # to kj/mol * A**6
+            c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
+            c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
+            E_sr = pot_fn_sr(
+                positions,
+                box,
+                pairs,
+                self.mScales,
+                b_list,
+                c6_list,
+                c8_list,
+                c10_list,
+            )
+            if has_aux:
                 return E_sr, aux
-
-        else:
-
-            def potential_fn(positions, box, pairs, params):
-                positions = positions * 10
-                box = box * 10
-                params = params[self.name]
-                b_list = params["B"][map_atomtype] / 10  # convert to A^-1
-                c6_list = jnp.sqrt(params["C6"][map_atomtype] * 1e6)  # to kj/mol * A**6
-                c8_list = jnp.sqrt(params["C8"][map_atomtype] * 1e8)
-                c10_list = jnp.sqrt(params["C10"][map_atomtype] * 1e10)
-                E_sr = pot_fn_sr(
-                    positions,
-                    box,
-                    pairs,
-                    self.mScales,
-                    b_list,
-                    c6_list,
-                    c8_list,
-                    c10_list,
-                )
+            else:
                 return E_sr
 
         self._jaxPotential = potential_fn
@@ -794,30 +767,22 @@ class SlaterExGenerator:
 
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel, static_args={})
 
+        has_aux = False
         if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
 
-            def potential_fn(positions, box, pairs, params, aux):
-                positions = positions * 10
-                box = box * 10
-                params = params[self.name]
-                a_list = params["A"][map_atomtype]
-                b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+        def potential_fn(positions, box, pairs, params, aux=None):
+            positions = positions * 10
+            box = box * 10
+            params = params[self.name]
+            a_list = params["A"][map_atomtype]
+            b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
 
-                return (
-                    pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list),
-                    aux,
-                )
-
-        else:
-
-            def potential_fn(positions, box, pairs, params):
-                positions = positions * 10
-                box = box * 10
-                params = params[self.name]
-                a_list = params["A"][map_atomtype]
-                b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
-
-                return pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list)
+            energy = pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list)
+            if has_aux:
+                return energy, aux
+            else:
+                return energy
 
         self._jaxPotential = potential_fn
         # self._top_data = data
@@ -855,32 +820,23 @@ class SlaterSrEsGenerator(SlaterExGenerator):
 
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel, static_args={})
 
+        has_aux = False
         if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
 
-            def potential_fn(positions, box, pairs, params, aux):
-                positions = positions * 10
-                box = box * 10
-                params = params[self.name]
-                a_list = params["A"][map_atomtype]
-                b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+        def potential_fn(positions, box, pairs, params, aux=None):
+            positions = positions * 10
+            box = box * 10
+            params = params[self.name]
+            a_list = params["A"][map_atomtype]
+            b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
+            energy = - pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list)
 
-                # add minus sign
-                return (
-                    -pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list),
-                    aux,
-                )
-
-        else:
-
-            def potential_fn(positions, box, pairs, params):
-                positions = positions * 10
-                box = box * 10
-                params = params[self.name]
-                a_list = params["A"][map_atomtype]
-                b_list = params["B"][map_atomtype] / 10  # nm^-1 to A^-1
-
-                # add minus sign
-                return -pot_fn_sr(positions, box, pairs, self.mScales, a_list, b_list)
+            # add minus sign
+            if has_aux:
+                return energy, aux
+            else:
+                return energy
 
         self._jaxPotential = potential_fn
         # self._top_data = data
@@ -1385,70 +1341,46 @@ class ADMPPmeGenerator:
         self.pme_force = pme_force
 
         if "has_aux" in kwargs and kwargs["has_aux"]:
-
-            def potential_fn(positions, box, pairs, params, aux):
-                positions = positions * 10
-                box = box * 10
-                Q_local = params["ADMPPmeForce"]["Q_local"][map_atomtype]
-                if self.lpol:
-                    pol = params["ADMPPmeForce"]["pol"][map_poltype]
-                    tholes = params["ADMPPmeForce"]["thole"][map_poltype]
-
-                    return pme_force.get_energy(
-                        positions,
-                        box,
-                        pairs,
-                        Q_local,
-                        pol,
-                        tholes,
-                        self.mScales,
-                        self.pScales,
-                        self.dScales,
-                        pme_force.U_ind,
-                        aux
-                    )
-                else:
-                    return (
-                        pme_force.get_energy(
-                            positions, box, pairs, Q_local, self.mScales, aux
-                        )
-                    )
-
+            has_aux = True
         else:
+            has_aux = False
 
-            def potential_fn(positions, box, pairs, params):
-                positions = positions * 10
-                box = box * 10
-                Q_local = params["ADMPPmeForce"]["Q_local"][map_atomtype]
-                if self.lpol:
-                    pol = params["ADMPPmeForce"]["pol"][map_poltype]
-                    tholes = params["ADMPPmeForce"]["thole"][map_poltype]
+        def potential_fn(positions, box, pairs, params, aux=None):
+            positions = positions * 10
+            box = box * 10
+            Q_local = params["ADMPPmeForce"]["Q_local"][map_atomtype]
+            if self.lpol:
+                pol = params["ADMPPmeForce"]["pol"][map_poltype]
+                tholes = params["ADMPPmeForce"]["thole"][map_poltype]
 
-                    return pme_force.get_energy(
-                        positions,
-                        box,
-                        pairs,
-                        Q_local,
-                        pol,
-                        tholes,
-                        self.mScales,
-                        self.pScales,
-                        self.dScales,
-                        pme_force.U_ind,
+                if has_aux:
+                    energy, aux = pme_force.get_energy(
+                        positions, box, pairs, Q_local, pol, tholes,
+                        self.mScales, self.pScales, self.dScales,
+                        U_init = aux["U_ind"], aux = aux
                     )
+                    return energy, aux
                 else:
-                    return pme_force.get_energy(
-                        positions, box, pairs, Q_local, self.mScales
+                    energy = pme_force.get_energy(
+                        positions, box, pairs, Q_local, pol, tholes,
+                        self.mScales, self.pScales, self.dScales,
+                        U_init = pme_force.U_ind
                     )
+                    return energy
+            else:
+                energy = pme_force.get_energy(
+                            positions, box, pairs, Q_local, self.mScales
+                        )
+                if has_aux:
+                    return energy, aux
+                else:
+                    return energy
 
         self._jaxPotential = potential_fn
         return potential_fn
 
     def getJaxPotential(self):
         return self._jaxPotential
-
-    def getMetaData(self):
-        return self._meta
 
 
 _DMFFGenerators["ADMPPmeForce"] = ADMPPmeGenerator

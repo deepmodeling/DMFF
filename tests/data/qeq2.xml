@@ -1,0 +1,174 @@
+<!-- Note that the atom types "name" are numeric - this is because of how AMOEBA/MPID assign anchor atoms -->
+<ForceField>
+ <AtomTypes>
+  <Type name="1" class="CW" element="C" mass="12.0107"/>
+  <Type name="2" class="NW" element="N" mass="14.0067"/>
+  <Type name="3" class="CW" element="C" mass="12.0107"/>
+  <Type name="4" class="CW" element="C" mass="12.0107"/>
+  <Type name="5" class="CW" element="C" mass="12.0107"/>
+  <Type name="6" class="OW" element="O" mass="16.0107"/>
+  <Type name="7" class="HW" element="H" mass="1.0107"/>
+ </AtomTypes>
+ <Residues>
+  <Residue name="CNC">
+   <Atom name="C001" type="1" charge="-0.001721"/>
+   <Atom name="C002" type="1" charge="0.001835"/>
+   <Atom name="C003" type="1" charge="-0.000278"/>
+   <Atom name="C004" type="1" charge="0.001665"/>
+   <Atom name="C005" type="1" charge="0.001717"/>
+   <Atom name="C006" type="1" charge="0.001210"/>
+   <Atom name="C007" type="1" charge="0.001117"/>
+   <Atom name="C008" type="1" charge="0.001007"/>
+   <Atom name="C009" type="1" charge="0.000622"/>
+   <Atom name="C010" type="1" charge="0.001496"/>
+   <Atom name="C011" type="1" charge="-0.001773"/>
+   <Atom name="C012" type="1" charge="0.001438"/>
+   <Atom name="C013" type="1" charge="-0.010743"/>
+   <Atom name="C014" type="1" charge="0.000499"/>
+   <Atom name="C015" type="1" charge="0.001085"/>
+   <Atom name="C016" type="1" charge="0.000817"/>
+   <Atom name="C017" type="1" charge="-0.007348"/>
+   <Atom name="C018" type="1" charge="-0.000574"/>
+   <Atom name="C019" type="1" charge="-0.001629"/>
+   <Atom name="C020" type="1" charge="0.000905"/>
+   <Atom name="C021" type="1" charge="0.000752"/>
+   <Atom name="C022" type="1" charge="-0.001020"/>
+   <Atom name="C023" type="1" charge="0.002377"/>
+   <Atom name="C024" type="1" charge="-0.002274"/>
+   <Atom name="C025" type="1" charge="-0.008115"/>
+   <Atom name="C026" type="1" charge="-0.000166"/>
+   <Atom name="C027" type="1" charge="-0.001606"/>
+   <Atom name="C028" type="1" charge="0.006095"/>
+   <Atom name="C029" type="1" charge="-0.014802"/>
+   <Atom name="C030" type="1" charge="0.003875"/>
+   <Atom name="C031" type="1" charge="0.000269"/>
+   <Atom name="C032" type="1" charge="0.002752"/>
+   <Atom name="C033" type="1" charge="-0.001540"/>
+   <Atom name="C034" type="1" charge="0.002408"/>
+   <Atom name="C035" type="1" charge="-0.009637"/>
+   <Atom name="C036" type="1" charge="0.004210"/>
+   <Atom name="C037" type="1" charge="0.001351"/>
+   <Atom name="C038" type="1" charge="-0.001683"/>
+   <Atom name="C039" type="1" charge="0.003371"/>
+   <Atom name="C040" type="1" charge="0.003562"/>
+   <Atom name="C041" type="1" charge="-0.011557"/>
+   <Atom name="C042" type="1" charge="0.004116"/>
+   <Atom name="C043" type="1" charge="-0.001749"/>
+   <Atom name="C044" type="1" charge="0.002514"/>
+   <Atom name="C045" type="1" charge="-0.001687"/>
+   <Atom name="C046" type="1" charge="0.011372"/>
+   <Atom name="C047" type="4" charge="-0.040468"/>
+   <Atom name="C048" type="5" charge="0.013502"/>
+   <Atom name="C049" type="4" charge="-0.040911"/>
+   <Atom name="C050" type="1" charge="0.011195"/>
+   <Atom name="C051" type="1" charge="-0.013165"/>
+   <Atom name="C052" type="1" charge="-0.000075"/>
+   <Atom name="C053" type="1" charge="0.002269"/>
+   <Atom name="C054" type="1" charge="0.001824"/>
+   <Atom name="C055" type="1" charge="-0.007915"/>
+   <Atom name="C056" type="1" charge="-0.001707"/>
+   <Atom name="C057" type="1" charge="0.000568"/>
+   <Atom name="C058" type="1" charge="0.004427"/>
+   <Atom name="C059" type="1" charge="0.001604"/>
+   <Atom name="C060" type="1" charge="0.000705"/>
+   <Atom name="C061" type="1" charge="0.003556"/>
+   <Atom name="C062" type="1" charge="-0.000351"/>
+   <Atom name="C063" type="1" charge="-0.013660"/>
+   <Atom name="C064" type="1" charge="0.006938"/>
+   <Atom name="C065" type="4" charge="-0.034317"/>
+   <Atom name="C066" type="3" charge="0.101458"/>
+   <Atom name="C067" type="3" charge="0.099507"/>
+   <Atom name="C068" type="4" charge="-0.034583"/>
+   <Atom name="C069" type="1" charge="0.007959"/>
+   <Atom name="C070" type="1" charge="-0.000108"/>
+   <Atom name="C071" type="1" charge="0.000794"/>
+   <Atom name="C072" type="1" charge="-0.011437"/>
+   <Atom name="C073" type="1" charge="0.003400"/>
+   <Atom name="C074" type="1" charge="0.001088"/>
+   <Atom name="C075" type="1" charge="-0.001834"/>
+   <Atom name="C076" type="1" charge="0.002119"/>
+   <Atom name="C077" type="1" charge="0.001460"/>
+   <Atom name="C078" type="1" charge="-0.011831"/>
+   <Atom name="C079" type="1" charge="0.001373"/>
+   <Atom name="C080" type="1" charge="0.001910"/>
+   <Atom name="C081" type="1" charge="0.001257"/>
+   <Atom name="C082" type="1" charge="-0.010480"/>
+   <Atom name="C083" type="5" charge="0.009487"/>
+   <Atom name="C084" type="4" charge="-0.032903"/>
+   <Atom name="C085" type="3" charge="0.096115"/>
+   <Atom name="C086" type="4" charge="-0.037532"/>
+   <Atom name="C087" type="5" charge="0.011060"/>
+   <Atom name="C088" type="1" charge="-0.012612"/>
+   <Atom name="C089" type="1" charge="0.002939"/>
+   <Atom name="C090" type="1" charge="0.000817"/>
+   <Atom name="C091" type="1" charge="0.002880"/>
+   <Atom name="C092" type="1" charge="-0.009572"/>
+   <Atom name="C093" type="1" charge="-0.001819"/>
+   <Atom name="C094" type="1" charge="0.002040"/>
+   <Atom name="C095" type="1" charge="0.004718"/>
+   <Atom name="C096" type="1" charge="0.002701"/>
+   <Atom name="C097" type="1" charge="0.002054"/>
+   <Atom name="C098" type="1" charge="0.000962"/>
+   <Atom name="C099" type="1" charge="0.001426"/>
+   <Atom name="C100" type="1" charge="-0.000006"/>
+   <Atom name="C101" type="1" charge="0.000386"/>
+   <Atom name="C102" type="1" charge="0.002711"/>
+   <Atom name="C103" type="1" charge="0.005549"/>
+   <Atom name="C104" type="1" charge="-0.015649"/>
+   <Atom name="C105" type="1" charge="0.007179"/>
+   <Atom name="C106" type="1" charge="0.003943"/>
+   <Atom name="C107" type="1" charge="0.001799"/>
+   <Atom name="C108" type="1" charge="-0.000509"/>
+   <Atom name="C109" type="1" charge="0.001458"/>
+   <Atom name="C110" type="1" charge="-0.010764"/>
+   <Atom name="C111" type="1" charge="0.003486"/>
+   <Atom name="C112" type="1" charge="0.001249"/>
+   <Atom name="C113" type="1" charge="0.001740"/>
+   <Atom name="C114" type="1" charge="0.003551"/>
+   <Atom name="C115" type="1" charge="-0.001178"/>
+   <Atom name="C116" type="1" charge="-0.012407"/>
+   <Atom name="C117" type="1" charge="0.003436"/>
+   <Atom name="C118" type="1" charge="0.000688"/>
+   <Atom name="C119" type="1" charge="0.002018"/>
+   <Atom name="C120" type="1" charge="-0.009659"/>
+   <Atom name="C121" type="1" charge="0.001063"/>
+   <Atom name="C122" type="1" charge="0.003147"/>
+   <Atom name="C123" type="1" charge="-0.000343"/>
+   <Atom name="C124" type="1" charge="0.002149"/>
+   <Atom name="C125" type="1" charge="-0.000510"/>
+   <Atom name="C126" type="1" charge="-0.008943"/>
+   <Atom name="C127" type="1" charge="-0.000310"/>
+   <Atom name="C128" type="1" charge="0.003428"/>
+   <Atom name="C129" type="1" charge="0.001463"/>
+   <Atom name="C130" type="1" charge="-0.004922"/>
+   <Atom name="C131" type="1" charge="0.000570"/>
+   <Atom name="C132" type="1" charge="-0.001153"/>
+   <Atom name="C133" type="1" charge="0.000384"/>
+   <Atom name="C134" type="1" charge="0.003119"/>
+   <Atom name="C135" type="1" charge="-0.000234"/>
+   <Atom name="C136" type="1" charge="-0.011229"/>
+   <Atom name="C137" type="1" charge="0.001234"/>
+   <Atom name="C138" type="1" charge="-0.000287"/>
+   <Atom name="C139" type="1" charge="-0.000576"/>
+   <Atom name="C140" type="1" charge="-0.015504"/>
+   <Atom name="C141" type="1" charge="-0.000775"/>
+   <Atom name="C142" type="1" charge="-0.002996"/>
+   <Atom name="C143" type="1" charge="-0.013164"/>
+   <Atom name="N001" type="2" charge="-0.018003"/>
+  </Residue>
+  <Residue name="OHH">
+   <Atom name="O001" type="6" charge="-0.013164"/>
+   <Atom name="H001" type="7" charge="-0.018003"/>
+   <Atom name="H002" type="7" charge="-0.018003"/>
+  </Residue>
+ </Residues>
+ <ADMPQeqForce coulomb14scale="1.0" DampMod="3" > 
+   <QeqAtom type="1" chi="1.39198761e+02"  J="-6.51683561e-01" eta="0.08360402"/>
+   <QeqAtom type="2" chi="1.47411181e+02"  J="-3.42450470e-02" eta="0.08360402"/>
+   <QeqAtom type="3" chi="7.58342711e+01"  J="-5.62083783e-01" eta="0.08360402"/>
+   <QeqAtom type="4" chi="1.40533063e+02"  J="-6.33544439e-01" eta="0.08360402"/>
+   <QeqAtom type="5" chi="1.37525951e+02"  J="-6.63409032e-01" eta="0.08360402"/>
+   <QeqAtom type="6" chi="-1.157e+03"      J="-3.873e-01"      eta="0.0"       />
+   <QeqAtom type="7" chi="1.365e+03"       J="-5.378e-01"      eta="0.0"       />
+ </ADMPQeqForce>
+</ForceField>

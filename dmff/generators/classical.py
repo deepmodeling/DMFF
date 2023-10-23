@@ -196,12 +196,18 @@ class HarmonicBondGenerator:
             bond_a1, bond_a2, bond_indices)
         harmonic_bond_energy = harmonic_bond_force.generate_get_energy()
 
-        # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
-        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
             isinstance_jnp(positions, box, params)
             energy = harmonic_bond_energy(
                 positions, box, pairs, params[self.name]["k"], params[self.name]["length"])
-            return energy
+            if has_aux:
+                return energy, aux
+            else:
+                return energy
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -417,12 +423,19 @@ class HarmonicAngleGenerator:
             angle_a1, angle_a2, angle_a3, angle_indices)
         harmonic_angle_energy = harmonic_angle_force.generate_get_energy()
 
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
         # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
-        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
             isinstance_jnp(positions, box, params)
             energy = harmonic_angle_energy(
                 positions, box, pairs, params[self.name]["k"], params[self.name]["angle"])
-            return energy
+            if has_aux:
+                return energy, aux
+            else:
+                return energy
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -752,13 +765,20 @@ class PeriodicTorsionGenerator:
             improper_a1, improper_a2, improper_a3, improper_a4, improper_indices, improper_period)
         improper_energy = improper_func.generate_get_energy()
 
-        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
             isinstance_jnp(positions, box, params)
             proper_energy_ = proper_energy(
                 positions, box, pairs, params[self.name]["proper_k"], params[self.name]["proper_phase"])
             improper_energy_ = improper_energy(
                 positions, box, pairs, params[self.name]["improper_k"], params[self.name]["improper_phase"])
-            return proper_energy_ + improper_energy_
+            if has_aux:
+                return proper_energy_ + improper_energy_, aux
+            else:
+                return proper_energy_ + improper_energy_
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -967,7 +987,11 @@ class NonbondedGenerator:
             ljDispCorrForce = LennardJonesLongRangeForce(r_cut, map_prm, map_nbfix, countMat)
             ljDispEnergyFn = ljDispCorrForce.generate_get_energy()
 
-        def potential_fn(positions, box, pairs, params):
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions, box, pairs, params, aux=None):
 
             # check whether args passed into potential_fn are jnp.array and differentiable
             # note this check will be optimized away by jit
@@ -982,9 +1006,15 @@ class NonbondedGenerator:
             if use_disp_corr:
                 ljdispE = ljDispEnergyFn(box, params[self.name]["epsilon"],
                             params[self.name]["sigma"], eps_nbfix, sig_nbfix)
-                return coulE + ljE + ljdispE
+                if has_aux:
+                    return coulE + ljE + ljdispE, aux
+                else:
+                    return coulE + ljE + ljdispE
             else:
-                return coulE + ljE
+                if has_aux:
+                    return coulE + ljE, aux
+                else:
+                    return coulE + ljE
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -1127,7 +1157,12 @@ class CoulombGenerator:
         coulenergy = coulforce.generate_get_energy()
         self.coulforce = coulforce  #for qeq calculation
         self.coulenergy = coulenergy #for qeq calculation
-        def potential_fn(positions, box, pairs, params):
+
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions, box, pairs, params, aux=None):
 
             # check whether args passed into potential_fn are jnp.array and differentiable
             # note this check will be optimized away by jit
@@ -1141,7 +1176,10 @@ class CoulombGenerator:
                 coulE = coulenergy(positions, box, pairs, charges,
                                    mscales_coul)
 
-            return coulE
+            if has_aux:
+                return coulE, aux
+            else:
+                return coulE
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -1332,7 +1370,11 @@ class LennardJonesGenerator:
                                     isNoCut=isNoCut)
         ljenergy = ljforce.generate_get_energy()
 
-        def potential_fn(positions, box, pairs, params):
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions, box, pairs, params, aux=None):
 
             # check whether args passed into potential_fn are jnp.array and differentiable
             # note this check will be optimized away by jit
@@ -1346,7 +1388,10 @@ class LennardJonesGenerator:
                            params[self.name]["sigma_nbfix"],
                            mscales_lj)
 
-            return ljE
+            if has_aux:
+                return ljE, aux
+            else:
+                return ljE
 
         self._jaxPotential = potential_fn
         return potential_fn
