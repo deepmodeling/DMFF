@@ -38,7 +38,7 @@ def test_qeq_energy():
     np.testing.assert_almost_equal(energy, -37.84692763, decimal=3)
 
 
-def _test_qeq_energy2():
+def test_qeq_energy2():
     rc = 0.6
     xml = XMLIO()
     xml.loadXML("tests/data/qeq2.xml")
@@ -51,8 +51,6 @@ def _test_qeq_energy2():
     top = pdb.topology
     dmfftop = DMFFTopology(from_top=top)
     atoms = [a for a in dmfftop.atoms()]
-    dmfftop.addBond(atoms[144], atoms[145])
-    dmfftop.addBond(atoms[144], atoms[146])
     pos = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
     pos = jnp.array(pos)
     box = dmfftop.getPeriodicBoxVectors()
@@ -77,7 +75,7 @@ def _test_qeq_energy2():
     const_val = [0.0, 0.0]
 
     pot = hamilt.createPotential(dmfftop, nonbondedCutoff=rc*unit.nanometer, nonbondedMethod=app.PME, 
-                                ethresh=1e-4, neutral=True, slab=True, constQ=True,
+                                ethresh=1e-3, neutral=True, slab=True, constQ=True,
                                 const_list=const_list, const_vals=const_val,
                                 has_aux=True
                                 )
@@ -88,4 +86,4 @@ def _test_qeq_energy2():
     }
     energy, aux = efunc(pos, box, pairs, hamilt.paramset.parameters, aux=aux)
     print(aux)
-    np.testing.assert_almost_equal(energy, 4932.50807, decimal=2)
+    np.testing.assert_almost_equal(energy, 4817.295171, decimal=3)
