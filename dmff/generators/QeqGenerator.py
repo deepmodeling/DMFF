@@ -97,7 +97,8 @@ class ADMPQeqGenerator:
         n_atoms = topdata._numAtoms
         n_residues = topdata._numResidues
         
-        q = jnp.array(charges)
+       # q = jnp.array(charges)
+        q = np.array(charges)
         lagmt = np.ones(n_residues)
         b_value = jnp.concatenate((q,lagmt))
         qeq_force = ADMPQeqForce(q, lagmt,self.damp_mod, self.neutral_flag,

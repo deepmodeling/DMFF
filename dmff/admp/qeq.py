@@ -125,12 +125,18 @@ class ADMPQeqForce:
         self.get_energy = self.generate_get_energy()
         self.get_forces = value_and_grad(self.get_energy)
         return
-    
+
 def E_constQ(q, lagmt, const_list, const_vals):
-    constraint = (jnp.sum(q[const_list], axis=1) - const_vals) * lagmt
+    q_sum = []
+    for i in range(len(const_list)):
+        q_sum.append(np.sum(q[const_list[i]]))
+    constraint = (jnp.array(q_sum) - const_vals) * lagmt
     return np.sum(constraint)
 def E_constP(q, lagmt, const_list, const_vals):
-    constraint = jnp.sum(q[const_list], axis=1) * const_vals
+    q_sum = []
+    for i in range(len(const_list)):
+        q_sum.append(np.sum(q[const_list[i]]))
+    constraint = jnp.array(q_sum) * const_vals
     return np.sum(constraint)
 
 def E_sr(pos, box, pairs, q, eta, ds, buffer_scales ):
