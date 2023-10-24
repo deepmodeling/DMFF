@@ -517,6 +517,8 @@ class DMFFTopology:
         return eqv_atoms
 
     def getPeriodicBoxVectors(self, use_jax=True):
+        if self.cell is None:
+            return None
         if use_jax:
             return jnp.array(self.cell)
         return self.cell

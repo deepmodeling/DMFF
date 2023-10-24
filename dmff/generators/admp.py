@@ -1115,12 +1115,13 @@ class ADMPPmeGenerator:
     ):
         methodMap = {
             app.CutoffPeriodic: "CutoffPeriodic",
+            app.CutoffNonPeriodic, "CutoffNonPeriodic",
             app.NoCutoff: "NoCutoff",
             app.PME: "PME",
         }
         if nonbondedMethod not in methodMap:
             raise ValueError("Illegal nonbonded method for ADMPPmeForce")
-        if nonbondedMethod is app.CutoffPeriodic:
+        if nonbondedMethod in [app.CutoffPeriodic, app.NoCutoff, app.CutoffNonPeriodic]:
             lpme = False
         else:
             lpme = True
@@ -1139,15 +1140,21 @@ class ADMPPmeGenerator:
                 map_poltype[i] = self._find_polarize_key_index(atype)
 
         # here box is only used to setup ewald parameters, no need to be differentiable
-        if lpme:
-            box = topdata.getPeriodicBoxVectors() * 10
+        box = topdata.getPeriodicBoxVectors()
+        if box is not None:
+            noPBC = False
+            box = jnp.array(box) * 10.0
         else:
-            box = jnp.ones((3, 3))
+            noPBC = True
+            box = jnp.eye(3) * 1.0e6
         # get the admp calculator
-        if unit.is_quantity(nonbondedCutoff):
-            rc = nonbondedCutoff.value_in_unit(unit.angstrom)
+        if noPBC:
+            rc = 10000.0
         else:
-            rc = nonbondedCutoff * 10.0
+            if unit.is_quantity(nonbondedCutoff):
+                rc = nonbondedCutoff.value_in_unit(unit.angstrom)
+            else:
+                rc = nonbondedCutoff * 10.0
 
         # build covalent map
         covalent_map = topdata.buildCovMat()
