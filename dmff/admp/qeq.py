@@ -15,6 +15,12 @@ else:
 
 try:
     import jaxopt
+    try:
+        from jaxopt import Broyden
+        JAXOPT_OLD = False
+    except ImportError:
+        JAXOPT_OLD = True
+        print("jaxopt is too old. The QEQ potential function cannot be jitted. Please update jaxopt to the latest version for speed concern.")
 except ImportError:
     print("jaxopt not found, QEQ cannot be used.")
 import jax
@@ -283,9 +289,12 @@ class ADMPQeqForce:
                 b_value = jnp.concatenate((aux["q"], aux["lagmt"]))
             else:
                 b_value = jnp.concatenate([self.init_q, self.init_lagmt])
-            rf = jaxopt.ScipyRootFinding(
-                optimality_fun=E_grads, method="hybr", jit=False, tol=1e-10
-            )
+            if JAXOPT_OLD:
+                rf = jaxopt.ScipyRootFinding(
+                    optimality_fun=E_grads, method="hybr", jit=False, tol=1e-10
+                )
+            else:
+                rf = jaxopt.Broyden(fun=E_grads, tol=1e-10)
             b_0, _ = rf.run(
                 b_value,
                 chi,
