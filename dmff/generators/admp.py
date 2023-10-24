@@ -1115,7 +1115,7 @@ class ADMPPmeGenerator:
     ):
         methodMap = {
             app.CutoffPeriodic: "CutoffPeriodic",
-            app.CutoffNonPeriodic, "CutoffNonPeriodic",
+            app.CutoffNonPeriodic: "CutoffNonPeriodic",
             app.NoCutoff: "NoCutoff",
             app.PME: "PME",
         }
