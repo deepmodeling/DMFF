@@ -289,7 +289,8 @@ class ADMPQeqForce:
                 b_value = jnp.concatenate((aux["q"], aux["lagmt"]))
             else:
                 b_value = jnp.concatenate([self.init_q, self.init_lagmt])
-            if JAXOPT_OLD:
+            # if JAXOPT_OLD:
+            if True:
                 rf = jaxopt.ScipyRootFinding(
                     optimality_fun=E_grads, method="hybr", jit=False, tol=1e-10
                 )

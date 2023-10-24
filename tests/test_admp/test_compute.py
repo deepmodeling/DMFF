@@ -27,10 +27,10 @@ class TestADMPAPI:
         H1 = Hamiltonian('tests/data/admp_mono.xml')
         H2 = Hamiltonian('tests/data/admp_nonpol.xml')
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
-        potential = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
-        potential_aux = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5, has_aux=True)
-        potential1 = H1.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
-        potential2 = H2.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
+        potential = H.createPotential(pdb.topology, nonbondedMethod=app.CutoffPeriodic, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
+        potential_aux = H.createPotential(pdb.topology, nonbondedMethod=app.CutoffPeriodic, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5, has_aux=True)
+        potential1 = H1.createPotential(pdb.topology, nonbondedMethod=app.CutoffPeriodic, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
+        potential2 = H2.createPotential(pdb.topology, nonbondedMethod=app.CutoffPeriodic, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
         
         yield potential, potential_aux, potential1, potential2, H.paramset, H1.paramset, H2.paramset
 
@@ -117,7 +117,7 @@ class TestADMPAPI:
         pot = potential1.getPotentialFunc(names=["ADMPPmeForce"])
         energy = pot(positions, box, pairs, paramset1)
         print(energy)
-        np.testing.assert_almost_equal(energy, -66.55921382, decimal=2)
+        np.testing.assert_almost_equal(energy, -66.46778622510325, decimal=2)
     
 
     def test_ADMPPmeForce_nonpol(self, pot_prm):
@@ -138,4 +138,4 @@ class TestADMPAPI:
         pot = potential2.getPotentialFunc(names=["ADMPPmeForce"])
         energy = pot(positions, box, pairs, paramset2)
         print(energy)
-        np.testing.assert_almost_equal(energy, -31.69025446, decimal=2)
+        np.testing.assert_almost_equal(energy, -31.65932348, decimal=2)

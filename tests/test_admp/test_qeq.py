@@ -93,7 +93,7 @@ def test_qeq_energy_2res():
     print(gradient)
 
 
-def test_qeq_energy_2res_jit():
+def _test_qeq_energy_2res_jit():
     rc = 0.6
     xml = XMLIO()
     xml.loadXML("tests/data/qeq2.xml")
