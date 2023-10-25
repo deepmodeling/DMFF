@@ -1,0 +1,64 @@
+HEADER    
+TITLE     MDANALYSIS FRAME 0: Created by PDBWriter
+CRYST1   50.000   50.000   50.000  90.00  90.00  90.00 P 1           1
+ATOM      1  C00 TER X   1      47.381  10.286  49.808  0.00  1.00      SYST    
+ATOM      2  H01 TER X   1      47.251  11.255  50.307  0.00  1.00      SYST    
+ATOM      3  H02 TER X   1      46.907   9.487  50.425  0.00  1.00      SYST    
+ATOM      4  O03 TER X   1      48.814  10.202  49.785  0.00  1.00      SYST    
+ATOM      5  C04 TER X   1      49.336   9.203  50.665  0.00  1.00      SYST    
+ATOM      6  H05 TER X   1      50.344   9.329  51.054  0.00  1.00      SYST    
+ATOM      7  H06 TER X   1      48.796   9.176  51.611  0.00  1.00      SYST    
+ATOM      8  H07 TER X   1      49.296   8.320  50.177  0.00  1.00      SYST    
+ATOM      9  C00 INT X   2      46.552   8.760  46.601  0.00  1.00      SYST    
+ATOM     10  H01 INT X   2      46.737   9.609  45.939  0.00  1.00      SYST    
+ATOM     11  H02 INT X   2      45.532   8.628  46.649  0.00  1.00      SYST    
+ATOM     12  O03 INT X   2      47.247   8.976  47.799  0.00  1.00      SYST    
+ATOM     13  C04 INT X   2      46.919  10.250  48.371  0.00  1.00      SYST    
+ATOM     14  H05 INT X   2      47.190  11.176  47.880  0.00  1.00      SYST    
+ATOM     15  H06 INT X   2      45.801  10.369  48.307  0.00  1.00      SYST    
+ATOM     16  C00 INT X   3      46.760   5.982  44.153  0.00  1.00      SYST    
+ATOM     17  H01 INT X   3      47.759   6.173  43.770  0.00  1.00      SYST    
+ATOM     18  H02 INT X   3      46.121   5.894  43.168  0.00  1.00      SYST    
+ATOM     19  O03 INT X   3      46.268   7.098  44.918  0.00  1.00      SYST    
+ATOM     20  C04 INT X   3      47.139   7.493  45.949  0.00  1.00      SYST    
+ATOM     21  H05 INT X   3      47.292   6.726  46.769  0.00  1.00      SYST    
+ATOM     22  H06 INT X   3      48.124   7.662  45.625  0.00  1.00      SYST    
+ATOM     23  C00 TER X   4      46.610   4.692  44.880  0.00  1.00      SYST    
+ATOM     24  H01 TER X   4      45.686   4.613  45.520  0.00  1.00      SYST    
+ATOM     25  H02 TER X   4      47.444   4.603  45.516  0.00  1.00      SYST    
+ATOM     26  O03 TER X   4      46.501   3.674  43.869  0.00  1.00      SYST    
+ATOM     27  C04 TER X   4      45.802   2.493  44.226  0.00  1.00      SYST    
+ATOM     28  H05 TER X   4      45.959   1.651  43.497  0.00  1.00      SYST    
+ATOM     29  H06 TER X   4      46.125   2.280  45.251  0.00  1.00      SYST    
+ATOM     30  H07 TER X   4      44.695   2.638  44.209  0.00  1.00      SYST    
+CONECT    1    2    3    4   13
+CONECT    2    1
+CONECT    3    1
+CONECT    4    1    5
+CONECT    5    4    6    7    8
+CONECT    6    5
+CONECT    7    5
+CONECT    8    5
+CONECT    9   10   11   12   20
+CONECT   10    9
+CONECT   11    9
+CONECT   12    9   13
+CONECT   13    1   12   14   15
+CONECT   14   13
+CONECT   15   13
+CONECT   16   17   18   19   23
+CONECT   17   16
+CONECT   18   16
+CONECT   19   16   20
+CONECT   20    9   19   21   22
+CONECT   21   20
+CONECT   22   20
+CONECT   23   16   24   25   26
+CONECT   24   23
+CONECT   25   23
+CONECT   26   23   27
+CONECT   27   26   28   29   30
+CONECT   28   27
+CONECT   29   27
+CONECT   30   27
+END
