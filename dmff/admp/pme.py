@@ -857,7 +857,6 @@ def pme_real(positions, box, pairs,
     ene = jnp.sum(
         elist
     )
-    jax.debug.print("elist: {}", elist)
 
     return ene
 
