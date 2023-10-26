@@ -885,7 +885,7 @@ class ADMPPmeGenerator:
         self.lmax = int(self.ffinfo["Forces"][self.name]["meta"]["lmax"])
 
         default_mscales = [0.0, 0.0, 1.0, 1.0, 1.0]
-        default_pscales = [1.0, 1.0, 1.0, 1.0, 1.0]
+        default_pscales = [0.0, 0.0, 1.0, 1.0, 1.0]
         default_dscales = [1.0, 1.0, 1.0, 1.0, 1.0]
 
         mScales = [
