@@ -1142,19 +1142,14 @@ class ADMPPmeGenerator:
         # here box is only used to setup ewald parameters, no need to be differentiable
         box = topdata.getPeriodicBoxVectors()
         if box is not None:
-            noPBC = False
             box = jnp.array(box) * 10.0
         else:
-            noPBC = True
-            box = jnp.eye(3) * 1.0e6
+            box = jnp.eye(3)
         # get the admp calculator
-        if noPBC:
-            rc = 10000.0
+        if unit.is_quantity(nonbondedCutoff):
+            rc = nonbondedCutoff.value_in_unit(unit.angstrom)
         else:
-            if unit.is_quantity(nonbondedCutoff):
-                rc = nonbondedCutoff.value_in_unit(unit.angstrom)
-            else:
-                rc = nonbondedCutoff * 10.0
+            rc = nonbondedCutoff * 10.0
 
         # build covalent map
         covalent_map = topdata.buildCovMat()
@@ -1353,8 +1348,8 @@ class ADMPPmeGenerator:
             has_aux = False
 
         def potential_fn(positions, box, pairs, params, aux=None):
-            positions = positions * 10
-            box = box * 10
+            positions = positions * 10.0
+            box = box * 10.0
             Q_local = params["ADMPPmeForce"]["Q_local"][map_atomtype]
             if self.lpol:
                 pol = params["ADMPPmeForce"]["pol"][map_poltype]

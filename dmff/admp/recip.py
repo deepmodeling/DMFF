@@ -15,6 +15,11 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
     bspline_range = jnp.arange(-pme_order//2, pme_order//2)
     n_mesh = pme_order**3
     shifts = jnp.array(jnp.meshgrid(bspline_range, bspline_range, bspline_range)).T.reshape((1, n_mesh, 3))
+
+    if K1 == K2 == K3 == 0:
+        def pme_recip(positions, box, Q):
+            return jnp.zeros((1, ))
+        return pme_recip
    
     def pme_recip(positions, box, Q):
         '''

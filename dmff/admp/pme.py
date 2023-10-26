@@ -78,7 +78,7 @@ class ADMPPmeForce:
         # turn off pme if lpme is False, this is useful when doing cluster calculations
         self.lpme = lpme
         if self.lpme is False:
-            self.kappa = 0
+            self.kappa = 0.0
             self.K1 = 0
             self.K2 = 0
             self.K3 = 0
@@ -119,23 +119,25 @@ class ADMPPmeForce:
                                  self.construct_local_frames, self.pme_recip,
                                  self.kappa, self.K1, self.K2, self.K3, self.lmax, True, lpme=self.lpme)
             self.energy_fn = energy_fn
-            self.grad_U_fn = grad(self.energy_fn, argnums=(4))
-            self.grad_pos_fn = grad(self.energy_fn, argnums=(0))
-            self.U_ind = jnp.zeros((self.n_atoms, 3))
+            self.grad_U_fn = grad(energy_fn, argnums=(4))
+            self.grad_pos_fn = grad(energy_fn, argnums=(0))
+            self.U_ind = U_ind = jnp.zeros((self.n_atoms, 3))
             # this is the wrapper that include a Uind optimizer
             def get_energy(
                     positions, box, pairs, 
                     Q_local, pol, tholes, mScales, pScales, dScales, 
-                    U_init = self.U_ind, aux = None):
-                self.U_ind, self.lconverg, self.n_cycle = self.optimize_Uind(
+                    U_init = U_ind, aux = None):
+                U_ind, lconverg, n_cycle = self.optimize_Uind(
                         positions, box, pairs, Q_local, pol, tholes, 
                         mScales, pScales, dScales, 
                         U_init=U_init, steps_pol=self.steps_pol)
                 # here we rely on Feynman-Hellman theorem, drop the term dV/dU*dU/dr !
                 # self.U_ind = jax.lax.stop_gradient(U_ind)
-                energy = self.energy_fn(positions, box, pairs, Q_local, self.U_ind, pol, tholes, mScales, pScales, dScales)
+                energy = energy_fn(positions, box, pairs, Q_local, U_ind, pol, tholes, mScales, pScales, dScales)
                 if aux is not None:
-                    aux["U_ind"] = self.U_ind
+                    aux["U_ind"] = U_ind
+                    aux["lconverg"] = lconverg
+                    aux["n_cycle"] = n_cycle
                     return energy, aux
                 else:
                     return energy
@@ -658,7 +660,7 @@ def pme_real_kernel(dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscal
         Vji0 = Vji0 + cd*qiQJ[1]
         # D-D m0 
         Vij1 += dd_m0 * qiQI[1]
-        Vji1 += dd_m0 * qiQJ[1]    
+        Vji1 += dd_m0 * qiQJ[1]   
         # D-D m1 
         Vij2 = dd_m1*qiQI[2]
         Vji2 = dd_m1*qiQJ[2]
@@ -740,6 +742,7 @@ def pme_real_kernel(dr, qiQI, qiQJ, qiUindI, qiUindJ, thole1, thole2, dmp, mscal
         raise ValueError(f"Invalid lmax {lmax}. Valid values are 0, 1, 2")
 
     if lpol:
+        # return jnp.array(0.5) * (jnp.sum(qiQJ*Vij) + jnp.sum(qiQI*Vji)) + jnp.array(0.5) * (jnp.sum(qiUindJ*Vijdd) + jnp.sum(qiUindI*Vjidd))
         return jnp.array(0.5) * (jnp.sum(qiQJ*Vij) + jnp.sum(qiQI*Vji)) + jnp.array(0.5) * (jnp.sum(qiUindJ*Vijdd) + jnp.sum(qiUindI*Vjidd))
     else:
         return jnp.array(0.5) * (jnp.sum(qiQJ*Vij) + jnp.sum(qiQI*Vji))
@@ -835,8 +838,7 @@ def pme_real(positions, box, pairs,
         qiUindJ = None
 
     # everything should be pair-specific now
-    ene = jnp.sum(
-        pme_real_kernel(
+    elist = pme_real_kernel(
             norm_dr, 
             qiQI, 
             qiQJ, 
@@ -852,7 +854,10 @@ def pme_real(positions, box, pairs,
             lmax, 
             lpol
         ) * buffer_scales
+    ene = jnp.sum(
+        elist
     )
+    jax.debug.print("elist: {}", elist)
 
     return ene
 
@@ -898,5 +903,6 @@ def pol_penalty(U_ind, pol):
     '''
     # this is to remove the singularity when pol=0
     pol_pi = trim_val_0(pol)
+    Uind_norm = jnp.linalg.norm(U_ind + 1e-10, axis=1)
     # pol_pi = pol/(jnp.exp((-pol+1e-08)*1e10)+1) + 1e-08/(jnp.exp((pol-1e-08)*1e10)+1)
-    return jnp.sum(0.5/pol_pi*(U_ind**2).T) * DIELECTRIC
+    return jnp.sum(0.5/pol_pi*(Uind_norm**2)) * DIELECTRIC
