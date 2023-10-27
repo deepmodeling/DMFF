@@ -377,7 +377,6 @@ def energy_pme(positions, box, pairs,
             ene_self = pol_penalty(U_ind, pol)
         else:
             ene_self = 0.0
-        jax.debug.print("ene_real: {} ene_self: {}", ene_real, ene_self)
         return ene_real + ene_self
 
 
