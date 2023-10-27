@@ -881,6 +881,7 @@ class ADMPPmeGenerator:
         self.ethresh = 5e-4
         self.step_pol = None
         self.ref_dip = ""
+        self.pme_force = None
 
         self.lmax = int(self.ffinfo["Forces"][self.name]["meta"]["lmax"])
 
@@ -1084,16 +1085,16 @@ class ADMPPmeGenerator:
             if node["name"] in ["Atom", "Multipole"]:
                 node["c0"] = Q_global[n_multipole, 0]
                 if self.lmax >= 1:
-                    node["dX"] = Q_global[n_multipole, 1]
-                    node["dY"] = Q_global[n_multipole, 2]
-                    node["dZ"] = Q_global[n_multipole, 3]
+                    node["dX"] = Q_global[n_multipole, 1] * 0.1
+                    node["dY"] = Q_global[n_multipole, 2] * 0.1
+                    node["dZ"] = Q_global[n_multipole, 3] * 0.1
                 if self.lmax >= 2:
-                    node["qXX"] = Q_global[n_multipole, 4]
-                    node["qYY"] = Q_global[n_multipole, 5]
-                    node["qZZ"] = Q_global[n_multipole, 6]
-                    node["qXY"] = Q_global[n_multipole, 7]
-                    node["qXZ"] = Q_global[n_multipole, 8]
-                    node["qYZ"] = Q_global[n_multipole, 9]
+                    node["qXX"] = Q_global[n_multipole, 4] / 300.0
+                    node["qYY"] = Q_global[n_multipole, 5] / 300.0
+                    node["qZZ"] = Q_global[n_multipole, 6] / 300.0
+                    node["qXY"] = Q_global[n_multipole, 7] / 300.0
+                    node["qXZ"] = Q_global[n_multipole, 8] / 300.0
+                    node["qYZ"] = Q_global[n_multipole, 9] / 300.0
                 if q_local_masks[n_multipole] < 0.999:
                     node["mask"] = "true"
                 n_multipole += 1
@@ -1338,6 +1339,7 @@ class ADMPPmeGenerator:
             self.step_pol = kwargs["step_pol"]
         pme_force = ADMPPmeForce(
             box,
+            map_atomtype, 
             axis_types,
             axis_indices,
             rc,

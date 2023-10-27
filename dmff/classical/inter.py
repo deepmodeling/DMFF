@@ -1,5 +1,5 @@
 from typing import Iterable, Tuple, Optional
-
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -132,8 +132,9 @@ class LennardJonesLongRangeForce:
 class CoulNoCutoffForce:
     # E=\frac{{q}_{1}{q}_{2}}{4\pi\epsilon_0\epsilon_1 r}
 
-    def __init__(self, epsilon_1=1.0, topology_matrix=None) -> None:
+    def __init__(self, init_charges, epsilon_1=1.0, topology_matrix=None) -> None:
 
+        self.init_charges = init_charges
         self.eps_1 = epsilon_1
         self.top_mat = topology_matrix
 
@@ -146,7 +147,7 @@ class CoulNoCutoffForce:
 
             return E
 
-        def get_energy(positions, box, pairs, charges, mscales):
+        def get_energy_kernel(positions, box, pairs, charges, mscales):
             pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
             mask = pair_buffer_scales(pairs[:, :2])
             cov_pair = pairs[:, 2]
@@ -162,14 +163,41 @@ class CoulNoCutoffForce:
 
             return jnp.sum(E_inter * mask)
         
-        def get_energy_bcc(positions, box, pairs, pre_charges, bcc, mscales):
-            charges = pre_charges + jnp.dot(self.top_mat, bcc).flatten()
-            return get_energy(positions, box, pairs, charges, mscales)
+        if self.top_mat is None:
+            def get_energy(positions, box, pairs, mscales):
+                return get_energy_kernel(positions, box, pairs, self.init_charges, mscales)
+        else:
+            def get_energy(positions, box, pairs, bcc, mscales):
+                charges = self.init_charges + jnp.dot(self.top_mat, bcc).flatten()
+                return get_energy_kernel(positions, box, pairs, charges, mscales)
+        return get_energy
+        
+    def generate_esp(self):
+
+        def esp_kernel(position, grid, charge):
+            dist = jnp.linalg.norm(position - grid + 1e-16)
+            oneR = 1. / dist
+            return ONE_4PI_EPS0 * charge * oneR
+        
+        esp_grid_kernel = jax.vmap(esp_kernel, in_axes=(0, None, 0))
+
+        def esp_grid(positions, grid, charges):
+            return jnp.sum(esp_grid_kernel(positions, grid, charges))
+        
+        esp_all = jax.vmap(esp_grid, in_axes=(None, 0, None))
         
         if self.top_mat is None:
-            return get_energy
+            def get_esp(positions, grids):
+                charges = self.init_charges
+                return esp_all(positions, grids, charges).ravel()
         else:
-            return get_energy_bcc
+            def get_esp(positions, grids, bcc):
+                charges = self.init_charges + jnp.dot(self.top_mat, bcc).flatten()
+                return esp_all(positions, grids, charges).ravel()
+        
+        return get_esp
+            
+            
 
 
 class CoulReactionFieldForce:
@@ -177,12 +205,14 @@ class CoulReactionFieldForce:
     def __init__(
         self,
         r_cut,
+        init_charges,
         epsilon_1=1.0,
         epsilon_solv=78.5,
         isPBC=True,
         topology_matrix=None
     ) -> None:
 
+        self.init_charges = init_charges
         self.r_cut = r_cut
         self.krf = (1.0 / r_cut ** 3) * (epsilon_solv - 1) / (2.0 * epsilon_solv + 1)
         self.crf = (1.0 / r_cut) * 3.0 * epsilon_solv / (2.0 * epsilon_solv + 1)
@@ -208,7 +238,7 @@ class CoulReactionFieldForce:
 
             return E
 
-        def get_energy(positions, box, pairs, charges, mscales):
+        def get_energy_kernel(positions, box, pairs, charges, mscales):
             pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
             mask = pair_buffer_scales(pairs[:, :2])
 
@@ -224,15 +254,15 @@ class CoulReactionFieldForce:
             E_inter = get_rf_energy(dr_vec, chrgprod_scale, box)
 
             return jnp.sum(E_inter * mask)
-
-        def get_energy_bcc(positions, box, pairs, pre_charges, bcc, mscales):
-            charges = pre_charges + jnp.dot(self.top_mat, bcc).flatten()
-            return get_energy(positions, box, pairs, charges, mscales)
         
         if self.top_mat is None:
-            return get_energy
+            def get_energy(positions, box, pairs, mscales):
+                return get_energy_kernel(positions, box, pairs, self.init_charges, mscales)
         else:
-            return get_energy_bcc
+            def get_energy(positions, box, pairs, bcc, mscales):
+                charges = self.init_charges + jnp.dot(self.top_mat, bcc).flatten()
+                return get_energy_kernel(positions, box, pairs, charges, mscales)
+        return get_energy
 
 
 class CoulombPMEForce:
@@ -240,12 +270,14 @@ class CoulombPMEForce:
     def __init__(
         self,
         r_cut: float,
+        init_charges, 
         kappa: float,
         K: Tuple[int, int, int],
         pme_order: int = 6,
         topology_matrix: Optional[jnp.array] = None,
     ):
         self.r_cut = r_cut
+        self.init_charges = init_charges
         self.lmax = 0
         self.kappa = kappa
         self.K1, self.K2, self.K3 = K[0], K[1], K[2]
@@ -255,7 +287,7 @@ class CoulombPMEForce:
 
     def generate_get_energy(self):
         
-        def get_energy(positions, box, pairs, charges, mscales):
+        def get_energy_kernel(positions, box, pairs, charges, mscales):
 
             pme_recip_fn = generate_pme_recip(
                 Ck_fn=Ck_1,
@@ -292,11 +324,11 @@ class CoulombPMEForce:
                 False,
             )
 
-        def get_energy_bcc(positions, box, pairs, pre_charges, bcc, mscales):
-            charges = pre_charges + jnp.dot(self.top_mat, bcc).flatten()
-            return get_energy(positions, box, pairs, charges, mscales)
-        
         if self.top_mat is None:
-            return get_energy
+            def get_energy(positions, box, pairs, mscales):
+                return get_energy_kernel(positions, box, pairs, self.init_charges, mscales)
         else:
-            return get_energy_bcc
+            def get_energy(positions, box, pairs, bcc, mscales):
+                charges = self.init_charges + jnp.dot(self.top_mat, bcc).flatten()
+                return get_energy_kernel(positions, box, pairs, charges, mscales)
+        return get_energy

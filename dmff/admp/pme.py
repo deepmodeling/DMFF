@@ -42,7 +42,7 @@ class ADMPPmeForce:
     The so called "environment paramters" means parameters that do not need to be differentiable
     '''
 
-    def __init__(self, box, axis_type, axis_indices, rc, ethresh, lmax, lpol=False, lpme=True, steps_pol=None, has_aux=False):
+    def __init__(self, box, map_atomtype, axis_type, axis_indices, rc, ethresh, lmax, lpol=False, lpme=True, steps_pol=None, has_aux=False):
         '''
         Initialize the ADMPPmeForce calculator.
 
@@ -70,6 +70,7 @@ class ADMPPmeForce:
         Output:
 
         '''
+        self.map_atomtype = map_atomtype
         self.axis_type = axis_type
         self.axis_indices = axis_indices
         self.rc = rc
@@ -130,18 +131,118 @@ class ADMPPmeForce:
                 U_ind, lconverg, n_cycle = self.optimize_Uind(
                         positions, box, pairs, Q_local, pol, tholes, 
                         mScales, pScales, dScales, 
-                        U_init=U_init, steps_pol=self.steps_pol)
+                        U_init=U_init * 10.0, steps_pol=self.steps_pol) # nm to angstrom
                 # here we rely on Feynman-Hellman theorem, drop the term dV/dU*dU/dr !
                 # self.U_ind = jax.lax.stop_gradient(U_ind)
                 energy = energy_fn(positions, box, pairs, Q_local, U_ind, pol, tholes, mScales, pScales, dScales)
                 if aux is not None:
-                    aux["U_ind"] = U_ind
+                    aux["U_ind"] = U_ind * 0.1 # Angstrom to nm
                     aux["lconverg"] = lconverg
                     aux["n_cycle"] = n_cycle
                     return energy, aux
                 else:
                     return energy
             return get_energy
+        
+    def generate_esp(self):
+
+        @jit_condition()
+        def CD_mat(p1, p2):
+            mCD = jnp.zeros((1, 3))
+            one_R = 1 / jnp.linalg.norm(p1 - p2 + 1e-16)
+            pre_factor = - one_R * one_R * one_R
+            delta = p2 - p1
+            mCD = mCD.at[0,0].add(pre_factor * delta[0])
+            mCD = mCD.at[0,1].add(pre_factor * delta[1])
+            mCD = mCD.at[0,2].add(pre_factor * delta[2])
+            return mCD
+        
+        @jit_condition()
+        def CQ_mat(p1, p2):
+            one_R = 1 / jnp.linalg.norm(p1 - p2 + 1e-16)
+            delta = p2 - p1
+            CQ = jnp.zeros((3, 3))
+            d_x, d_y, d_z = delta[0], delta[1], delta[2]
+            o_3 = one_R * one_R * one_R
+            o_5 = o_3 * one_R * one_R
+
+            v = 3 * d_x**2 * o_5 - o_3
+            CQ = CQ.at[0, 0].add(v)
+            v = 3 * d_x * d_y * o_5
+            CQ = CQ.at[0, 1].add(v)
+            CQ = CQ.at[1, 0].add(v)
+            v = 3 * d_x * d_z * o_5
+            CQ = CQ.at[0, 2].add(v)
+            CQ = CQ.at[2, 0].add(v)
+            v = 3 * d_y**2 * o_5 - o_3
+            CQ = CQ.at[1, 1].add(v)
+            v = 3 * d_y * d_z * o_5
+            CQ = CQ.at[1, 2].add(v)
+            CQ = CQ.at[2, 1].add(v)
+            v = 3 * d_z**2 * o_5 - o_3
+            CQ = CQ.at[2, 2].add(v)
+
+            return CQ.reshape((1, 9))
+
+        @jit_condition()
+        def esp_kernel(position, grid, Q, U): # Unit: angstrom
+            Qtot = Q.at[1:4].add(U)
+            r = grid - position
+            dist = jnp.linalg.norm(r+1e-16)
+            one_dist = 1. / dist
+            esp = DIELECTRIC * 0.1 * Qtot[0] * one_dist
+            if self.lpol or self.lmax >= 1:
+                # C-U&D
+                mCD = CD_mat(grid, position)
+                U = Q[1:4].reshape((3, 1)) * 0.1
+                esp += DIELECTRIC * 0.1 * jnp.matmul(mCD, U)
+            if self.lmax >= 2:
+                # C-Q
+                mCQ = CQ_mat(grid, position)
+                Qmat = jnp.zeros((3, 3))
+                Qmat.at[0,0].set(Qtot[4] / 300.0)
+                Qmat.at[1,1].set(Qtot[5] / 300.0)
+                Qmat.at[2,2].set(Qtot[6] / 300.0)
+                Qmat.at[0,1].set(Qtot[7] / 300.0)
+                Qmat.at[1,0].set(Qtot[7] / 300.0)
+                Qmat.at[0,2].set(Qtot[8] / 300.0)
+                Qmat.at[2,0].set(Qtot[8] / 300.0)
+                Qmat.at[1,2].set(Qtot[9] / 300.0)
+                Qmat.at[2,1].set(Qtot[9] / 300.0)
+                esp += DIELECTRIC * 0.1 * jnp.matmul(mCQ, Qmat.reshape((-1,1)))
+
+            return esp.ravel()
+        
+        esp_point_kernel = jax.vmap(esp_kernel, in_axes=(0, None, 0, 0), out_axes=0)
+
+        @jit_condition()
+        def esp_point(positions, grid, Q, U):
+            esp = esp_point_kernel(positions, grid, Q, U)
+            return jnp.sum(esp)
+        
+        esp_grid = jax.vmap(esp_point, in_axes=(None, 0, None, None), out_axes=0)
+
+        if self.lpol:
+            @jit_condition()
+            def get_esp(positions, grids, Q_local, U_ind):
+                box = jnp.eye(3) * 1000.0
+                local_frames = self.construct_local_frames(positions, box)
+                Q_global = rot_local2global(Q_local[self.map_atomtype], local_frames, self.lmax)
+                esp = esp_grid(positions, grids, Q_global, U_ind)
+                return esp.reshape((grids.shape[0],))
+        else:
+            @jit_condition()
+            def get_esp(positions, grids, Q_local):
+                U_ind = jnp.zeros(positions.shape)
+                box = jnp.eye(3) * 1000.0
+                local_frames = self.construct_local_frames(positions, box)
+                Q_global = rot_local2global(Q_local[self.map_atomtype], local_frames, self.lmax)
+                esp = esp_grid(positions, grids, Q_global, U_ind)
+                return esp.reshape((grids.shape[0],))
+            
+        return get_esp
+
+
 
 
     def update_env(self, attr, val):
@@ -825,7 +926,7 @@ def pme_real(positions, box, pairs,
 
     # deals with geometries
     dr = r1 - r2
-    dr = v_pbc_shift(dr, box, box_inv)
+    dr = v_pbc_shift(dr, box, box_inv) + 1e-32
     norm_dr = jnp.linalg.norm(dr, axis=-1)
     Ri = build_quasi_internal(r1, r2, dr, norm_dr)
     qiQI = rot_global2local(Q_extendi, Ri, lmax)

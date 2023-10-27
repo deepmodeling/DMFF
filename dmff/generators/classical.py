@@ -913,13 +913,14 @@ class NonbondedGenerator:
             # do not use PME
             if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
                 # use Reaction Field
-                coulforce = CoulReactionFieldForce(r_cut, isPBC=ifPBC)
+                coulforce = CoulReactionFieldForce(r_cut, charges, isPBC=ifPBC)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
-                coulforce = CoulNoCutoffForce()
+                coulforce = CoulNoCutoffForce(init_charges=charges)
         else:
-            coulforce = CoulombPMEForce(r_cut, kappa, (K1, K2, K3))
-
+            coulforce = CoulombPMEForce(r_cut, charges, kappa, (K1, K2, K3))
+        
+        self.pme_force = coulforce
         coulenergy = coulforce.generate_get_energy()
 
         # LJ
@@ -998,8 +999,7 @@ class NonbondedGenerator:
             # it is jit-compatiable
             isinstance_jnp(positions, box, params)
 
-            coulE = coulenergy(positions, box, pairs, charges,
-                                mscales_coul)
+            coulE = coulenergy(positions, box, pairs, mscales_coul)
             
             ljE = ljenergy(positions, box, pairs, params[self.name]["epsilon"],
                             params[self.name]["sigma"], eps_nbfix, sig_nbfix, mscales_lj)
@@ -1142,21 +1142,21 @@ class CoulombGenerator:
                 # use Reaction Field
                 coulforce = CoulReactionFieldForce(
                     r_cut,
+                    charges,
                     isPBC=ifPBC,
                     topology_matrix=top_mat if self._use_bcc else None)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
                 coulforce = CoulNoCutoffForce(
-                    topology_matrix=top_mat if self._use_bcc else None)
+                    charges, topology_matrix=top_mat if self._use_bcc else None)
         else:
             coulforce = CoulombPMEForce(
                 r_cut,
+                charges, 
                 kappa, (K1, K2, K3),
                 topology_matrix=top_mat if self._use_bcc else None)
 
         coulenergy = coulforce.generate_get_energy()
-        self.coulforce = coulforce  #for qeq calculation
-        self.coulenergy = coulenergy #for qeq calculation
 
         has_aux = False
         if "has_aux" in kwargs and kwargs["has_aux"]:
@@ -1170,10 +1170,10 @@ class CoulombGenerator:
             isinstance_jnp(positions, box, params)
 
             if self._use_bcc:
-                coulE = coulenergy(positions, box, pairs, charges,
+                coulE = coulenergy(positions, box, pairs,
                                    params["CoulombForce"]["bcc"], mscales_coul)
             else:
-                coulE = coulenergy(positions, box, pairs, charges,
+                coulE = coulenergy(positions, box, pairs,
                                    mscales_coul)
 
             if has_aux:
