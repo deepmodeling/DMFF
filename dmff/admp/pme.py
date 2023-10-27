@@ -407,8 +407,8 @@ def calc_e_perm(dr, mscales, kappa, lmax=2):
 
     # be aware of unit and dimension !!
     rInv = 1 / dr
-    rInvVec = jnp.array([DIELECTRIC*(rInv**i) for i in range(0, 9)])
-    alphaRVec = jnp.array([(kappa*dr)**i for i in range(0, 10)])
+    rInvVec = jnp.array([DIELECTRIC*jnp.power(rInv + 1e-10, i) for i in range(0, 9)])
+    alphaRVec = jnp.array([jnp.power(kappa*dr + 1e-10, i) for i in range(0, 10)])
     X = 2 * jnp.exp(-alphaRVec[2]) / jnp.sqrt(np.pi)
     tmp = jnp.array(alphaRVec[1])
     doubleFactorial = 1
@@ -864,7 +864,9 @@ def pme_real(positions, box, pairs,
 @partial(vmap, in_axes=(0, 0), out_axes=(0))
 @jit_condition(static_argnums=())
 def get_pair_dmp(pol1, pol2):
-    return jnp.power(pol1*pol2, 1/6)
+    p12 = pol1 * pol2
+    p12 = jnp.where(p12 < 1e-16, 1e-16, p12)
+    return jnp.power(p12, 1/6)
 
 
 @jit_condition(static_argnums=(2))

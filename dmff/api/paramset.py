@@ -24,7 +24,11 @@ class ParamSet:
         Converts all parameters to jax arrays.
     """
 
-    def __init__(self, data: Dict[str, Union[Dict[str, jnp.ndarray], jnp.ndarray]] = None, mask: Dict[str, Union[Dict[str, jnp.ndarray], jnp.ndarray]] = None):
+    def __init__(
+        self,
+        data: Dict[str, Union[Dict[str, jnp.ndarray], jnp.ndarray]] = None,
+        mask: Dict[str, Union[Dict[str, jnp.ndarray], jnp.ndarray]] = None,
+    ):
         """
         Initializes a new ParamSet object.
 
@@ -52,7 +56,13 @@ class ParamSet:
         self.parameters[field] = {}
         self.mask[field] = {}
 
-    def addParameter(self, values: jnp.ndarray, name: str, field: str = None, mask: jnp.ndarray = None) -> None:
+    def addParameter(
+        self,
+        values: jnp.ndarray,
+        name: str,
+        field: str = None,
+        mask: jnp.ndarray = None,
+    ) -> None:
         """
         Adds a new parameter to the parameters and mask dictionaries.
 
@@ -87,8 +97,7 @@ class ParamSet:
         for key1 in self.parameters:
             if isinstance(self.parameters[key1], dict):
                 for key2 in self.parameters[key1]:
-                    self.parameters[key1][key2] = jnp.array(
-                        self.parameters[key1][key2])
+                    self.parameters[key1][key2] = jnp.array(self.parameters[key1][key2])
             else:
                 self.parameters[key1] = jnp.array(self.parameters[key1])
 
@@ -107,6 +116,12 @@ class ParamSet:
             The value of the parameter.
         """
         return self.parameters[key]
+
+    def update_mask(self, gradients):
+        gradients = jax.tree_map(
+            lambda g, m: jnp.where(jnp.abs(m - 1.0) > 1e-5, g, 0.0), gradients, self.mask
+        )
+        return gradients
 
 
 def flatten_paramset(prmset: ParamSet) -> tuple:
@@ -145,5 +160,4 @@ def unflatten_paramset(aux_data: Dict, contents: tuple) -> ParamSet:
     return ParamSet(data=contents[0], mask=aux_data)
 
 
-jax.tree_util.register_pytree_node(
-    ParamSet, flatten_paramset, unflatten_paramset)
+jax.tree_util.register_pytree_node(ParamSet, flatten_paramset, unflatten_paramset)

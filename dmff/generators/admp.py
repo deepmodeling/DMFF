@@ -1075,27 +1075,35 @@ class ADMPPmeGenerator:
 
     def overwrite(self, paramset):
         Q_global = convert_harm2cart(paramset[self.name]["Q_local"], self.lmax)
+        q_local_masks = paramset.mask[self.name]["Q_local"]
+        polar_masks = paramset.mask[self.name]["pol"]
 
         n_multipole, n_pol = 0, 0
         for nnode in range(len(self.ffinfo["Forces"][self.name]["node"])):
             node = self.ffinfo["Forces"][self.name]["node"][nnode]
             if node["name"] in ["Atom", "Multipole"]:
                 node["c0"] = Q_global[n_multipole, 0]
-                node["dX"] = Q_global[n_multipole, 1]
-                node["dY"] = Q_global[n_multipole, 2]
-                node["dZ"] = Q_global[n_multipole, 3]
-                node["qXX"] = Q_global[n_multipole, 4]
-                node["qYY"] = Q_global[n_multipole, 5]
-                node["qZZ"] = Q_global[n_multipole, 6]
-                node["qXY"] = Q_global[n_multipole, 7]
-                node["qXZ"] = Q_global[n_multipole, 8]
-                node["qYZ"] = Q_global[n_multipole, 9]
+                if self.lmax >= 1:
+                    node["dX"] = Q_global[n_multipole, 1]
+                    node["dY"] = Q_global[n_multipole, 2]
+                    node["dZ"] = Q_global[n_multipole, 3]
+                if self.lmax >= 2:
+                    node["qXX"] = Q_global[n_multipole, 4]
+                    node["qYY"] = Q_global[n_multipole, 5]
+                    node["qZZ"] = Q_global[n_multipole, 6]
+                    node["qXY"] = Q_global[n_multipole, 7]
+                    node["qXZ"] = Q_global[n_multipole, 8]
+                    node["qYZ"] = Q_global[n_multipole, 9]
+                if q_local_masks[n_multipole] < 0.999:
+                    node["mask"] = "true"
                 n_multipole += 1
             elif node["name"] == "Polarize":
                 node["polarizabilityXX"] = paramset[self.name]["pol"][n_pol] * 0.001
                 node["polarizabilityYY"] = paramset[self.name]["pol"][n_pol] * 0.001
                 node["polarizabilityZZ"] = paramset[self.name]["pol"][n_pol] * 0.001
                 node["thole"] = paramset[self.name]["thole"][n_pol]
+                if polar_masks[n_pol] < 0.999:
+                    node["mask"] = "true"
                 n_pol += 1
 
     def _find_multipole_key_index(self, atype: str):
