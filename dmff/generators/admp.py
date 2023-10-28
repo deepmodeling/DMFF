@@ -965,6 +965,12 @@ class ADMPPmeGenerator:
             kx = attribs.get("kx", None)
             ky = attribs.get("ky", None)
             kz = attribs.get("kz", None)
+            if kx == "-1":
+                kx = None
+            if ky == "-1":
+                ky = None
+            if kz == "-1":
+                kz = None
             kxs.append(kx)
             kys.append(ky)
             kzs.append(kz)
@@ -1192,7 +1198,6 @@ class ADMPPmeGenerator:
                     kz = self.kStrings["kz"][i_type]
                     kx = self.kStrings["kx"][i_type]
                     ky = self.kStrings["ky"][i_type]
-
                     axisType = ZThenX  # Z, X, -1
                     if kz is None:
                         axisType = NoAxisType  # -1, -1, -1
@@ -1311,6 +1316,8 @@ class ADMPPmeGenerator:
                                 break
                         if yaxis < 0:
                             continue
+                    elif axisType == NoAxisType:
+                        pass
                     else:
                         continue
 
