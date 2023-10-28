@@ -245,23 +245,21 @@ class ADMPPmeForce:
             potential = charge * rr1
             
             dipole = Qtot[1:4] / 10.0
-            dipole_c = C1_h2c.dot(dipole.reshape((3,1))).ravel()
-            scd = dipole_c.dot(deltaR)
+            scd = dipole.dot(deltaR)
             scu = Uind.dot(deltaR)
             potential -= (scd + scu) * rr3
 
             rr5 = 3.0 * rr3 * rr2
             quad = Qtot[4:13] / 300.0
-            quad_c = C2_h2c.dot(quad.reshape((-1,1))).ravel()
             QXX, QYY, QZZ, QXY, QXZ, QYZ = 0, 1, 2, 3, 4, 5
             scq = deltaR[0] * (
-                quad_c[QXX] * deltaR[0] + quad_c[QXY] * deltaR[1] + quad_c[QXZ] * deltaR[2]
+                quad[QXX] * deltaR[0] + quad[QXY] * deltaR[1] + quad[QXZ] * deltaR[2]
             )
             scq += deltaR[1] * (
-                quad_c[QXY] * deltaR[0] + quad_c[QYY] * deltaR[1] + quad_c[QYZ] * deltaR[2]
+                quad[QXY] * deltaR[0] + quad[QYY] * deltaR[1] + quad[QYZ] * deltaR[2]
             )
             scq += deltaR[2] * (
-                quad_c[QXZ] * deltaR[0] + quad_c[QYZ] * deltaR[1] + quad_c[QZZ] * deltaR[2]
+                quad[QXZ] * deltaR[0] + quad[QYZ] * deltaR[1] + quad[QZZ] * deltaR[2]
             )
             potential += scq * rr5
             return potential * DIELECTRIC * 0.1
@@ -301,7 +299,12 @@ class ADMPPmeForce:
         @jit_condition()
         def get_Q_global(positions, box, Q_local):
             local_frames = self.construct_local_frames(positions, box)
-            return rot_local2global(Q_local[self.map_atomtype], local_frames, self.lmax)
+            Q_global_h = rot_local2global(Q_local[self.map_atomtype], local_frames, self.lmax)
+            C = Q_global_h[:,0].reshape((-1,1))
+            D = C1_h2c.dot(Q_global_h[:,1:4].T).T
+            Q = C2_h2c.dot(Q_global_h[:,4:9].T).T
+            Q_global_c = jnp.hstack((C, D, Q))
+            return Q_global_c
         return get_Q_global
 
     def update_env(self, attr, val):
