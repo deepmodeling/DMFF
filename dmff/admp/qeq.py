@@ -104,7 +104,9 @@ def E_sr2(pos, box, pairs, q, eta, ds, buffer_scales):
 
 @jit_condition()
 def E_sr3(pos, box, pairs, q, eta, ds, buffer_scales):
-    etasqrt = jnp.sqrt(eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2)
+    etasqrt = jnp.sqrt(
+        eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2 + 1e-64
+    )  # add eta to avoid division by zero
     epiece = eta_piecewise(etasqrt, ds)
     pre_pair = -epiece * DIELECTRIC
     pre_self = etainv_piecewise(eta) / (jnp.sqrt(2 * jnp.pi)) * DIELECTRIC
@@ -165,7 +167,7 @@ def ds_pairs(positions, box, pairs, pbc_flag):
         dpos = dpos.dot(box_inv)
         dpos -= jnp.floor(dpos + 0.5)
         dr = dpos.dot(box)
-    ds = jnp.linalg.norm(dr, axis=1)
+    ds = jnp.linalg.norm(dr + 1e-64, axis=1)  # add eta to avoid division by zero
     return ds
 
 
@@ -279,15 +281,15 @@ class ADMPQeqForce:
                     K[1],
                     K[2],
                     0,
-                    False
+                    False,
                 )
-            
+
             self.kappa = kappa
 
         else:
 
             def get_coul_energy(dr_vec, chrgprod, box):
-                dr_norm = jnp.linalg.norm(dr_vec, axis=1)
+                dr_norm = jnp.linalg.norm(dr_vec + 1e-64, axis=1) # add eta to avoid division by zero
 
                 dr_inv = 1.0 / dr_norm
                 E = chrgprod * DIELECTRIC * 0.1 * dr_inv
@@ -309,7 +311,7 @@ class ADMPQeqForce:
                 E_inter = get_coul_energy(dr_vec, chrgprod_scale, box)
 
                 return jnp.sum(E_inter * mask)
-            
+
             self.kappa = 0.0
 
         self.coul_energy = coul_energy

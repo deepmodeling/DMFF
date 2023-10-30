@@ -13,7 +13,9 @@ from ..utils import jit_condition, regularize_pairs, pair_buffer_scales
 from .settings import POL_CONV, MAX_N_POL
 from .recip import generate_pme_recip, Ck_1
 from .multipole import (
-    C1_c2h, C1_h2c, C2_h2c,
+    C1_c2h,
+    C1_h2c,
+    C2_h2c,
     convert_cart2harm,
     rot_ind_global2local,
     rot_global2local,
@@ -232,10 +234,9 @@ class ADMPPmeForce:
             return get_energy
 
     def generate_esp(self):
-
         @jit_condition()
         def esp_kernel(particle, grid, Qtot, Uind):
-            deltaR = (particle - grid) # nm to A
+            deltaR = particle - grid  # nm to A
             r2 = deltaR.dot(deltaR) + 1e-16
             r = jnp.sqrt(r2)
             rr1 = 1.0 / r
@@ -243,7 +244,7 @@ class ADMPPmeForce:
             rr3 = rr1 * rr2
             charge = Qtot[0]
             potential = charge * rr1
-            
+
             dipole = Qtot[1:4] / 10.0
             scd = dipole.dot(deltaR)
             scu = Uind.dot(deltaR)
@@ -294,17 +295,19 @@ class ADMPPmeForce:
 
         return get_esp
 
-    
     def generate_Q_global_function(self):
         @jit_condition()
         def get_Q_global(positions, box, Q_local):
             local_frames = self.construct_local_frames(positions, box)
-            Q_global_h = rot_local2global(Q_local[self.map_atomtype], local_frames, self.lmax)
-            C = Q_global_h[:,0].reshape((-1,1))
-            D = C1_h2c.dot(Q_global_h[:,1:4].T).T
-            Q = C2_h2c.dot(Q_global_h[:,4:9].T).T
+            Q_global_h = rot_local2global(
+                Q_local[self.map_atomtype], local_frames, self.lmax
+            )
+            C = Q_global_h[:, 0].reshape((-1, 1))
+            D = C1_h2c.dot(Q_global_h[:, 1:4].T).T
+            Q = C2_h2c.dot(Q_global_h[:, 4:9].T).T
             Q_global_c = jnp.hstack((C, D, Q))
             return Q_global_c
+
         return get_Q_global
 
     def update_env(self, attr, val):
@@ -1131,8 +1134,8 @@ def pme_real(
 
     # deals with geometries
     dr = r1 - r2
-    dr = v_pbc_shift(dr, box, box_inv) + 1e-32
-    norm_dr = jnp.linalg.norm(dr, axis=-1)
+    dr = v_pbc_shift(dr, box, box_inv)
+    norm_dr = jnp.linalg.norm(dr + 1e-64, axis=-1)  # add eta to avoid division by zero
     Ri = build_quasi_internal(r1, r2, dr, norm_dr)
     qiQI = rot_global2local(Q_extendi, Ri, lmax)
     qiQJ = rot_global2local(Q_extendj, Ri, lmax)
