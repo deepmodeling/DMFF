@@ -3,12 +3,12 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from dmff.utils import pair_buffer_scales, regularize_pairs
-from dmff.admp.pme import energy_pme
-from dmff.admp.recip import generate_pme_recip
-from dmff.admp.spatial import v_pbc_shift
-from dmff.admp.recip import generate_pme_recip, Ck_1
-from dmff.admp.pme import DIELECTRIC 
+from ..utils import pair_buffer_scales, regularize_pairs
+from ..admp.pme import energy_pme
+from ..admp.recip import generate_pme_recip
+from ..admp.spatial import v_pbc_shift
+from ..admp.recip import generate_pme_recip, Ck_1
+from ..admp.pme import DIELECTRIC 
 
 
 ONE_4PI_EPS0 = DIELECTRIC * 0.1
@@ -286,19 +286,19 @@ class CoulombPMEForce:
         assert pme_order == 6, "PME order other than 6 is not supported"
 
     def generate_get_energy(self):
+
+        pme_recip_fn = generate_pme_recip(
+            Ck_fn=Ck_1,
+            kappa=self.kappa / 10,
+            gamma=False,
+            pme_order=self.pme_order,
+            K1=self.K1,
+            K2=self.K2,
+            K3=self.K3,
+            lmax=self.lmax,
+        )
         
         def get_energy_kernel(positions, box, pairs, charges, mscales):
-
-            pme_recip_fn = generate_pme_recip(
-                Ck_fn=Ck_1,
-                kappa=self.kappa / 10,
-                gamma=False,
-                pme_order=self.pme_order,
-                K1=self.K1,
-                K2=self.K2,
-                K3=self.K3,
-                lmax=self.lmax,
-            )
 
             atomCharges = charges
             atomChargesT = jnp.reshape(atomCharges, (-1, 1))

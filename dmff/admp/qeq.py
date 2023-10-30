@@ -5,6 +5,8 @@ from jax import grad, vmap
 from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce
 from typing import Tuple, List
 from ..settings import PRECISION
+from .pme import energy_pme
+from .recip import generate_pme_recip, Ck_1
 
 if PRECISION == "double":
     CONST_0 = jnp.array(0, dtype=jnp.float64)
@@ -15,12 +17,16 @@ else:
 
 try:
     import jaxopt
+
     try:
         from jaxopt import Broyden
+
         JAXOPT_OLD = False
     except ImportError:
         JAXOPT_OLD = True
-        print("jaxopt is too old. The QEQ potential function cannot be jitted. Please update jaxopt to the latest version for speed concern.")
+        print(
+            "jaxopt is too old. The QEQ potential function cannot be jitted. Please update jaxopt to the latest version for speed concern."
+        )
 except ImportError:
     print("jaxopt not found, QEQ cannot be used.")
 import jax
@@ -241,12 +247,72 @@ class ADMPQeqForce:
             raise ValueError("damp_mod must be 1, 2 or 3")
 
         if pbc_flag:
-            force = CoulombPMEForce(r_cut, kappa, K)
+            pme_recip_fn = generate_pme_recip(
+                Ck_fn=Ck_1,
+                kappa=kappa / 10,
+                gamma=False,
+                pme_order=6,
+                K1=K[0],
+                K2=K[1],
+                K3=K[2],
+                lmax=0,
+            )
+
+            def coul_energy(positions, box, pairs, q, mscales):
+                atomCharges = q
+                atomChargesT = jnp.reshape(atomCharges, (-1, 1))
+                return energy_pme(
+                    positions * 10,
+                    box * 10,
+                    pairs,
+                    atomChargesT,
+                    None,
+                    None,
+                    None,
+                    mscales,
+                    None,
+                    None,
+                    None,
+                    pme_recip_fn,
+                    kappa / 10,
+                    K[0],
+                    K[1],
+                    K[2],
+                    0,
+                    False
+                )
+            
             self.kappa = kappa
+
         else:
-            force = CoulNoCutoffForce()
-            self.kappa = 1.0
-        self.coul_energy = force.generate_get_energy()
+
+            def get_coul_energy(dr_vec, chrgprod, box):
+                dr_norm = jnp.linalg.norm(dr_vec, axis=1)
+
+                dr_inv = 1.0 / dr_norm
+                E = chrgprod * DIELECTRIC * 0.1 * dr_inv
+
+                return E
+
+            def coul_energy(positions, box, pairs, q, mscales):
+                pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
+                mask = pair_buffer_scales(pairs[:, :2])
+                cov_pair = pairs[:, 2]
+                mscale_pair = mscales[cov_pair - 1]
+
+                charge0 = q[pairs[:, 0]]
+                charge1 = q[pairs[:, 1]]
+                chrgprod = charge0 * charge1
+                chrgprod_scale = chrgprod * mscale_pair
+                dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
+
+                E_inter = get_coul_energy(dr_vec, chrgprod_scale, box)
+
+                return jnp.sum(E_inter * mask)
+            
+            self.kappa = 0.0
+
+        self.coul_energy = coul_energy
 
     def generate_get_energy(self):
         @jit_condition()
@@ -331,5 +397,5 @@ class ADMPQeqForce:
                 return energy, aux
             else:
                 return energy
-            
+
         return get_energy

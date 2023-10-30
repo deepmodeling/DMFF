@@ -1,9 +1,15 @@
 import numpy as np
 import mdtraj as md
-from pymbar import MBAR
-import dmff
 
-dmff.update_jax_precision(dmff.PRECISION)
+try:
+    from pymbar import MBAR
+except ImportError:
+    MBAR = None
+    import warnings
+    warnings.warn("MBAR not installed, MBAREstimator for multiple states is not available.")
+
+from .settings import update_jax_precision, PRECISION
+update_jax_precision(PRECISION)
 import jax
 import jax.numpy as jnp
 from jax import grad
@@ -11,16 +17,18 @@ from tqdm import tqdm, trange
 import openmm as mm
 import openmm.app as app
 import openmm.unit as unit
-from dmff import NeighborListFreud
+from .common.nblist import NeighborListFreud
 
 
-def buildTrajEnergyFunction(potential_func,
-                        cov_map,
-                        cutoff,
-                        usePBC=True,
-                        useFreud=True,
-                        ensemble="nvt",
-                        pressure=1.0):
+def buildTrajEnergyFunction(
+    potential_func,
+    cov_map,
+    cutoff,
+    usePBC=True,
+    useFreud=True,
+    ensemble="nvt",
+    pressure=1.0,
+):
     def energy_function(traj, parameters):
         pos_list, box_list, pairs_list, vol_list = [], [], [], []
         pair_full = []
@@ -31,8 +39,9 @@ def buildTrajEnergyFunction(potential_func,
         pair_full[:, 2] = cov_map[pair_full[:, 0], pair_full[:, 1]]
         for frame in tqdm(traj):
             aa, bb, cc = frame.openmm_boxes(0).value_in_unit(unit.nanometer)
-            box = jnp.array([[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]],
-                             [cc[0], cc[1], cc[2]]])
+            box = jnp.array(
+                [[aa[0], aa[1], aa[2]], [bb[0], bb[1], bb[2]], [cc[0], cc[1], cc[2]]]
+            )
             positions = jnp.array(frame.xyz[0, :, :])
             if usePBC:
                 nbobj = NeighborListFreud(box, cutoff, cov_map)
@@ -46,11 +55,10 @@ def buildTrajEnergyFunction(potential_func,
         box_list = jnp.array(traj.unitcell_vectors)
 
         pmax = max([p.shape[0] for p in pairs_list])
-        pairs_jax = np.zeros(
-            (traj.n_frames, pmax, 3), dtype=int) + traj.n_atoms
+        pairs_jax = np.zeros((traj.n_frames, pmax, 3), dtype=int) + traj.n_atoms
         for nframe in range(traj.n_frames):
             pair = pairs_list[nframe]
-            pairs_jax[nframe, :pair.shape[0], :] = pair[:, :]
+            pairs_jax[nframe, : pair.shape[0], :] = pair[:, :]
         pairs_jax = jax.numpy.array(pairs_jax)
         if ensemble.upper() == "NVT":
             ensemble_cns = 0.0
@@ -72,9 +80,9 @@ class TargetState:
         self._efunc = energy_function
 
     def calc_energy(self, trajectory, parameters):
-        beta = 1. / self._temperature / 8.314 * 1000.
+        beta = 1.0 / self._temperature / 8.314 * 1000.0
         eners = self._efunc(trajectory, parameters)
-        ulist = jnp.concatenate([beta * e.reshape((1, )) for e in eners])
+        ulist = jnp.concatenate([beta * e.reshape((1,)) for e in eners])
         return ulist
 
 
@@ -88,7 +96,7 @@ class SampleState:
 
     def calc_energy(self, trajectory):
         # return beta * u
-        beta = 1. / self._temperature / 8.314 * 1000.
+        beta = 1.0 / self._temperature / 8.314 * 1000.0
         eners = []
         for frame in tqdm(trajectory):
             e = self.calc_energy_frame(frame)
@@ -97,17 +105,19 @@ class SampleState:
 
 
 class OpenMMSampleState(SampleState):
-    def __init__(self,
-                 name,
-                 parameter,
-                 topology,
-                 temperature=300.0,
-                 pressure=0.0,
-                 useDispersionCorrection=False,
-                 useSwitchingFunction=False,
-                 platform="CPU",
-                 properties={},
-                 **args):
+    def __init__(
+        self,
+        name,
+        parameter,
+        topology,
+        temperature=300.0,
+        pressure=0.0,
+        useDispersionCorrection=False,
+        useSwitchingFunction=False,
+        platform="CPU",
+        properties={},
+        **args
+    ):
         super(OpenMMSampleState, self).__init__(temperature, name)
         self._pressure = pressure
         # create a context
@@ -115,14 +125,14 @@ class OpenMMSampleState(SampleState):
         ff = app.ForceField(parameter)
 
         # default settings
-        if 'nonbondedMethod' not in args:
-            args['nonbondedMethod'] = app.PME
-        if 'nonbondedCutoff' not in args:
-            args['nonbondedCutoff'] = 0.9 * unit.nanometer
-        if 'constraints' not in args:
-            args['constraints'] = None
-        if 'rigidWater' not in args:
-            args['rigidWater'] = False
+        if "nonbondedMethod" not in args:
+            args["nonbondedMethod"] = app.PME
+        if "nonbondedCutoff" not in args:
+            args["nonbondedCutoff"] = 0.9 * unit.nanometer
+        if "constraints" not in args:
+            args["constraints"] = None
+        if "rigidWater" not in args:
+            args["rigidWater"] = False
         system = ff.createSystem(pdb.topology, **args)
 
         platform = mm.Platform.getPlatformByName(platform)
@@ -133,8 +143,9 @@ class OpenMMSampleState(SampleState):
                 force.setUseDispersionCorrection(useDispersionCorrection)
                 force.setUseSwitchingFunction(useSwitchingFunction)
 
-        integ = mm.LangevinIntegrator(0 * unit.kelvin, 5 / unit.picosecond,
-                                      1.0 * unit.femtosecond)
+        integ = mm.LangevinIntegrator(
+            0 * unit.kelvin, 5 / unit.picosecond, 1.0 * unit.femtosecond
+        )
         self.ctx = mm.Context(system, integ, platform, platform_properties)
 
     def calc_energy_frame(self, frame):
@@ -142,8 +153,10 @@ class OpenMMSampleState(SampleState):
         self.ctx.setPeriodicBoxVectors(*frame.openmm_boxes(0))
         state = self.ctx.getState(getEnergy=True)
         vol = frame.unitcell_volumes[0]  # in nm^3
-        ener = state.getPotentialEnergy().value_in_unit(
-            unit.kilojoule_per_mole) + 0.06023 * vol * self._pressure
+        ener = (
+            state.getPotentialEnergy().value_in_unit(unit.kilojoule_per_mole)
+            + 0.06023 * vol * self._pressure
+        )
         return ener
 
 
@@ -157,12 +170,20 @@ class Sample:
         for state in state_list:
             if state.name not in self.energy_data:
                 self.energy_data[state.name] = np.array(
-                    [state.calc_energy(self.trajectory)])
+                    [state.calc_energy(self.trajectory)]
+                )
 
 
 class ReweightEstimator:
-    def __init__(self, ref_energies, base_energies = None, volume = None, temperature = 300.0, pressure = 1.0):
-        self.beta = 1. / temperature / 8.314 * 1000.
+    def __init__(
+        self,
+        ref_energies,
+        base_energies=None,
+        volume=None,
+        temperature=300.0,
+        pressure=1.0,
+    ):
+        self.beta = 1.0 / temperature / 8.314 * 1000.0
         self.ref_energies = jnp.array(ref_energies)
         if base_energies is None:
             self.base_energies = jnp.zeros(ref_energies.shape)
@@ -178,10 +199,10 @@ class ReweightEstimator:
         uref = (self.ref_energies + self.pv) * self.beta
         deltaU = unew - uref
         deltaU = deltaU - deltaU.max()
-        weight = jnp.exp(- deltaU)
+        weight = jnp.exp(-deltaU)
         weight = weight / weight.mean()
         return weight
-        
+
 
 class MBAREstimator:
     def __init__(self):
@@ -246,11 +267,9 @@ class MBAREstimator:
         self._free_energy_jax = jax.numpy.array(self._mbar.f_k)
         self._nk_jax = jax.numpy.array(nk)
 
-    def estimate_weight(self,
-                        state,
-                        parameters=None,
-                        decompose=True,
-                        return_energy=True):
+    def estimate_weight(
+        self, state, parameters=None, decompose=True, return_energy=True
+    ):
         if isinstance(state, TargetState):
             unew = state.calc_energy(self._full_samples, parameters)
         else:
@@ -258,8 +277,9 @@ class MBAREstimator:
         unew_max = unew.max()
         du_1 = self._free_energy_jax.reshape((-1, 1)) - self._umat_jax
         delta_u = du_1 + unew.reshape((1, -1)) - unew_max - du_1.min()
-        cm = 1. / (jax.numpy.exp(delta_u) * jax.numpy.array(self._nk).reshape(
-            (-1, 1))).sum(axis=0)
+        cm = 1.0 / (
+            jax.numpy.exp(delta_u) * jax.numpy.array(self._nk).reshape((-1, 1))
+        ).sum(axis=0)
         weight = cm / cm.sum()
         if return_energy:
             return weight, unew
@@ -269,7 +289,7 @@ class MBAREstimator:
         unew_mean = unew_npy.mean()
         du_1 = self._mbar.f_k.reshape((-1, 1)) - self._umat
         delta_u = du_1 + unew_npy.reshape((1, -1)) - unew_mean - du_1.mean()
-        cn = 1. / (np.exp(delta_u) * self._nk.reshape((-1, 1))).sum(axis=0)
+        cn = 1.0 / (np.exp(delta_u) * self._nk.reshape((-1, 1))).sum(axis=0)
         weight = cn / cn.sum()
         if return_cn:
             return weight, cn
@@ -286,21 +306,27 @@ class MBAREstimator:
         Sigma = np.diag(np.sqrt(S2))
 
         # Compute covariance
-        Theta = (V @ Sigma @ np.linalg.pinv(
-            I - Sigma @ V.T @ Ndiag @ V @ Sigma, rcond=1e-10) @ Sigma @ V.T)
+        Theta = (
+            V
+            @ Sigma
+            @ np.linalg.pinv(I - Sigma @ V.T @ Ndiag @ V @ Sigma, rcond=1e-10)
+            @ Sigma
+            @ V.T
+        )
         return Theta
 
     def estimate_effective_sample(self, unew, decompose=False):
         wnew, cn = self._estimate_weight_numpy(unew, return_cn=True)
-        eff_samples = 1. / (wnew**2).sum()
+        eff_samples = 1.0 / (wnew**2).sum()
         if decompose:
             state_effect = {}
-            argsort = np.argsort(wnew)[::-1][:int(eff_samples)]
+            argsort = np.argsort(wnew)[::-1][: int(eff_samples)]
             for nstate in range(len(self.states)):
                 istart = self._nk[:nstate].sum()
                 iend = istart + self._nk[nstate]
                 state_effect[self.states[nstate].name] = (
-                    (argsort > istart) & (argsort < iend)).sum()
+                    (argsort > istart) & (argsort < iend)
+                ).sum()
             state_effect["Total"] = eff_samples
             return state_effect
         return eff_samples
@@ -309,29 +335,31 @@ class MBAREstimator:
         a = self._free_energy_jax - self._umat_jax.T
         # log(sum(n_k*exp(a)))
         a_max = a.max(axis=1, keepdims=True)
-        log_denominator_n = jnp.log((self._nk_jax.reshape(
-            (1, -1)) * jnp.exp(a - a_max)).sum(axis=1)) + a_max.reshape((-1, ))
+        log_denominator_n = jnp.log(
+            (self._nk_jax.reshape((1, -1)) * jnp.exp(a - a_max)).sum(axis=1)
+        ) + a_max.reshape((-1,))
         a2 = -unew - log_denominator_n
         # log(sum(exp(a2)))
         a2_max = a2.max()
         f_new = -jnp.log(jnp.sum(jnp.exp(a2 - a2_max))) - a2_max
         return f_new
 
-    def estimate_free_energy_difference(self,
-                                        target_state,
-                                        ref_state,
-                                        target_parameters=None,
-                                        ref_parameters=None,
-                                        decompose=True,
-                                        return_energy=False):
+    def estimate_free_energy_difference(
+        self,
+        target_state,
+        ref_state,
+        target_parameters=None,
+        ref_parameters=None,
+        decompose=True,
+        return_energy=False,
+    ):
         # compute F_target - F_ref
         if isinstance(ref_state, TargetState):
             u_ref = ref_state.calc_energy(self._full_samples, ref_parameters)
         else:
             u_ref = ref_state.calc_energy(self._full_samples)
         if isinstance(target_state, TargetState):
-            u_target = target_state.calc_energy(self._full_samples,
-                                                target_parameters)
+            u_target = target_state.calc_energy(self._full_samples, target_parameters)
         else:
             u_target = target_state.calc_energy(self._full_samples)
         f_ref = self._estimate_free_energy(u_ref)

@@ -7,8 +7,12 @@ except ImportError as e:
     import simtk.openmm.app as app
     import simtk.unit as unit
 from typing import Dict, Tuple, List
-from rdkit import Chem
-from rdkit.Chem import AllChem
+try:
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+except ImportError as e:
+    import warnings
+    warnings.warn("RDKit is not installed. SMIRKS pattern matching cannot be used.")
 
 
 def matchTemplate(graph, template):

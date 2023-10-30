@@ -21,7 +21,10 @@ with open(path.join('dmff', '_date.py'), 'w') as fp:
 install_requires = [
     "numpy>=1.18",
     "openmm>=7.6.0",
-    "freud-analysis"
+    "freud-analysis",
+    "networkx>=3.0",
+    "optax>=0.1.4",
+    "tqdm"
 ]
 
 

@@ -4,7 +4,11 @@ import xml.etree.ElementTree as ET
 from ..api.topology import DMFFTopology
 from ..api.vsite import VirtualSite
 from ..api.vstools import insertVirtualSites
-from rdkit import Chem
+try:
+    from rdkit import Chem
+except ImportError:
+    import warnings
+    warnings.warn("WARNING: rdkit not installed, SMARTSVSiteOperator will not work.")
 
 
 class SMARTSVSiteOperator(BaseOperator):

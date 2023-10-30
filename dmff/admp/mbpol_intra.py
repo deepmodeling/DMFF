@@ -2,8 +2,8 @@
 import numpy as np
 import jax.numpy as jnp
 import numpy as np
-from dmff.admp.spatial import v_pbc_shift
-from dmff.utils import jit_condition
+from .spatial import v_pbc_shift
+from ..utils import jit_condition
 from jax import vmap
 
 #const

@@ -4,9 +4,9 @@ import jax
 import jax.numpy as jnp
 from jax import vmap, jit, value_and_grad
 import numpy as np
-from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
-from dmff.admp.pairwise import distribute_scalar, distribute_v3
-from dmff.admp.spatial import pbc_shift
+from ..utils import jit_condition, regularize_pairs, pair_buffer_scales
+from ..admp.pairwise import distribute_scalar, distribute_v3
+from ..admp.spatial import pbc_shift
 from functools import partial
 import jax.nn.initializers
 import pickle

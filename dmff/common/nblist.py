@@ -1,14 +1,17 @@
-from typing import Optional, Literal
-
 import numpy as np
 import jax.numpy as jnp
-import freud
-
-from dmff.utils import regularize_pairs
+try:
+    import freud
+except ImportError:
+    freud = None
+    import warnings
+    warnings.warn("WARNING: freud not installed, users need to create neighbor list by themselves.")
 
 
 class NeighborListFreud:
     def __init__(self, box, rcut, cov_map, padding=True):
+        if freud is None:
+            raise ImportError("Freud not installed.")
         self.fbox = freud.box.Box.from_matrix(box)
         self.rcut = rcut
         self.capacity_multiplier = None

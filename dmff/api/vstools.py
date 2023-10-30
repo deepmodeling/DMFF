@@ -1,12 +1,5 @@
-import openmm.app as app
-from typing import List, Union, Tuple
-import xml.etree.ElementTree as ET
-import networkx as nx
-from networkx.algorithms import isomorphism
 from .vsite import VirtualSite
 from .topology import DMFFTopology
-from .graph import matchTemplate
-from rdkit import Chem
 
 
 def pickTheSame(obj, li) -> int:
@@ -31,12 +24,12 @@ def insertVirtualSites(topdata, vsite_list):
     for chain in topdata.chains():
         newchain = newtop.addChain(id=chain.id)
         for residue in chain.residues():
-            newres = newtop.addResidue(
-                name=residue.name, chain=newchain, id=residue.id)
+            newres = newtop.addResidue(name=residue.name, chain=newchain, id=residue.id)
             nep = 1
             for atom in residue.atoms():
                 newatom = newtop.addAtom(
-                    atom.name, atom.element, newres, id=atom.id, meta=atom.meta)
+                    atom.name, atom.element, newres, id=atom.id, meta=atom.meta
+                )
                 newatoms.append(newatom)
                 if atom.element is None:
                     nep += 1
@@ -53,8 +46,9 @@ def insertVirtualSites(topdata, vsite_list):
         weights = vs.weights
         vtype = vs.type
         vmeta = vs.meta
-        newvsite = VirtualSite(vtype, [newatoms[i]
-                                for i in aidx], weights, vatom=va, meta=vmeta)
+        newvsite = VirtualSite(
+            vtype, [newatoms[i] for i in aidx], weights, vatom=va, meta=vmeta
+        )
         tot_vsites.append(newvsite)
 
     for bond in topdata.bonds():
@@ -70,7 +64,12 @@ def insertVirtualSites(topdata, vsite_list):
         vidx = vsite.vatom.index
         vmeta = vsite.meta
         new_vsite = VirtualSite(
-            vtype, [newatoms[i] for i in aidx], weights, vatom=newatoms[vidx], meta=vmeta)
+            vtype,
+            [newatoms[i] for i in aidx],
+            weights,
+            vatom=newatoms[vidx],
+            meta=vmeta,
+        )
         tot_vsites.append(new_vsite)
 
     newtop._vsites = sorted(tot_vsites, key=lambda x: x.atoms[0].index)
@@ -105,4 +104,3 @@ def insertVirtualSites(topdata, vsite_list):
     if topdata.cell is not None:
         newtop.setPeriodicBoxVectors(topdata.getPeriodicBoxVectors(use_jax=False))
     return newtop
-
