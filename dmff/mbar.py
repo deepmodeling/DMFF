@@ -1,5 +1,9 @@
 import numpy as np
-import mdtraj as md
+try:
+    import mdtraj as md
+except ImportError:
+    import warnings
+    warnings.warn("MDTraj not installed. MBAREstimator is not available.")
 
 try:
     from pymbar import MBAR

@@ -346,7 +346,7 @@ class DMFFTopology:
         return iter(self._vsites)
 
     @classmethod
-    def regularize_aromaticity(cls, mol: Chem.Mol) -> bool:
+    def regularize_aromaticity(cls, mol) -> bool:
         """
         Regularize Aromaticity for a rdkit.Mol object. Rings with exocyclic double bonds will not be set aromatic.
         """
@@ -681,7 +681,7 @@ def decomptop(top) -> List[List[int]]:
     return indices
 
 
-def top2rdmol(top, indices) -> Chem.rdchem.Mol:
+def top2rdmol(top, indices):
     rdmol = Chem.Mol()
     emol = Chem.EditableMol(rdmol)
     idx2ridx = {}

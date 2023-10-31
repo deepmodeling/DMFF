@@ -24,11 +24,13 @@ try:
         JAXOPT_OLD = False
     except ImportError:
         JAXOPT_OLD = True
-        print(
+        import warnings
+        warnings.warn(
             "jaxopt is too old. The QEQ potential function cannot be jitted. Please update jaxopt to the latest version for speed concern."
         )
 except ImportError:
-    print("jaxopt not found, QEQ cannot be used.")
+    import warnings
+    warnings.warn("jaxopt not found, QEQ cannot be used.")
 import jax
 
 from jax.scipy.special import erf, erfc

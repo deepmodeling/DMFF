@@ -50,7 +50,7 @@ class ParmedLennardJonesOperator(BaseOperator):
             f.write("</ForceField>\n")
 
     @classmethod
-    def overwriteLennardJones(cls, top: parmed.gromacs.GromacsTopologyFile, ffinfo: dict):
+    def overwriteLennardJones(cls, top, ffinfo: dict):
         nodes = [n for n in ffinfo["Forces"]["LennardJonesForce"]["node"]]
         prm = {}
         for node in nodes:

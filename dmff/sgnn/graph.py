@@ -1,11 +1,13 @@
-#!/usr/bin/env python
 import sys
 from functools import partial
 from itertools import permutations, product
 
 import jax.numpy as jnp
 # import MDAnalysis as mda
-import mdtraj as md
+try:
+    import mdtraj as md
+except ImportError:
+    pass
 import numpy as np
 from ..admp.pairwise import distribute_scalar, distribute_v3
 from ..admp.spatial import pbc_shift

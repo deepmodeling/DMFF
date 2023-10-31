@@ -24,6 +24,8 @@ install_requires = [
     "freud-analysis",
     "networkx>=3.0",
     "optax>=0.1.4",
+    "jaxopt>=0.8.0",
+    "pymbar>=4.0.0",
     "tqdm"
 ]
 

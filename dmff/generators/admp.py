@@ -962,15 +962,9 @@ class ADMPPmeGenerator:
             self.multipole_types.append(attribs[self.key_type])
             # record local coords as kz kx ky
             # None if not occur
-            kx = attribs.get("kx", None)
-            ky = attribs.get("ky", None)
-            kz = attribs.get("kz", None)
-            if kx == "-1":
-                kx = None
-            if ky == "-1":
-                ky = None
-            if kz == "-1":
-                kz = None
+            kx = attribs.get("kx", "")
+            ky = attribs.get("ky", "")
+            kz = attribs.get("kz", "")
             kxs.append(kx)
             kys.append(ky)
             kzs.append(kz)
@@ -1124,6 +1118,51 @@ class ADMPPmeGenerator:
             if i == atype:
                 return n
         return None
+    
+    @staticmethod
+    def setAxisType(kIndices):
+        # setting up axis_indices and axis_type
+        ZThenX = 0
+        Bisector = 1
+        ZBisect = 2
+        ThreeFold = 3
+        ZOnly = 4  # typo fix
+        NoAxisType = 5
+        LastAxisTypeIndex = 6
+
+        # set axis type
+
+        ky = kIndices[2]
+        kyNegative = False
+        if ky.startswith('-'):
+            ky = ky[1:]
+            kyNegative = True
+
+        kx = kIndices[1]
+        kxNegative = False
+        if kx.startswith('-'):
+            kx = kx[1:]
+            kxNegative = True
+
+        kz = kIndices[0]
+        kzNegative = False
+        if kz.startswith('-'):
+            kz = kz[1:]
+            kzNegative = True
+
+        axisType = ZThenX
+        if (not kz):
+            axisType = NoAxisType
+        if (kz and not kx):
+            axisType = ZOnly
+        if (kz and kzNegative or kx and kxNegative):
+            axisType = Bisector
+        if (kx and kxNegative and ky and kyNegative):
+            axisType = ZBisect
+        if (kz and kzNegative and kx and kxNegative and ky and kyNegative):
+            axisType = ThreeFold
+
+        return axisType, [kz, kx, ky]
 
     def createPotential(
         self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs
@@ -1198,25 +1237,7 @@ class ADMPPmeGenerator:
                     kz = self.kStrings["kz"][i_type]
                     kx = self.kStrings["kx"][i_type]
                     ky = self.kStrings["ky"][i_type]
-                    axisType = ZThenX  # Z, X, -1
-                    if kz is None:
-                        axisType = NoAxisType  # -1, -1, -1
-                    if kz is not None and kx is None:
-                        axisType = ZOnly  # Z, -1, -1
-                    if (kz is not None and kz[0] == "-") or (
-                        kx is not None and kx[0] == "-"
-                    ):
-                        axisType = Bisector  # Z, X, -1
-                    if (kx is not None and kx[0] == "-") and (
-                        ky is not None and ky[0] == "-"
-                    ):
-                        axisType = ZBisect  # Z, Y, X
-                    if (
-                        (kz is not None and kz[0] == "-")
-                        and (kx is not None and kx[0] == "-")
-                        and (ky is not None and ky[0] == "-")
-                    ):
-                        axisType = ThreeFold  # Z, Y, X
+                    axisType, (kz, kx, ky) = self.setAxisType([kz, kx, ky])
 
                     zaxis = -1
                     xaxis = -1
@@ -1228,56 +1249,42 @@ class ADMPPmeGenerator:
                     if axisType == ZThenX:
                         if kz is None or kx is None:
                             raise DMFFException("ZThenX axis requires both kz and kx!")
-                        kz_real = kz[1:] if kz[0] == "-" else kz
-                        kx_real = kx[1:] if kx[0] == "-" else kx
-                        # 1-2, 1-2
-                        if neighbors.shape[0] > 1:
-                            # find zaxis
-                            for i_neighbor in neighbors:
-                                if kz_real == atoms[i_neighbor].meta[self.key_type]:
-                                    zaxis = i_neighbor
-                                    break
-                            if zaxis < 0:
+                        # find zaxis
+                        for i_neighbor in neighbors:
+                            if kz == atoms[i_neighbor].meta[self.key_type]:
+                                zaxis = i_neighbor
+                                break
+                        if zaxis < 0:
+                            continue
+                        # find xaxis on 1-2 pairs
+                        for i_neighbor in neighbors:
+                            if i_neighbor == zaxis:
                                 continue
-                            # find xaxis
-                            for i_neighbor in neighbors:
-                                if i_neighbor == zaxis:
-                                    continue
-                                if kx_real == atoms[i_neighbor].meta[self.key_type]:
-                                    xaxis = i_neighbor
-                                    break
-                            if xaxis < 0:
-                                continue
-                        # 1-2, 1-3
-                        elif neighbors.shape[0] == 1:
-                            if kz_real == atoms[neighbors[0]].meta[self.key_type]:
-                                zaxis = neighbors[0]
-                            else:
-                                continue
-                            # find xaxis
+                            if kx == atoms[i_neighbor].meta[self.key_type]:
+                                xaxis = i_neighbor
+                                break
+                        if xaxis < 0:
+                            # find xaxis on 1-3 pairs
                             neighbors2 = np.where(covalent_map[zaxis] == 1)[0]
                             for j_neighbor in neighbors2:
                                 if j_neighbor == i_atom:
                                     continue
-                                if kx_real == atoms[j_neighbor].meta[self.key_type]:
+                                if kx == atoms[j_neighbor].meta[self.key_type]:
                                     xaxis = j_neighbor
                                     break
-                            if xaxis < 0:
-                                continue
+                        if xaxis < 0:
+                            continue
                     elif axisType == ZOnly:
-                        kz_real = kz[1:] if kz[0] == "-" else kz
                         # 1-2 only
                         for i_neighbor in neighbors:
-                            if kz_real == atoms[i_neighbor].meta[self.key_type]:
+                            if kz == atoms[i_neighbor].meta[self.key_type]:
                                 zaxis = i_neighbor
                                 break
                         if zaxis < 0:
                             continue
                     elif axisType == Bisector:
-                        kz_real = kz[1:] if kz[0] == "-" else kz
-                        kx_real = kx[1:] if kx[0] == "-" else kx
                         for i_neighbor in neighbors:
-                            if kz_real == atoms[i_neighbor].meta[self.key_type]:
+                            if kz == atoms[i_neighbor].meta[self.key_type]:
                                 zaxis = i_neighbor
                                 break
                         if zaxis < 0:
@@ -1285,17 +1292,14 @@ class ADMPPmeGenerator:
                         for j_neighbor in neighbors:
                             if j_neighbor == zaxis:
                                 continue
-                            if kx_real == atoms[j_neighbor].meta[self.key_type]:
+                            if kx == atoms[j_neighbor].meta[self.key_type]:
                                 xaxis = j_neighbor
                                 break
                         if xaxis < 0:
                             continue
                     elif axisType in [ZBisect, ThreeFold]:
-                        kz_real = kz[1:] if kz[0] == "-" else kz
-                        kx_real = kx[1:] if kx[0] == "-" else kx
-                        ky_real = ky[1:] if ky[0] == "-" else ky
                         for i_neighbor in neighbors:
-                            if kz_real == atoms[i_neighbor].meta[self.key_type]:
+                            if kz == atoms[i_neighbor].meta[self.key_type]:
                                 zaxis = i_neighbor
                                 break
                         if zaxis < 0:
@@ -1303,7 +1307,7 @@ class ADMPPmeGenerator:
                         for j_neighbor in neighbors:
                             if j_neighbor == zaxis:
                                 continue
-                            if kx_real == atoms[j_neighbor].meta[self.key_type]:
+                            if kx == atoms[j_neighbor].meta[self.key_type]:
                                 xaxis = j_neighbor
                                 break
                         if xaxis < 0:
@@ -1311,7 +1315,7 @@ class ADMPPmeGenerator:
                         for k_neighbor in neighbors:
                             if k_neighbor == zaxis or k_neighbor == xaxis:
                                 continue
-                            if ky_real == atoms[k_neighbor].meta[self.key_type]:
+                            if ky == atoms[k_neighbor].meta[self.key_type]:
                                 yaxis = k_neighbor
                                 break
                         if yaxis < 0:

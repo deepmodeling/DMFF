@@ -104,7 +104,7 @@ def graph2top(graph: nx.Graph) -> app.Topology:
     return top
 
 
-def top2rdmol(top: app.Topology, indices: List[int]) -> Chem.rdchem.Mol:
+def top2rdmol(top: app.Topology, indices: List[int]):
     rdmol = Chem.Mol()
     emol = Chem.EditableMol(rdmol)
     idx2ridx = {}
