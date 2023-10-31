@@ -30,7 +30,7 @@
       dX="0.0" dY="0.0"  dZ="0.0"
       qXX="0.0" qXY="0.0" qYY="0.0" qXZ="0.0" qYZ="0.0" qZZ="0.0"
       /> 
-   <Atom type="382" kz="-1" kx="-1"
+   <Atom type="382" kz="" kx=""
          c0="1.0000"
              dX="0.0" dY="0.0"  dZ="0.0"
              qXX="0.0" qXY="0.0" qYY="0.0" qXZ="0.0" qYZ="0.0" qZZ="0.0"
