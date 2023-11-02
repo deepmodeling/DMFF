@@ -1362,6 +1362,8 @@ class ADMPPmeGenerator:
             has_aux
         )
         self.pme_force = pme_force
+        topdata._meta["admp_map_atomtype"] = map_atomtype
+        topdata._meta["admp_map_poltype"] = map_poltype
 
         if "has_aux" in kwargs and kwargs["has_aux"]:
             has_aux = True
