@@ -20,7 +20,8 @@ class ADMPQeqGenerator:
         self.ffinfo = ffinfo
         paramset.addField(self.name)
         self.coulomb14scale = float(
-            self.ffinfo["Forces"][self.name]["meta"]["coulomb14scale"])
+            self.ffinfo["Forces"][self.name]["meta"]["coulomb14scale"]
+        )
 
         self.key_type = None
         keys, params = [], []
@@ -95,9 +96,9 @@ class ADMPQeqGenerator:
             J0 = J[nidx]
             eta0 = eta[nidx]
             mask = atom_mask[nidx]
-            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["chi"] = str(chi0)
-            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["J"] = str(J0)
-            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["eta"] = str(eta0)
+            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["chi"] = chi0
+            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["J"] = J0
+            self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["eta"] = eta0
             if mask < 0.999:
                 self.ffinfo["Forces"][self.name]["node"][idx]["attrib"]["mask"] = "true"
 
@@ -108,13 +109,8 @@ class ADMPQeqGenerator:
         return None
 
     def createPotential(
-        self,
-        topdata: DMFFTopology,
-        nonbondedMethod,
-        nonbondedCutoff,
-        **kwargs
+        self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs
     ):
-        
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.PME: "PME",
@@ -127,10 +123,9 @@ class ADMPQeqGenerator:
         if nonbondedMethod is app.NoCutoff:
             isNoCut = True
 
-        mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0,
-                                  1.0])  # mscale for PME
+        mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for PME
         mscales_coul = mscales_coul.at[2].set(self.coulomb14scale)
-        self.mscales_coul = mscales_coul # for qeq calculation
+        self.mscales_coul = mscales_coul  # for qeq calculation
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -143,10 +138,9 @@ class ADMPQeqGenerator:
             self.ethresh = kwargs.get("ethresh", 1e-5)
             self.coeff_method = kwargs.get("PmeCoeffMethod", "openmm")
             self.fourier_spacing = kwargs.get("PmeSpacing", 0.1)
-            kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, self.ethresh,
-                                                       box,
-                                                       self.fourier_spacing,
-                                                       self.coeff_method)
+            kappa, K1, K2, K3 = setup_ewald_parameters(
+                r_cut, self.ethresh, box, self.fourier_spacing, self.coeff_method
+            )
         else:
             kappa, K1, K2, K3 = 1.0, 1, 1, 1
         K = (K1, K2, K3)
@@ -177,17 +171,28 @@ class ADMPQeqGenerator:
                 aidx = [a.index for a in r.atoms()]
                 const_list.append(aidx)
                 const_vals.append(sum(init_q[aidx]))
-                
+
+        has_aux = False
+        if "has_aux" in kwargs:
+            has_aux = kwargs["has_aux"]
+
         qeq_force = ADMPQeqForce(
-            init_q, r_cut, kappa, K, damp_mod=self.damp_mod,
-            const_list=const_list, const_vals=const_vals,
-            neutral_flag=neutral_flag, slab_flag=slab_flag,
-            constQ=constQ, pbc_flag=(not isNoCut)
+            init_q,
+            r_cut,
+            kappa,
+            K,
+            damp_mod=self.damp_mod,
+            const_list=const_list,
+            const_vals=const_vals,
+            neutral_flag=neutral_flag,
+            slab_flag=slab_flag,
+            constQ=constQ,
+            pbc_flag=(not isNoCut),
+            has_aux=has_aux,
         )
         qeq_energy = qeq_force.generate_get_energy()
 
-        mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0,
-                                  1.0])  # mscale for PME
+        mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for PME
         mscales_coul = mscales_coul.at[2].set(self.coulomb14scale)
 
         def potential_fn(
@@ -195,17 +200,21 @@ class ADMPQeqGenerator:
             box: jnp.ndarray,
             pairs: jnp.ndarray,
             params: ParamSet,
+            aux: dict = None
         ) -> jnp.ndarray:
             # map_atomtype = np.zeros(n_atoms)
             eta = params[self.name]["eta"][map_idx]
             chi = params[self.name]["chi"][map_idx]
             J = params[self.name]["J"][map_idx]
 
-            qeq_energy0 = qeq_energy(
-                positions, box, pairs, mscales_coul, eta, chi, J
-            )
-            # return pme_energy + qeq_energy0
-            return qeq_energy0
+            if has_aux:
+                qeq_energy0, aux = qeq_energy(positions, box, pairs, mscales_coul, eta, chi, J, aux)
+                # return pme_energy + qeq_energy0
+                return qeq_energy0, aux
+            else:
+                qeq_energy0 = qeq_energy(positions, box, pairs, mscales_coul, eta, chi, J)
+                # return pme_energy + qeq_energy0
+                return qeq_energy0
 
         self._jaxPotential = potential_fn
         return potential_fn

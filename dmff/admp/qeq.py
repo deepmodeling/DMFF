@@ -5,6 +5,8 @@ from jax import grad, vmap
 from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce
 from typing import Tuple, List
 from ..settings import PRECISION
+from .pme import energy_pme
+from .recip import generate_pme_recip, Ck_1
 
 if PRECISION == "double":
     CONST_0 = jnp.array(0, dtype=jnp.float64)
@@ -15,8 +17,20 @@ else:
 
 try:
     import jaxopt
+
+    try:
+        from jaxopt import Broyden
+
+        JAXOPT_OLD = False
+    except ImportError:
+        JAXOPT_OLD = True
+        import warnings
+        warnings.warn(
+            "jaxopt is too old. The QEQ potential function cannot be jitted. Please update jaxopt to the latest version for speed concern."
+        )
 except ImportError:
-    print("jaxopt not found, QEQ cannot be used.")
+    import warnings
+    warnings.warn("jaxopt not found, QEQ cannot be used.")
 import jax
 
 from jax.scipy.special import erf, erfc
@@ -25,20 +39,25 @@ from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
 
 
 @jit_condition()
-def group_sum(val_list, indices):
-    max_idx = indices.max()
-    exceed = jnp.piecewise(
-        indices,
-        [indices < max_idx, indices >= max_idx],
-        [lambda x: CONST_1, lambda x: CONST_0],
+def mask_index(idx, max_idx):
+    return jnp.piecewise(
+        idx, [idx < max_idx, idx >= max_idx], [lambda x: CONST_1, lambda x: CONST_0]
     )
-    return jnp.sum(val_list[indices] * exceed)
 
 
-group_sum_vmap = jax.vmap(group_sum, in_axes=(None, 0))
+mask_index = jax.vmap(mask_index, in_axes=(0, None))
 
 
-# @jit_condition
+@jit_condition()
+def group_sum(val_list, indices):
+    max_idx = val_list.shape[0]
+    mask = mask_index(indices, max_idx)
+    return jnp.sum(val_list[indices] * mask)
+
+
+group_sum = jax.vmap(group_sum, in_axes=(None, 0))
+
+
 def padding_consts(const_list, max_idx):
     max_length = max([len(i) for i in const_list])
     new_const_list = np.zeros((len(const_list), max_length)) + max_idx
@@ -50,13 +69,13 @@ def padding_consts(const_list, max_idx):
 
 @jit_condition()
 def E_constQ(q, lagmt, const_list, const_vals):
-    constraint = (group_sum_vmap(q, const_list) - const_vals) * lagmt
+    constraint = (group_sum(q, const_list) - const_vals) * lagmt
     return jnp.sum(constraint)
 
 
 @jit_condition()
 def E_constP(q, lagmt, const_list, const_vals):
-    constraint = group_sum_vmap(q, const_list) * const_vals
+    constraint = group_sum(q, const_list) * const_vals
     return jnp.sum(constraint)
 
 
@@ -64,7 +83,7 @@ def E_constP(q, lagmt, const_list, const_vals):
 @jit_condition()
 def mask_to_zero(v, mask):
     return jnp.piecewise(
-        v, [mask < 1e-5, mask >= 1e-5], [lambda x: CONST_0, lambda x: v]
+        v, [mask < 1e-4, mask >= 1e-4], [lambda x: CONST_0, lambda x: v]
     )
 
 
@@ -87,7 +106,9 @@ def E_sr2(pos, box, pairs, q, eta, ds, buffer_scales):
 
 @jit_condition()
 def E_sr3(pos, box, pairs, q, eta, ds, buffer_scales):
-    etasqrt = jnp.sqrt(eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2)
+    etasqrt = jnp.sqrt(
+        eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2 + 1e-64
+    )  # add eta to avoid division by zero
     epiece = eta_piecewise(etasqrt, ds)
     pre_pair = -epiece * DIELECTRIC
     pre_self = etainv_piecewise(eta) / (jnp.sqrt(2 * jnp.pi)) * DIELECTRIC
@@ -136,17 +157,6 @@ def E_corr(pos, box, pairs, q, kappa, neutral_flag=True):
     return jnp.sum(e_corr)
 
 
-@jit_condition
-def E_CoulNocutoff(pos, box, pairs, q, ds):
-    e = q[pairs[:, 0]] * q[pairs[:, 1]] / ds * DIELECTRIC
-    return jnp.sum(e)
-
-
-@jit_condition
-def E_Coul(pos, box, pairs, q, ds):
-    return 0.0
-
-
 @jit_condition(static_argnums=[3])
 def ds_pairs(positions, box, pairs, pbc_flag):
     pos1 = positions[pairs[:, 0]]
@@ -159,7 +169,7 @@ def ds_pairs(positions, box, pairs, pbc_flag):
         dpos = dpos.dot(box_inv)
         dpos -= jnp.floor(dpos + 0.5)
         dr = dpos.dot(box)
-    ds = jnp.linalg.norm(dr, axis=1)
+    ds = jnp.linalg.norm(dr + 1e-64, axis=1)  # add eta to avoid division by zero
     return ds
 
 
@@ -201,11 +211,13 @@ class ADMPQeqForce:
         slab_flag: bool = False,
         constQ: bool = True,
         pbc_flag: bool = True,
+        has_aux=False,
     ):
-        if not isinstance(const_vals, jnp.ndarray):
-            self.const_vals = jnp.array(const_vals)
-        else:
-            self.const_vals = const_vals
+        self.has_aux = has_aux
+        const_vals = np.array(const_vals)
+        if neutral_flag:
+            const_vals = const_vals - np.sum(const_vals) / len(const_vals)
+        self.const_vals = jnp.array(const_vals)
         assert len(const_list) == len(
             const_vals
         ), "const_list and const_vals must have the same length"
@@ -239,12 +251,72 @@ class ADMPQeqForce:
             raise ValueError("damp_mod must be 1, 2 or 3")
 
         if pbc_flag:
-            force = CoulombPMEForce(r_cut, kappa, K)
+            pme_recip_fn = generate_pme_recip(
+                Ck_fn=Ck_1,
+                kappa=kappa / 10,
+                gamma=False,
+                pme_order=6,
+                K1=K[0],
+                K2=K[1],
+                K3=K[2],
+                lmax=0,
+            )
+
+            def coul_energy(positions, box, pairs, q, mscales):
+                atomCharges = q
+                atomChargesT = jnp.reshape(atomCharges, (-1, 1))
+                return energy_pme(
+                    positions * 10,
+                    box * 10,
+                    pairs,
+                    atomChargesT,
+                    None,
+                    None,
+                    None,
+                    mscales,
+                    None,
+                    None,
+                    None,
+                    pme_recip_fn,
+                    kappa / 10,
+                    K[0],
+                    K[1],
+                    K[2],
+                    0,
+                    False,
+                )
+
             self.kappa = kappa
+
         else:
-            force = CoulNoCutoffForce()
-            self.kappa = 1.0
-        self.coul_energy = force.generate_get_energy()
+
+            def get_coul_energy(dr_vec, chrgprod, box):
+                dr_norm = jnp.linalg.norm(dr_vec + 1e-64, axis=1) # add eta to avoid division by zero
+
+                dr_inv = 1.0 / dr_norm
+                E = chrgprod * DIELECTRIC * 0.1 * dr_inv
+
+                return E
+
+            def coul_energy(positions, box, pairs, q, mscales):
+                pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
+                mask = pair_buffer_scales(pairs[:, :2])
+                cov_pair = pairs[:, 2]
+                mscale_pair = mscales[cov_pair - 1]
+
+                charge0 = q[pairs[:, 0]]
+                charge1 = q[pairs[:, 1]]
+                chrgprod = charge0 * charge1
+                chrgprod_scale = chrgprod * mscale_pair
+                dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
+
+                E_inter = get_coul_energy(dr_vec, chrgprod_scale, box)
+
+                return jnp.sum(E_inter * mask)
+
+            self.kappa = 0.0
+
+        self.coul_energy = coul_energy
 
     def generate_get_energy(self):
         @jit_condition()
@@ -253,10 +325,13 @@ class ADMPQeqForce:
             e2 = self.e_sr(pos * 10, box * 10, pairs, q, eta, ds * 10, buffer_scales)
             e3 = self.e_site(chi, J, q)
             e4 = self.coul_energy(pos, box, pairs, q, mscales)
-            e5 = E_corr(
-                pos * 10.0, box * 10.0, pairs, q, self.kappa / 10, self.neutral_flag
-            )
-            return e1 + e2 + e3 + e4 + e5
+            if self.slab_flag:
+                e5 = E_corr(
+                    pos * 10.0, box * 10.0, pairs, q, self.kappa / 10, self.neutral_flag
+                )
+                return e1 + e2 + e3 + e4 + e5
+            else:
+                return e1 + e2 + e3 + e4
 
         grad_E_full = grad(E_full, argnums=(0, 1))
 
@@ -274,24 +349,38 @@ class ADMPQeqForce:
             g = jnp.concatenate((g1, g2))
             return g
 
-        def get_energy(positions, box, pairs, mscales, eta, chi, J):
+        def get_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
             pos = positions
             ds = ds_pairs(pos, box, pairs, self.pbc_flag)
             buffer_scales = pair_buffer_scales(pairs)
 
             n_const = len(self.init_lagmt)
-            b_value = jnp.concatenate((self.init_q, self.init_lagmt))
-            rf = jaxopt.ScipyRootFinding(
-                optimality_fun=E_grads, method="hybr", jit=False, tol=1e-10
-            )
+            if self.has_aux:
+                b_value = jnp.concatenate((aux["q"], aux["lagmt"]))
+            else:
+                b_value = jnp.concatenate([self.init_q, self.init_lagmt])
+            # if JAXOPT_OLD:
+            if True:
+                rf = jaxopt.ScipyRootFinding(
+                    optimality_fun=E_grads, method="hybr", jit=False, tol=1e-10
+                )
+            else:
+                rf = jaxopt.Broyden(fun=E_grads, tol=1e-10)
             b_0, _ = rf.run(
-                b_value, chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
+                b_value,
+                chi,
+                J,
+                positions,
+                box,
+                pairs,
+                eta,
+                ds,
+                buffer_scales,
+                mscales,
             )
             b_0 = jax.lax.stop_gradient(b_0)
             q_0 = b_0[:-n_const]
             lagmt_0 = b_0[-n_const:]
-            print("Q:", q_0)
-            print("Lagrange_multi:", lagmt_0)
 
             energy = E_full(
                 q_0,
@@ -306,6 +395,11 @@ class ADMPQeqForce:
                 buffer_scales,
                 mscales,
             )
-            return energy
+            if self.has_aux:
+                aux["q"] = q_0
+                aux["lagmt"] = lagmt_0
+                return energy, aux
+            else:
+                return energy
 
         return get_energy

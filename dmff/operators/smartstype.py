@@ -4,7 +4,11 @@ from ..api.topology import DMFFTopology
 from ..utils import DMFFException
 from openmm.app import Topology
 from typing import List
-from rdkit import Chem
+try:
+    from rdkit import Chem
+except ImportError:
+    import warnings
+    warnings.warn("WARNING: RDKit is not installed.  SMARTS parsing will be disabled.")
 
 
 class SMARTSATypeOperator(BaseOperator):

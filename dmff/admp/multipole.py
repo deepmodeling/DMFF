@@ -3,6 +3,7 @@ from functools import partial
 import jax.numpy as jnp
 from ..utils import jit_condition
 from jax import vmap
+import jax
 
 # This module deals with the transformations and rotations of multipoles
 

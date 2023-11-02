@@ -6,18 +6,15 @@ conda create -n dmff python=3.9 --yes
 ```
 + Install [jax](https://github.com/google/jax) (select the correct cuda version, see more details in the Jax installation guide):
 ```bash
-pip install "jaxlib[cuda11_cudnn805]==0.3.15" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-pip install jax==0.3.17
+# CPU version
+pip install "jax[cpu]==0.4.19"
+# GPU version
+pip install "jax[cuda11_local]==0.4.19" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 ```
-+ Install [jax-md](https://github.com/google/jax-md):
-```bash
-pip install jax-md==0.2.0
-```
-+ Install [mdtraj](https://github.com/mdtraj/mdtraj), [optax](https://github.com/deepmind/optax) and [pymbar](https://github.com/choderalab/pymbar):
++ Install [mdtraj](https://github.com/mdtraj/mdtraj), [optax](https://github.com/deepmind/optax), [jaxopt](https://github.com/google/jaxopt) and [pymbar](https://github.com/choderalab/pymbar):
 ```bash
 conda install -c conda-forge mdtraj==1.9.7
-pip install optax==0.1.3
-pip install pymbar==4.0.1
+pip install optax==0.1.3 pymbar==4.0.1 jaxopt==0.8.1
 ```
 + Install [OpenMM](https://openmm.org/):
 ```bash
