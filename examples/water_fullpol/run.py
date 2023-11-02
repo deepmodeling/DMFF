@@ -17,7 +17,10 @@ if __name__ == '__main__':
     # generator stores all force field parameters
     disp_generator, pme_generator = H.getGenerators()
     
-    pots = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.nanometer, ethresh=5e-4)
+    pots = H.createPotential(pdb.topology, \
+                             nonbondedMethod=app.PME, \
+                             nonbondedCutoff=rc*unit.nanometer, \
+                             ethresh=5e-4)
 
     # construct inputs
     positions = jnp.array(pdb.positions._value)
@@ -39,7 +42,7 @@ if __name__ == '__main__':
     print('#', E_pme, 'kJ/mol')
     print('# Dispersion+Damping Energy:')
     print('#', E_disp, 'kJ/mol')
-    # sys.exit()
+    sys.exit()
     # compare induced dipole with mpid
     with open('mpid_dip.pickle', 'rb') as ifile:
         U_ind_mpid = pickle.load(ifile) * 10

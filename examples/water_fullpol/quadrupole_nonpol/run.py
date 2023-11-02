@@ -18,7 +18,7 @@ if __name__ == '__main__':
     # generator stores all force field parameters
     params = H.getParameters()
     
-    pots = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.nanometer)
+    pots = H.createPotential(pdb.topology, nonbondedMethod=app.PME, nonbondedCutoff=rc*unit.nanometer)
     pot_disp = pots.dmff_potentials['ADMPDispForce']
     pot_pme = pots.dmff_potentials['ADMPPmeForce']
 
