@@ -131,8 +131,8 @@ if __name__ == '__main__':
             # use induced dipole of monomers to compute electrostatic interaction
             U_ind_AB = jnp.vstack((pme_generator_A.pme_force.U_ind, pme_generator_B.pme_force.U_ind))
             params_pme = params['ADMPPmeForce']
-            map_atypes = pme_generator_AB.map_atomtype
-            map_poltypes = pme_generator_AB.map_poltype
+            map_atypes = pots_AB.meta['ADMPPmeForce_map_atomtype']
+            map_poltype = pots_AB.meta['ADMPPmeForce_map_poltype']
             Q_local = params_pme['Q_local'][map_atypes]
             pol = params_pme['pol'][map_poltypes]
             tholes = params_pme['thole'][map_poltypes]
