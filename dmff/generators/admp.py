@@ -1398,7 +1398,11 @@ class ADMPPmeGenerator:
                             U_init = aux["U_ind"], aux = aux
                         )
                     else:
-                        energy, aux = pme_force.get_energy(positions, box, pairs, Q_local, pol, tholes, self.mScales, self.pScales, self.dScales, U_init=jnp.zeros((n_atoms,3)), aux={})
+                        energy, aux = pme_force.get_energy(
+                            positions, box, pairs, Q_local, pol, tholes, 
+                            self.mScales, self.pScales, self.dScales, 
+                            U_init=jnp.zeros((n_atoms,3)), aux={}
+                        )
                     return energy, aux
                 else:
                     energy = pme_force.get_energy(
