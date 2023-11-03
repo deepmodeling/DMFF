@@ -19,9 +19,9 @@ if __name__ == '__main__':
     ff = 'peg.xml'
     pdb_AB = PDBFile('peg2.pdb')
     H_AB = Hamiltonian(ff)
-    rc = 15
+    rc = 1.45
     # get potential functions
-    pots_AB = H_AB.createPotential(pdb_AB.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
+    pots_AB = H_AB.createPotential(pdb_AB.topology, nonbondedCutoff=rc*nanometer, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
     pot_pme_AB = pots_AB.dmff_potentials['ADMPPmeForce']
     pot_disp_AB = pots_AB.dmff_potentials['ADMPDispPmeForce']
     pot_ex_AB = pots_AB.dmff_potentials['SlaterExForce']
@@ -35,12 +35,12 @@ if __name__ == '__main__':
     paramtree = H_AB.getParameters()
 
     # init positions used to set up neighbor list
-    pos_AB0 = jnp.array(pdb_AB.positions._value) * 10
+    pos_AB0 = jnp.array(pdb_AB.positions._value)
     n_atoms = len(pos_AB0)
-    box = jnp.array(pdb_AB.topology.getPeriodicBoxVectors()._value) * 10
+    box = jnp.array(pdb_AB.topology.getPeriodicBoxVectors()._value)
 
     # nn list initial allocation
-    nbl_AB = nblist.NeighborList(box, rc, H_AB.getGenerators()[0].covalent_map)
+    nbl_AB = nblist.NeighborList(box, rc, pots_AB.meta['cov_map'])
     nbl_AB.allocate(pos_AB0)
     pairs_AB = nbl_AB.pairs
     pairs_AB =  pairs_AB[pairs_AB[:, 0] < pairs_AB[:, 1]]

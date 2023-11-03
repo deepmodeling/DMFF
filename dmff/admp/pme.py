@@ -398,6 +398,7 @@ class ADMPPmeForce:
                 flag = False
             else:  # converged
                 flag = True
+            n_cycles = i
         else:
 
             def update_U(i, U):
@@ -418,7 +419,8 @@ class ADMPPmeForce:
 
             U = jax.lax.fori_loop(0, steps_pol, update_U, U)
             flag = True
-        return U, flag, steps_pol
+            n_cycles = steps_pol
+        return U, flag, n_cycles
 
 
 def setup_ewald_parameters(

@@ -153,6 +153,7 @@ class ADMPDispGenerator:
         for i in range(n_atoms):
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = self._find_atype_key_index(atype)
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
         # here box is only used to setup ewald parameters, no need to be differentiable
         if lpme:
             box = topdata.getPeriodicBoxVectors() * 10
@@ -339,6 +340,8 @@ class ADMPDispPmeGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = self._find_atype_key_index(atype)
 
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+
         # here box is only used to setup ewald parameters, no need to be differentiable
         if lpme:
             box = topdata.getPeriodicBoxVectors() * 10
@@ -491,6 +494,7 @@ class QqTtDampingGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
         pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel, static_args={})
 
         has_aux = False
@@ -630,6 +634,8 @@ class SlaterDampingGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+
         # WORKING
         pot_fn_sr = generate_pairwise_interaction(
             slater_disp_damping_kernel, static_args={}
@@ -765,6 +771,8 @@ class SlaterExGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel, static_args={})
 
         has_aux = False
@@ -818,7 +826,10 @@ class SlaterSrEsGenerator(SlaterExGenerator):
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
-        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel, static_args={})
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+
+        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel,
+                                                  static_args={})
 
         has_aux = False
         if "has_aux" in kwargs and kwargs["has_aux"]:
@@ -1193,6 +1204,7 @@ class ADMPPmeGenerator:
             if self.lpol:
                 map_poltype[i] = self._find_polarize_key_index(atype)
 
+
         # here box is only used to setup ewald parameters, no need to be differentiable
         box = topdata.getPeriodicBoxVectors()
         if box is not None:
@@ -1362,8 +1374,8 @@ class ADMPPmeGenerator:
             has_aux
         )
         self.pme_force = pme_force
-        topdata._meta["admp_map_atomtype"] = map_atomtype
-        topdata._meta["admp_map_poltype"] = map_poltype
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+        topdata._meta[self.name+"_map_poltype"] = map_poltype
 
         if "has_aux" in kwargs and kwargs["has_aux"]:
             has_aux = True
@@ -1379,11 +1391,18 @@ class ADMPPmeGenerator:
                 tholes = params["ADMPPmeForce"]["thole"][map_poltype]
 
                 if has_aux:
-                    energy, aux = pme_force.get_energy(
-                        positions, box, pairs, Q_local, pol, tholes,
-                        self.mScales, self.pScales, self.dScales,
-                        U_init = aux["U_ind"], aux = aux
-                    )
+                    if aux is not None:
+                        energy, aux = pme_force.get_energy(
+                            positions, box, pairs, Q_local, pol, tholes,
+                            self.mScales, self.pScales, self.dScales,
+                            U_init = aux["U_ind"], aux = aux
+                        )
+                    else:
+                        energy, aux = pme_force.get_energy(
+                            positions, box, pairs, Q_local, pol, tholes, 
+                            self.mScales, self.pScales, self.dScales, 
+                            U_init=jnp.zeros((n_atoms,3)), aux={}
+                        )
                     return energy, aux
                 else:
                     energy = pme_force.get_energy(
