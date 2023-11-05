@@ -75,21 +75,24 @@ private:
     cppflow::model jax_model;
     
     std::vector<int64_t> coord_shape = vector<int64_t>(2); 
-    std::vector<int64_t> coord_shape_1 = vector<int64_t>(2); 
-    std::vector<int64_t> coord_shape_2 = vector<int64_t>(2);
+    vector<int64_t> U_ind_shape = vector<int64_t>(2);
+
     std::vector<int64_t> box_shape{3, 3};
     std::vector<int64_t> pair_shape = vector<int64_t>(2);
     
     std::vector<cppflow::tensor> output;
-    cppflow::tensor coord_tensor, box_tensor, pair_tensor;
+    cppflow::tensor coord_tensor, box_tensor, pair_tensor, U_ind_tensor;
     vector<std::string> operations;
+    vector<double> last_U_ind;
     vector<std::string> input_node_names = vector<std::string>(3);
+    vector<std::string> output_node_names = vector<std::string>(2);
 
     OpenMM::NeighborList neighborList;
     std::vector<std::set<int>> exclusions;
 
     int natoms;
     double cutoff;
+    bool has_aux;
     ENERGYTYPE dener;
     vector<FORCETYPE> dforce;
     vector<COORDTYPE> dcoord;
