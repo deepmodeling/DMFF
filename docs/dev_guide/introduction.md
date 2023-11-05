@@ -19,3 +19,6 @@ In the *Implementation of New Potentials* section, we will show how to implement
 In the *Document Writing* section, we will talk about how to write docs for your new module. DMFF is a collection of force field calculators, and each force field calculator has its own parameters and may be invoked in different ways. Therefore, to make it easy to use and easy to maintain, the developers are required to document the theroy behind the code and the user interface of the code before PR. 
 
 In the *Checklist before PR* section is what you should do before you submit your PR to Github. In this section, you will learn how to write unit tests, check format, and add proper commentsin your code.
+
+Finally, we will provide a case study, guiding you step-by-step on *how to write a generator*.
++ [An example for developing: how to write a generator?](docs/dev_guide/generator.ipynb)
