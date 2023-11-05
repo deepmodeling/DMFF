@@ -21,4 +21,4 @@ In the *Document Writing* section, we will talk about how to write docs for your
 In the *Checklist before PR* section is what you should do before you submit your PR to Github. In this section, you will learn how to write unit tests, check format, and add proper commentsin your code.
 
 Finally, we will provide a case study, guiding you step-by-step on *how to write a generator*.
-+ [An example for developing: how to write a generator?](docs/dev_guide/generator.ipynb)
++ [An example for developing: how to write a generator?](./generator.ipynb)

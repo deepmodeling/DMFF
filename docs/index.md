@@ -16,25 +16,25 @@ DOI: 10.1021/acs.jctc.2c01297`
 
 ## User Guide
 
-+ [1. Introduction](docs/user_guide/1.introduction.md)
-+ [2. Installation](docs/user_guide/2.installation.md)
-+ [3. Basic Usage](docs/user_guide/3.usage.md)
-+ [4. Modules](docs/user_guide/4.modules.md)
-  + [Classical](docs/user_guide/4.1classical.md)
-  + [ADMP](docs/user_guide/4.2ADMPPmeForce.md)
-  + [Qeq](docs/user_guide/4.3ADMPQeqForce.md)
-  + [Machine Learning](docs/user_guide/4.4MLForce.md)
-  + [Optimization](docs/user_guide/4.5Optimization.md)
-  + [Mbar Estimator](docs/user_guide/4.6MBAR.md)
-  + [OpenMM Plugin](docs/user_guide/4.7OpenMMplugin.md)
-+ [5. Advanced examples](docs/user_guide/DMFF_example.ipynb)
++ [1. Introduction](./user_guide/1.introduction.md)
++ [2. Installation](./user_guide/2.installation.md)
++ [3. Basic Usage](./user_guide/3.usage.md)
++ [4. Modules](./user_guide/4.modules.md)
+  + [Classical](./user_guide/4.1classical.md)
+  + [ADMP](./user_guide/4.2ADMPPmeForce.md)
+  + [Qeq](./user_guide/4.3ADMPQeqForce.md)
+  + [Machine Learning](./user_guide/4.4MLForce.md)
+  + [Optimization](./user_guide/4.5Optimization.md)
+  + [Mbar Estimator](./user_guide/4.6MBAR.md)
+  + [OpenMM Plugin](./user_guide/4.7OpenMMplugin.md)
++ [5. Advanced examples](./user_guide/DMFF_example.ipynb)
 
 ## Developer Guide
-+ [1. Introduction](docs/dev_guide/introduction.md)
-+ [2. Software architecture](docs/dev_guide/arch.md)
-+ [3. Coding conventions](docs/dev_guide/convention.md)
-+ [4. Document writing](docs/dev_guide/write_docs.md)
-+ [5. An example for developing: how to write a generator?](docs/dev_guide/generator.ipynb)
++ [1. Introduction](./dev_guide/introduction.md)
++ [2. Software architecture](./dev_guide/arch.md)
++ [3. Coding conventions](./dev_guide/convention.md)
++ [4. Document writing](./dev_guide/write_docs.md)
++ [5. An example for developing: how to write a generator?](./dev_guide/generator.ipynb)
 
 ## Code Structure
 
