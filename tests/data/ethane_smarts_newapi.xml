@@ -1,0 +1,36 @@
+<?xml version="1.0" ?>
+<ForceField>
+	<Residues>
+		<Residue name="MOL">
+			<Atom name="C1" type="C" charge="-0.212000000"/>
+			<Atom name="C2" type="C" charge="-0.212000000"/>
+			<Atom name="H1" type="H" charge="0.071000000"/>
+			<Atom name="H2" type="H" charge="0.071000000"/>
+			<Atom name="H3" type="H" charge="0.071000000"/>
+			<Atom name="H4" type="H" charge="0.071000000"/>
+			<Atom name="H5" type="H" charge="0.071000000"/>
+			<Atom name="H6" type="H" charge="0.071000000"/>
+			<Bond atomName1="C1" atomName2="C2"/>
+			<Bond atomName1="C1" atomName2="H1"/>
+			<Bond atomName1="C1" atomName2="H2"/>
+			<Bond atomName1="C1" atomName2="H3"/>
+			<Bond atomName1="C2" atomName2="H4"/>
+			<Bond atomName1="C2" atomName2="H5"/>
+			<Bond atomName1="C2" atomName2="H6"/>
+		</Residue>
+	</Residues>
+	<AtomTypes>
+		<Type class="c3" element="C" mass="12.010" name="C" smarts="[#6X4:1]"/>
+		<Type class="hc" element="H" mass="1.008" name="H" smarts="[$([#1]-[#6X4]):1]"/>
+	</AtomTypes>
+	<CoulombForce coulomb14scale="0.83333">
+		<UseBondChargeCorrection name="MOL"/>
+		<BondChargeCorrection smarts="[#6X4:1]-[#6X4:2]" bcc="0.000" />
+		<BondChargeCorrection smarts="[#6:1]-[#1:2]" bcc="0.000" />
+		<BondChargeCorrection smarts="[#6X4:1]-[#1:2]" bcc="0.0393" />
+	</CoulombForce>
+	<LennardJonesForce lj14scale="0.50000">
+		<Atom epsilon="0.4510350000" sigma="0.3397710000" type="C"/>
+		<Atom epsilon="0.0870272000" sigma="0.2600180000" type="H"/>
+	</LennardJonesForce>
+</ForceField>

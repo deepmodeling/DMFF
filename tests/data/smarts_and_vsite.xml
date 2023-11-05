@@ -1,0 +1,13 @@
+<ForceField>
+    <Operators>
+        <SMARTSVSiteOperator>
+            <VirtualSite smarts="[#7]~[#35]" vtype="2" weight1="0.5" type="vbr" class="vbr"/>
+        </SMARTSVSiteOperator>
+        <GAFFTypeOperator>
+            <File path="antechamber"/>
+        </GAFFTypeOperator>
+        <AM1ChargeOperator>
+            <File path="sqm"/>
+        </AM1ChargeOperator>
+    </Operators>
+</ForceField>

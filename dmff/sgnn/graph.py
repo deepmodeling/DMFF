@@ -1,15 +1,17 @@
-#!/usr/bin/env python
 import sys
 from functools import partial
 from itertools import permutations, product
 
 import jax.numpy as jnp
 # import MDAnalysis as mda
-import mdtraj as md
+try:
+    import mdtraj as md
+except ImportError:
+    pass
 import numpy as np
-from dmff.admp.pairwise import distribute_scalar, distribute_v3
-from dmff.admp.spatial import pbc_shift
-from dmff.utils import jit_condition
+from ..admp.pairwise import distribute_scalar, distribute_v3
+from ..admp.spatial import pbc_shift
+from ..utils import jit_condition
 from jax import vmap
 
 '''
@@ -1217,6 +1219,20 @@ def from_pdb(pdb):
     else:
         box = jnp.array(mol.unitcell_vectors)[0] * 10
     return TopGraph(list_atom_elems, bonds, positions=positions, box=box)
+
+
+# def from_dmff_top(topdata):
+#     '''
+#     Build the sGNN TopGraph object from a DMFFTopology object
+
+#     Parameters
+#     ----------
+#     topdata: DMFFTopology data
+#     '''
+#     list_atom_elems = np.array([a.element for a in topdata.atoms()])
+#     bonds = np.array([np.sort([b.atom1.index, b.atom2.index]) for b in topdata.bonds()])
+#     n_atoms = len(list_atom_elems)
+#     return TopGraph(list_atom_elems, bonds, positions=jnp.zeros((n_atoms, 3)), box=jnp.eye(3)*10)
 
 
 def validation():

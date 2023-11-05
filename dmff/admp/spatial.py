@@ -3,8 +3,8 @@ import jax.numpy as jnp
 from jax import vmap, jit
 import numpy as np
 from functools import partial
-from dmff.settings import DO_JIT
-from dmff.utils import jit_condition
+from ..settings import DO_JIT
+from ..utils import jit_condition
 
 # This module deals with spatial geometric operations, mainly including:
 # 1. PBC related operations

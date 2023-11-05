@@ -8,9 +8,42 @@ import jax.lax as lax
 import jax.nn.initializers
 import jax.numpy as jnp
 import numpy as np
-from dmff.sgnn.graph import MAX_VALENCE, TopGraph, from_pdb
-from dmff.utils import jit_condition
+from .graph import MAX_VALENCE, TopGraph, from_pdb
+from ..utils import jit_condition
 from jax import value_and_grad, vmap
+
+
+def prm_transform_f2i(params, n_layers):
+    p = {}
+    for k in params:
+        p[k] = jnp.array(params[k])
+    for i_nn in [0, 1]:
+        nn_name = 'fc%d' % i_nn
+        p['%s.weight' % nn_name] = []
+        p['%s.bias' % nn_name] = []
+        for i_layer in range(n_layers[i_nn]):
+            k_w = '%s.%d.weight' % (nn_name, i_layer)
+            k_b = '%s.%d.bias' % (nn_name, i_layer)
+            p['%s.weight' % nn_name].append(p.pop(k_w, None))
+            p['%s.bias' % nn_name].append(p.pop(k_b, None))
+    return p
+
+
+def prm_transform_i2f(params, n_layers):
+    # transform format
+    p = {}
+    p['w'] = params['w']
+    p['fc_final.weight'] = params['fc_final.weight']
+    p['fc_final.bias'] = params['fc_final.bias']
+    for i_nn in range(2):
+        nn_name = 'fc%d' % i_nn
+        for i_layer in range(n_layers[i_nn]):
+            p[nn_name + '.%d.weight' %
+                   i_layer] = params[nn_name + '.weight'][i_layer]
+            p[nn_name +
+                   '.%d.bias' % i_layer] = params[nn_name +
+                                                  '.bias'][i_layer]
+    return p
 
 
 class MolGNNForce:
@@ -146,6 +179,7 @@ class MolGNNForce:
 
         return
 
+
     def load_params(self, ifn):
         """ Load the network parameters from saved file
 
@@ -160,31 +194,11 @@ class MolGNNForce:
         for k in params.keys():
             params[k] = jnp.array(params[k])
         # transform format
-        keys = list(params.keys())
-        for i_nn in [0, 1]:
-            nn_name = 'fc%d' % i_nn
-            keys_weight = []
-            keys_bias = []
-            for k in keys:
-                if re.search(nn_name + '.[0-9]+.weight', k) is not None:
-                    keys_weight.append(k)
-                elif re.search(nn_name + '.[0-9]+.bias', k) is not None:
-                    keys_bias.append(k)
-            if len(keys_weight) != self.n_layers[i_nn] or len(
-                    keys_bias) != self.n_layers[i_nn]:
-                sys.exit(
-                    'Error while loading GNN params, inconsistent inputs with the GNN structure, check your input!'
-                )
-            params['%s.weight' % nn_name] = []
-            params['%s.bias' % nn_name] = []
-            for i_layer in range(self.n_layers[i_nn]):
-                k_w = '%s.%d.weight' % (nn_name, i_layer)
-                k_b = '%s.%d.bias' % (nn_name, i_layer)
-                params['%s.weight' % nn_name].append(params.pop(k_w, None))
-                params['%s.bias' % nn_name].append(params.pop(k_b, None))
-            # params[nn_name]
-        self.params = params
+        self.params = prm_transform_f2i(params, self.n_layers)
         return
+
+    
+
 
     def save_params(self, ofn):
         """ Save the network parameters to a pickle file
@@ -196,18 +210,8 @@ class MolGNNForce:
 
         """
         # transform format
-        params = {}
-        params['w'] = self.params['w']
-        params['fc_final.weight'] = self.params['fc_final.weight']
-        params['fc_final.bias'] = self.params['fc_final.bias']
-        for i_nn in range(2):
-            nn_name = 'fc%d' % i_nn
-            for i_layer in range(self.n_layers[i_nn]):
-                params[nn_name + '.%d.weight' %
-                       i_layer] = self.params[nn_name + '.weight'][i_layer]
-                params[nn_name +
-                       '.%d.bias' % i_layer] = self.params[nn_name +
-                                                           '.bias'][i_layer]
+        params = prm_transform_i2f(self.params, self.n_layers)
         with open(ofn, 'wb') as ofile:
             pickle.dump(params, ofile)
         return
+

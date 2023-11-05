@@ -54,28 +54,35 @@ def compute_leading_terms(positions,box):
     c6_list = c6_list.at[2::3].set(jnp.sqrt(C6_H2))
     return c0, c6_list
 
-def generate_calculator(pot_disp, pot_pme, pot_sr, disp_generator, pme_generator):
+# def generate_calculator(pot_disp, pot_pme, pot_sr, disp_generator, pme_generator, params, covalent_map):
+def generate_calculator(pots, pme_generator, disp_generator, params):
+    pot_disp = pots.dmff_potentials['ADMPDispForce']
+    pot_pme = pots.dmff_potentials['ADMPPmeForce']
+    pot_sr = generate_pairwise_interaction(TT_damping_qq_c6_kernel, static_args={})
+    map_atype_disp = pots.meta["ADMPDispForce_map_atomtype"]
+    map_atype_pme = pots.meta["ADMPPmeForce_map_atomtype"]
     def admp_calculator(positions, box, pairs):
-        params_pme = pme_generator.paramtree['ADMPPmeForce']
-        params_disp = disp_generator.paramtree['ADMPDispForce']
+        # params_pme = pme_generator.paramtree['ADMPPmeForce']
+        # params_disp = disp_generator.paramtree['ADMPDispForce']
+        params_pme = params['ADMPPmeForce']
+        params_disp = params['ADMPDispForce']
         c0, c6_list = compute_leading_terms(positions,box) # compute fluctuated leading terms
-        Q_local = params_pme["Q_local"][pme_generator.map_atomtype]
+        Q_local = params_pme["Q_local"][map_atype_pme]
         Q_local = Q_local.at[:,0].set(c0)  # change fixed charge into fluctuated one
-        pol = params_pme["pol"][pme_generator.map_atomtype]
-        tholes = params_pme["tholes"][pme_generator.map_atomtype]
-        c8_list = jnp.sqrt(params_disp["C8"][disp_generator.map_atomtype]*1e8)
-        c10_list = jnp.sqrt(params_disp["C10"][disp_generator.map_atomtype]*1e10)
+        pol = params_pme["pol"][map_atype_pme]
+        tholes = params_pme["thole"][map_atype_pme]
+        c8_list = jnp.sqrt(params_disp["C8"][map_atype_disp]*1e8)
+        c10_list = jnp.sqrt(params_disp["C10"][map_atype_disp]*1e10)
         c_list = jnp.vstack((c6_list, c8_list, c10_list))
-        covalent_map = disp_generator.covalent_map    
-        a_list = (params_disp["A"][disp_generator.map_atomtype] / 2625.5)
-        b_list = params_disp["B"][disp_generator.map_atomtype] * 0.0529177249 
-        q_list = params_disp["Q"][disp_generator.map_atomtype]
+        a_list = (params_disp["A"][map_atype_disp] / 2625.5)
+        b_list = params_disp["B"][map_atype_disp] * 0.0529177249 
+        q_list = params_disp["Q"][map_atype_disp]
 
         E_pme = pme_generator.pme_force.get_energy(
-                positions, box, pairs, Q_local, pol, tholes, params_pme["mScales"], params_pme["pScales"], params_pme["dScales"]
+                positions, box, pairs, Q_local, pol, tholes, pme_generator.mScales, pme_generator.pScales, pme_generator.dScales
                 )    
-        E_disp = disp_generator.disp_pme_force.get_energy(positions, box, pairs, c_list.T, params_disp["mScales"])
-        E_sr = pot_sr(positions, box, pairs, params_disp["mScales"], a_list, b_list, q_list, c_list[0])
+        E_disp = disp_generator.disp_pme_force.get_energy(positions, box, pairs, c_list.T, disp_generator.mScales)
+        E_sr = pot_sr(positions, box, pairs, disp_generator.mScales, a_list, b_list, q_list, c_list[0])
         return E_pme 
     return jit(value_and_grad(admp_calculator,argnums=(0)))
 
@@ -84,27 +91,27 @@ if __name__ == '__main__':
     H = Hamiltonian('forcefield.xml')
     app.Topology.loadBondDefinitions("residues.xml")
     pdb = app.PDBFile("water_dimer.pdb")
-    rc = 4
+    rc = 0.4
 
     # generator stores all force field parameters     
     disp_generator, pme_generator = H.getGenerators()
-    pots = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.angstrom, step_pol=5)
-    pot_disp = pots.dmff_potentials['ADMPDispForce']
-    pot_pme = pots.dmff_potentials['ADMPPmeForce']
-    pot_sr = generate_pairwise_interaction(TT_damping_qq_c6_kernel, static_args={})
+    pots = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.nanometer, step_pol=5)
+    # pot_disp = pots.dmff_potentials['ADMPDispForce']
+    # pot_pme = pots.dmff_potentials['ADMPPmeForce']
+    # pot_sr = generate_pairwise_interaction(TT_damping_qq_c6_kernel, static_args={})
     
     # construct inputs
-    positions = jnp.array(pdb.positions._value) * 10
+    positions = jnp.array(pdb.positions._value)
     a, b, c = pdb.topology.getPeriodicBoxVectors()
-    box = jnp.array([a._value, b._value, c._value]) * 10
+    box = jnp.array([a._value, b._value, c._value])
     # neighbor list
-    nbl = nblist.NeighborList(box, rc, H.getGenerators()[0].covalent_map)
+    nbl = nblist.NeighborList(box, rc, pots.meta["cov_map"])
     nbl.allocate(positions)
     pairs = nbl.pairs
 
     
-    admp_calc = generate_calculator(pot_disp, pot_pme, pot_sr, disp_generator, pme_generator)
-    tot_ene, tot_force = admp_calc(positions, box, pairs)
+    admp_calc = generate_calculator(pots, pme_generator, disp_generator, H.getParameters())
+    tot_ene, tot_force = admp_calc(positions*10, box*10, pairs)
     print('# Tot Interaction Energy:')
     print('#', tot_ene, 'kJ/mol')
     print('# Tot force :')

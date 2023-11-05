@@ -1,0 +1,21 @@
+<ForceField>
+ <AtomTypes>
+  <Type name="spce-O" class="OW" element="O" mass="15.99943"/>
+  <Type name="spce-H" class="HW" element="H" mass="1.007947"/>
+ </AtomTypes>
+ <Residues>
+  <Residue name="HOH">
+   <Atom name="O" type="spce-O" charge="-0.82"/>
+   <Atom name="H1" type="spce-H" charge="0.41"/>
+   <Atom name="H2" type="spce-H" charge="0.41"/>
+   <Bond atomName1="O" atomName2="H1"/>
+   <Bond atomName1="O" atomName2="H2"/>
+  </Residue>
+ </Residues>
+ <CoulombForce coulomb14scale="0.833333">
+ </CoulombForce>
+ <LennardJonesForce lj14scale="0.5">
+  <Atom type="spce-O" sigma="0.3185492" epsilon="0.650299"/>
+  <Atom type="spce-H" sigma="1" epsilon="0"/>
+ </LennardJonesForce>
+</ForceField>

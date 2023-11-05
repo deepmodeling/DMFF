@@ -3,9 +3,8 @@ import openmm as mm
 import openmm.app as app
 import openmm.unit as unit 
 import numpy as np
-from jax_md import space, partition
 import sys
-from dmff.api import Hamiltonian
+from dmff import Hamiltonian
 from dmff.common import nblist
 from jax import jit
 import jax.numpy as jnp
@@ -39,7 +38,7 @@ if __name__ == "__main__":
 
     forcegroups = forcegroupify(system)
     integrator = mm.VerletIntegrator(0.1)
-    context = mm.Context(system, integrator)
+    context = mm.Context(system, integrator, mm.Platform.getPlatformByName("Reference"))
     context.setPositions(pdb.positions)
     state = context.getState(getEnergy=True)
     energy = state.getPotentialEnergy()
@@ -53,7 +52,7 @@ if __name__ == "__main__":
     
     
     h = Hamiltonian("gaff-2.11.xml", "lig-prm.xml")
-    pot = h.createPotential(pdb.topology, nonbondedMethod=app.NoCutoff, constraints=None, removeCMMotion=False)
+    pot = h.createPotential(pdb.topology, nonbondedMethod=app.NoCutoff)
     params = h.getParameters()
 
     positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
@@ -66,7 +65,7 @@ if __name__ == "__main__":
     
     # neighbor list
     rc = 4
-    nbl = nblist.NeighborList(box, rc, h.getGenerators()[-1].covalent_map)
+    nbl = nblist.NeighborList(box, rc, pot.meta['cov_map'])
     nbl.allocate(positions)
     pairs = nbl.pairs
 
@@ -81,3 +80,7 @@ if __name__ == "__main__":
 
     nbE = pot.dmff_potentials['NonbondedForce']
     print("Nonbonded:", nbE(positions, box, pairs, params))
+
+    etotal = pot.getPotentialFunc()
+    print("Total:", etotal(positions, box, pairs, params))
+

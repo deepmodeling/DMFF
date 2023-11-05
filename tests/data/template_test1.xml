@@ -1,0 +1,26 @@
+<ForceField>
+    <AtomTypes>
+        <Type element="C" name="c1" class="c" mass="12.01"/>
+        <Type element="C" name="c2" class="c" mass="12.01"/>
+        <Type element="C" name="c3" class="c" mass="12.01"/>
+        <Type element="C" name="c4" class="cp" mass="12.01"/>
+        <Type element="C" name="c5" class="cn" mass="12.01"/>
+        <Type element="C" name="c6" class="c" mass="12.01"/>
+    </AtomTypes>
+    <Residues>
+        <Residue name='LIG'>
+            <Atom name="C01" type="c1" charge="0.0"/>
+            <Atom name="C02" type="c2" charge="0.0"/>
+            <Atom name="C03" type="c3" charge="0.0"/>
+            <Atom name="C04" type="c4" charge="0.1"/>
+            <Atom name="C05" type="c5" charge="-0.1"/>
+            <Atom name="C06" type="c6" charge="0.0"/>
+            <Bond atomName1="C01" atomName2="C02"/>
+            <Bond atomName1="C02" atomName2="C03"/>
+            <Bond atomName1="C03" atomName2="C04"/>
+            <Bond atomName1="C03" atomName2="C05"/>
+            <Bond atomName1="C04" atomName2="C05"/>
+            <Bond atomName1="C04" atomName2="C06"/>
+        </Residue>
+    </Residues>
+</ForceField>

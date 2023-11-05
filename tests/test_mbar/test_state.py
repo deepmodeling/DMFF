@@ -9,7 +9,11 @@ import openmm as mm
 import numpy as np
 import numpy.testing as npt
 import mdtraj as md
-from pymbar import MBAR
+try:
+    from pymbar import MBAR
+except ImportError as e:
+    import warnings
+    warnings.warn(f"pymbar not found. Tests about MBAR would fail.")
 from dmff import Hamiltonian, NeighborListFreud
 
 
@@ -37,6 +41,7 @@ class TestState:
                 ]
         
         for ff_setting in ff_settings:
+            print(ff_setting)
             nbmethod = ff_setting['nonbondedMethod']
             rc = ff_setting['nonbondedCutoff']
             useDispersionCorrection = ff_setting['useDispersionCorrection']
@@ -70,7 +75,7 @@ class TestState:
             # check consistency
             traj = md.load(traj1, top=pdb)[20::4]
     
-            ene1 = target_state.calc_energy(traj, H.paramtree)
+            ene1 = target_state.calc_energy(traj, H.paramset.parameters)
             ene2 = omm_state.calc_energy(traj)
     
             if nbmethod == app.PME:

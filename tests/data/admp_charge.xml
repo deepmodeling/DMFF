@@ -1,0 +1,44 @@
+<!-- Note that the atom types "name" are numeric - this is because of how AMOEBA/MPID assign anchor atoms -->
+<ForceField>
+
+ <AtomTypes>
+  <Type name="380" class="OW" element="O" mass="15.999"/>
+  <Type name="381" class="HW" element="H" mass="1.008"/>
+  <Type name="382" class="NA" element="Na" mass="20.000"/>
+ </AtomTypes>
+ <Residues>
+  <Residue name="HOH">
+   <Atom name="H1" type="381"/>
+   <Atom name="H2" type="381"/>
+   <Atom name="O" type="380"/>
+   <Bond from="0" to="2"/>
+   <Bond from="1" to="2"/>
+ </Residue>
+ <Residue name="NA">
+  <Atom name="NA" type="382"/>
+ </Residue>
+ </Residues>
+
+ <ADMPPmeForce lmax="2" mScale12="0.00" mScale13="0.00" mScale14="1.00" mScale15="1.00" mScale16="1.00" pScale12="0.00" pScale13="0.00" pScale14="1.00" pScale15="1.00" pScale16="1.00" dScale12="1.00" dScale13="1.00" dScale14="1.00" dScale15="1.00" dScale16="1.00">
+      <Atom type="380" kz="-381" kx="-381"
+      c0="-1.0614"
+      dX="0.0" dY="0.0"  dZ="-0.023671684"
+      qXX="0.000150963" qXY="0.0" qYY="0.00008707" qXZ="0.0" qYZ="0.0" qZZ="-0.000238034"
+      />
+    <Atom type="381" kz="380" kx="381"
+      c0="0.5307"
+      dX="0.0" dY="0.0"  dZ="0.0"
+      qXX="0.0" qXY="0.0" qYY="0.0" qXZ="0.0" qYZ="0.0" qZZ="0.0"
+      /> 
+   <Atom type="382" kz="" kx=""
+         c0="1.0000"
+             dX="0.0" dY="0.0"  dZ="0.0"
+             qXX="0.0" qXY="0.0" qYY="0.0" qXZ="0.0" qYZ="0.0" qZZ="0.0"
+   />
+ </ADMPPmeForce>
+
+</ForceField>
+
+<!--  Dump unwanted parameters here!
+  <Atom type="380" charge="-0.0" sigma="0.31983264" epsilon="0.677808"/>
+-->

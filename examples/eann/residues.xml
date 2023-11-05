@@ -1,0 +1,29 @@
+<Residues>
+  <Residue name="TER">
+    <Bond from="C00" to="H01"/>
+    <Bond from="C00" to="H02"/>
+    <Bond from="C00" to="O03"/>
+    <Bond from="O03" to="C04"/>
+    <Bond from="C04" to="H05"/>
+    <Bond from="C04" to="H06"/>
+    <Bond from="C04" to="H07"/>
+    <ExternalBond atomName="C00"/>
+  </Residue>
+  <Residue name="INT">
+    <Bond from="C00" to="H01"/>
+    <Bond from="C00" to="H02"/>
+    <Bond from="C00" to="O03"/>
+    <Bond from="O03" to="C04"/>
+    <Bond from="C04" to="H05"/>
+    <Bond from="C04" to="H06"/>
+    <ExternalBond atomName="C00"/>
+    <ExternalBond atomName="C04"/>
+  </Residue>
+  <Residue name="TEO">
+    <Bond from="C08" to="H09"/>
+    <Bond from="C08" to="H09"/>
+    <Bond from="C08" to="O11"/>
+    <Bond from="O11" to="H12"/>
+    <ExternalBond atomName="C08"/>
+  </Residue>
+</Residues>

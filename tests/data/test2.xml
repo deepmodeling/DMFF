@@ -1,0 +1,35 @@
+<?xml version="1.0" ?>
+<ForceField>
+	<Residues>
+		<Residue name="MOL2">
+			<Atom name="O1" type="O1_2" charge="0.1"/>
+			<Atom name="C1" type="C1_2" charge="0.1"/>
+			<Atom name="H1" type="H1_2" charge="-0.1"/>
+			<Atom name="H2" type="H2_2" charge="-0.1"/>
+			<Atom name="H3" type="H2_2" charge="-0.1"/>
+			<Bond atomName1="O1" atomName2="C1"/>
+			<Bond atomName1="C1" atomName2="H1"/>
+			<Bond atomName1="C1" atomName2="H2"/>
+			<Bond atomName1="C1" atomName2="H3"/>
+			<ExternalBond atomName="O1"/>
+			<ExternalBond atomName="C1"/>
+		</Residue>
+	</Residues>
+	<AtomTypes>
+		<Type class="o" element="O" mass="16.000" name="O1_2"/>
+		<Type class="c" element="C" mass="12.010" name="C1_2"/>
+		<Type class="h4" element="H" mass="1.008" name="H1_2"/>
+		<Type class="h4" element="H" mass="1.008" name="H2_2"/>
+	</AtomTypes>
+	<HarmonicBondForce>
+		<Bond k="546100.0000000001" length="0.1218000000" type1="O1_2" type2="C1_2"/>
+		<Bond k="293050.0000000000" length="0.1112000000" type1="C1_2" type2="H1_2"/>
+		<Bond k="293050.0000000000" length="0.1112000000" type1="C1_2" type2="H2_2"/>
+	</HarmonicBondForce>
+	<NonbondedForce coulomb14scale="0.83333" lj14scale="0.50000">
+		<Atom charge="-0.5151000000" epsilon="0.6121190000" sigma="0.3048120000" type="O1_2"/>
+		<Atom charge="0.5627000000" epsilon="0.4133790000" sigma="0.3315210000" type="C1_2"/>
+		<Atom charge="-0.0238000000" epsilon="0.0673624000" sigma="0.2536390000" type="H1_2"/>
+		<Atom charge="-0.0238000000" epsilon="0.0673624000" sigma="0.2536390000" type="H2_2"/>
+	</NonbondedForce>
+</ForceField>
