@@ -206,10 +206,6 @@ double ReferenceCalcDMFFForceKernel::execute(ContextImpl& context, bool includeF
         last_U_ind = output_tensors[2].get_data<double>();
     }
 
-    output = jax_model({{input_node_names[0], coord_tensor}, {input_node_names[1], box_tensor}, {input_node_names[2], pair_tensor}}, {"PartitionedCall:0", "PartitionedCall:1"});
-
-    dener = output[0].get_data<ENERGYTYPE>()[0];
-    dforce = output[1].get_data<FORCETYPE>();
 
     // Transform the unit from output units to KJ/(mol*nm)
     for(int ii = 0; ii < natoms; ii ++){

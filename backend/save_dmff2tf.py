@@ -17,9 +17,12 @@ gpus = tf.config.experimental.list_physical_devices('GPU')
 for gpu in gpus:
   tf.config.experimental.set_memory_growth(gpu, True)
 
-def create_dmff_potential(input_pdb_file, ff_xml_files, has_aux=False):
+def create_dmff_potential(input_pdb_file, ff_xml_files, bond_definitions_xml = None, has_aux = False):
     pdb = app.PDBFile(input_pdb_file)
     h = dmff.Hamiltonian(*ff_xml_files)
+    if bond_definitions_xml is not None:
+        app.Topology.loadBondDefinitions(bond_definitions_xml)
+    
     if has_aux:# Used when using ADMP with DMFF.
         pot = h.createPotential(pdb.topology,
                             nonbondedMethod=app.PME,
@@ -32,6 +35,7 @@ def create_dmff_potential(input_pdb_file, ff_xml_files, has_aux=False):
                             nonbondedMethod=app.PME,
                             nonbondedCutoff=1.2 *
                             unit.nanometer)
+        
     pot_func = pot.getPotentialFunc()
     a, b, c = pdb.topology.getPeriodicBoxVectors()
     a = a.value_in_unit(unit.nanometer)
@@ -71,6 +75,7 @@ if __name__ == "__main__":
     parser.add_argument("--input_pdb", dest="input_pdb", help="input pdb file. Box information is required in the pdb file.")
     parser.add_argument("--xml_files", dest="xml_files", nargs="+", help=".xml files with parameters are derived from DMFF.")
     parser.add_argument("--output", dest="output", help="output directory")
+    parser.add_argument("--bond_definitions_xml", dest="bond_definitions_xml", help=".xml file that contains bond definitions. Optional", default=None)
     parser.add_argument("--has_aux", dest="has_aux", default=False, help="Enable aux output in the model. Used when using ADMP with DMFF, and the output would be U_ind.")
     args = parser.parse_args()
 
@@ -78,13 +83,14 @@ if __name__ == "__main__":
     ff_xml_files = args.xml_files
     output_dir = args.output
     has_aux = args.has_aux
+    bond_definitions_xml = args.bond_definitions_xml
     
     if output_dir[-1] == "/":
         output_dir = output_dir[:-1]
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
         
-    pdb, pot_grad, covalent_map, pot, h = create_dmff_potential(input_pdb, ff_xml_files, has_aux=has_aux)
+    pdb, pot_grad, covalent_map, pot, h = create_dmff_potential(input_pdb, ff_xml_files, bond_definitions_xml=bond_definitions_xml, has_aux=has_aux)
 
     natoms = pdb.getTopology().getNumAtoms()
 

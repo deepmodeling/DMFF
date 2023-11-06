@@ -19,7 +19,7 @@ jobs:
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
-          conda create -n dmff_omm -y python=${{ matrix.python-version }} numpy openmm=7.7 -c conda-forge
+          conda create -n dmff_omm -y python=${{ matrix.python-version }} numpy openmm=7.7 rdkit openbabel mdtraj ambertools -c conda-forge
           conda activate dmff_omm
           conda install -y libtensorflow_cc=2.9.1 -c conda-forge
           pip install setuptools==59.5.0
@@ -41,10 +41,11 @@ jobs:
           export OPENMM_INSTALLED_DIR=$CONDA_PREFIX
           export CPPFLOW_INSTALLED_DIR=$CONDA_PREFIX
           export LIBTENSORFLOW_INSTALLED_DIR=$CONDA_PREFIX
-          cmake .. -DOPENMM_DIR=${OPENMM_INSTALLED_DIR} -DCPPFLOW_DIR=${CPPFLOW_INSTALLED_DIR} -DTENSORFLOW_DIR=${LIBTENSORFLOW_INSTALLED_DIR} -DUSE_HIGH_PRECISION=ON
+          cmake .. -DOPENMM_DIR=${OPENMM_INSTALLED_DIR} -DCPPFLOW_DIR=${CPPFLOW_INSTALLED_DIR} -DTENSORFLOW_DIR=${LIBTENSORFLOW_INSTALLED_DIR} -DUSE_HIGH_PRECISION=OFF
           make && make install 
-          make PythonInstall
+          make PythonInstall          
       - name: Run Tests
         run: |
           source $CONDA/bin/activate dmff_omm
-          python -m OpenMMDMFFPlugin.tests.test_dmff_plugin_nve -n 100
+          cd ${GITHUB_WORKSPACE}/backend/
+          python -m OpenMMDMFFPlugin.tests.test_dmff_plugin_nve -n 100 --pdb ../examples/water_fullpol/water_dimer.pdb --model ./openmm_dmff_plugin/python/OpenMMDMFFPlugin/data/admp_water_dimer_aux --has_aux True

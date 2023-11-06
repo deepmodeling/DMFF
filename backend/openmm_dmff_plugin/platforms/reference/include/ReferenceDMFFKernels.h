@@ -82,6 +82,7 @@ private:
     
     std::vector<cppflow::tensor> output;
     cppflow::tensor coord_tensor, box_tensor, pair_tensor, U_ind_tensor;
+    vector<cppflow::tensor> output_tensors;
     vector<std::string> operations;
     vector<double> last_U_ind;
     vector<std::string> input_node_names = vector<std::string>(3);
