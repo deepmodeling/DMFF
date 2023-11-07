@@ -196,12 +196,18 @@ class HarmonicBondGenerator:
             bond_a1, bond_a2, bond_indices)
         harmonic_bond_energy = harmonic_bond_force.generate_get_energy()
 
-        # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
-        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
             isinstance_jnp(positions, box, params)
             energy = harmonic_bond_energy(
                 positions, box, pairs, params[self.name]["k"], params[self.name]["length"])
-            return energy
+            if has_aux:
+                return energy, aux
+            else:
+                return energy
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -417,12 +423,19 @@ class HarmonicAngleGenerator:
             angle_a1, angle_a2, angle_a3, angle_indices)
         harmonic_angle_energy = harmonic_angle_force.generate_get_energy()
 
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
         # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
-        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
             isinstance_jnp(positions, box, params)
             energy = harmonic_angle_energy(
                 positions, box, pairs, params[self.name]["k"], params[self.name]["angle"])
-            return energy
+            if has_aux:
+                return energy, aux
+            else:
+                return energy
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -752,13 +765,20 @@ class PeriodicTorsionGenerator:
             improper_a1, improper_a2, improper_a3, improper_a4, improper_indices, improper_period)
         improper_energy = improper_func.generate_get_energy()
 
-        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
             isinstance_jnp(positions, box, params)
             proper_energy_ = proper_energy(
                 positions, box, pairs, params[self.name]["proper_k"], params[self.name]["proper_phase"])
             improper_energy_ = improper_energy(
                 positions, box, pairs, params[self.name]["improper_k"], params[self.name]["improper_phase"])
-            return proper_energy_ + improper_energy_
+            if has_aux:
+                return proper_energy_ + improper_energy_, aux
+            else:
+                return proper_energy_ + improper_energy_
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -893,13 +913,14 @@ class NonbondedGenerator:
             # do not use PME
             if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
                 # use Reaction Field
-                coulforce = CoulReactionFieldForce(r_cut, isPBC=ifPBC)
+                coulforce = CoulReactionFieldForce(r_cut, charges, isPBC=ifPBC)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
-                coulforce = CoulNoCutoffForce()
+                coulforce = CoulNoCutoffForce(init_charges=charges)
         else:
-            coulforce = CoulombPMEForce(r_cut, kappa, (K1, K2, K3))
-
+            coulforce = CoulombPMEForce(r_cut, charges, kappa, (K1, K2, K3))
+        
+        self.pme_force = coulforce
         coulenergy = coulforce.generate_get_energy()
 
         # LJ
@@ -967,24 +988,33 @@ class NonbondedGenerator:
             ljDispCorrForce = LennardJonesLongRangeForce(r_cut, map_prm, map_nbfix, countMat)
             ljDispEnergyFn = ljDispCorrForce.generate_get_energy()
 
-        def potential_fn(positions, box, pairs, params):
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions, box, pairs, params, aux=None):
 
             # check whether args passed into potential_fn are jnp.array and differentiable
             # note this check will be optimized away by jit
             # it is jit-compatiable
             isinstance_jnp(positions, box, params)
 
-            coulE = coulenergy(positions, box, pairs, charges,
-                                mscales_coul)
+            coulE = coulenergy(positions, box, pairs, mscales_coul)
             
             ljE = ljenergy(positions, box, pairs, params[self.name]["epsilon"],
                             params[self.name]["sigma"], eps_nbfix, sig_nbfix, mscales_lj)
             if use_disp_corr:
                 ljdispE = ljDispEnergyFn(box, params[self.name]["epsilon"],
                             params[self.name]["sigma"], eps_nbfix, sig_nbfix)
-                return coulE + ljE + ljdispE
+                if has_aux:
+                    return coulE + ljE + ljdispE, aux
+                else:
+                    return coulE + ljE + ljdispE
             else:
-                return coulE + ljE
+                if has_aux:
+                    return coulE + ljE, aux
+                else:
+                    return coulE + ljE
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -1030,10 +1060,14 @@ class CoulombGenerator:
         # paramset to ffinfo
         if self._use_bcc:
             bcc_now = paramset[self.name]["bcc"]
+            mask_list = paramset.mask[self.name]["bcc"]
             nbcc = 0
             for nnode, node in enumerate(self.ffinfo["Forces"][self.name]["node"]):
                 if node["name"] == "BondChargeCorrection":
+                    mask = mask_list[nbcc]
                     self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["bcc"] = bcc_now[nbcc]
+                    if mask < 0.999:
+                        self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
                     nbcc += 1
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
@@ -1076,8 +1110,12 @@ class CoulombGenerator:
         if nonbondedMethod is app.PME:
             cell = topdata.getPeriodicBoxVectors()
             box = jnp.array(cell)
+<<<<<<< HEAD
            # self.ethresh = kwargs.get("ethresh", 1e-6)
             self.ethresh = kwargs.get("ethresh", 5e-4) #for qeq calculation
+=======
+            self.ethresh = kwargs.get("ethresh", 1e-5)
+>>>>>>> wangxy/v1.0.0-devel
             self.coeff_method = kwargs.get("PmeCoeffMethod", "openmm")
             self.fourier_spacing = kwargs.get("PmeSpacing", 0.1)
             kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, self.ethresh,
@@ -1109,22 +1147,33 @@ class CoulombGenerator:
                 # use Reaction Field
                 coulforce = CoulReactionFieldForce(
                     r_cut,
+                    charges,
                     isPBC=ifPBC,
                     topology_matrix=top_mat if self._use_bcc else None)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
                 coulforce = CoulNoCutoffForce(
-                    topology_matrix=top_mat if self._use_bcc else None)
+                    charges, topology_matrix=top_mat if self._use_bcc else None)
         else:
             coulforce = CoulombPMEForce(
                 r_cut,
+                charges, 
                 kappa, (K1, K2, K3),
                 topology_matrix=top_mat if self._use_bcc else None)
 
         coulenergy = coulforce.generate_get_energy()
+<<<<<<< HEAD
         self.coulforce = coulforce  #for qeq calculation
         self.coulenergy = coulenergy #for qeq calculation
         def potential_fn(positions, box, pairs, params):
+=======
+
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions, box, pairs, params, aux=None):
+>>>>>>> wangxy/v1.0.0-devel
 
             # check whether args passed into potential_fn are jnp.array and differentiable
             # note this check will be optimized away by jit
@@ -1132,13 +1181,16 @@ class CoulombGenerator:
             isinstance_jnp(positions, box, params)
 
             if self._use_bcc:
-                coulE = coulenergy(positions, box, pairs, charges,
+                coulE = coulenergy(positions, box, pairs,
                                    params["CoulombForce"]["bcc"], mscales_coul)
             else:
-                coulE = coulenergy(positions, box, pairs, charges,
+                coulE = coulenergy(positions, box, pairs,
                                    mscales_coul)
 
-            return coulE
+            if has_aux:
+                return coulE, aux
+            else:
+                return coulE
 
         self._jaxPotential = potential_fn
         return potential_fn
@@ -1329,7 +1381,11 @@ class LennardJonesGenerator:
                                     isNoCut=isNoCut)
         ljenergy = ljforce.generate_get_energy()
 
-        def potential_fn(positions, box, pairs, params):
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions, box, pairs, params, aux=None):
 
             # check whether args passed into potential_fn are jnp.array and differentiable
             # note this check will be optimized away by jit
@@ -1343,7 +1399,10 @@ class LennardJonesGenerator:
                            params[self.name]["sigma_nbfix"],
                            mscales_lj)
 
-            return ljE
+            if has_aux:
+                return ljE, aux
+            else:
+                return ljE
 
         self._jaxPotential = potential_fn
         return potential_fn

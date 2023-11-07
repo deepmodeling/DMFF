@@ -7,13 +7,17 @@ except ImportError as e:
     import simtk.openmm.app as app
     import simtk.unit as unit
 from typing import Dict, Tuple, List
-from rdkit import Chem
-from rdkit.Chem import AllChem
+try:
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+except ImportError as e:
+    import warnings
+    warnings.warn("RDKit is not installed. SMIRKS pattern matching cannot be used.")
 
 
 def matchTemplate(graph, template):
     if graph.number_of_nodes() != template.number_of_nodes():
-        print("Node with different number of nodes.")
+        # print("Node with different number of nodes.")
         return False, {}, {}
 
     def match_func(n1, n2):
@@ -100,7 +104,7 @@ def graph2top(graph: nx.Graph) -> app.Topology:
     return top
 
 
-def top2rdmol(top: app.Topology, indices: List[int]) -> Chem.rdchem.Mol:
+def top2rdmol(top: app.Topology, indices: List[int]):
     rdmol = Chem.Mol()
     emol = Chem.EditableMol(rdmol)
     idx2ridx = {}

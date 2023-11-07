@@ -5,9 +5,15 @@ from .vsite import VirtualSite
 import networkx as nx
 import openmm.app as app
 import openmm.unit as unit
-from rdkit import Chem
+try:
+    from rdkit import Chem
+except ImportError:
+    Chem = None
+    import warnings
+    warnings.warn('Could not import RDKit. RDKit related features cannot be used.')
 import numpy as np
 import jax.numpy as jnp
+import os
 
 
 _standardResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO', 'THR', 'TYR',
@@ -62,6 +68,10 @@ class DMFFTopology:
             type(self).__name__, nchains, nres, natom, nbond)
 
     def _load_sdf(self, filename, residue_name):
+        if Chem is None:
+           raise ImportError("Please install the rdkit package to use this function")
+        if not os.path.exists(filename):
+            raise FileNotFoundError(filename)
         mol = Chem.MolFromMolFile(filename, removeHs=False, sanitize=False)
         atoms = [a for a in mol.GetAtoms()]
         bonds = [b for b in mol.GetBonds()]
@@ -205,6 +215,8 @@ class DMFFTopology:
         atoms = [a for a in self.atoms()]
         self._molecules = []
         decomp_indices = decomptop(self)
+        if Chem is None:
+            return
         for ind in decomp_indices:
             resname = atoms[ind[0]].residue.name
             self._molecules.append(top2rdmol(self, ind))
@@ -221,6 +233,8 @@ class DMFFTopology:
             aidx = [a.index for a in atoms if a.residue.name in resname]
         else:
             aidx = [a.index for a in atoms]
+        if Chem is None:
+            raise ImportError("Please install RDKit to use this function")
         parse = Chem.MolFromSmarts(parser)
         ret = []
         for mol in self._molecules:
@@ -332,7 +346,7 @@ class DMFFTopology:
         return iter(self._vsites)
 
     @classmethod
-    def regularize_aromaticity(cls, mol: Chem.Mol) -> bool:
+    def regularize_aromaticity(cls, mol) -> bool:
         """
         Regularize Aromaticity for a rdkit.Mol object. Rings with exocyclic double bonds will not be set aromatic.
         """
@@ -517,6 +531,8 @@ class DMFFTopology:
         return eqv_atoms
 
     def getPeriodicBoxVectors(self, use_jax=True):
+        if self.cell is None:
+            return None
         if use_jax:
             return jnp.array(self.cell)
         return self.cell
@@ -665,7 +681,7 @@ def decomptop(top) -> List[List[int]]:
     return indices
 
 
-def top2rdmol(top, indices) -> Chem.rdchem.Mol:
+def top2rdmol(top, indices):
     rdmol = Chem.Mol()
     emol = Chem.EditableMol(rdmol)
     idx2ridx = {}

@@ -2,8 +2,12 @@ from ..utils import DMFFException
 from .base import BaseOperator
 from ..api.topology import DMFFTopology
 import subprocess
-from rdkit.Chem import AllChem
-from rdkit import Chem
+try:
+    from rdkit.Chem import AllChem
+    from rdkit import Chem
+except ImportError:
+    import warnings
+    warnings.warn("AM1ChargeOperator requires rdkit and cannot be used.")
 import os
 
 

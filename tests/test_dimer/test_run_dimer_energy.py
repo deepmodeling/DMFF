@@ -8,7 +8,6 @@ import jax.numpy as jnp
 import jax
 import openmm.app as app
 import openmm.unit as unit
-from rdkit import Chem
 import numpy as np
 
 
@@ -45,6 +44,7 @@ def test_load_protein():
 
 
 def test_build_dimer():
+    from rdkit import Chem
     ffinfo = load_xml()
 
     mol_top = DMFFTopology(from_sdf="tests/data/dimer/ligand.mol")
@@ -88,6 +88,7 @@ def test_build_dimer():
     print(energy_func.getPotentialFunc()(pos, box, pairs, hamilt.paramset))
 
 def test_dimer_coul():
+    from rdkit import Chem
     ffinfo = load_xml()
 
     print("------- Jax Ener Func --------")
@@ -214,6 +215,7 @@ def test_dimer_coul():
 
 
 def test_dimer_lj():
+    from rdkit import Chem
     ffinfo = load_xml()
     paramset = ParamSet()
     lj_gen = LennardJonesGenerator(ffinfo, paramset)
@@ -358,6 +360,7 @@ def test_dimer_lj():
 
 
 def test_hamiltonian():
+    from rdkit import Chem
     hamilt = Hamiltonian("tests/data/dimer/forcefield.xml", "tests/data/dimer/gaff2.xml", "tests/data/dimer/amber14_prot.xml")
     smarts_type = SMARTSATypeOperator(hamilt.ffinfo)
     smarts_vsite = SMARTSVSiteOperator(hamilt.ffinfo)
@@ -434,6 +437,7 @@ def test_hamiltonian():
     hamilt.renderXML("test.xml")
 
 def test_optax():
+    from rdkit import Chem
     hamilt = Hamiltonian("tests/data/dimer/forcefield.xml", "tests/data/dimer/gaff2.xml", "tests/data/dimer/amber14_prot.xml")
     hamilt.renderXML("tests/data/dimer/test-init.xml")
     smarts_type = SMARTSATypeOperator(hamilt.ffinfo)

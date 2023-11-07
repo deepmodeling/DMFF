@@ -4,8 +4,12 @@ import xml.etree.ElementTree as ET
 from ..api.topology import DMFFTopology
 from ..api.vsite import VirtualSite
 from ..api.vstools import insertVirtualSites
-from rdkit import Chem
-import parmed
+try:
+    from rdkit import Chem
+    import parmed
+except ImportError:
+    import warnings
+    warnings.warn("Parmed is not installed. Parmed optimization cannot be used.")
 
 
 class ParmedLennardJonesOperator(BaseOperator):
@@ -46,7 +50,7 @@ class ParmedLennardJonesOperator(BaseOperator):
             f.write("</ForceField>\n")
 
     @classmethod
-    def overwriteLennardJones(cls, top: parmed.gromacs.GromacsTopologyFile, ffinfo: dict):
+    def overwriteLennardJones(cls, top, ffinfo: dict):
         nodes = [n for n in ffinfo["Forces"]["LennardJonesForce"]["node"]]
         prm = {}
         for node in nodes:

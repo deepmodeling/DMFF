@@ -37,7 +37,7 @@ def build_covalent_map(data, max_neighbor):
 
 class Potential:
 
-    def __init__(self, topology: DMFFTopology, update_func: Callable):
+    def __init__(self, topology: DMFFTopology, update_func: Callable, has_aux: bool = False):
         self.dmff_potentials = {}
         self.update_func = update_func
         self.meta = {}
@@ -45,6 +45,7 @@ class Potential:
         self.meta["cov_map"] = topology.buildCovMat()
         for key in self.topology._meta:
             self.meta[key] = self.topology._meta[key]
+        self.has_aux = has_aux
 
     def add(self, name, func):
         self.dmff_potentials[name] = func
@@ -53,10 +54,20 @@ class Potential:
         if isinstance(names, str):
             names = [names]
         if len(names) == 0:
-            names = self.dmff_potentials.keys()
-        def efunc(positions, box, pairs, prms):
-            pos_update = self.update_func(positions)
-            return sum([self.dmff_potentials[name](pos_update, box, pairs, prms) for name in names])
+            names = [i for i in self.dmff_potentials.keys()]
+        if not self.has_aux:
+            def efunc(positions, box, pairs, prms):
+                pos_update = self.update_func(positions)
+                return sum([self.dmff_potentials[name](pos_update, box, pairs, prms) for name in names])
+        else:
+            def efunc(positions, box, pairs, prms, aux):
+                pos_update = self.update_func(positions)
+                energy, aux = self.dmff_potentials[names[0]](pos_update, box, pairs, prms, aux)
+                if len(names) > 1:
+                    for name in names[1:]:
+                        etmp, aux = self.dmff_potentials[name](pos_update, box, pairs, prms, aux)
+                        energy = energy + etmp
+                return energy, aux
         return efunc
 
 
@@ -106,8 +117,11 @@ class Hamiltonian:
             efuncs[gen.getName()] = gen.createPotential(topdata, nonbondedMethod,
                                                         nonbondedCutoff, **kwargs)
 
+        has_aux = False
+        if "has_aux" in kwargs:
+            has_aux = kwargs["has_aux"]
         update_func = topdata.buildVSiteUpdateFunction()
-        potential = Potential(topdata, update_func)
+        potential = Potential(topdata, update_func, has_aux=has_aux)
         for key in efuncs:
             potential.add(key, efuncs[key])
 

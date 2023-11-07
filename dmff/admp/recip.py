@@ -2,8 +2,8 @@ import numpy as np
 import jax.numpy as jnp
 import jax.scipy as jsp
 from jax import jit
-from dmff.settings import DO_JIT
-from dmff.common.constants import DIELECTRIC, SQRT_PI as sqrt_pi
+from ..settings import DO_JIT
+from ..common.constants import DIELECTRIC, SQRT_PI as sqrt_pi
 
 
 def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
@@ -15,6 +15,11 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
     bspline_range = jnp.arange(-pme_order//2, pme_order//2)
     n_mesh = pme_order**3
     shifts = jnp.array(jnp.meshgrid(bspline_range, bspline_range, bspline_range)).T.reshape((1, n_mesh, 3))
+
+    if K1 == K2 == K3 == 0:
+        def pme_recip_empty(positions, box, Q):
+            return jnp.zeros((1, ))
+        return pme_recip_empty
    
     def pme_recip(positions, box, Q):
         '''
@@ -429,7 +434,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
         # spread Q
         N = np.array([K1, K2, K3])
         Q_mesh = spread_Q(positions, box, Q)
-        N = N.reshape(1, 1, 3)
+        N = N.reshape((1, 1, 3))
         kpts_int = setup_kpts_integer(N)
         kpts = setup_kpts(box, kpts_int)
         m = jnp.linspace(-pme_order//2+1, pme_order//2-1, pme_order-1).reshape(pme_order-1, 1, 1)
