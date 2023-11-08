@@ -789,3 +789,6 @@ FodyWeavers.xsd
 # debugging ipynb
 debug.ipynb
 test.xml
+
+# PyCharm Cache
+.idea/
