@@ -50,25 +50,50 @@ void CudaCalcDMFFForceKernel::initialize(const System& system, const DMFFForce& 
     energyUnitCoeff = force.getEnergyUnitCoefficient();
     coordUnitCoeff = force.getCoordUnitCoefficient();
     cutoff = force.getCutoff();
+    this->has_aux = force.getHasAux();
     
     natoms = system.getNumParticles();
     coord_shape[0] = natoms;
     coord_shape[1] = 3;
     exclusions.resize(natoms);
 
+    if (this->has_aux){
+        U_ind_shape[0] = natoms;
+        U_ind_shape[1] = 3;
+        // Initialize the last_U_ind.
+        for(int ii = 0; ii < natoms * 3; ii ++){
+            last_U_ind.push_back(0.0);
+        }
+    }
+
     // Load the ordinary graph firstly.
     jax_model.init(graph_file);
 
     operations = jax_model.get_operations();
     for (int ii = 0; ii < operations.size(); ii++){
-        if (operations[ii].find("serving")!= std::string::npos){
-            if (operations[ii].find("0")!= std::string::npos){
+        if (operations[ii].find("serving") != std::string::npos){
+            if (operations[ii].find("0") != std::string::npos){
                 input_node_names[0] = operations[ii] + ":0";
             } else if (operations[ii].find("1") != std::string::npos){
                 input_node_names[1] = operations[ii] + ":0";
             } else if (operations[ii].find("2") != std::string::npos){
                 input_node_names[2] = operations[ii] + ":0";
             }
+            // Set up the auxilary input node name. For U_ind
+            if(this->has_aux){
+                if (operations[ii].find("3") != std::string::npos){
+                    input_node_names.push_back(operations[ii] + ":0");
+                }
+            }
+        }
+        // Set up the output names.
+        if (operations[ii].find("PartitionedCall") != std::string::npos){
+            output_node_names[0] = operations[ii] + ":0";
+            output_node_names[1] = operations[ii] + ":1";
+            if(this->has_aux){
+                output_node_names.push_back(operations[ii] + ":2");
+            }
+            break;
         }
     }
 
@@ -123,6 +148,9 @@ double CudaCalcDMFFForceKernel::execute(ContextImpl& context, bool includeForces
     }
     coord_tensor = cppflow::tensor(dcoord, coord_shape);
 
+    // Set input U_ind
+    U_ind_tensor = cppflow::tensor(last_U_ind, U_ind_shape);
+
     // Fetch the neighbor list for input pairs tensor.
     computeNeighborListVoxelHash(
         neighborList,
@@ -145,10 +173,27 @@ double CudaCalcDMFFForceKernel::execute(ContextImpl& context, bool includeForces
     pair_tensor = cppflow::tensor(pairs_v, pair_shape);
 
     // Calculate the energy and forces.
-    output_tensors = jax_model({{input_node_names[0], coord_tensor}, {input_node_names[1], box_tensor}, {input_node_names[2], pair_tensor}}, {"PartitionedCall:0", "PartitionedCall:1"});
-    
-    dener = output_tensors[0].get_data<ENERGYTYPE>()[0];
-    dforce = output_tensors[1].get_data<FORCETYPE>();    
+    if (!this->has_aux){
+        output_tensors = jax_model({
+            {input_node_names[0], coord_tensor}, 
+            {input_node_names[1], box_tensor}, 
+            {input_node_names[2], pair_tensor}}, 
+            {output_node_names[0], output_node_names[1]});
+        dener = output_tensors[0].get_data<ENERGYTYPE>()[0];
+        dforce = output_tensors[1].get_data<FORCETYPE>();    
+    } else {
+        output_tensors = jax_model({
+            {input_node_names[0], coord_tensor}, 
+            {input_node_names[1], box_tensor}, 
+            {input_node_names[2], U_ind_tensor}, 
+            {input_node_names[3], pair_tensor}}, 
+            {output_node_names[0], output_node_names[1], output_node_names[2]});
+
+        dener = output_tensors[0].get_data<ENERGYTYPE>()[0];
+        dforce = output_tensors[1].get_data<FORCETYPE>();
+        // Save last U_ind for next step usage.
+        last_U_ind = output_tensors[2].get_data<double>();
+    }
     
     
     // Transform the unit from eV/A to KJ/(mol*nm)

@@ -1,5 +1,6 @@
 import numpy as np
 import jax.numpy as jnp
+from itertools import permutations
 try:
     import freud
 except ImportError:
@@ -71,3 +72,88 @@ class NeighborListFreud:
 
 class NeighborList(NeighborListFreud):
     ...
+
+class NoCutoffNeighborList:
+    
+    def __init__(self, cov_map, padding=True):
+        self.capacity_multiplier = None
+        self.padding = padding
+        self.cov_map = cov_map
+    
+    def _do_cov_map(self, pairs):
+        nbond = self.cov_map[pairs[:, 0], pairs[:, 1]]
+        pairs = jnp.concatenate([pairs, nbond[:, None]], axis=1)
+        return pairs
+
+    def allocate(self, coords):
+        self._positions = coords  # cache it
+        natoms = coords.shape[0]
+        nblist = np.fromiter(permutations(range(natoms), 2), dtype=np.dtype(int, 2))
+        nlist = nblist[nblist[:, 0] < nblist[:, 1]]
+        if self.capacity_multiplier is None:
+            self.capacity_multiplier = int(nlist.shape[0] * 1.3)
+        
+        if not self.padding:
+            self._pairs = self._do_cov_map(nlist)
+            return self._pairs
+
+        self.capacity_multiplier = max(self.capacity_multiplier, nlist.shape[0])
+        padding_width = self.capacity_multiplier - nlist.shape[0]
+        if padding_width == 0:
+            self._pairs = self._do_cov_map(nlist)
+            return self._pairs
+        elif padding_width > 0:
+            padding = np.ones((self.capacity_multiplier - nlist.shape[0], 2), dtype=np.int32) * coords.shape[0]
+            nlist = np.vstack((nlist, padding))
+            self._pairs = self._do_cov_map(nlist)
+            return self._pairs
+        else:
+            raise ValueError("padding width < 0")
+
+    def update(self, positions, box=None):
+        self.allocate(positions, box)
+
+    @property
+    def pairs(self):
+        return self._pairs
+
+    @property
+    def scaled_pairs(self):
+        return self._pairs
+
+    @property
+    def positions(self):
+        return self._positions
+
+
+class NoPeriodicNeighborList(NoCutoffNeighborList):
+    
+    def __init__(self, rcut, cov_map, padding=True):
+        super().__init__(cov_map, padding)
+
+    def allocate(self, coords):
+        self._positions = coords  # cache it
+        natoms = coords.shape[0]
+        nblist = np.fromiter(permutations(range(natoms), 2), dtype=np.dtype(int, 2))
+        nlist = nblist[nblist[:, 0] < nblist[:, 1]]
+        distances = np.linalg.norm(coords[nlist[:, 0]] - coords[nlist[:, 1]], axis=1)
+        nlist = nlist[distances < self.rcut]
+        if self.capacity_multiplier is None:
+            self.capacity_multiplier = int(nlist.shape[0] * 1.3)
+        
+        if not self.padding:
+            self._pairs = self._do_cov_map(nlist)
+            return self._pairs
+
+        self.capacity_multiplier = max(self.capacity_multiplier, nlist.shape[0])
+        padding_width = self.capacity_multiplier - nlist.shape[0]
+        if padding_width == 0:
+            self._pairs = self._do_cov_map(nlist)
+            return self._pairs
+        elif padding_width > 0:
+            padding = np.ones((self.capacity_multiplier - nlist.shape[0], 2), dtype=np.int32) * coords.shape[0]
+            nlist = np.vstack((nlist, padding))
+            self._pairs = self._do_cov_map(nlist)
+            return self._pairs
+        else:
+            raise ValueError("padding width < 0")
