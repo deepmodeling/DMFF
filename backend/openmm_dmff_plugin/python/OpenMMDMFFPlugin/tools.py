@@ -70,6 +70,15 @@ class DMFFModel():
         self.dmff_force.setUnitTransformCoefficients(coordinatesCoefficient, forceCoefficient, energyCoefficient)
         return
     
+    def setHasAux(self, has_aux = False):
+        """Set whether the DMFF model has auxilary output.
+        Used when model was saved with has_aux = True.
+
+        Args:
+            has_aux (bool, optional): Defaults to False.
+        """
+        self.dmff_force.setHasAux(has_aux)
+    
     def createSystem(self, topology):
         """Create the OpenMM System object for the DMFF model.
 
