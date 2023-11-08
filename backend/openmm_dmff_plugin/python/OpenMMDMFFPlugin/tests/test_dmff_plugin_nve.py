@@ -15,24 +15,20 @@ except:
 from OpenMMDMFFPlugin import DMFFModel
 
 
-def test_dmff_nve(nsteps = 1000, time_step = 0.2, platform_name = "Reference", output_temp_dir = "/tmp/openmm_dmff_plugin_test_nve_output", energy_std_tol = 0.0005 ):
+def test_dmff_nve(nsteps = 1000, time_step = 0.2, pdb_file = None, model_dir = None, platform_name = "Reference", output_temp_dir = "/tmp/openmm_dmff_plugin_test_nve_output", energy_std_tol = 0.005, has_aux = False ):
     if not os.path.exists(output_temp_dir):
         os.mkdir(output_temp_dir)
     
-    pdb_file = os.path.join(os.path.dirname(__file__), "../data", "lj_fluid.pdb")
-    if platform_name == "Reference":
-        dmff_model_file = os.path.join(os.path.dirname(__file__), "../data", "lj_fluid_gpu")
-    elif platform_name == "CUDA":
-        dmff_model_file = os.path.join(os.path.dirname(__file__), "../data", "lj_fluid_gpu")
-
-    output_dcd = os.path.join(output_temp_dir, "lj_fluid_test.nve.dcd")
-    output_log = os.path.join(output_temp_dir, "lj_fluid_test.nve.log")
+    dmff_model_file = model_dir
+    
+    output_dcd = os.path.join(output_temp_dir, "test.nve.dcd")
+    output_log = os.path.join(output_temp_dir, "test.nve.log")
     
     # Set up the simulation parameters.
     nsteps = nsteps
     time_step = time_step # unit is femtosecond.
-    report_frequency = 10
-    box = [24.413, 0, 0, 0, 24.413, 0, 0, 0, 24.413]
+    report_frequency = 1
+    box = [31.289, 0, 0, 0, 31.289, 0, 0, 0, 31.289]
     box = [mm.Vec3(box[0], box[1], box[2]), mm.Vec3(box[3], box[4], box[5]), mm.Vec3(box[6], box[7], box[8])] * u.angstroms
     
     liquid_water = PDBFile(pdb_file)
@@ -43,6 +39,8 @@ def test_dmff_nve(nsteps = 1000, time_step = 0.2, platform_name = "Reference", o
     # Set up the dmff_system with the dmff_model.    
     dmff_model = DMFFModel(dmff_model_file)
     dmff_model.setUnitTransformCoefficients(1, 1, 1)
+    if has_aux:
+        dmff_model.setHasAux(True)
     dmff_system = dmff_model.createSystem(topology)
     
     integrator = mm.VerletIntegrator(time_step*u.femtoseconds)
@@ -83,13 +81,16 @@ def test_dmff_nve(nsteps = 1000, time_step = 0.2, platform_name = "Reference", o
     # Check the total energy fluctuations over # of atoms is smaller than energy_std_tol, unit in kJ/mol.
     print("Total energy std: %.4f kJ/mol"%(np.std(total_energy)))
     print("Mean total energy: %.4f kJ/mol"%(np.mean(total_energy)))
-    #assert(np.std(total_energy) / num_atoms < energy_std_tol)    
+    assert(np.std(total_energy) / num_atoms < energy_std_tol)    
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--nsteps', type = int, dest='nsteps', help='Number of steps', default=100)
     parser.add_argument('--dt', type = float, dest='timestep', help='Time step for simulation, unit is femtosecond', default=0.2)
+    parser.add_argument('--pdb', type = str, dest='pdb', help='PDB file for simulation.', default=None)
+    parser.add_argument('--model', type = str, dest='model', help='DMFF model dir for simulation. Saved by backend/save_dmff2tf.py.', default=None)
     parser.add_argument('--platform', type = str, dest='platform', help='Platform for simulation.', default="Reference")
+    parser.add_argument('--has_aux', type = bool, dest='has_aux', help='Whether the model has aux output.', default=False)
     
     args = parser.parse_args()
 
@@ -97,5 +98,13 @@ if __name__ == "__main__":
     time_step = args.timestep
     platform_name = args.platform
     
-    test_dmff_nve(nsteps=nsteps, time_step=time_step, platform_name=platform_name)
+    pdb = args.pdb
+    model_dir = args.model
+    
+    if pdb is None:
+        pdb = os.path.join(os.path.dirname(__file__), "../data", "lj_fluid.pdb")
+    if model_dir is None:
+        model_dir = os.path.join(os.path.dirname(__file__), "../data", "lj_fluid_gpu")
+    
+    test_dmff_nve(nsteps=nsteps, time_step=time_step, pdb_file=pdb, model_dir=model_dir, platform_name=platform_name, has_aux=args.has_aux)
     
