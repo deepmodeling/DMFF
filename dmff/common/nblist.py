@@ -85,7 +85,7 @@ class NoCutoffNeighborList:
         pairs = jnp.concatenate([pairs, nbond[:, None]], axis=1)
         return pairs
 
-    def allocate(self, coords):
+    def allocate(self, coords, box=None):
         self._positions = coords  # cache it
         natoms = coords.shape[0]
         nblist = np.fromiter(permutations(range(natoms), 2), dtype=np.dtype(int, 2))
@@ -111,7 +111,7 @@ class NoCutoffNeighborList:
             raise ValueError("padding width < 0")
 
     def update(self, positions, box=None):
-        self.allocate(positions, box)
+        self.allocate(positions)
 
     @property
     def pairs(self):
@@ -130,6 +130,7 @@ class NoPeriodicNeighborList(NoCutoffNeighborList):
     
     def __init__(self, rcut, cov_map, padding=True):
         super().__init__(cov_map, padding)
+        self.rcut = rcut
 
     def allocate(self, coords):
         self._positions = coords  # cache it

@@ -85,7 +85,7 @@ class ADMPDispGenerator:
         return self.name
 
     def overwrite(self, paramset):
-        atom_mask = paramset.mask[self.name]["sigma"]
+        atom_mask = paramset.mask[self.name]["A"]
         A = paramset[self.name]["A"]
         B = paramset[self.name]["B"]
         Q = paramset[self.name]["Q"]
@@ -452,10 +452,10 @@ class QqTtDampingGenerator:
     def getName(self) -> str:
         return self.name
 
-    def overwrite(self):
-        B = self.paramtree[self.name]["B"]
-        Q = self.paramtree[self.name]["Q"]
-        atom_mask = self.paramtree.mask[self.name]["B"]
+    def overwrite(self, paramset):
+        B = paramset[self.name]["B"]
+        Q = paramset[self.name]["Q"]
+        atom_mask = paramset.mask[self.name]["B"]
 
         nnode = 0
         for node in self.ffinfo["Forces"][self.name]["node"]:
@@ -520,8 +520,6 @@ class QqTtDampingGenerator:
     def getJaxPotential(self):
         return self._jaxPotential
 
-    def getMetaData(self):
-        return self._meta
 
 
 # register all parsers
@@ -589,12 +587,12 @@ class SlaterDampingGenerator:
     def getName(self) -> str:
         return self.name
 
-    def overwrite(self):
-        B = self.paramtree[self.name]["B"]
-        C6 = self.paramtree[self.name]["C6"]
-        C8 = self.paramtree[self.name]["C8"]
-        C10 = self.paramtree[self.name]["C10"]
-        atom_mask = self.paramtree.mask[self.name]["B"]
+    def overwrite(self, paramset):
+        B = paramset[self.name]["B"]
+        C6 = paramset[self.name]["C6"]
+        C8 = paramset[self.name]["C8"]
+        C10 = paramset[self.name]["C10"]
+        atom_mask = paramset.mask[self.name]["B"]
 
         nnode = 0
         for node in self.ffinfo["Forces"][self.name]["node"]:
@@ -605,18 +603,10 @@ class SlaterDampingGenerator:
                 C8_new = C8[nnode]
                 C10_new = C10[nnode]
                 mask = atom_mask[nnode]
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(
-                    B_new
-                )
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C6"] = str(
-                    C6_new
-                )
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C8"] = str(
-                    C8_new
-                )
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = str(
-                    C10_new
-                )
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = B_new
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C6"] = C6_new
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C8"] = C8_new
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = C10_new
                 if mask < 0.999:
                     self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"][
                         "mask"
@@ -736,10 +726,10 @@ class SlaterExGenerator:
     def getName(self) -> str:
         return self.name
 
-    def overwrite(self):
-        A = self.paramtree[self.name]["A"]
-        B = self.paramtree[self.name]["B"]
-        atom_mask = self.paramtree.mask[self.name]["B"]
+    def overwrite(self, paramset):
+        A = paramset[self.name]["A"]
+        B = paramset[self.name]["B"]
+        atom_mask = paramset.mask[self.name]["B"]
 
         nnode = 0
         for node in self.ffinfo["Forces"][self.name]["node"]:
@@ -748,12 +738,8 @@ class SlaterExGenerator:
                 A_new = A[nnode]
                 B_new = B[nnode]
                 mask = atom_mask[nnode]
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["A"] = str(
-                    A_new
-                )
-                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(
-                    B_new
-                )
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["A"] = A_new
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = B_new
                 if mask < 0.999:
                     self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"][
                         "mask"
@@ -799,8 +785,6 @@ class SlaterExGenerator:
     def getJaxPotential(self):
         return self._jaxPotential
 
-    def getMetaData(self):
-        return self._meta
 
 
 _DMFFGenerators["SlaterExForce"] = SlaterExGenerator
@@ -1094,28 +1078,28 @@ class ADMPPmeGenerator:
         for nnode in range(len(self.ffinfo["Forces"][self.name]["node"])):
             node = self.ffinfo["Forces"][self.name]["node"][nnode]
             if node["name"] in ["Atom", "Multipole"]:
-                node["c0"] = Q_global[n_multipole, 0]
+                node["attrib"]["c0"] = Q_global[n_multipole, 0]
                 if self.lmax >= 1:
-                    node["dX"] = Q_global[n_multipole, 1] * 0.1
-                    node["dY"] = Q_global[n_multipole, 2] * 0.1
-                    node["dZ"] = Q_global[n_multipole, 3] * 0.1
+                    node["attrib"]["dX"] = Q_global[n_multipole, 1] * 0.1
+                    node["attrib"]["dY"] = Q_global[n_multipole, 2] * 0.1
+                    node["attrib"]["dZ"] = Q_global[n_multipole, 3] * 0.1
                 if self.lmax >= 2:
-                    node["qXX"] = Q_global[n_multipole, 4] / 300.0
-                    node["qYY"] = Q_global[n_multipole, 5] / 300.0
-                    node["qZZ"] = Q_global[n_multipole, 6] / 300.0
-                    node["qXY"] = Q_global[n_multipole, 7] / 300.0
-                    node["qXZ"] = Q_global[n_multipole, 8] / 300.0
-                    node["qYZ"] = Q_global[n_multipole, 9] / 300.0
+                    node["attrib"]["qXX"] = Q_global[n_multipole, 4] / 300.0
+                    node["attrib"]["qYY"] = Q_global[n_multipole, 5] / 300.0
+                    node["attrib"]["qZZ"] = Q_global[n_multipole, 6] / 300.0
+                    node["attrib"]["qXY"] = Q_global[n_multipole, 7] / 300.0
+                    node["attrib"]["qXZ"] = Q_global[n_multipole, 8] / 300.0
+                    node["attrib"]["qYZ"] = Q_global[n_multipole, 9] / 300.0
                 if q_local_masks[n_multipole] < 0.999:
                     node["mask"] = "true"
                 n_multipole += 1
             elif node["name"] == "Polarize":
-                node["polarizabilityXX"] = paramset[self.name]["pol"][n_pol] * 0.001
-                node["polarizabilityYY"] = paramset[self.name]["pol"][n_pol] * 0.001
-                node["polarizabilityZZ"] = paramset[self.name]["pol"][n_pol] * 0.001
-                node["thole"] = paramset[self.name]["thole"][n_pol]
+                node["attrib"]["polarizabilityXX"] = paramset[self.name]["pol"][n_pol] * 0.001
+                node["attrib"]["polarizabilityYY"] = paramset[self.name]["pol"][n_pol] * 0.001
+                node["attrib"]["polarizabilityZZ"] = paramset[self.name]["pol"][n_pol] * 0.001
+                node["attrib"]["thole"] = paramset[self.name]["thole"][n_pol]
                 if polar_masks[n_pol] < 0.999:
-                    node["mask"] = "true"
+                    node["attrib"]["mask"] = "true"
                 n_pol += 1
 
     def _find_multipole_key_index(self, atype: str):
