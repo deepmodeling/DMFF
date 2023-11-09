@@ -28,6 +28,9 @@ DOI: 10.1021/acs.jctc.2c01297`
   + [Mbar Estimator](docs/user_guide/4.6MBAR.md)
   + [OpenMM Plugin](docs/user_guide/4.7OpenMMplugin.md)
 + [5. Advanced examples](docs/user_guide/DMFF_example.ipynb)
++ [And here is a tutorial notebook of the basic usage of DMFF. Welcome to read it and get started with DMFF!](docs/user_guide/test.ipynb)
+
+[And here is a tutorial notebook, which would tell you some basic usage of DMFF. Welcome to read it and get started witn DMFF！](docs/user_guide/test.ipynb)
 
 ## Developer Guide
 + [1. Introduction](docs/dev_guide/introduction.md)
