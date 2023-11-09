@@ -1,658 +1,1077 @@
-from collections import defaultdict
-from typing import Dict
-import warnings
-
+from ..api.topology import DMFFTopology
+from ..api.paramset import ParamSet
+from ..api.hamiltonian import _DMFFGenerators
+from ..utils import DMFFException, isinstance_jnp
+from ..admp.pme import setup_ewald_parameters
 import numpy as np
 import jax.numpy as jnp
 import openmm.app as app
 import openmm.unit as unit
-
-import dmff
-from dmff.classical.intra import (
-    HarmonicBondJaxForce,
-    HarmonicAngleJaxForce,
-    PeriodicTorsionJaxForce,
-)
-from dmff.classical.inter import (
-    LennardJonesForce,
-    LennardJonesLongRangeForce,
-    CoulombPMEForce,
-    CoulNoCutoffForce,
-    CoulombPMEForce,
-    CoulReactionFieldForce,
-)
-from dmff.classical.fep import (
-    LennardJonesFreeEnergyForce,
-    LennardJonesLongRangeFreeEnergyForce,
-    CoulombPMEFreeEnergyForce
-)
-from dmff.classical.vsite import VirtualSite
-from dmff.admp.pme import setup_ewald_parameters
-from dmff.utils import jit_condition, isinstance_jnp, DMFFException, findItemInList
-from dmff.fftree import ForcefieldTree, TypeMatcher
-from dmff.api import Hamiltonian, build_covalent_map
+from ..classical.intra import HarmonicBondJaxForce, HarmonicAngleJaxForce, PeriodicTorsionJaxForce
+from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce, CoulReactionFieldForce, LennardJonesForce, LennardJonesLongRangeForce
+from typing import Tuple, List, Union, Callable
 
 
-class HarmonicBondJaxGenerator:
-    def __init__(self, ff: Hamiltonian):
+class HarmonicBondGenerator:
+    """
+    A class for generating harmonic bond force field parameters.
+
+    Attributes:
+    -----------
+    name : str
+        The name of the force field.
+    ffinfo : dict
+        The force field information.
+    key_type : str
+        The type of the key.
+    bond_keys : list of tuple
+        The keys of the bonds.
+    bond_params : list of tuple
+        The parameters of the bonds.
+    bond_mask : list of float
+        The mask of the bonds.
+    _use_smarts : bool
+        Whether to use SMARTS.
+    """
+
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        """
+        Initializes the HarmonicBondGenerator.
+
+        Parameters:
+        -----------
+        ffinfo : dict
+            The force field information.
+        paramset : ParamSet
+            The parameter set.
+        """
         self.name = "HarmonicBondForce"
-        self.ff: Hamiltonian = ff
-        self.fftree: ForcefieldTree = ff.fftree
-        self.paramtree: Dict = ff.paramtree
-        self._meta = {}
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
+        self.key_type = None
 
-    def extract(self):
-        """
-        extract forcefield paramters from ForcefieldTree. 
-        """
-        lengths = self.fftree.get_attribs(f"{self.name}/Bond", "length")
-        # get_attribs will return a list of list.
-        ks = self.fftree.get_attribs(f"{self.name}/Bond", "k")
-        self.paramtree[self.name] = {}
-        self.paramtree[self.name]["length"] = jnp.array(lengths)
-        self.paramtree[self.name]["k"] = jnp.array(ks)
+        bond_keys, bond_params, bond_mask = [], [], []
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            attribs = node["attrib"]
+            if self.key_type is None:
+                if "type1" in attribs:
+                    self.key_type = "type"
+                elif "class1" in attribs:
+                    self.key_type = "class"
+                else:
+                    raise ValueError(
+                        "Cannot find key type for HarmonicBondForce.")
+            key = (attribs[self.key_type + "1"], attribs[self.key_type + "2"])
+            bond_keys.append(key)
 
-    def overwrite(self):
-        """
-        update parameters in the fftree by using paramtree of this generator.
-        """
-        self.fftree.set_attrib(f"{self.name}/Bond", "length",
-                               self.paramtree[self.name]["length"])
-        self.fftree.set_attrib(f"{self.name}/Bond", "k",
-                               self.paramtree[self.name]["k"])
+            k = float(attribs["k"])
+            r0 = float(attribs["length"])
+            bond_params.append([k, r0])
 
-    def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
+            # when the node has mask attribute, it means that the parameter is not trainable.
+            # the gradient of this parameter will be zero.
+            mask = 1.0
+            if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                mask = 0.0
+            bond_mask.append(mask)
+
+        self.bond_keys = bond_keys
+        bond_length = jnp.array([i[1] for i in bond_params])
+        bond_k = jnp.array([i[0] for i in bond_params])
+        bond_mask = jnp.array(bond_mask)
+
+        # register parameters to ParamSet
+        paramset.addParameter(bond_length, "length",
+                              field=self.name, mask=bond_mask)
+        # register parameters to ParamSet
+        paramset.addParameter(bond_k, "k", field=self.name, mask=bond_mask)
+
+    def getName(self) -> str:
         """
-        This method will create a potential calculation kernel. It usually should do the following:
-        
-        1. Match the corresponding bond parameters according to the atomic types at both ends of each bond.
+        Returns the name of the force field.
 
-        2. Create a potential calculation kernel, and pass those mapped parameters to the kernel.
+        Returns:
+        --------
+        str
+            The name of the force field.
+        """
+        return self.name
 
-        3. assign the jax potential to the _jaxPotential.
+    def overwrite(self, paramset: ParamSet) -> None:
+        """
+        Overwrites the parameter set.
+
+        Parameters:
+        -----------
+        paramset : ParamSet
+            The parameter set.
+        """
+        bond_node_indices = [i for i in range(len(
+            self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Bond"]
+
+        bond_length = paramset[self.name]["length"]
+        bond_k = paramset[self.name]["k"]
+        bond_msks = paramset.mask[self.name]["length"]
+        for nnode, key in enumerate(self.bond_keys):
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]]["attrib"] = {
+            }
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}1"] = key[0]
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}2"] = key[1]
+            r0 = bond_length[nnode]
+            k = bond_k[nnode]
+            mask = bond_msks[nnode]
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]
+                                                     ]["attrib"]["k"] = str(k)
+            self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]
+                                                     ]["attrib"]["length"] = str(r0)
+            if mask < 0.999:
+                self.ffinfo["Forces"][self.name]["node"][bond_node_indices[nnode]
+                                                         ]["attrib"]["mask"] = "true"
+
+    def _find_key_index(self, key: Tuple[str, str]) -> int:
+        """
+        Finds the index of the key.
+
+        Parameters:
+        -----------
+        key : tuple of str
+            The key.
+
+        Returns:
+        --------
+        int
+            The index of the key.
+        """
+        for i, k in enumerate(self.bond_keys):
+            if k[0] == key[0] and k[1] == key[1]:
+                return i
+            if k[0] == key[1] and k[1] == key[0]:
+                return i
+        return None
+
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
+                        nonbondedCutoff, **kwargs):
+        """
+        Creates the potential.
+
+        Parameters:
+        -----------
+        topdata : DMFFTopology
+            The topology data.
+        nonbondedMethod : str
+            The nonbonded method.
+        nonbondedCutoff : float
+            The nonbonded cutoff.
+        args : list
+            The arguments.
+
+        Returns:
+        --------
+        function
+            The potential function.
+        """
+        # 按照HarmonicBondForce的要求遍历体系中所有的bond，进行匹配
+        bond_a1, bond_a2, bond_indices = [], [], []
+        for bond in topdata.bonds():
+            a1, a2 = bond.atom1, bond.atom2
+            i1, i2 = a1.index, a2.index
+            if self.key_type == "type":
+                key = (a1.meta["type"], a2.meta["type"])
+            elif self.key_type == "class":
+                key = (a1.meta["class"], a2.meta["class"])
+            idx = self._find_key_index(key)
+            if idx is None:
+                continue
+            bond_a1.append(i1)
+            bond_a2.append(i2)
+            bond_indices.append(idx)
+        bond_a1 = jnp.array(bond_a1)
+        bond_a2 = jnp.array(bond_a2)
+        bond_indices = jnp.array(bond_indices)
+
+        # 创建势函数
+        harmonic_bond_force = HarmonicBondJaxForce(
+            bond_a1, bond_a2, bond_indices)
+        harmonic_bond_energy = harmonic_bond_force.generate_get_energy()
+
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
+            isinstance_jnp(positions, box, params)
+            energy = harmonic_bond_energy(
+                positions, box, pairs, params[self.name]["k"], params[self.name]["length"])
+            if has_aux:
+                return energy, aux
+            else:
+                return energy
+
+        self._jaxPotential = potential_fn
+        return potential_fn
+
+
+# register the generator
+_DMFFGenerators["HarmonicBondForce"] = HarmonicBondGenerator
+
+
+class HarmonicAngleGenerator:
+    """
+    A class for generating harmonic angle force field parameters.
+
+    Attributes:
+    -----------
+    name : str
+        The name of the force field.
+    ffinfo : dict
+        The force field information.
+    key_type : str
+        The type of the key.
+    angle_keys : list of tuple
+        The keys of the bonds.
+    angle_params : list of tuple
+        The parameters of the bonds.
+    angle_mask : list of float
+        The mask of the bonds.
+    _use_smarts : bool
+        Whether to use SMARTS.
+    """
+
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        """
+        Initializes the HarmonicAngleGenerator.
+
+        Parameters:
+        -----------
+        ffinfo : dict
+            The force field information.
+        paramset : ParamSet
+            The parameter set.
+        """
+        self.name = "HarmonicAngleForce"
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
+        self.key_type = None
+
+        angle_keys, angle_params, angle_mask = [], [], []
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            attribs = node["attrib"]
+
+            if self.key_type is None:
+                if "type1" in attribs:
+                    self.key_type = "type"
+                elif "class1" in attribs:
+                    self.key_type = "class"
+                else:
+                    raise ValueError(
+                        "Cannot find key type for HarmonicAngleForce.")
+            key = (attribs[self.key_type + "1"],
+                   attribs[self.key_type + "2"], attribs[self.key_type + "3"])
+            angle_keys.append(key)
+
+            k = float(attribs["k"])
+            r0 = float(attribs["angle"])
+            angle_params.append([k, r0])
+
+            # when the node has mask attribute, it means that the parameter is not trainable.
+            # the gradient of this parameter will be zero.
+            mask = 1.0
+            if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                mask = 0.0
+            angle_mask.append(mask)
+
+        self.angle_keys = angle_keys
+        angle_theta = jnp.array([i[1] for i in angle_params])
+        angle_k = jnp.array([i[0] for i in angle_params])
+        angle_mask = jnp.array(angle_mask)
+
+        # register parameters to ParamSet
+        paramset.addParameter(angle_theta, "angle",
+                              field=self.name, mask=angle_mask)
+        # register parameters to ParamSet
+        paramset.addParameter(angle_k, "k", field=self.name, mask=angle_mask)
+
+    def getName(self) -> str:
+        """
+        Returns the name of the force field.
+
+        Returns:
+        --------
+        str
+            The name of the force field.
+        """
+        return self.name
+
+    def overwrite(self, paramset: ParamSet) -> None:
+        """
+        Overwrites the parameter set.
+
+        Parameters:
+        -----------
+        paramset : ParamSet
+            The parameter set.
+        """
+        angle_node_indices = [i for i in range(len(
+            self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Angle"]
+
+        angle_theta = paramset[self.name]["angle"]
+        angle_k = paramset[self.name]["k"]
+        angle_msks = paramset.mask[self.name]["angle"]
+        for nnode, key in enumerate(self.bond_keys):
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"] = {
+            }
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}1"] = key[0]
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}2"] = key[1]
+            theta0 = angle_theta[nnode]
+            k = angle_k[nnode]
+            mask = angle_msks[nnode]
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                     ]["attrib"]["k"] = str(k)
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                     ]["attrib"]["angle"] = str(theta0)
+            if mask < 0.999:
+                self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                         ]["attrib"]["mask"] = "true"
+
+    def _find_key_index(self, key: Tuple[str, str]) -> int:
+        """
+        Finds the index of the key.
+
+        Parameters:
+        -----------
+        key : tuple of str
+            The key.
+
+        Returns:
+        --------
+        int
+            The index of the key.
+        """
+        for i, k in enumerate(self.angle_keys):
+            if k[0] == key[0] and k[1] == key[1] and k[2] == key[2]:
+                return i
+            if k[0] == key[2] and k[1] == key[1] and k[2] == key[0]:
+                return i
+        return None
+
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
+                        nonbondedCutoff, **kwargs):
+        """
+        Creates the potential.
+
+        Parameters:
+        -----------
+        topdata : DMFFTopology
+            The topology data.
+        nonbondedMethod : str
+            The nonbonded method.
+        nonbondedCutoff : float
+            The nonbonded cutoff.
+        args : list
+            The arguments.
+
+        Returns:
+        --------
+        function
+            The potential function.
+        """
+        angle_a1, angle_a2, angle_a3, angle_indices = [], [], [], []
+        angles = []
+        acenters = {}
+        for bond in topdata.bonds():
+            a1, a2 = bond.atom1, bond.atom2
+            i1, i2 = a1.index, a2.index
+            if i1 not in acenters:
+                acenters[i1] = [a1]
+            acenters[i1].append(a2)
+            if i2 not in acenters:
+                acenters[i2] = [a2]
+            acenters[i2].append(a1)
+        for icenter in acenters:
+            if len(acenters[icenter]) < 3:
+                continue
+            acenter = acenters[icenter][0]
+            alinks = acenters[icenter][1:]
+            for ii in range(len(alinks)):
+                for jj in range(ii+1, len(alinks)):
+                    angles.append((alinks[ii], acenter, alinks[jj]))
+        for angle in angles:
+            a1, a2, a3 = angle
+            i1, i2, i3 = a1.index, a2.index, a3.index
+            if self.key_type == "type":
+                key = (a1.meta["type"], a2.meta["type"], a3.meta["type"])
+            elif self.key_type == "class":
+                key = (a1.meta["class"], a2.meta["class"], a3.meta["class"])
+            idx = self._find_key_index(key)
+            if idx is None:
+                continue
+            angle_a1.append(i1)
+            angle_a2.append(i2)
+            angle_a3.append(i3)
+            angle_indices.append(idx)
+        angle_a1 = jnp.array(angle_a1)
+        angle_a2 = jnp.array(angle_a2)
+        angle_a3 = jnp.array(angle_a3)
+        angle_indices = jnp.array(angle_indices)
+
+        # 创建势函数
+        harmonic_angle_force = HarmonicAngleJaxForce(
+            angle_a1, angle_a2, angle_a3, angle_indices)
+        harmonic_angle_energy = harmonic_angle_force.generate_get_energy()
+
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
+            isinstance_jnp(positions, box, params)
+            energy = harmonic_angle_energy(
+                positions, box, pairs, params[self.name]["k"], params[self.name]["angle"])
+            if has_aux:
+                return energy, aux
+            else:
+                return energy
+
+        self._jaxPotential = potential_fn
+        return potential_fn
+
+
+# register the generator
+_DMFFGenerators["HarmonicAngleForce"] = HarmonicAngleGenerator
+
+
+class PeriodicTorsionGenerator:
+
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        """
+        Initializes a PeriodicTorsionForce object.
 
         Args:
-            Those args are the same as those in createSystem.
+        - ffinfo (dict): A dictionary containing force field information.
+        - paramset (ParamSet): A ParamSet object to register parameters.
+
+        Raises:
+        - ValueError: If the ordering of PeriodicTorsionForce is not "amber".
+
+        Returns:
+        - None
         """
-        self._meta = {}
-
-        # initialize typemap
-        matcher = TypeMatcher(self.fftree, "HarmonicBondForce/Bond")
-
-        map_atom1, map_atom2, map_param = [], [], []
-
-        if not matcher.useSmirks:
-            n_bonds = len(data.bonds)
-            # build map
-            for i in range(n_bonds):
-                idx1 = data.bonds[i].atom1
-                idx2 = data.bonds[i].atom2
-                type1 = data.atomType[data.atoms[idx1]]
-                type2 = data.atomType[data.atoms[idx2]]
-                ifFound, ifForward, nfunc = matcher.matchGeneral([type1, type2])
-                if not ifFound:
-                    raise DMFFException(
-                        f"No parameter for bond ({idx1},{type1}) - ({idx2},{type2})"
-                    )
-                map_atom1.append(idx1)
-                map_atom2.append(idx2)
-                map_param.append(nfunc)
-        else:
-            rdmol = args.get("rdmol", None)
-            matches_dict = matcher.matchSmirks(rdmol)
-            for bond in rdmol.GetBonds():
-                beginAtomIdx = bond.GetBeginAtomIdx()
-                endAtomIdx = bond.GetEndAtomIdx()
-                query = (beginAtomIdx, endAtomIdx) if beginAtomIdx < endAtomIdx else (endAtomIdx, beginAtomIdx)
-                map_atom1.append(query[0])
-                map_atom2.append(query[1])
-                try:
-                    map_param.append(matches_dict[query])
-                except KeyError as e:
-                    raise DMFFException(
-                        f"No parameter for bond between Atom{beginAtomIdx} and Atom{endAtomIdx}"
-                    )
-
-        map_atom1 = np.array(map_atom1, dtype=int)
-        map_atom2 = np.array(map_atom2, dtype=int)
-        map_param = np.array(map_param, dtype=int)  
-        self._meta["HarmonicBondForce_atom1"] = map_atom1
-        self._meta["HarmonicBondForce_atom2"] = map_atom2
-        self._meta["HarmonicBondForce_param"] = map_param
-
-        bforce = HarmonicBondJaxForce(map_atom1, map_atom2, map_param)
-        self._force_latest = bforce
-
-        def potential_fn(positions, box, pairs, params):
-            return bforce.get_energy(positions, box, pairs,
-                                     params[self.name]["k"],
-                                     params[self.name]["length"])
-
-        self._jaxPotential = potential_fn
-        # self._top_data = data
-
-    def getJaxPotential(self):
-        return self._jaxPotential
-        
-    def getMetaData(self):
-        return self._meta
-
-
-dmff.api.jaxGenerators["HarmonicBondForce"] = HarmonicBondJaxGenerator
-
-
-class HarmonicAngleJaxGenerator:
-    def __init__(self, ff):
-        self.name = "HarmonicAngleForce"
-        self.ff = ff
-        self.fftree = ff.fftree
-        self.paramtree = ff.paramtree
-        self._meta = {}
-
-    def extract(self):
-        angles = self.fftree.get_attribs(f"{self.name}/Angle", "angle")
-        ks = self.fftree.get_attribs(f"{self.name}/Angle", "k")
-        self.paramtree[self.name] = {}
-        self.paramtree[self.name]["angle"] = jnp.array(angles)
-        self.paramtree[self.name]["k"] = jnp.array(ks)
-
-    def overwrite(self):
-        self.fftree.set_attrib(f"{self.name}/Angle", "angle",
-                               self.paramtree[self.name]["angle"])
-        self.fftree.set_attrib(f"{self.name}/Angle", "k",
-                               self.paramtree[self.name]["k"])
-
-    def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
-        self._meta = {}
-
-        matcher = TypeMatcher(self.fftree, "HarmonicAngleForce/Angle")
-
-        map_atom1, map_atom2, map_atom3, map_param = [], [], [], []
-
-        if not matcher.useSmirks:
-            n_angles = len(data.angles)
-            for nangle in range(n_angles):
-                idx1 = data.angles[nangle][0]
-                idx2 = data.angles[nangle][1]
-                idx3 = data.angles[nangle][2]
-                type1 = data.atomType[data.atoms[idx1]]
-                type2 = data.atomType[data.atoms[idx2]]
-                type3 = data.atomType[data.atoms[idx3]]
-                ifFound, ifForward, nfunc = matcher.matchGeneral(
-                    [type1, type2, type3])
-                if not ifFound:
-                    print(
-                        f"No parameter for angle ({idx1},{type1}) - ({idx2},{type2}) - ({idx3},{type3})"
-                    )
-                else:
-                    map_atom1.append(idx1)
-                    map_atom2.append(idx2)
-                    map_atom3.append(idx3)
-                    map_param.append(nfunc)
-        else:
-            from rdkit import Chem
-
-            rdmol = args.get("rdmol", None)
-            matches_dict = matcher.matchSmirks(rdmol)
-            angle_patt = Chem.MolFromSmarts("[*:1]~[*:2]~[*:3]")
-            angles = rdmol.GetSubstructMatches(angle_patt)
-            for angle in angles:
-                canonical_angle = (min([angle[0], angle[2]]), angle[1], max([angle[0], angle[2]]))
-                map_atom1.append(canonical_angle[0])
-                map_atom2.append(canonical_angle[1])
-                map_atom3.append(canonical_angle[2])
-                try:
-                    map_param.append(matches_dict[canonical_angle])
-                except KeyError as e:
-                    raise DMFFException(
-                        f"No parameter for angle Atom{canonical_angle[0]}-Atom{canonical_angle[1]}-Atom{canonical_angle[2]}"
-                    )
-     
-        map_atom1 = np.array(map_atom1, dtype=int)
-        map_atom2 = np.array(map_atom2, dtype=int)
-        map_atom3 = np.array(map_atom3, dtype=int)
-        map_param = np.array(map_param, dtype=int)
-        self._meta["HarmonicAngleForce_atom1"] = map_atom1
-        self._meta["HarmonicAngleForce_atom2"] = map_atom2
-        self._meta["HarmonicAngleForce_atom3"] = map_atom3
-        self._meta["HarmonicAngleForce_param"] = map_param
-
-        aforce = HarmonicAngleJaxForce(map_atom1, map_atom2, map_atom3,
-                                       map_param)
-        self._force_latest = aforce
-
-        def potential_fn(positions, box, pairs, params):
-            return aforce.get_energy(positions, box, pairs,
-                                     params[self.name]["k"],
-                                     params[self.name]["angle"])
-
-        self._jaxPotential = potential_fn
-        # self._top_data = data
-
-    def getJaxPotential(self):
-        return self._jaxPotential
-        
-    def getMetaData(self):
-        return self._meta
-
-
-dmff.api.jaxGenerators["HarmonicAngleForce"] = HarmonicAngleJaxGenerator
-
-
-class PeriodicTorsionJaxGenerator:
-    def __init__(self, ff):
         self.name = "PeriodicTorsionForce"
-        self.ff = ff
-        self.fftree = ff.fftree
-        self.paramtree = ff.paramtree
-        self.meta = {}
-        self._meta = {}
-        self.meta["prop_order"] = defaultdict(list)
-        self.meta["prop_nodeidx"] = defaultdict(list)
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
+        self._use_smarts = False
+        self.key_type = None
 
-        self.meta["impr_order"] = defaultdict(list)
-        self.meta["impr_nodeidx"] = defaultdict(list)
+        if "ordering" in self.ffinfo["Forces"][self.name] and self.ffinfo["Forces"][self.name]["ordering"] != "amber":
+            raise ValueError("PeriodicTorsionForce ordering must be amber")
 
-        self.max_pred_prop = 0
-        self.max_pred_impr = 0
+        proper_keys, proper_periods, proper_prms = [], [], []
+        proper_key_to_prms = {}
+        improper_keys, improper_periods, improper_prms = [], [], []
+        improper_key_to_prms = {}
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            attribs = node["attrib"]
+            if "type1" in attribs:
+                self.key_type = "type"
+            elif "class1" in attribs:
+                self.key_type = "class"
+            key = (attribs[self.key_type + "1"], attribs[self.key_type + "2"],
+                   attribs[self.key_type + "3"], attribs[self.key_type + "4"])
+            if node["name"] == "Proper":
+                proper_keys.append(key)
+            elif node["name"] == "Improper":
+                improper_keys.append(key)
 
-    def extract(self):
-        propers = self.fftree.get_nodes("PeriodicTorsionForce/Proper")
-        impropers = self.fftree.get_nodes("PeriodicTorsionForce/Improper")
-        self.paramtree[self.name] = {}
-        # propers
-        prop_phase = defaultdict(list)
-        prop_k = defaultdict(list)
-        for nnode, node in enumerate(propers):
-            for key in node.attrs:
-                if "periodicity" in key:
-                    order = int(key[-1])
-                    phase = float(node.attrs[f"phase{order}"])
-                    k = float(node.attrs[f"k{order}"])
-                    periodicity = int(node.attrs[f"periodicity{order}"])
-                    if self.max_pred_prop < periodicity:
-                        self.max_pred_prop = periodicity
-                    prop_phase[f"{periodicity}"].append(phase)
-                    prop_k[f"{periodicity}"].append(k)
-                    self.meta[f"prop_order"][f"{periodicity}"].append(order)
-                    self.meta[f"prop_nodeidx"][f"{periodicity}"].append(nnode)
+            mask = 1.0
+            if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                mask = 0.0
 
-        self.paramtree[self.name]["prop_phase"] = {}
-        self.paramtree[self.name]["prop_k"] = {}
-        for npred in range(1, self.max_pred_prop + 1):
-            self.paramtree[self.name]["prop_phase"][f"{npred}"] = jnp.array(
-                prop_phase[f"{npred}"])
-            self.paramtree[self.name]["prop_k"][f"{npred}"] = jnp.array(
-                prop_k[f"{npred}"])
-        if self.max_pred_prop == 0:
-            del self.paramtree[self.name]["prop_phase"]
-            del self.paramtree[self.name]["prop_k"]
-
-        # impropers
-        impr_phase = defaultdict(list)
-        impr_k = defaultdict(list)
-        for nnode, node in enumerate(impropers):
-            for key in node.attrs:
-                if "periodicity" in key:
-                    order = int(key[-1])
-                    phase = float(node.attrs[f"phase{order}"])
-                    k = float(node.attrs[f"k{order}"])
-                    periodicity = int(node.attrs[f"periodicity{order}"])
-                    if self.max_pred_impr < periodicity:
-                        self.max_pred_impr = periodicity
-                    impr_phase[f"{periodicity}"].append(phase)
-                    impr_k[f"{periodicity}"].append(k)
-                    self.meta[f"impr_order"][f"{periodicity}"].append(order)
-                    self.meta[f"impr_nodeidx"][f"{periodicity}"].append(nnode)
-
-        self.paramtree[self.name]["impr_phase"] = {}
-        self.paramtree[self.name]["impr_k"] = {}
-        for npred in range(1, self.max_pred_impr + 1):
-            self.paramtree[self.name]["impr_phase"][f"{npred}"] = jnp.array(
-                impr_phase[f"{npred}"])
-            self.paramtree[self.name]["impr_k"][f"{npred}"] = jnp.array(
-                impr_k[f"{npred}"])
-        if self.max_pred_impr == 0:
-            del self.paramtree[self.name]["impr_phase"]
-            del self.paramtree[self.name]["impr_k"]
-
-    def overwrite(self):
-        propers = self.fftree.get_nodes("PeriodicTorsionForce/Proper")
-        impropers = self.fftree.get_nodes("PeriodicTorsionForce/Improper")
-        prop_data = [{} for _ in propers]
-        impr_data = [{} for _ in impropers]
-        # make propers
-        for periodicity in range(1, self.max_pred_prop + 1):
-            nterms = len(
-                self.paramtree[self.name][f"prop_phase"][f"{periodicity}"])
-            for nitem in range(nterms):
-                phase = self.paramtree[
-                    self.name][f"prop_phase"][f"{periodicity}"][nitem]
-                k = self.paramtree[
-                    self.name][f"prop_k"][f"{periodicity}"][nitem]
-                nodeidx = self.meta[f"prop_nodeidx"][f"{periodicity}"][nitem]
-                order = self.meta[f"prop_order"][f"{periodicity}"][nitem]
-                prop_data[nodeidx][f"phase{order}"] = phase
-                prop_data[nodeidx][f"k{order}"] = k
-        if "prop_phase" in self.paramtree[self.name]:
-            self.fftree.set_node("PeriodicTorsionForce/Proper", prop_data)
-
-        # make impropers
-        for periodicity in range(1, self.max_pred_impr + 1):
-            nterms = len(
-                self.paramtree[self.name][f"impr_phase"][f"{periodicity}"])
-            for nitem in range(nterms):
-                phase = self.paramtree[
-                    self.name][f"impr_phase"][f"{periodicity}"][nitem]
-                k = self.paramtree[
-                    self.name][f"impr_k"][f"{periodicity}"][nitem]
-                nodeidx = self.meta[f"impr_nodeidx"][f"{periodicity}"][nitem]
-                order = self.meta[f"impr_order"][f"{periodicity}"][nitem]
-                impr_data[nodeidx][f"phase{order}"] = phase
-                impr_data[nodeidx][f"k{order}"] = k
-        if "impr_phase" in self.paramtree[self.name]:
-            self.fftree.set_node("PeriodicTorsionForce/Improper", impr_data)
-
-    def createForce(self, sys, data, nonbondedMethod, nonbondedCutoff, args):
-        """
-        Create force for torsions
-        """
-
-        # Proper Torsions
-        proper_matcher = TypeMatcher(self.fftree,
-                                     "PeriodicTorsionForce/Proper")
-        map_prop_atom1 = {i: [] for i in range(1, self.max_pred_prop + 1)}
-        map_prop_atom2 = {i: [] for i in range(1, self.max_pred_prop + 1)}
-        map_prop_atom3 = {i: [] for i in range(1, self.max_pred_prop + 1)}
-        map_prop_atom4 = {i: [] for i in range(1, self.max_pred_prop + 1)}
-        map_prop_param = {i: [] for i in range(1, self.max_pred_prop + 1)}
-        n_matched_props = 0
-
-        if not proper_matcher.useSmirks:
-            for torsion in data.propers:
-                types = [data.atomType[data.atoms[torsion[i]]] for i in range(4)]
-                ifFound, ifForward, nnode = proper_matcher.matchGeneral(types)
-                if not ifFound:
+            for period_key in attribs.keys():
+                if "periodicity" not in period_key:
                     continue
-                # find terms for node
-                for periodicity in range(1, self.max_pred_prop + 1):
-                    idx = findItemInList(
-                        nnode, self.meta[f"prop_nodeidx"][f"{periodicity}"])
-                    if idx < 0:
-                        continue
-                    n_matched_props += 1
-                    map_prop_atom1[periodicity].append(torsion[0])
-                    map_prop_atom2[periodicity].append(torsion[1])
-                    map_prop_atom3[periodicity].append(torsion[2])
-                    map_prop_atom4[periodicity].append(torsion[3])
-                    map_prop_param[periodicity].append(idx)
-        else:
-            from rdkit import Chem
+                order = int(period_key.replace("periodicity", ""))
+                period = int(attribs[period_key])
+                phase = float(attribs["phase" + str(order)])
+                k = float(attribs["k" + str(order)])
+                if node["name"] == "Proper":
+                    proper_periods.append(period)
+                    proper_prms.append([phase, k, mask])
+                    if len(proper_keys) - 1 not in proper_key_to_prms:
+                        proper_key_to_prms[len(proper_keys) - 1] = []
+                    proper_key_to_prms[len(
+                        proper_keys) - 1].append(len(proper_periods) - 1)
+                elif node["name"] == "Improper":
+                    improper_periods.append(period)
+                    improper_prms.append([phase, k, mask])
+                    if len(improper_keys) - 1 not in improper_key_to_prms:
+                        improper_key_to_prms[len(improper_keys) - 1] = []
+                    improper_key_to_prms[len(
+                        improper_keys) - 1].append(len(improper_periods) - 1)
 
-            rdmol = args.get("rdmol", None)
-            proper_patt = Chem.MolFromSmarts("[*:1]~[*:2]-[*:3]~[*:4]")
-            propers = rdmol.GetSubstructMatches(proper_patt)
-            matches_dict = proper_matcher.matchSmirks(rdmol)
-            for match in propers:
-                torsion = (match[3], match[2], match[1], match[0]) if match[2] < match[1] else match
-                try:
-                    nnode = matches_dict[torsion]
-                    ifFound = True
-                    n_matched_props += 1
-                except KeyError:
-                    ifFound = False
-                
-                if not ifFound:
-                    continue
-                    
-                for periodicity in range(1, self.max_pred_prop + 1):
-                    idx = findItemInList(nnode, self.meta['prop_nodeidx'][f"{periodicity}"])
-                    if idx < 0:
-                        continue
-                    map_prop_atom1[periodicity].append(torsion[0])
-                    map_prop_atom2[periodicity].append(torsion[1])
-                    map_prop_atom3[periodicity].append(torsion[2])
-                    map_prop_atom4[periodicity].append(torsion[3])
-                    map_prop_param[periodicity].append(idx)
+        self.proper_keys = proper_keys
+        self.proper_periods = jnp.array(proper_periods)
+        self.proper_key_to_prms = proper_key_to_prms
+        proper_phase = jnp.array([i[0] for i in proper_prms])
+        proper_k = jnp.array([i[1] for i in proper_prms])
+        proper_mask = jnp.array([i[2] for i in proper_prms])
+        # register parameters to ParamSet
+        paramset.addParameter(proper_phase, "proper_phase",
+                              field=self.name, mask=proper_mask)
+        paramset.addParameter(proper_k, "proper_k",
+                              field=self.name, mask=proper_mask)
+
+        self.imp_keys = improper_keys
+        self.imp_periods = jnp.array(improper_periods)
+        self.imp_key_to_prms = improper_key_to_prms
+        improper_phase = jnp.array([i[0] for i in improper_prms])
+        improper_k = jnp.array([i[1] for i in improper_prms])
+        improper_mask = jnp.array([i[2] for i in improper_prms])
+        # register parameters to ParamSet
+        paramset.addParameter(improper_phase, "improper_phase",
+                              field=self.name, mask=improper_mask)
+        paramset.addParameter(improper_k, "improper_k",
+                              field=self.name, mask=improper_mask)
+
+    def getName(self):
+        return self.name
+
+    def overwrite(self, paramset):
+        # paramset to ffinfo
+        proper_node_indices = [i for i in range(len(
+            self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Proper"]
+        improper_node_indices = [i for i in range(len(
+            self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Improper"]
+
+        proper_phase = paramset[self.name]["proper_phase"]
+        proper_k = paramset[self.name]["proper_k"]
+        proper_msks = paramset.mask[self.name]["proper"]
+        for nnode, key in enumerate(self.proper_keys):
+            self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]]["attrib"] = {
+            }
+            self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}1"] = key[0]
+            self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}2"] = key[1]
+            self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}3"] = key[2]
+            self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}4"] = key[3]
+            for nitem, item in enumerate(self.proper_key_to_prms[nnode]):
+                phase, k = proper_phase[item], proper_k[item]
+                mask = proper_msks[item]
+                self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                         ]["attrib"]["periodicity" + str(nitem + 1)] = str(self.proper_periods[item])
+                self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                         ]["attrib"]["phase" + str(nitem + 1)] = str(phase)
+                self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                         ]["attrib"]["k" + str(nitem + 1)] = str(k)
+            if mask < 0.999:
+                self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]
+                                                         ]["attrib"]["mask"] = "true"
+
+        improper_phase = paramset[self.name]["improper_phase"]
+        improper_k = paramset[self.name]["improper_k"]
+        improper_msks = paramset.mask[self.name]["improper"]
+        for nnode, key in enumerate(self.imp_keys):
+            self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]]["attrib"] = {
+            }
+            self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}1"] = key[0]
+            self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}2"] = key[1]
+            self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}3"] = key[2]
+            self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}4"] = key[3]
+            for nitem, item in enumerate(self.imp_key_to_prms[nnode]):
+                phase = improper_phase[item]
+                k = improper_k[item]
+                mask = improper_msks[item]
+                self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                         ]["attrib"]["periodicity" + str(nitem + 1)] = str(self.imp_periods[item])
+                self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                         ]["attrib"]["phase" + str(nitem + 1)] = str(phase)
+                self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                         ]["attrib"]["k" + str(nitem + 1)] = str(k)
+            if mask < 0.999:
+                self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]
+                                                         ]["attrib"]["mask"] = "true"
+
+    def _find_proper_key_index(self, key: Tuple[str, str, str, str]) -> int:
+        wc_patch = []
+        for i, k in enumerate(self.proper_keys):
+            if k[0] in ["", key[0]] and k[1] in ["", key[1]] and k[2] in ["", key[2]] and k[3] in ["", key[3]]:
+                if "" in k:
+                    wc_patch.append(i)
+                else:
+                    return i
+            if k[0] in ["", key[3]] and k[1] in ["", key[2]] and k[2] in ["", key[1]] and k[3] in ["", key[0]]:
+                if "" in k:
+                    wc_patch.append(i)
+                else:
+                    return i
+        if len(wc_patch) > 0:
+            return wc_patch[0]
+        return None
+
+    def _find_improper_key_index(self, improper):
         
-        # Improper Torsions
-        impr_matcher = TypeMatcher(self.fftree,
-                                   "PeriodicTorsionForce/Improper")
-        try:
-            ordering = self.fftree.get_attribs("PeriodicTorsionForce",
-                                               "ordering")[0]
-        except KeyError as e:
-            ordering = "default"
-
-        map_impr_atom1 = {i: [] for i in range(1, self.max_pred_impr + 1)}
-        map_impr_atom2 = {i: [] for i in range(1, self.max_pred_impr + 1)}
-        map_impr_atom3 = {i: [] for i in range(1, self.max_pred_impr + 1)}
-        map_impr_atom4 = {i: [] for i in range(1, self.max_pred_impr + 1)}
-        map_impr_param = {i: [] for i in range(1, self.max_pred_impr + 1)}
-        n_matched_imprs = 0
+        type1 = improper[0].meta[self.key_type]
+        type2 = improper[1].meta[self.key_type]
+        type3 = improper[2].meta[self.key_type]
+        type4 = improper[3].meta[self.key_type]
         
-        if not impr_matcher.useSmirks:
-            for impr in data.impropers:
-                match = impr_matcher.matchImproper(impr, data, ordering=ordering)
-                if match is not None:
-                    (a1, a2, a3, a4, nnode) = match
-                    n_matched_imprs += 1
-                    # find terms for node
-                    for periodicity in range(1, self.max_pred_impr + 1):
-                        idx = findItemInList(
-                            nnode, self.meta[f"impr_nodeidx"][f"{periodicity}"])
-                        if idx < 0:
-                            continue
-                        if ordering == 'smirnoff':
-                            # Add all torsions in trefoil
-                            map_impr_atom1[periodicity].append(a1)
-                            map_impr_atom2[periodicity].append(a2)
-                            map_impr_atom3[periodicity].append(a3)
-                            map_impr_atom4[periodicity].append(a4)
-                            map_impr_param[periodicity].append(idx)
-                            map_impr_atom1[periodicity].append(a1)
-                            map_impr_atom2[periodicity].append(a3)
-                            map_impr_atom3[periodicity].append(a4)
-                            map_impr_atom4[periodicity].append(a2)
-                            map_impr_param[periodicity].append(idx)
-                            map_impr_atom1[periodicity].append(a1)
-                            map_impr_atom2[periodicity].append(a4)
-                            map_impr_atom3[periodicity].append(a2)
-                            map_impr_atom4[periodicity].append(a3)
-                            map_impr_param[periodicity].append(idx)
-                        else:
-                            map_impr_atom1[periodicity].append(a1)
-                            map_impr_atom2[periodicity].append(a2)
-                            map_impr_atom3[periodicity].append(a3)
-                            map_impr_atom4[periodicity].append(a4)
-                            map_impr_param[periodicity].append(idx)
-        else:
-            rdmol = args.get("rdmol", None)
-            
-            if rdmol is None:
-                raise DMFFException("No rdkit.Chem.Mol object is provided")
+        def _wild_match(tp, tps):
+            if tps == "":
+                return True
+            if tp == tps:
+                return True
+            return False
 
-            matches_dict = impr_matcher.matchSmirksImproper(rdmol)
-            for torsion, nnode in matches_dict.items():
-                n_matched_imprs += 1
-                for periodicity in range(1, self.max_pred_impr+ 1):
-                    idx = findItemInList(nnode, self.meta['impr_nodeidx'][f"{periodicity}"])
-                    if idx < 0:
-                        continue
-                    map_impr_atom1[periodicity].append(torsion[0])
-                    map_impr_atom2[periodicity].append(torsion[1])
-                    map_impr_atom3[periodicity].append(torsion[2])
-                    map_impr_atom4[periodicity].append(torsion[3])
-                    map_impr_param[periodicity].append(idx)
+        matched = None
+        for ndef, tordef in enumerate(self.imp_keys):
+            types1 = tordef[0]
+            types2 = tordef[1]
+            types3 = tordef[2]
+            types4 = tordef[3]
+            hasWildcard = ("" in (types1, types2, types3, types4))
+
+            if matched is not None and hasWildcard:
+                continue
+
+            import itertools
+            if type1 in types1:
+                for (t2, t3, t4) in itertools.permutations(((type2, 1), (type3, 2), (type4, 3))):
+                    if _wild_match(t2[0], types2) and _wild_match(t3[0], types3) and _wild_match(t4[0], types4):
+                        a1 = improper[t2[1]].index
+                        a2 = improper[t3[1]].index
+                        e1 = improper[t2[1]].element
+                        e2 = improper[t3[1]].element
+                        m1 = app.element.get_by_symbol(e1).mass
+                        m2 = app.element.get_by_symbol(e2).mass
+                        if e1 == e2 and a1 > a2:
+                            (a1, a2) = (a2, a1)
+                        elif e1 != "C" and (e2 == "C" or m1 < m2):
+                            (a1, a2) = (a2, a1)
+                        matched = (a1, a2, improper[0].index, improper[t4[1]].index, ndef)
+                        break
+        if matched is None:
+            return None, None
+        return matched[4], matched[:4]
+
+
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
+                        nonbondedCutoff, **kwargs):
         
-        # Sum proper and improper torsions
-        props = [
-            PeriodicTorsionJaxForce(jnp.array(map_prop_atom1[p], dtype=int),
-                                    jnp.array(map_prop_atom2[p], dtype=int),
-                                    jnp.array(map_prop_atom3[p], dtype=int),
-                                    jnp.array(map_prop_atom4[p], dtype=int),
-                                    jnp.array(map_prop_param[p], dtype=int), p)
-            for p in range(1, self.max_pred_prop + 1)
-        ]
-        imprs = [
-            PeriodicTorsionJaxForce(jnp.array(map_impr_atom1[p], dtype=int),
-                                    jnp.array(map_impr_atom2[p], dtype=int),
-                                    jnp.array(map_impr_atom3[p], dtype=int),
-                                    jnp.array(map_impr_atom4[p], dtype=int),
-                                    jnp.array(map_impr_param[p], dtype=int), p)
-            for p in range(1, self.max_pred_impr + 1)
-        ]
-        self._props_latest = props
-        self._imprs_latest = imprs
+        if self.key_type is None:
+            def potential_fn_zero(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
+                return jnp.zeros((1,))
+            self._jaxPotential = potential_fn_zero
+            return potential_fn_zero
 
-        self._meta["PeriodicTorsionForce_prop_atom1"] = map_prop_atom1
-        self._meta["PeriodicTorsionForce_prop_atom2"] = map_prop_atom2
-        self._meta["PeriodicTorsionForce_prop_atom3"] = map_prop_atom3
-        self._meta["PeriodicTorsionForce_prop_atom4"] = map_prop_atom4
-        self._meta["PeriodicTorsionForce_prop_param"] = map_prop_param
+        proper_list = []
 
-        self._meta["PeriodicTorsionForce_impr_atom1"] = map_impr_atom1
-        self._meta["PeriodicTorsionForce_impr_atom2"] = map_impr_atom2
-        self._meta["PeriodicTorsionForce_impr_atom3"] = map_impr_atom3
-        self._meta["PeriodicTorsionForce_impr_atom4"] = map_impr_atom4
-        self._meta["PeriodicTorsionForce_impr_param"] = map_impr_param
-        
+        acenters = {}
+        atoms = [a for a in topdata.atoms()]
+        for bond in topdata.bonds():
+            a1, a2 = bond.atom1, bond.atom2
+            i1, i2 = a1.index, a2.index
+            if i1 not in acenters:
+                acenters[i1] = []
+            acenters[i1].append(i2)
+            if i2 not in acenters:
+                acenters[i2] = []
+            acenters[i2].append(i1)
 
-        def potential_fn(positions, box, pairs, params):
-            prop_sum = sum([
-                props[i].get_energy(
-                    positions, box, pairs,
-                    params["PeriodicTorsionForce"]["prop_k"][f"{i+1}"],
-                    params["PeriodicTorsionForce"]["prop_phase"][f"{i+1}"])
-                for i in range(self.max_pred_prop)
-            ])
-            impr_sum = sum([
-                imprs[i].get_energy(
-                    positions, box, pairs,
-                    params["PeriodicTorsionForce"]["impr_k"][f"{i+1}"],
-                    params["PeriodicTorsionForce"]["impr_phase"][f"{i+1}"])
-                for i in range(self.max_pred_impr)
-            ])
+        # find rotamers and loop over proper torsions on the rotamer
+        for bond in topdata.bonds():
+            a1, a2 = bond.atom1, bond.atom2
+            i1, i2 = a1.index, a2.index
+            alinks1 = [i for i in acenters[i1] if i != i2]
+            alinks2 = [i for i in acenters[i2] if i != i1]
+            for i3 in alinks1:
+                for i4 in alinks2:
+                    if i3 != i4:
+                        proper_list.append(
+                            (atoms[i3], atoms[i1], atoms[i2], atoms[i4]))
 
-            return prop_sum + impr_sum
+        impr_list = []
+        # find atoms that link with three other atoms
+        import itertools as it
+        for i1 in acenters:
+            if len(acenters[i1]) < 3:
+                continue
+            for item in it.combinations(acenters[i1], 3):
+                impr_list.append(
+                    (atoms[i1], atoms[item[0]], atoms[item[1]], atoms[item[2]]))
+
+        # create potential
+        proper_a1, proper_a2, proper_a3, proper_a4, proper_indices, proper_period = [
+        ], [], [], [], [], []
+        for proper in proper_list:
+            pidx = self._find_proper_key_index(
+                (proper[0].meta[self.key_type], proper[1].meta[self.key_type], proper[2].meta[self.key_type], proper[3].meta[self.key_type]))
+            if pidx is None:
+                continue
+
+            prm_indices = self.proper_key_to_prms[pidx]
+            for prm_idx in prm_indices:
+                prm_period = self.proper_periods[prm_idx]
+                proper_a1.append(proper[0].index)
+                proper_a2.append(proper[1].index)
+                proper_a3.append(proper[2].index)
+                proper_a4.append(proper[3].index)
+                proper_indices.append(prm_idx)
+                proper_period.append(prm_period)
+
+        proper_a1 = jnp.array(proper_a1)
+        proper_a2 = jnp.array(proper_a2)
+        proper_a3 = jnp.array(proper_a3)
+        proper_a4 = jnp.array(proper_a4)
+        proper_indices = jnp.array(proper_indices)
+        proper_period = jnp.array(proper_period)
+
+        improper_a1, improper_a2, improper_a3, improper_a4, improper_indices, improper_period = [], [], [], [], [], []
+        for improper in impr_list:
+            iidx, order = self._find_improper_key_index(improper)
+            if iidx is None:
+                continue
+
+            prm_indices = self.imp_key_to_prms[iidx]
+            for prm_idx in prm_indices:
+                prm_period = self.imp_periods[prm_idx]
+                improper_a1.append(atoms[order[0]].index)
+                improper_a2.append(atoms[order[1]].index)
+                improper_a3.append(atoms[order[2]].index)
+                improper_a4.append(atoms[order[3]].index)
+                improper_indices.append(prm_idx)
+                improper_period.append(prm_period)
+        improper_a1 = jnp.array(improper_a1)
+        improper_a2 = jnp.array(improper_a2)
+        improper_a3 = jnp.array(improper_a3)
+        improper_a4 = jnp.array(improper_a4)
+        improper_indices = jnp.array(improper_indices)
+        improper_period = jnp.array(improper_period)
+
+        proper_func = PeriodicTorsionJaxForce(
+            proper_a1, proper_a2, proper_a3, proper_a4, proper_indices, proper_period)
+        proper_energy = proper_func.generate_get_energy()
+        improper_func = PeriodicTorsionJaxForce(
+            improper_a1, improper_a2, improper_a3, improper_a4, improper_indices, improper_period)
+        improper_energy = improper_func.generate_get_energy()
+
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
+            isinstance_jnp(positions, box, params)
+            proper_energy_ = proper_energy(
+                positions, box, pairs, params[self.name]["proper_k"], params[self.name]["proper_phase"])
+            improper_energy_ = improper_energy(
+                positions, box, pairs, params[self.name]["improper_k"], params[self.name]["improper_phase"])
+            if has_aux:
+                return proper_energy_ + improper_energy_, aux
+            else:
+                return proper_energy_ + improper_energy_
 
         self._jaxPotential = potential_fn
-
-    def getJaxPotential(self):
-        return self._jaxPotential
-        
-    def getMetaData(self):
-        return self._meta
+        return potential_fn
 
 
-dmff.api.jaxGenerators["PeriodicTorsionForce"] = PeriodicTorsionJaxGenerator
+_DMFFGenerators["PeriodicTorsionForce"] = PeriodicTorsionGenerator
 
 
-class NonbondedJaxGenerator:
-    def __init__(self, ff: Hamiltonian):
+class NonbondedGenerator:
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
         self.name = "NonbondedForce"
-        self.ff = ff
-        self.fftree = ff.fftree
-        self.paramtree = ff.paramtree
-        self.paramtree[self.name] = {}
-        self.paramtree[self.name]["sigfix"] = jnp.array([])
-        self.paramtree[self.name]["epsfix"] = jnp.array([])
-
-        self.from_force = []
-        self.from_residue = []
-        self.ra2idx = {}
-        self.idx2rai = {}
-
-        self.useBCC = False
-        self.useVsite = False
-
-        self._meta = {}
-
-    def extract(self):
-        self.from_residue = self.fftree.get_attribs(
-            "NonbondedForce/UseAttributeFromResidue", "name")
-        self.from_force = [
-            i for i in ["charge", "sigma", "epsilon"]
-            if i not in self.from_residue
-        ]
-        # Build per-atom array for from_force
-        for prm in self.from_force:
-            vals = self.fftree.get_attribs("NonbondedForce/Atom", prm)
-            self.paramtree[self.name][prm] = jnp.array(vals)
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
+        self.coulomb14scale = float(
+            self.ffinfo["Forces"]["NonbondedForce"]["meta"].get("coulomb14scale", 0.8333333333333334))
+        self.lj14scale = float(
+            self.ffinfo["Forces"]["NonbondedForce"]["meta"].get("lj14scale", 0.5))
+        self.key_type = None
+        self.type_to_charge = {}
         
-        # Build per-atom array for from_residue
-        residues = self.fftree.get_nodes("Residues/Residue")
-        resvals = {k: [] for k in self.from_residue}
-        for resnode in residues:
-            resname = resnode.attrs["name"]
-            resvals[resname] = []
-            atomname = resnode.get_attribs("Atom", "name")
-            shift = len(self.ra2idx)
-            for natom, aname in enumerate(atomname):
-                self.ra2idx[(resname, natom)] = shift + natom
-                self.idx2rai[shift + natom] = (resname, atomname, natom)
-            for prm in self.from_residue:
-                atomval = resnode.get_attribs("Atom", prm)
-                resvals[prm].extend(atomval)
-        for prm in self.from_residue:
-            self.paramtree[self.name][prm] = jnp.array(resvals[prm])
+        self.charge_in_residue = False
+        for node in self.ffinfo["Forces"]["NonbondedForce"]["node"]:
+            if not self.charge_in_residue and node["name"] == "UseAttributeFromResidue":
+                if node["attrib"]["name"] == "charge":
+                    self.charge_in_residue = True
         
-        # Build coulomb14scale and lj14scale
-        coulomb14scale, lj14scale = self.fftree.get_attribs(
-            "NonbondedForce", ["coulomb14scale", "lj14scale"])[0]
-        self.paramtree[self.name]["coulomb14scale"] = jnp.array(
-            [coulomb14scale])
-        self.paramtree[self.name]["lj14scale"] = jnp.array([lj14scale])
+        types, sigma, epsilon, atom_mask = [], [], [], []
+        for node in self.ffinfo["Forces"]["NonbondedForce"]["node"]:
+            if node["name"] == "Atom":
+                attribs = node["attrib"]
+                self.key_type = None
+                if "type" in attribs:
+                    self.key_type = "type"
+                elif "class" in attribs:
+                    self.key_type = "class"
+                types.append(attribs[self.key_type])
+                sigma.append(float(attribs["sigma"]))
+                epsilon.append(float(attribs["epsilon"]))
+                mask = 1.0
+                if "mask" in attribs and attribs["mask"].upper() == "TRUE":
+                    mask = 0.0
+                atom_mask.append(mask)
+                if not self.charge_in_residue:
+                    if "charge" not in attribs:
+                        raise ValueError("No charge information found in NonbondedForce or Residues.")
+                    self.type_to_charge[attribs[self.key_type]] = float(attribs["charge"])
 
-        # Build BondChargeCorrection
-        bccs = self.fftree.get_attribs("NonbondedForce/BondChargeCorrection", "bcc")
-        self.paramtree[self.name]['bcc'] = jnp.array(bccs).reshape(-1, 1)
-        self.useBCC = len(bccs) > 0
+        sigma = jnp.array(sigma)
+        epsilon = jnp.array(epsilon)
+        atom_mask = jnp.array(atom_mask)
+        self.atom_keys = types
+        paramset.addParameter(sigma, "sigma", field=self.name, mask=atom_mask)
+        paramset.addParameter(epsilon, "epsilon", field=self.name, mask=atom_mask)
 
-        # Build VirtualSite
-        vsite_types = self.fftree.get_attribs("NonbondedForce/VirtualSite", "vtype")
-        self.paramtree[self.name]['vsite_types'] = jnp.array(vsite_types, dtype=int)
-        vsite_distance = self.fftree.get_attribs("NonbondedForce/VirtualSite", "distance")
-        self.paramtree[self.name]['vsite_distances'] = jnp.array(vsite_distance)
-        self.useVsite = len(vsite_types) > 0
+    def getName(self):
+        return self.name
 
-    def overwrite(self):
-        # write coulomb14scale
-        self.fftree.set_attrib("NonbondedForce", "coulomb14scale",
-                               self.paramtree[self.name]["coulomb14scale"])
-        # write lj14scale
-        self.fftree.set_attrib("NonbondedForce", "lj14scale",
-                               self.paramtree[self.name]["lj14scale"])
-        # write prm from force
-        for prm in self.from_force:
-            self.fftree.set_attrib("NonbondedForce/Atom", prm,
-                                   self.paramtree[self.name][prm])
-        # write prm from residue
-        residues = self.fftree.get_nodes("Residues/Residue")
-        for prm in self.from_residue:
-            vals = self.paramtree[self.name][prm]
-            data = []
-            for idx in range(vals.shape[0]):
-                rname, atomname, aidx = self.idx2rai[idx]
-                data.append((rname, aidx, vals[idx]))
+    def overwrite(self, paramset):
+        sigma = paramset[self.name]["sigma"]
+        epsilon = paramset[self.name]["epsilon"]
+        atom_mask = paramset.mask[self.name]["sigma"]
 
-            for resnode in residues:
-                tmp = sorted(
-                    [d for d in data if d[0] == resnode.attrs["name"]],
-                    key=lambda x: x[1])
-                resnode.set_attrib("Atom", prm, [t[2] for t in tmp])
+        node2atom = [i for i in range(len(self.ffinfo["Forces"][self.name]["node"])) if self.ffinfo["Forces"][self.name]["node"][i]["name"] == "Atom"]
+
+        for natom in range(len(self.atom_keys)):
+            nnode = node2atom[natom]
+            sig_new = sigma[natom]
+            eps_new = epsilon[natom]
+            mask = atom_mask[natom]
+            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["sigma"] = str(sig_new)
+            self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["epsilon"] = str(eps_new)
+            if mask < 0.999:
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+
+    def _find_atype_key_index(self, atype: str):
+        for n, i in enumerate(self.atom_keys):
+            if i == atype:
+                return n
+        return None
+    
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
+                        nonbondedCutoff, **kwargs):
+        methodMap = {
+            app.NoCutoff: "NoCutoff",
+            app.CutoffPeriodic: "CutoffPeriodic",
+            app.CutoffNonPeriodic: "CutoffNonPeriodic",
+            app.PME: "PME",
+        }
+        methodString = methodMap[nonbondedMethod]
+        if nonbondedMethod not in methodMap:
+            raise DMFFException("Illegal nonbonded method for NonbondedForce")
+
+        isNoCut = False
+        if nonbondedMethod is app.NoCutoff:
+            isNoCut = True
+
+        mscales_coul = jnp.array([0.0, 0.0, self.coulomb14scale, 1.0, 1.0,
+                                  1.0])
+        mscales_lj = jnp.array([0.0, 0.0, self.lj14scale, 1.0, 1.0,
+                                1.0])
+
+        # coulomb
+        # set PBC
+        if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
+            ifPBC = True
+        else:
+            ifPBC = False
+
+        if self.charge_in_residue:
+            charges = [a.meta["charge"] for a in topdata.atoms()]
+            charges = jnp.array(charges)
+        else:
+            types = [a.meta[self.key_type] for a in topdata.atoms()]
+            charges = jnp.array([self.type_to_charge[i] for i in types])
+
+        if unit.is_quantity(nonbondedCutoff):
+            r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
+        else:
+            r_cut = nonbondedCutoff
+
+        # PME Settings
+        if nonbondedMethod is app.PME:
+            cell = topdata.getPeriodicBoxVectors()
+            self.ethresh = kwargs.get("ethresh", 1e-6)
+            self.coeff_method = kwargs.get("PmeCoeffMethod", "openmm")
+            self.fourier_spacing = kwargs.get("PmeSpacing", 0.1)
+            kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, self.ethresh,
+                                                       cell,
+                                                       self.fourier_spacing,
+                                                       self.coeff_method)
+        if nonbondedMethod is not app.PME:
+            # do not use PME
+            if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
+                # use Reaction Field
+                coulforce = CoulReactionFieldForce(r_cut, charges, isPBC=ifPBC)
+            if nonbondedMethod is app.NoCutoff:
+                # use NoCutoff
+                coulforce = CoulNoCutoffForce(init_charges=charges)
+        else:
+            coulforce = CoulombPMEForce(r_cut, charges, kappa, (K1, K2, K3))
         
-        # write BCC
-        if self.useBCC:
-            self.fftree.set_attrib(
-                "NonbondedForce/BondChargeCorrection", "bcc",
-                self.paramtree[self.name]['bcc']
-            )
+        self.pme_force = coulforce
+        coulenergy = coulforce.generate_get_energy()
 
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff, args):
-        # Build Covalent Map
-        self.covalent_map = build_covalent_map(data, 6)
-        
+        # LJ
+        atypes = [a.meta[self.key_type] for a in topdata.atoms()]
+        map_prm = []
+        for atype in atypes:
+            pidx = self._find_atype_key_index(atype)
+            if pidx is None:
+                raise DMFFException(f"Atom type {atype} not found.")
+            map_prm.append(pidx)
+        map_prm = jnp.array(map_prm)
+
+        # not use nbfix for now
+        map_nbfix = []
+        map_nbfix = jnp.array(map_nbfix, dtype=int).reshape((-1, 3))
+        eps_nbfix = jnp.array(map_nbfix, dtype=float).reshape((-1, 3))
+        sig_nbfix = jnp.array(map_nbfix, dtype=float).reshape((-1, 3))
+
+        if methodString in ["NoCutoff", "CutoffNonPeriodic"]:
+            isPBC = False
+            if methodString == "NoCutoff":
+                isNoCut = True
+            else:
+                isNoCut = False
+        else:
+            isPBC = True
+            isNoCut = False
+
+        ljforce = LennardJonesForce(0.0,
+                                    r_cut,
+                                    map_prm,
+                                    map_nbfix,
+                                    isSwitch=False,
+                                    isPBC=isPBC,
+                                    isNoCut=isNoCut)
+        ljenergy = ljforce.generate_get_energy()
+
+        # dispersion correction
+        use_disp_corr = False
+        if "useDispersionCorrection" in kwargs and kwargs["useDispersionCorrection"]:
+            use_disp_corr = True
+            numTypes = len(self.atom_keys)
+            countVec = np.zeros(numTypes, dtype=int)
+            countMat = np.zeros((numTypes, numTypes), dtype=int)
+            types, count = np.unique(map_prm, return_counts=True)
+            for typ, cnt in zip(types, count):
+                countVec[typ] += cnt
+            for i in range(numTypes):
+                for j in range(i, numTypes):
+                    if i != j:
+                        countMat[i, j] = countVec[i] * countVec[j]
+                    else:
+                        countMat[i, j] = countVec[i] * (countVec[i] - 1) // 2
+            assert np.sum(countMat) == len(map_prm) * (len(map_prm) - 1) // 2
+
+            coval_map = topdata.buildCovMat()
+            colv_pairs = np.argwhere(
+                np.logical_and(coval_map > 0, coval_map <= 3))
+            for pair in colv_pairs:
+                if pair[0] <= pair[1]:
+                    tmp = (map_prm[pair[0]], map_prm[pair[1]])
+                    t1, t2 = min(tmp), max(tmp)
+                    countMat[t1, t2] -= 1
+
+            ljDispCorrForce = LennardJonesLongRangeForce(r_cut, map_prm, map_nbfix, countMat)
+            ljDispEnergyFn = ljDispCorrForce.generate_get_energy()
+
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions, box, pairs, params, aux=None):
+
+            # check whether args passed into potential_fn are jnp.array and differentiable
+            # note this check will be optimized away by jit
+            # it is jit-compatiable
+            isinstance_jnp(positions, box, params)
+
+            coulE = coulenergy(positions, box, pairs, mscales_coul)
+            
+            ljE = ljenergy(positions, box, pairs, params[self.name]["epsilon"],
+                            params[self.name]["sigma"], eps_nbfix, sig_nbfix, mscales_lj)
+            if use_disp_corr:
+                ljdispE = ljDispEnergyFn(box, params[self.name]["epsilon"],
+                            params[self.name]["sigma"], eps_nbfix, sig_nbfix)
+                if has_aux:
+                    return coulE + ljE + ljdispE, aux
+                else:
+                    return coulE + ljE + ljdispE
+            else:
+                if has_aux:
+                    return coulE + ljE, aux
+                else:
+                    return coulE + ljE
+
+        self._jaxPotential = potential_fn
+        return potential_fn
+
+
+_DMFFGenerators["NonbondedForce"] = NonbondedGenerator
+
+
+class CoulombGenerator:
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        self.name = "CoulombForce"
+        self.ffinfo = ffinfo
+        paramset.addField(self.name)
+        self.coulomb14scale = float(
+            self.ffinfo["Forces"]["CoulombForce"]["meta"]["coulomb14scale"])
+        self._use_bcc = False
+        self._bcc_mol = []
+        self.bcc_parsers = []
+        bcc_prms = []
+        bcc_mask = []
+        for node in self.ffinfo["Forces"]["CoulombForce"]["node"]:
+            if node["name"] == "UseBondChargeCorrection":
+                self._use_bcc = True
+                self._bcc_mol.append(node["attrib"]["name"])
+            if node["name"] == "BondChargeCorrection":
+                bcc = node["attrib"]["bcc"]
+                parser = node["attrib"]["smarts"] if "smarts" in node["attrib"] else node["attrib"]["smirks"]
+                bcc_prms.append(float(bcc))
+                self.bcc_parsers.append(parser)
+                if "mask" in node["attrib"] and node["attrib"]["mask"].upper() == "TRUE":
+                    bcc_mask.append(0.0)
+                else:
+                    bcc_mask.append(1.0)
+        bcc_prms = jnp.array(bcc_prms)
+        bcc_mask = jnp.array(bcc_mask)
+        paramset.addParameter(bcc_prms, "bcc", field=self.name, mask=bcc_mask)
+        self._bcc_shape = paramset[self.name]["bcc"].shape[0]
+
+    def getName(self):
+        return self.name
+
+    def overwrite(self, paramset):
+        # paramset to ffinfo
+        if self._use_bcc:
+            bcc_now = paramset[self.name]["bcc"]
+            mask_list = paramset.mask[self.name]["bcc"]
+            nbcc = 0
+            for nnode, node in enumerate(self.ffinfo["Forces"][self.name]["node"]):
+                if node["name"] == "BondChargeCorrection":
+                    mask = mask_list[nbcc]
+                    self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["bcc"] = bcc_now[nbcc]
+                    if mask < 0.999:
+                        self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["mask"] = "true"
+                    nbcc += 1
+
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
+                        nonbondedCutoff, **kwargs):
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",
@@ -661,17 +1080,15 @@ class NonbondedJaxGenerator:
         }
         if nonbondedMethod not in methodMap:
             raise DMFFException("Illegal nonbonded method for NonbondedForce")
+
         isNoCut = False
         if nonbondedMethod is app.NoCutoff:
             isNoCut = True
 
         mscales_coul = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0,
                                   1.0])  # mscale for PME
-        mscales_coul = mscales_coul.at[2].set(
-            self.paramtree[self.name]["coulomb14scale"][0])
-        mscales_lj = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for LJ
-        mscales_lj = mscales_lj.at[2].set(
-            self.paramtree[self.name]["lj14scale"][0])
+        mscales_coul = mscales_coul.at[2].set(self.coulomb14scale)
+        self.mscales_coul = mscales_coul # for qeq calculation
 
         # set PBC
         if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
@@ -679,561 +1096,305 @@ class NonbondedJaxGenerator:
         else:
             ifPBC = False
 
-        nbmatcher = TypeMatcher(self.fftree, "NonbondedForce/Atom")
+        charges = [a.meta["charge"] for a in topdata.atoms()]
+        charges = jnp.array(charges)
 
-        
-        rdmol = args.get("rdmol", None)
-
-        if self.useVsite:
-            vsitematcher = TypeMatcher(self.fftree, "NonbondedForce/VirtualSite")
-            vsite_matches_dict = vsitematcher.matchSmirksNoSort(rdmol)
-            vsiteObj = VirtualSite(vsite_matches_dict)
-
-            def addVsiteFunc(pos, params):
-                func = vsiteObj.getAddVirtualSiteFunc()
-                newpos = func(pos, params[self.name]['vsite_types'], params[self.name]['vsite_distances'])
-                return newpos
-            
-            self._addVsiteFunc = addVsiteFunc
-            rdmol = vsiteObj.addVirtualSiteToMol(rdmol)
-            self.vsiteObj = vsiteObj
-            
-            # expand covalent map
-            ori_dim = self.covalent_map.shape[0]
-            new_dim = ori_dim + len(vsite_matches_dict)
-            cov_map = np.zeros((new_dim, new_dim), dtype=int)
-            cov_map[:ori_dim, :ori_dim] += np.array(self.covalent_map, dtype=int)
-            
-            map_to_parents = np.arange(new_dim)
-            for i, match in enumerate(vsite_matches_dict.keys()):
-                map_to_parents[ori_dim + i] = match[0]
-            for i in range(len(vsite_matches_dict)):
-                parent_i = map_to_parents[ori_dim + i]
-                for j in range(new_dim):
-                    parent_j = map_to_parents[j]
-                    cov_map[ori_dim + i, j] = cov_map[parent_i, parent_j]
-                    cov_map[j, ori_dim + i] = cov_map[parent_j, parent_i]
-                # keep diagonal 0
-                cov_map[ori_dim + i, ori_dim + i] = 0
-                # keep vsite and its parent atom 1
-                cov_map[parent_i, ori_dim + i] = 1
-                cov_map[ori_dim + i, parent_i] = 1
-            self.covalent_map = jnp.array(cov_map)
-        
-        self._meta["cov_map"] = self.covalent_map
-
-        # Load Lennard-Jones parameters
-        maps = {}
-        if not nbmatcher.useSmirks:
-            for prm in self.from_force:
-                maps[prm] = []
-                for atom in data.atoms:
-                    atype = data.atomType[atom]
-                    ifFound, _, nnode = nbmatcher.matchGeneral([atype])
-                    if not ifFound:
-                        raise DMFFException(
-                            "AtomType of %s mismatched in NonbondedForce" %
-                            (str(atom)))
-                    maps[prm].append(nnode)
-                maps[prm] = jnp.array(maps[prm], dtype=int)
-        else:
-            lj_matches_dict = nbmatcher.matchSmirks(rdmol)
-            for prm in self.from_force:
-                maps[prm] = []
-                for i in range(rdmol.GetNumAtoms()):
-                    try:
-                        maps[prm].append(lj_matches_dict[(i,)])
-                    except KeyError as e:
-                        raise DMFFException(
-                            f"No parameter for atom {i}"
-                        )
-                maps[prm] = jnp.array(maps[prm], dtype=int)
-        
-        for prm in self.from_residue:
-            maps[prm] = []
-            for atom in data.atoms:
-                templateName = self.ff.templateNameForResidue[atom.residue.index]
-                aidx = data.atomTemplateIndexes[atom]
-                resname, aname = templateName, atom.name
-                maps[prm].append(self.ra2idx[(resname, aidx)])
-        
-        # Virtual Site
-        if self.useVsite:
-            # expand charges
-            chg = jnp.zeros(
-                (len(self.paramtree[self.name]['charge']) + len(vsite_matches_dict),), 
-                dtype=self.paramtree[self.name]['charge'].dtype
-            )
-            self.paramtree[self.name]['charge'] = chg.at[:len(self.paramtree[self.name]['charge'])].set(
-                self.paramtree[self.name]['charge']
-            )
-            maps_chg = [int(x) for x in maps['charge']]
-            for i in range(len(vsite_matches_dict)):
-                maps_chg.append(len(maps['charge']) + i)
-            maps['charge'] = jnp.array(maps_chg, dtype=int)
-            
-        # BCC parameters
-        if self.useBCC:
-            bccmatcher = TypeMatcher(self.fftree, "NonbondedForce/BondChargeCorrection")
-            
-            if bccmatcher.useSmirks:
-                bcc_matches_dict = bccmatcher.matchSmirksBCC(rdmol)
-                self.top_mat = np.zeros((rdmol.GetNumAtoms(), self.paramtree[self.name]['bcc'].shape[0]))
-
-                for bond in rdmol.GetBonds():
-                    beginAtomIdx = bond.GetBeginAtomIdx()
-                    endAtomIdx = bond.GetEndAtomIdx()
-                    query1, query2 = (beginAtomIdx, endAtomIdx), (endAtomIdx, beginAtomIdx)
-                    if query1 in bcc_matches_dict:
-                        nnode = bcc_matches_dict[query1]
-                        self.top_mat[query1[0], nnode] += 1
-                        self.top_mat[query1[1], nnode] -= 1
-                    elif query2 in bcc_matches_dict:
-                        nnode = bcc_matches_dict[query2]
-                        self.top_mat[query2[0], nnode] += 1
-                        self.top_mat[query2[1], nnode] -= 1
-                    else:
-                        warnings.warn(
-                            f"No BCC parameter for bond between Atom{beginAtomIdx} and Atom{endAtomIdx}"
-                        )
-            else:
-                raise DMFFException(
-                    "Only SMIRKS-based parametrization is supported for BCC"
-                )
-        else:
-            self.top_mat = None
-        
-        # NBFIX
-        map_nbfix = []
-        map_nbfix = jnp.array(map_nbfix, dtype=jnp.int32).reshape(-1, 2)
+        cov_mat = topdata.buildCovMat()
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
         else:
             r_cut = nonbondedCutoff
-        if "switchDistance" in args and args["switchDistance"] is not None:
-            r_switch = args["switchDistance"]
-            r_switch = (r_switch if not unit.is_quantity(r_switch) else
-                        r_switch.value_in_unit(unit.nanometer))
-            ifSwitch = True
-        else:
-            r_switch = r_cut
-            ifSwitch = False
 
         # PME Settings
         if nonbondedMethod is app.PME:
-            a, b, c = system.getDefaultPeriodicBoxVectors()
-            box = jnp.array([a._value, b._value, c._value])
-            self.ethresh = args.get("ethresh", 1e-6)
-            self.coeff_method = args.get("PmeCoeffMethod", "openmm")
-            self.fourier_spacing = args.get("PmeSpacing", 0.1)
+            cell = topdata.getPeriodicBoxVectors()
+            box = jnp.array(cell)
+            self.ethresh = kwargs.get("ethresh", 1e-5)
+            self.coeff_method = kwargs.get("PmeCoeffMethod", "openmm")
+            self.fourier_spacing = kwargs.get("PmeSpacing", 0.1)
             kappa, K1, K2, K3 = setup_ewald_parameters(r_cut, self.ethresh,
                                                        box,
                                                        self.fourier_spacing,
                                                        self.coeff_method)
 
-        map_lj = jnp.array(maps["sigma"])
-        map_charge = jnp.array(maps["charge"])
+        if self._use_bcc:
+            top_mat = np.zeros(
+                (topdata.getNumAtoms(), self._bcc_shape))
+            matched_dict = {}
+            for nparser, parser in enumerate(self.bcc_parsers):
+                matches = topdata.parseSMARTS(parser, resname=self._bcc_mol)
+                for ii, jj in matches:
+                    if (ii, jj) in matched_dict:
+                        del matched_dict[(ii, jj)]
+                    elif (jj, ii) in matched_dict:
+                        del matched_dict[(jj, ii)]
+                    matched_dict[(ii, jj)] = nparser
+            for ii, jj in matched_dict.keys():
+                nval = matched_dict[(ii, jj)]
+                top_mat[ii, nval] += 1.
+                top_mat[jj, nval] -= 1.
+            topdata._meta["bcc_top_mat"] = top_mat
 
-        # Free Energy Settings #
-        isFreeEnergy = args.get("isFreeEnergy", False)
-        if isFreeEnergy:
-            vdwLambda = args.get("vdwLambda", 0.0)
-            coulLambda = args.get("coulLambda", 0.0)
-            ifStateA = args.get("ifStateA", True)
-
-            # soft-cores
-            vdwSoftCore = args.get("vdwSoftCore", False)
-            coulSoftCore = args.get("coulSoftCore", False)
-            scAlpha = args.get("scAlpha", 0.0)
-            scSigma = args.get("scSigma", 0.0)
-
-            # couple
-            coupleIndex = args.get("coupleIndex", [])
-            if len(coupleIndex) > 0:
-                coupleMask = [False for _ in range(len(data.atoms))]
-                for atomIndex in coupleIndex:
-                    coupleMask[atomIndex] = True
-                coupleMask = jnp.array(coupleMask, dtype=bool)
-            else:
-                coupleMask = None
-
-        if not isFreeEnergy:
-            ljforce = LennardJonesForce(r_switch,
-                                        r_cut,
-                                        map_lj,
-                                        map_nbfix,
-                                        isSwitch=ifSwitch,
-                                        isPBC=ifPBC,
-                                        isNoCut=isNoCut)
+        if nonbondedMethod is not app.PME:
+            # do not use PME
+            if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
+                # use Reaction Field
+                coulforce = CoulReactionFieldForce(
+                    r_cut,
+                    charges,
+                    isPBC=ifPBC,
+                    topology_matrix=top_mat if self._use_bcc else None)
+            if nonbondedMethod is app.NoCutoff:
+                # use NoCutoff
+                coulforce = CoulNoCutoffForce(
+                    charges, topology_matrix=top_mat if self._use_bcc else None)
         else:
-            ljforce = LennardJonesFreeEnergyForce(r_switch,
-                                                  r_cut,
-                                                  map_lj,
-                                                  map_nbfix,
-                                                  isSwitch=ifSwitch,
-                                                  isPBC=ifPBC,
-                                                  isNoCut=isNoCut,
-                                                  feLambda=vdwLambda,
-                                                  coupleMask=coupleMask,
-                                                  useSoftCore=vdwSoftCore,
-                                                  ifStateA=ifStateA,
-                                                  sc_alpha=scAlpha,
-                                                  sc_sigma=scSigma)
-
-        ljenergy = ljforce.generate_get_energy()
-
-        # dispersion correction
-        useDispersionCorrection = args.get("useDispersionCorrection", False)
-        if useDispersionCorrection:
-            numTypes = self.paramtree[self.name]["sigma"].shape[0]
-            countVec = np.zeros(numTypes, dtype=int)
-            countMat = np.zeros((numTypes, numTypes), dtype=int)
-            types, count = np.unique(map_lj, return_counts=True)
-
-            for typ, cnt in zip(types, count):
-                countVec[typ] += cnt
-            for i in range(numTypes):
-                for j in range(i, numTypes):
-                    if i != j:
-                        countMat[i, j] = countVec[i] * countVec[j]
-                    else:
-                        countMat[i, i] = countVec[i] * (countVec[i] - 1) // 2
-            assert np.sum(countMat) == len(map_lj) * (len(map_lj) - 1) // 2
-
-            colv_pairs = np.argwhere(
-                np.logical_and(self.covalent_map > 0, self.covalent_map <= 3))
-            for pair in colv_pairs:
-                if pair[0] <= pair[1]:
-                    tmp = (map_lj[pair[0]], map_lj[pair[1]])
-                    t1, t2 = min(tmp), max(tmp)
-                    countMat[t1, t2] -= 1
-
-            if not isFreeEnergy:
-                ljDispCorrForce = LennardJonesLongRangeForce(
-                    r_cut, map_lj, map_nbfix, countMat)
-            else:
-                ljDispCorrForce = LennardJonesLongRangeFreeEnergyForce(
-                    r_cut, map_lj, map_nbfix, countMat, vdwLambda, ifStateA,
-                    coupleMask)
-            ljDispEnergyFn = ljDispCorrForce.generate_get_energy()
-
-        if not isFreeEnergy:
-            if nonbondedMethod is not app.PME:
-                # do not use PME
-                if nonbondedMethod in [
-                        app.CutoffPeriodic, app.CutoffNonPeriodic
-                ]:
-                    # use Reaction Field
-                    coulforce = CoulReactionFieldForce(r_cut,
-                                                       map_charge,
-                                                       isPBC=ifPBC,
-                                                       topology_matrix=self.top_mat)
-                if nonbondedMethod is app.NoCutoff:
-                    # use NoCutoff
-                    coulforce = CoulNoCutoffForce(map_charge, topology_matrix=self.top_mat)
-            else:
-                coulforce = CoulombPMEForce(r_cut, map_charge, kappa,
-                                            (K1, K2, K3), topology_matrix=self.top_mat)
-        else:
-            assert nonbondedMethod is app.PME, "Only PME is supported in free energy calculations"
-            assert not self.useBCC, "BCC usage in free energy calculations is not supported yet"
-            coulforce = CoulombPMEFreeEnergyForce(r_cut,
-                                                  map_charge,
-                                                  kappa, (K1, K2, K3),
-                                                  coulLambda,
-                                                  ifStateA=ifStateA,
-                                                  coupleMask=coupleMask,
-                                                  useSoftCore=coulSoftCore,
-                                                  sc_alpha=scAlpha,
-                                                  sc_sigma=scSigma)
+            coulforce = CoulombPMEForce(
+                r_cut,
+                charges, 
+                kappa, (K1, K2, K3),
+                topology_matrix=top_mat if self._use_bcc else None)
 
         coulenergy = coulforce.generate_get_energy()
 
-        if not isFreeEnergy:
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
 
-            def potential_fn(positions, box, pairs, params):
-
-                # check whether args passed into potential_fn are jnp.array and differentiable
-                # note this check will be optimized away by jit
-                # it is jit-compatiable
-                isinstance_jnp(positions, box, params)
-
-                ljE = ljenergy(positions, box, pairs,
-                               params[self.name]["epsilon"],
-                               params[self.name]["sigma"],
-                               params[self.name]["epsfix"],
-                               params[self.name]["sigfix"], mscales_lj)
-                
-                if not self.useBCC:
-                    coulE = coulenergy(positions, box, pairs,
-                                    params[self.name]["charge"], mscales_coul)
-                else:
-                    coulE = coulenergy(positions, box, pairs,
-                                    params[self.name]["charge"], params[self.name]["bcc"], mscales_coul)
-
-                if useDispersionCorrection:
-                    ljDispEnergy = ljDispEnergyFn(box,
-                                                  params[self.name]['epsilon'],
-                                                  params[self.name]['sigma'],
-                                                  params[self.name]['epsfix'],
-                                                  params[self.name]['sigfix'])
-
-                    return ljE + coulE + ljDispEnergy
-                else:
-                    return ljE + coulE
-
-            self._jaxPotential = potential_fn
-        else:
-            # Free Energy
-            @jit_condition()
-            def potential_fn(positions, box, pairs, params, vdwLambda,
-                             coulLambda):
-                ljE = ljenergy(positions, box, pairs,
-                               params[self.name]["epsilon"],
-                               params[self.name]["sigma"],
-                               params[self.name]["epsfix"],
-                               params[self.name]["sigfix"], mscales_lj,
-                               vdwLambda)
-                coulE = coulenergy(positions, box, pairs,
-                                   params[self.name]["charge"], mscales_coul,
-                                   coulLambda)
-
-                if useDispersionCorrection:
-                    ljDispEnergy = ljDispEnergyFn(box,
-                                                  params[self.name]['epsilon'],
-                                                  params[self.name]['sigma'],
-                                                  params[self.name]['epsfix'],
-                                                  params[self.name]['sigfix'],
-                                                  vdwLambda)
-                    return ljE + coulE + ljDispEnergy
-                else:
-                    return ljE + coulE
-
-            self._jaxPotential = potential_fn
-
-    def getJaxPotential(self):
-        return self._jaxPotential
-        
-    def getMetaData(self):
-        return self._meta
-
-    def getAddVsiteFunc(self):
-        """
-        Get function to add coordinates for virtual sites
-        """
-        return self._addVsiteFunc
-    
-    def getVsiteObj(self):
-        """
-        Get `dmff.classical.vsite.VirtualSite` object
-        """
-        if self.useVsite:
-            return self.vsiteObj
-        else:
-            return None
-        
-    def getTopologyMatrix(self):
-        """
-        Get topology Matrix
-        """
-        return self.top_mat
-
-dmff.api.jaxGenerators["NonbondedForce"] = NonbondedJaxGenerator
-
-
-class LennardJonesGenerator:
-    def __init__(self, ff):
-        self.name = "LennardJonesForce"
-        self.ff = ff
-        self.fftree = ff.fftree
-        self.paramtree = ff.paramtree
-        self.paramtree[self.name] = {}
-        self._meta = {}
-
-
-    def extract(self):
-        for prm in ["sigma", "epsilon"]:
-            vals = self.fftree.get_attribs("LennardJonesForce/Atom", prm)
-            self.paramtree[self.name][prm] = jnp.array(vals)
-            valfix = self.fftree.get_attribs("LennardJonesForce/NBFixPair",
-                                             prm)
-            self.paramtree[self.name][f"{prm}_nbfix"] = jnp.array(valfix)
-
-        lj14scale = self.fftree.get_attribs("LennardJonesForce",
-                                            "lj14scale")[0]
-        self.paramtree[self.name]["lj14scale"] = jnp.array([lj14scale])
-
-    def overwrite(self):
-        self.fftree.set_attrib("LennardJonesForce", "lj14scale",
-                               self.paramtree[self.name]["lj14scale"])
-        for prm in ["sigma", "epsilon"]:
-            self.fftree.set_attrib("LennardJonesForce/Atom", prm,
-                                   self.paramtree[self.name][prm])
-            if len(self.paramtree[self.name][f"{prm}_nbfix"]) > 0:
-                self.fftree.set_attrib(
-                    "LennardJonesForce/NBFixPair", prm,
-                    self.paramtree[self.name][f"{prm}_nbfix"])
-
-    def createForce(self, system, data, nonbondedMethod, nonbondedCutoff,
-                    args):
-        methodMap = {
-            app.NoCutoff: "NoCutoff",
-            app.PME: "CutoffPeriodic",
-            app.CutoffPeriodic: "CutoffPeriodic",
-            app.CutoffNonPeriodic: "CutoffNonPeriodic"
-        }
-        if nonbondedMethod not in methodMap:
-            raise DMFFException("Illegal nonbonded method for NonbondedForce")
-        isNoCut = False
-        if nonbondedMethod is app.NoCutoff:
-            isNoCut = True
-
-        mscales_lj = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for LJ
-        mscales_lj = mscales_lj.at[2].set(
-            self.paramtree[self.name]["lj14scale"][0])
-
-        if nonbondedMethod not in [app.NoCutoff, app.CutoffNonPeriodic]:
-            ifPBC = True
-        else:
-            ifPBC = False
-
-        nbmatcher = TypeMatcher(self.fftree, "LennardJonesForce/Atom")
-
-        maps = {}
-        for prm in ["sigma", "epsilon"]:
-            maps[prm] = []
-            for atom in data.atoms:
-                atype = data.atomType[atom]
-                ifFound, _, nnode = nbmatcher.matchGeneral([atype])
-                if not ifFound:
-                    raise DMFFException(
-                        "AtomType of %s mismatched in NonbondedForce" %
-                        (str(atom)))
-                maps[prm].append(nnode)
-            maps[prm] = jnp.array(maps[prm], dtype=int)
-
-        map_lj = jnp.array(maps["sigma"])
-
-        ifType = len([i for i in self.fftree.get_attribs("LennardJonesForce/Atom",
-                                             "type") if i is not None]) != 0
-        if ifType:
-            atom_labels = self.fftree.get_attribs("LennardJonesForce/Atom",
-                                                  "type")
-            fix_label1 = self.fftree.get_attribs("LennardJonesForce/NBFixPair",
-                                                 "type1")
-            fix_label2 = self.fftree.get_attribs("LennardJonesForce/NBFixPair",
-                                                 "type2")
-        else:
-            atom_labels = self.fftree.get_attribs("LennardJonesForce/Atom",
-                                                  "class")
-            fix_label1 = self.fftree.get_attribs("LennardJonesForce/NBFixPair",
-                                                 "class1")
-            fix_label2 = self.fftree.get_attribs("LennardJonesForce/NBFixPair",
-                                                 "class2")
-
-        map_nbfix = []
-
-        def findIdx(labels, label):
-            for ni in range(len(labels)):
-                if labels[ni] == label:
-                    return ni
-            raise DMFFException(
-                "AtomType of %s mismatched in LennardJonesForce" % (label))
-
-        for nfix in range(len(fix_label1)):
-            l1, l2 = fix_label1[nfix], fix_label2[nfix]
-            i1 = findIdx(atom_labels, l1)
-            i2 = findIdx(atom_labels, l2)
-            map_nbfix.append([i1, i2])
-        map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 2))
-        map_nbfix = jnp.array(map_nbfix)
-
-        colv_map = build_covalent_map(data, 6)
-        self._meta["cov_map"] = colv_map
-
-        if unit.is_quantity(nonbondedCutoff):
-            r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
-        else:
-            r_cut = nonbondedCutoff
-        if "switchDistance" in args and args["switchDistance"] is not None:
-            r_switch = args["switchDistance"]
-            r_switch = (r_switch if not unit.is_quantity(r_switch) else
-                        r_switch.value_in_unit(unit.nanometer))
-            ifSwitch = True
-        else:
-            r_switch = r_cut
-            ifSwitch = False
-
-        ljforce = LennardJonesForce(r_switch,
-                                    r_cut,
-                                    map_lj,
-                                    map_nbfix,
-                                    isSwitch=ifSwitch,
-                                    isPBC=ifPBC,
-                                    isNoCut=isNoCut)
-        ljenergy = ljforce.generate_get_energy()
-
-        useDispersionCorrection = self.fftree.get_attribs(
-            "LennardJonesForce", "useDispersionCorrection")[0] == "True"
-        if useDispersionCorrection:
-            numTypes = self.paramtree[self.name]["sigma"].shape[0]
-            countVec = np.zeros(numTypes, dtype=int)
-            countMat = np.zeros((numTypes, numTypes), dtype=int)
-            types, count = np.unique(map_lj, return_counts=True)
-
-            for typ, cnt in zip(types, count):
-                countVec[typ] += cnt
-            for i in range(numTypes):
-                for j in range(i, numTypes):
-                    if i != j:
-                        countMat[i, j] = countVec[i] * countVec[j]
-                    else:
-                        countMat[i, i] = countVec[i] * (countVec[i] - 1) // 2
-            assert np.sum(countMat) == len(map_lj) * (len(map_lj) - 1) // 2
-
-            colv_pairs = np.argwhere(
-                np.logical_and(colv_map > 0, colv_map <= 3))
-            for pair in colv_pairs:
-                if pair[0] <= pair[1]:
-                    tmp = (map_lj[pair[0]], map_lj[pair[1]])
-                    t1, t2 = min(tmp), max(tmp)
-                    countMat[t1, t2] -= 1
-
-            ljDispCorrForce = LennardJonesLongRangeForce(
-                r_cut, map_lj, map_nbfix, countMat)
-
-            ljDispEnergyFn = ljDispCorrForce.generate_get_energy()
-
-        def potential_fn(positions, box, pairs, params):
+        def potential_fn(positions, box, pairs, params, aux=None):
 
             # check whether args passed into potential_fn are jnp.array and differentiable
             # note this check will be optimized away by jit
             # it is jit-compatiable
             isinstance_jnp(positions, box, params)
-            ljE = ljenergy(positions, box, pairs, params[self.name]["epsilon"],
+
+            if self._use_bcc:
+                coulE = coulenergy(positions, box, pairs,
+                                   params["CoulombForce"]["bcc"], mscales_coul)
+            else:
+                coulE = coulenergy(positions, box, pairs,
+                                   mscales_coul)
+
+            if has_aux:
+                return coulE, aux
+            else:
+                return coulE
+
+        self._jaxPotential = potential_fn
+        return potential_fn
+
+
+_DMFFGenerators["CoulombForce"] = CoulombGenerator
+
+
+class LennardJonesGenerator:
+
+    def __init__(self, ffinfo: dict, paramset: ParamSet):
+        self.name = "LennardJonesForce"
+        self.ffinfo = ffinfo
+        self.lj14scale = float(
+            self.ffinfo["Forces"][self.name]["meta"]["lj14scale"])
+        self.nbfix_to_idx = {}
+        self.atype_to_idx = {}
+        sig_prms, eps_prms = [], []
+        sig_mask, eps_mask = [], []
+        sig_nbfix, eps_nbfix = [], []
+        sig_nbf_mask, eps_nbf_mask = [], []
+        for node in self.ffinfo["Forces"][self.name]["node"]:
+            if node["name"] == "Atom":
+                if "type" in node["attrib"]:
+                    atype, eps, sig = node["attrib"]["type"], node["attrib"][
+                        "epsilon"], node["attrib"]["sigma"]
+                    self.atype_to_idx[atype] = len(sig_prms)
+                elif "class" in node["attrib"]:
+                    acls, eps, sig = node["attrib"]["class"], node["attrib"][
+                        "epsilon"], node["attrib"]["sigma"]
+                    atypes = ffinfo["ClassToType"][acls]
+                    for atype in atypes:
+                        self.atype_to_idx[atype] = len(sig_prms)
+                sig_prms.append(float(sig))
+                eps_prms.append(float(eps))
+                if "mask" in node["attrib"] and node["attrib"]["mask"].upper() == "TRUE":
+                    sig_mask.append(0.0)
+                    eps_mask.append(0.0)
+                else:
+                    sig_mask.append(1.0)
+                    eps_mask.append(1.0)
+            elif node["name"] == "NBFixPair":
+                if "type1" in node["attrib"]:
+                    atype1, atype2, eps, sig = node["attrib"]["type1"], node["attrib"][
+                        "type2"], node["attrib"]["epsilon"], node["attrib"]["sigma"]
+                    if atype1 not in self.nbfix_to_idx:
+                        self.nbfix_to_idx[atype1] = {}
+                    if atype2 not in self.nbfix_to_idx:
+                        self.nbfix_to_idx[atype2] = {}
+                    self.nbfix_to_idx[atype1][atype2] = len(sig_nbfix)
+                    self.nbfix_to_idx[atype2][atype1] = len(sig_nbfix)
+                elif "class1" in node["attrib"]:
+                    acls1, acls2, eps, sig = node["attrib"]["class1"], node["attrib"][
+                        "class2"], node["attrib"]["epsilon"], node["attrib"]["sigma"]
+                    atypes1 = ffinfo["ClassToType"][acls1]
+                    atypes2 = ffinfo["ClassToType"][acls2]
+                    for atype1 in atypes1:
+                        if atype1 not in self.nbfix_to_idx:
+                            self.nbfix_to_idx[atype1] = {}
+                        for atype2 in atypes2:
+                            if atype2 not in self.nbfix_to_idx:
+                                self.nbfix_to_idx[atype2] = {}
+                            self.nbfix_to_idx[atype1][atype2] = len(sig_nbfix)
+                            self.nbfix_to_idx[atype2][atype1] = len(sig_nbfix)
+                sig_nbfix.append(float(sig))
+                eps_nbfix.append(float(eps))
+                if "mask" in node["attrib"] and node["attrib"]["mask"].upper() == "TRUE":
+                    sig_nbf_mask.append(0.0)
+                    eps_nbf_mask.append(0.0)
+                else:
+                    sig_nbf_mask.append(1.0)
+                    eps_nbf_mask.append(1.0)
+
+        sig_prms = jnp.array(sig_prms)
+        eps_prms = jnp.array(eps_prms)
+        sig_mask = jnp.array(sig_mask)
+        eps_mask = jnp.array(eps_mask)
+
+        sig_nbfix, eps_nbfix = jnp.array(sig_nbfix), jnp.array(eps_nbfix)
+        sig_nbf_mask = jnp.array(sig_nbf_mask)
+        eps_nbf_mask = jnp.array(eps_nbf_mask)
+
+        paramset.addField(self.name)
+        paramset.addParameter(
+            sig_prms, "sigma", field=self.name, mask=sig_mask)
+        paramset.addParameter(eps_prms, "epsilon",
+                              field=self.name, mask=eps_mask)
+        paramset.addParameter(sig_nbfix, "sigma_nbfix",
+                              field=self.name, mask=sig_nbf_mask)
+        paramset.addParameter(eps_nbfix, "epsilon_nbfix",
+                              field=self.name, mask=eps_nbf_mask)
+
+    def getName(self):
+        return self.name
+
+    def overwrite(self, paramset):
+        # paramset to ffinfo
+        for nnode in range(len(self.ffinfo["Forces"][self.name]["node"])):
+            node = self.ffinfo["Forces"][self.name]["node"][nnode]
+            if node["name"] == "Atom":
+                if "type" in node["attrib"]:
+                    atype = node["attrib"]["type"]
+                    idx = self.atype_to_idx[atype]
+
+                elif "class" in node["attrib"]:
+                    acls = node["attrib"]["class"]
+                    atypes = self.ffinfo["ClassToType"][acls]
+                    idx = self.atype_to_idx[atypes[0]]
+
+                eps_now = paramset[self.name]["epsilon"][idx]
+                sig_now = paramset[self.name]["sigma"][idx]
+                self.ffinfo["Forces"][
+                    self.name]["node"][nnode]["attrib"]["sigma"] = sig_now
+                self.ffinfo["Forces"][
+                    self.name]["node"][nnode]["attrib"]["epsilon"] = eps_now
+            # have not tested for NBFixPair overwrite
+            elif node["name"] == "NBFixPair":
+                if "type1" in node["attrib"]:
+                    atype1, atype2 = node["attrib"]["type1"], node["attrib"]["type2"]
+                    idx = self.nbfix_to_idx[atype1][atype2]
+                elif "class1" in node["attrib"]:
+                    acls1, acls2 = node["attrib"]["class1"], node["attrib"]["class2"]
+                    atypes1 = self.ffinfo["ClassToType"][acls1]
+                    atypes2 = self.ffinfo["ClassToType"][acls2]
+                    idx = self.nbfix_to_idx[atypes1[0]][atypes2[0]]
+                sig_now = paramset[self.name]["sigma_nbfix"][idx]
+                eps_now = paramset[self.name]["epsilon_nbfix"][idx]
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["sigma"] = sig_now
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["epsilon"] = eps_now
+
+    def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
+                        nonbondedCutoff, **kwargs):
+        methodMap = {
+            app.NoCutoff: "NoCutoff",
+            app.CutoffPeriodic: "CutoffPeriodic",
+            app.CutoffNonPeriodic: "CutoffNonPeriodic",
+            app.PME: "CutoffPeriodic",
+        }
+        if nonbondedMethod not in methodMap:
+            raise DMFFException("Illegal nonbonded method for NonbondedForce")
+        methodString = methodMap[nonbondedMethod]
+
+        atoms = [a for a in topdata.atoms()]
+        atypes = [a.meta["type"] for a in atoms]
+        map_prm = []
+        for atype in atypes:
+            if atype not in self.atype_to_idx:
+                raise DMFFException(f"Atom type {atype} not found.")
+            idx = self.atype_to_idx[atype]
+            map_prm.append(idx)
+        map_prm = jnp.array(map_prm)
+        topdata._meta["lj_map_idx"] = map_prm
+
+        # not use nbfix for now
+        map_nbfix = []
+        for atype1 in self.nbfix_to_idx.keys():
+            for atype2 in self.nbfix_to_idx[atype1].keys():
+                nbfix_idx = self.nbfix_to_idx[atype1][atype2]
+                type1_idx = self.atype_to_idx[atype1]
+                type2_idx = self.atype_to_idx[atype2]
+                map_nbfix.append([type1_idx, type2_idx, nbfix_idx])
+        map_nbfix = np.array(map_nbfix, dtype=int).reshape((-1, 3))
+
+        if methodString in ["NoCutoff", "CutoffNonPeriodic"]:
+            isPBC = False
+            if methodString == "NoCutoff":
+                isNoCut = True
+            else:
+                isNoCut = False
+        else:
+            isPBC = True
+            isNoCut = False
+
+        mscales_lj = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])  # mscale for LJ
+        mscales_lj = mscales_lj.at[2].set(self.lj14scale)
+
+        if unit.is_quantity(nonbondedCutoff):
+            r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
+        else:
+            r_cut = nonbondedCutoff
+
+        ljforce = LennardJonesForce(0.0,
+                                    r_cut,
+                                    map_prm,
+                                    map_nbfix,
+                                    isSwitch=False,
+                                    isPBC=isPBC,
+                                    isNoCut=isNoCut)
+        ljenergy = ljforce.generate_get_energy()
+
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+        def potential_fn(positions, box, pairs, params, aux=None):
+
+            # check whether args passed into potential_fn are jnp.array and differentiable
+            # note this check will be optimized away by jit
+            # it is jit-compatiable
+            isinstance_jnp(positions, box, params)
+
+            ljE = ljenergy(positions, box, pairs,
+                           params[self.name]["epsilon"],
                            params[self.name]["sigma"],
                            params[self.name]["epsilon_nbfix"],
-                           params[self.name]["sigma_nbfix"], mscales_lj)
+                           params[self.name]["sigma_nbfix"],
+                           mscales_lj)
 
-            if useDispersionCorrection:
-                ljDispEnergy = ljDispEnergyFn(
-                    box, params[self.name]['epsilon'],
-                    params[self.name]['sigma'],
-                    params[self.name]['epsilon_nbfix'],
-                    params[self.name]['sigma_nbfix'])
-
-                return ljE + ljDispEnergy
+            if has_aux:
+                return ljE, aux
             else:
                 return ljE
 
         self._jaxPotential = potential_fn
-
-    def getJaxPotential(self):
-        return self._jaxPotential
-        
-    def getMetaData(self):
-        return self._meta
+        return potential_fn
 
 
-dmff.api.jaxGenerators["LennardJonesForce"] = LennardJonesGenerator
+_DMFFGenerators["LennardJonesForce"] = LennardJonesGenerator

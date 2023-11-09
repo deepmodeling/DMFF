@@ -1,0 +1,204 @@
+<ForceField>
+  <AtomTypes>
+    <Type element="C" name="c" class="c" mass="12.01"/>
+    <Type element="C" name="cs" class="cs" mass="12.01"/>
+    <Type element="C" name="c1" class="c1" mass="12.01"/>
+    <Type element="C" name="c2" class="c2" mass="12.01"/>
+    <Type element="C" name="c3" class="c3" mass="12.01"/>
+    <Type element="C" name="ca" class="ca" mass="12.01"/>
+    <Type element="C" name="cp" class="cp" mass="12.01"/>
+    <Type element="C" name="cq" class="cq" mass="12.01"/>
+    <Type element="C" name="cc" class="cc" mass="12.01"/>
+    <Type element="C" name="cd" class="cd" mass="12.01"/>
+    <Type element="C" name="ce" class="ce" mass="12.01"/>
+    <Type element="C" name="cf" class="cf" mass="12.01"/>
+    <Type element="C" name="cg" class="cg" mass="12.01"/>
+    <Type element="C" name="ch" class="ch" mass="12.01"/>
+    <Type element="C" name="cx" class="cx" mass="12.01"/>
+    <Type element="C" name="cy" class="cy" mass="12.01"/>
+    <Type element="C" name="cu" class="cu" mass="12.01"/>
+    <Type element="C" name="cv" class="cv" mass="12.01"/>
+    <Type element="C" name="cz" class="cz" mass="12.01"/>
+    <Type element="H" name="h1" class="h1" mass="1.008"/>
+    <Type element="H" name="h2" class="h2" mass="1.008"/>
+    <Type element="H" name="h3" class="h3" mass="1.008"/>
+    <Type element="H" name="h4" class="h4" mass="1.008"/>
+    <Type element="H" name="h5" class="h5" mass="1.008"/>
+    <Type element="H" name="ha" class="ha" mass="1.008"/>
+    <Type element="H" name="hc" class="hc" mass="1.008"/>
+    <Type element="H" name="hn" class="hn" mass="1.008"/>
+    <Type element="H" name="ho" class="ho" mass="1.008"/>
+    <Type element="H" name="hp" class="hp" mass="1.008"/>
+    <Type element="H" name="hs" class="hs" mass="1.008"/>
+    <Type element="H" name="hw" class="hw" mass="1.008"/>
+    <Type element="H" name="hx" class="hx" mass="1.008"/>
+    <Type element="F" name="f" class="f" mass="19.0"/>
+    <Type element="Cl" name="cl" class="cl" mass="35.45"/>
+    <Type element="Br" name="br" class="br" mass="79.9"/>
+    <Type element="I" name="i" class="i" mass="126.9"/>
+    <Type element="N" name="n" class="n" mass="14.01"/>
+    <Type element="N" name="n1" class="n1" mass="14.01"/>
+    <Type element="N" name="n2" class="n2" mass="14.01"/>
+    <Type element="N" name="n3" class="n3" mass="14.01"/>
+    <Type element="N" name="n4" class="n4" mass="14.01"/>
+    <Type element="N" name="na" class="na" mass="14.01"/>
+    <Type element="N" name="nb" class="nb" mass="14.01"/>
+    <Type element="N" name="nc" class="nc" mass="14.01"/>
+    <Type element="N" name="nd" class="nd" mass="14.01"/>
+    <Type element="N" name="ne" class="ne" mass="14.01"/>
+    <Type element="N" name="nf" class="nf" mass="14.01"/>
+    <Type element="N" name="nh" class="nh" mass="14.01"/>
+    <Type element="N" name="no" class="no" mass="14.01"/>
+    <Type element="N" name="ns" class="ns" mass="14.01"/>
+    <Type element="N" name="nt" class="nt" mass="14.01"/>
+    <Type element="N" name="nx" class="nx" mass="14.01"/>
+    <Type element="N" name="ny" class="ny" mass="14.01"/>
+    <Type element="N" name="nz" class="nz" mass="14.01"/>
+    <Type element="N" name="n+" class="n+" mass="14.01"/>
+    <Type element="N" name="nu" class="nu" mass="14.01"/>
+    <Type element="N" name="nv" class="nv" mass="14.01"/>
+    <Type element="N" name="n7" class="n7" mass="14.01"/>
+    <Type element="N" name="n8" class="n8" mass="14.01"/>
+    <Type element="N" name="n9" class="n9" mass="14.01"/>
+    <Type element="N" name="ni" class="ni" mass="14.01"/>
+    <Type element="N" name="nj" class="nj" mass="14.01"/>
+    <Type element="N" name="nk" class="nk" mass="14.01"/>
+    <Type element="N" name="nl" class="nl" mass="14.01"/>
+    <Type element="N" name="nm" class="nm" mass="14.01"/>
+    <Type element="N" name="nn" class="nn" mass="14.01"/>
+    <Type element="N" name="np" class="np" mass="14.01"/>
+    <Type element="N" name="nq" class="nq" mass="14.01"/>
+    <Type element="N" name="n5" class="n5" mass="14.01"/>
+    <Type element="N" name="n6" class="n6" mass="14.01"/>
+    <Type element="O" name="o" class="o" mass="16.0"/>
+    <Type element="O" name="oh" class="oh" mass="16.0"/>
+    <Type element="O" name="op" class="op" mass="16.0"/>
+    <Type element="O" name="oq" class="oq" mass="16.0"/>
+    <Type element="O" name="os" class="os" mass="16.0"/>
+    <Type element="O" name="ow" class="ow" mass="16.0"/>
+    <Type element="P" name="p2" class="p2" mass="30.97"/>
+    <Type element="P" name="p3" class="p3" mass="30.97"/>
+    <Type element="P" name="p4" class="p4" mass="30.97"/>
+    <Type element="P" name="p5" class="p5" mass="30.97"/>
+    <Type element="P" name="pb" class="pb" mass="30.97"/>
+    <Type element="P" name="pc" class="pc" mass="30.97"/>
+    <Type element="P" name="pd" class="pd" mass="30.97"/>
+    <Type element="P" name="pe" class="pe" mass="30.97"/>
+    <Type element="P" name="pf" class="pf" mass="30.97"/>
+    <Type element="P" name="px" class="px" mass="30.97"/>
+    <Type element="P" name="py" class="py" mass="30.97"/>
+    <Type element="S" name="s" class="s" mass="32.06"/>
+    <Type element="S" name="s2" class="s2" mass="32.06"/>
+    <Type element="S" name="s4" class="s4" mass="32.06"/>
+    <Type element="S" name="s6" class="s6" mass="32.06"/>
+    <Type element="S" name="sh" class="sh" mass="32.06"/>
+    <Type element="S" name="sp" class="sp" mass="32.06"/>
+    <Type element="S" name="sq" class="sq" mass="32.06"/>
+    <Type element="S" name="ss" class="ss" mass="32.06"/>
+    <Type element="S" name="sx" class="sx" mass="32.06"/>
+    <Type element="S" name="sy" class="sy" mass="32.06"/>
+    <Type element="EP" name="vs" class="vs" mass="0.0"/>
+  </AtomTypes>
+    <CoulombForce coulomb14scale="0.833333">
+    </CoulombForce>
+    <LennardJonesForce lj14scale="0.5">
+        <Atom class="c" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="cs" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="c1" sigma="0.34789594943380253" epsilon="0.6677664"/>
+        <Atom class="c2" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="c3" sigma="0.3397709531243626" epsilon="0.4510352"/>
+        <Atom class="ca" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="cp" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="cq" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="cc" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="cd" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="ce" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="cf" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="cg" sigma="0.34789594943380253" epsilon="0.6677664"/>
+        <Atom class="ch" sigma="0.34789594943380253" epsilon="0.6677664"/>
+        <Atom class="cx" sigma="0.3397709531243626" epsilon="0.4510352"/>
+        <Atom class="cy" sigma="0.3397709531243626" epsilon="0.4510352"/>
+        <Atom class="cu" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="cv" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="cz" sigma="0.3315212309943831" epsilon="0.4133792"/>
+        <Atom class="h1" sigma="0.24219972551363267" epsilon="0.0870272"/>
+        <Atom class="h2" sigma="0.2243817511508259" epsilon="0.0870272"/>
+        <Atom class="h3" sigma="0.20656377678801907" epsilon="0.0870272"/>
+        <Atom class="h4" sigma="0.25363886505455463" epsilon="0.0673624"/>
+        <Atom class="h5" sigma="0.24472987787315117" epsilon="0.0673624"/>
+        <Atom class="ha" sigma="0.262547852235958" epsilon="0.0673624"/>
+        <Atom class="hc" sigma="0.2600176998764394" epsilon="0.0870272"/>
+        <Atom class="hn" sigma="0.11064962079303015" epsilon="0.04184"/>
+        <Atom class="ho" sigma="0.053792464601313685" epsilon="0.019664800000000003"/>
+        <Atom class="hp" sigma="0.10746020338208773" epsilon="0.0602496"/>
+        <Atom class="hs" sigma="0.10890345930547507" epsilon="0.0518816"/>
+        <Atom class="hw" sigma="1.0" epsilon="0.0"/>
+        <Atom class="hx" sigma="0.18874580242521227" epsilon="0.0870272"/>
+        <Atom class="f" sigma="0.30342228542423677" epsilon="0.3481088"/>
+        <Atom class="cl" sigma="0.3465952373053176" epsilon="1.1037392"/>
+        <Atom class="br" sigma="0.36125943020590756" epsilon="1.6451488"/>
+        <Atom class="i" sigma="0.38411989131338875" epsilon="2.073172"/>
+        <Atom class="n" sigma="0.3180864783248267" epsilon="0.6845024"/>
+        <Atom class="n1" sigma="0.3273518249934863" epsilon="0.4594032"/>
+        <Atom class="n2" sigma="0.33841678707278927" epsilon="0.3937144"/>
+        <Atom class="n3" sigma="0.336510263815969" epsilon="0.3589872"/>
+        <Atom class="n4" sigma="0.24995054436145359" epsilon="16.2121632"/>
+        <Atom class="na" sigma="0.3205809947356197" epsilon="0.8543728"/>
+        <Atom class="nb" sigma="0.33841678707278927" epsilon="0.3937144"/>
+        <Atom class="nc" sigma="0.33841678707278927" epsilon="0.3937144"/>
+        <Atom class="nd" sigma="0.33841678707278927" epsilon="0.3937144"/>
+        <Atom class="ne" sigma="0.33841678707278927" epsilon="0.3937144"/>
+        <Atom class="nf" sigma="0.33841678707278927" epsilon="0.3937144"/>
+        <Atom class="nh" sigma="0.3189951950173299" epsilon="0.89956"/>
+        <Atom class="no" sigma="0.336510263815969" epsilon="0.3589872"/>
+        <Atom class="ns" sigma="0.32699546550623015" epsilon="0.4912016"/>
+        <Atom class="nt" sigma="0.3359044526876336" epsilon="0.3560584"/>
+        <Atom class="nx" sigma="0.258859531542857" epsilon="10.6495352"/>
+        <Atom class="ny" sigma="0.2677685187242604" epsilon="7.0956456"/>
+        <Atom class="nz" sigma="0.2766775059056638" epsilon="4.79068"/>
+        <Atom class="n+" sigma="0.2855864930870672" epsilon="3.2752352000000005"/>
+        <Atom class="nu" sigma="0.3279041821987333" epsilon="0.646428"/>
+        <Atom class="nv" sigma="0.3368131693801367" epsilon="0.468608"/>
+        <Atom class="n7" sigma="0.3507646433062144" epsilon="0.2184048"/>
+        <Atom class="n8" sigma="0.3650190227964598" epsilon="0.13514320000000002"/>
+        <Atom class="n9" sigma="0.4044680180357141" epsilon="0.039748"/>
+        <Atom class="ni" sigma="0.3180864783248267" epsilon="0.6845024"/>
+        <Atom class="nj" sigma="0.3180864783248267" epsilon="0.6845024"/>
+        <Atom class="nk" sigma="0.258859531542857" epsilon="10.6495352"/>
+        <Atom class="nl" sigma="0.258859531542857" epsilon="10.6495352"/>
+        <Atom class="nm" sigma="0.3189951950173299" epsilon="0.89956"/>
+        <Atom class="nn" sigma="0.3189951950173299" epsilon="0.89956"/>
+        <Atom class="np" sigma="0.336510263815969" epsilon="0.3589872"/>
+        <Atom class="nq" sigma="0.336510263815969" epsilon="0.3589872"/>
+        <Atom class="n5" sigma="0.3507646433062144" epsilon="0.2184048"/>
+        <Atom class="n6" sigma="0.3507646433062144" epsilon="0.2184048"/>
+        <Atom class="o" sigma="0.3048120874245357" epsilon="0.6121192000000001"/>
+        <Atom class="oh" sigma="0.3242871334030835" epsilon="0.389112"/>
+        <Atom class="op" sigma="0.3156097798883966" epsilon="0.3037584"/>
+        <Atom class="oq" sigma="0.3156097798883966" epsilon="0.3037584"/>
+        <Atom class="os" sigma="0.3156097798883966" epsilon="0.3037584"/>
+        <Atom class="ow" sigma="1.0" epsilon="0.0"/>
+        <Atom class="p2" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="p3" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="p4" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="p5" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="pb" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="pc" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="pd" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="pe" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="pf" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="px" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="py" sigma="0.36940224448971026" epsilon="0.9602280000000001"/>
+        <Atom class="s" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="s2" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="s4" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="s6" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="sh" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="sp" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="sq" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="ss" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="sx" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="sy" sigma="0.35324134174264454" epsilon="1.1815616"/>
+        <Atom class="vs" sigma="1.0" epsilon="0.0"/>
+  </LennardJonesForce>
+</ForceField>

@@ -1,0 +1,185 @@
+<ForceField>
+ <AtomTypes>
+  <Type name="opls_135" class="CT" element="C" mass="12.01100" smarts="[C;X4](C)(H)(H)H" desc="alkane CH3" doi="10.1021/ja9621760"/>
+  <Type name="opls_136" class="CT" element="C" mass="12.01100" smarts="[C;X4](C)(C)(H)H" desc="alkane CH2" doi="10.1021/ja9621760"/>
+  <Type name="opls_137" class="CT" element="C" mass="12.01100" smarts="[C;X4](C)(C)(C)H" desc="alkane CH" doi="10.1021/ja9621760"/>
+  <Type name="opls_138" class="CT" element="C" mass="12.01100" smarts="[C;X4](H)(H)(H)H" desc="alkane CH4" doi="10.1021/ja9621760"/>
+  <Type name="opls_139" class="CT" element="C" mass="12.01100" smarts="[C;X4](C)(C)(C)C" desc="alkane C" doi="10.1021/ja9621760"/>
+  <Type name="opls_140" class="HC" element="H" mass="1.00800"  smarts="H[C;X4]" desc="alkane H" doi="10.1021/ja9621760"/>
+  <Type name="opls_141" class="CM" element="C" mass="12.01100" smarts="[C;X3](C)(C)C" desc="alkene C (R2-C=)" doi="10.1021/ja9621760"/>
+  <Type name="opls_142" class="CM" element="C" mass="12.01100" smarts="[C;X3](C)(C)H" desc="alkene C (RH-C=)" doi="10.1021/ja9621760"/>
+  <Type name="opls_143" class="CM" element="C" mass="12.01100" smarts="[C;X3](C)(H)H" desc="alkene C (H2-C=)" doi="10.1021/ja9621760"/>
+  <Type name="opls_144" class="HC" element="H" mass="1.00800"  smarts="[H][C;X3]" desc="alkene H" doi="10.1021/ja9621760"/>
+  <Type name="opls_145" class="CA" element="C" mass="12.01100" smarts="[C;X3;r6]1[C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6]1" overrides="opls_141,opls_142" doi="10.1021/ja9621760"/>
+  <Type name="opls_146" class="HA" element="H" mass="1.00800"  smarts="[H][C;%opls_145]" overrides="opls_144" desc="benzene H" doi="10.1021/ja9621760"/>
+  <Type name="opls_148" class="CT" element="C" mass="12.01100"   smarts="[C;X4]([C;%opls_145])(H)(H)H" desc="toluene CH3" overrides="opls_149,opls_135" doi="10.1021/ja9621760"/>
+  <Type name="opls_149" class="CT" element="C" mass="12.01100"   smarts="[C;X4]([C;%opls_145])(H)(H)*" desc="ethyl benzene CH2" overrides="opls_136" doi="10.1021/ja9621760"/>
+  <Type name="opls_151" class="Cl" element="Cl" mass="35.453" smarts="[Cl][C;X4]" overrides="opls_401" desc="Cl in alkyl chlorides" doi="10.1021/jp0484579"/>
+  <Type name="opls_152" class="CT" element="C" mass="12.011" smarts="[C;X4](Cl)([Cl,C,H])([Cl,C,H])([Cl,C,H])" desc="RCH2Cl in alkyl chlorides" doi="10.1021/jp0484579"/>
+  <Type name="opls_153" class="HC" element="H" mass="1.008" smarts="[H][C;X4](Cl)([Cl,C,H])([Cl,C,H])" overrides="opls_140" desc="H in alkyl chlorides" doi="10.1021/jp0484579"/>
+  <Type name="opls_154" class="OH" element="O" mass="15.9994"   smarts="[O;X2](H)([!H])" desc="all-atom O: mono alcohols" doi="10.1021/ja9621760"/>
+  <Type name="opls_155" class="HO" element="H" mass="1.00800"   smarts="H[O;%opls_154]" desc="all-atom H(O): mono alcohols, OP(=O)2" doi="10.1021/ja9621760"/>
+  <Type name="opls_156" class="HC" element="H" mass="1.008" smarts="HC(H)(H)OH" desc="all-atom H(C): methanol" overrides="opls_140" doi="10.1021/ja9621760"/>
+  <Type name="opls_157" class="CT" element="C" mass="12.01100"   smarts="[C;X4]([H])([H])([*])[O;%opls_154]" desc="all-atom C: CH3 and CH2, alcohols" overrides="opls_136, opls_159, opls_158" doi="10.1021/ja9621760"/>
+  <Type name="opls_158" class="CT" element="C" mass="12.011" smarts="[C;X4]([H])[O;%opls_154]" desc="Carbon in 2R-C(H)-OH" overrides="opls_136, opls_159" doi="10.1021/ja9621760"/>
+  <Type name="opls_159" class="CT" element="C" mass="12.011" smarts="[C;X4][O;%opls_154]" desc="Carbon in 3R-C-OH" overrides="opls_136" doi="10.1021/ja9621760"/>
+  <Type name="opls_166" class="CA" element="C" mass="12.011" smarts="[C;X3;r6]1(OH)[C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6]1" overrides="opls_145" doi="10.1021/ja9621760"/>
+  <Type name="opls_167" class="OH" element="O" mass="15.9994" smarts="O(H)[C;%opls_166]" overrides="opls_154" doi="10.1021/ja9621760"/>
+  <Type name="opls_168" class="HO" element="H" mass="1.008" smarts="H[O;%opls_167]" overrides="opls_155" doi="10.1021/ja9621760"/>
+  <Type name="opls_180" class="OS" element="O" mass="15.9994"  smarts="[O;X2](C)C" desc="O, dialkyl ether" doi="10.1021/ja9621760"/>
+  <Type name="opls_181" class="CT" element="C" mass="12.01100" smarts="[C;X4]([O;%opls_180])(H)(H)H" desc="C(H3OR), methyl ether" overrides="opls_182" doi="10.1021/ja9621760"/>
+  <Type name="opls_182" class="CT" element="C" mass="12.01100" smarts="[C;X4]([O;%opls_180])(H)(H)C" desc="C(H2OR), methyl ether" doi="10.1021/ja9621760"/>
+  <Type name="opls_183" class="CT" element="C" mass="12.011" smarts="[C;X4]([O;%opls_180])(C)(C)H" desc = "Central Carbon in Isopropyl group attached to Oxygen in ether" doi="10.1021/ja9621760"/>
+  <Type name="opls_184" class="CT" element="C" mass="12.011" smarts="[C;X4]([O;%opls_180])(C)(C)(C)" desc = "Central Carbon in t-butyl group attached to Oxygen in ether" doi="10.1021/ja9621760"/>
+  <Type name="opls_185" class="HC" element="C" mass="1.00800"   smarts="HC[O;%opls_180]" desc="H(COR), alpha H ether" overrides="opls_140" doi="10.1021/ja9621760"/>
+  <Type name="opls_186" class="OS" element="O" mass="15.9994" smarts="[O;X2][C;%opls_193](O)(C)H" desc="O: acetal ether" overrides="opls_180" doi="10.1021/ja9621760"/>
+  <Type name="opls_193" class="CO" element="C" mass="12.011" smarts="[C;X4](O)(O)(C)H" desc="C(HCO2), acetal OCHRO" doi="10.1021/ja9621760"/>
+  <Type name="opls_194" class="HC" element="H" mass="1.008" smarts="H[C;%opls_193][O;%opls_186]" desc="H(CHO2), acetal OCHRO" overrides="opls_185" doi="10.1021/ja9621760"/>
+  <Type name="opls_200" class="SH" element="S" mass="32.06" smarts="[S;X2]H" desc="S in any Thiol" overrides="opls_202" doi="10.1021/ja9621760"/>
+  <Type name="opls_201" class="SH" element="S" mass="32.06" smarts="[S;X2](H)(H)" desc="S in H2S" overrides="opls_200, opls_202" doi="10.1021/ja9621760"/>
+  <Type name="opls_202" class="S" element="S" mass="32.06" smarts="[S;X2]" desc="S in any sulfide" doi="10.1021/ja9621760" />
+  <Type name="opls_203" class="S" element="S" mass="32.06" smarts="[S;X2](S)" desc="S in Disulfide" overrides="opls_200, opls_202" doi="10.1021/ja9621760"/>
+  <Type name="opls_204" class="HS" element="H" mass="1.008" smarts="[H;X1]([S;%opls_200])" desc="H in any Thiol" doi="10.1021/ja9621760"/>
+  <Type name="opls_205" class="HS" element="H" mass="1.008" smarts="[H;X1]([S;%opls_201])" desc="H in H2S" overrides="opls_204" doi="10.1021/ja9621760"/>
+  <Type name="opls_206" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_200])(H)(H)" desc="C in R-CH2-S-H"  overrides="opls_207, opls_208, opls_210" doi="10.1021/ja9621760"/>
+  <Type name="opls_207" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_200])(H)([!H])([!H])" desc="C in 2R-CH-S-H" overrides="opls_208, opls_211" doi="10.1021/ja9621760"/>
+  <Type name="opls_208" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_200])" desc="C in 3R-C-S-H" overrides="opls_212" doi="10.1021/ja9621760"/>
+  <Type name="opls_209" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_202])(H)(H)(H)" desc="C in CH3-S-*"  overrides="opls_210, opls_211, opls_212" doi="10.1021/ja9621760"/>
+  <Type name="opls_210" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_202])(H)(H)" desc="C in R-CH2-S-*"  overrides="opls_211, opls_212" doi="10.1021/ja9621760"/>
+  <Type name="opls_211" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_202])(H)" desc="C in 2R-CH-S-*"  overrides="opls_212" doi="10.1021/ja9621760"/>
+  <Type name="opls_212" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_202])" desc="C in 3R-C-S-*" doi="10.1021/ja9621760"/>
+  <Type name="opls_213" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_203])(H)(H)(H)" desc="C in CH3-S-S-*"  overrides="opls_214, opls_215, opls_216, opls_209" doi="10.1021/ja9621760"/>
+  <Type name="opls_214" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_203])(H)(H)" desc="C in R-CH2-S-S-*"  overrides="opls_215, opls_216, opls_210" doi="10.1021/ja9621760"/>
+  <Type name="opls_215" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_203])(H)" desc="C in 2R-CH-S-S-*"  overrides="opls_216, opls_211" doi="10.1021/ja9621760"/>
+  <Type name="opls_216" class="CT" element="C" mass="12.011" smarts="[C;X4][S;%opls_203]" desc="C in 3R-C-S-S-*" overrides="opls_212" doi="10.1021/ja9621760"/>
+  <Type name="opls_217" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;%opls_200])(H)(H)(H)" desc="C in CH3-S-H (methanethiol)" overrides="opls_211, opls_207, opls_209, opls_206" doi="10.1021/ja9621760"/>
+  <Type name="opls_235" class="C" element="C" mass="12.011" smarts="[C;X3]([O;X1])[N;X3]" desc="C=O in amide, dmf, peptide bond" overrides="opls_277" doi="10.1021/ja9621760"/>
+  <Type name="opls_236" class="O" element="O" mass="15.9994" smarts="O[C;%opls_235]" desc="O: C=O in amide.   Acyl R on C in amide is neutral -" overrides="opls_278" doi="10.1021/ja9621760"/>
+  <Type name="opls_237" class="N" element="N" mass="14.0067" smarts="[N;X3](H)(H)[C;%opls_235]" desc="primary amide N, ex. carboxamide" overrides="opls_900" doi="10.1021/ja9621760"/>
+  <Type name="opls_238" class="N" element="N" mass="14.0067" smarts="[N;X3](H)(C)[C;%opls_235]" desc="secondary amide N, ex. N-methyl acetamide" doi="10.1021/ja9621760"/>
+  <Type name="opls_239" class="N" element="N" mass="14.0067" smarts="[N;X3](C)(C)[C;%opls_235]" desc="tertiary amide N, ex. acetamide" doi="10.1021/ja9621760"/>
+  <Type name="opls_240" class="H" element="H" mass="1.008" smarts="[H;X1][N;%opls_237]" desc="H on a primary nitrogen in amide" overrides="opls_909" doi="10.1021/ja9621760"/>
+  <Type name="opls_241" class="H" element="H" mass="1.008" smarts="[H;X1][N;%opls_238]" desc="H on a secondary nitrogen in amide" doi="10.1021/ja9621760"/>
+  <Type name="opls_242" class="CT" element="C" mass="12.011" smarts="[C;X4](H)(H)(H)[N;%opls_238]" desc="methyl C attached to secondary N in amide" doi="10.1021/ja9621760"/>
+  <Type name="opls_243" class="CT" element="C" mass="12.011" smarts="[C;X4](H)(H)(H)[N;%opls_239]" desc="methyl C attached to tertiary N in amide" doi="10.1021/ja9621760"/>
+  <Type name="opls_245" class="CT" element="C" mass="12.011" smarts="[C;X4](C)(H)(H)[N;%opls_239]" desc="secondary C attached to tertiary N. ex. NMP." doi="10.1021/ja9621760"/>
+  <Type name="opls_260" class="CA" element="C" mass="12.011" smarts="[C;X3;r6]([C;X2;%opls_261])" overrides = "opls_145" desc="Benzonitrile: Carbon on aromatic ring attached to CN" doi="10.1021/ja9621760"/>
+  <Type name="opls_261" class="CZ" element="C" mass="12.011" smarts="[C;X2]([C;X3;r6])" overrides = "opls_754" desc="Benzonitrile: carbon in nitrile group (CN) " doi="10.1021/ja9621760"/>
+  <Type name="opls_262" class="NZ" element="N" mass="14.0067" smarts="[N;X1][C;%opls_261]" overrides = "opls_753" desc="Benzonitrile Nitrogen(benzene-C)N" doi="10.1021/ja9621760"/>
+  <Type name="opls_263" class="CA" element="C" mass="12.011" smarts="[C;X3;r6]1(Cl)[C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6]1" overrides="opls_145" desc="Chlorobenzene C(Cl)" doi="10.1021/ja9621760"/>
+  <Type name="opls_264" class="Cl" element="Cl" mass="35.453" smarts="[Cl;X1]([C;%opls_263])" overrides="opls_401" desc="Chlorobenzene (C)Cl" doi="10.1021/ja9621760"/>
+  <Type name="opls_267" class="C" element="C" mass="12.01100"   smarts="[C;X3]([O;X1])OH" desc="Co in CCOOH" overrides="opls_277,opls_271,opls_465" doi="10.1021/ja9621760"/>
+  <Type name="opls_268" class="OH" element="O" mass="15.9994"   smarts="[O;X2]([C;%opls_267])H" desc="Oh in CCOOH" overrides="opls_154" doi="10.1021/ja9621760"/>
+  <Type name="opls_269" class="O_3" element="O" mass="15.9994"  smarts="[O;X1]([C;%opls_267](OH))" desc="Oc in CCOOH" overrides="opls_278,opls_272" doi="10.1021/ja9621760"/>
+  <Type name="opls_270" class="HO" element="H" mass="1.00800"   smarts="H([O;%opls_268])" desc="H in CCOOH" overrides="opls_155" doi="10.1021/ja9621760"/>
+  <Type name="opls_271" class="C" element="C" mass="12.011" smarts="[C;X3]([O;X1])([O;X1])" desc="acetate C in COO-" doi = "10.1021/ja9621760"/>
+  <Type name="opls_272" class="O_3" element="O" mass="15.9994" smarts="[O;X1]([C;%opls_271])" desc="O- in acetate group COO-" doi="10.1021/ja9621760"/>
+  <Type name="opls_277" class="C_2" element="C" mass="12.01100" smarts="[C;X3]([O;X1])H" desc="C in aldehyde" doi="10.1021/ja9621760"/>
+  <Type name="opls_278" class="O_2" element="O" mass="15.9994"  smarts="[O;X1][C;%opls_277]" desc="O in aldehyde" doi="10.1021/ja9621760"/>
+  <Type name="opls_279" class="HC"  element="H" mass="1.00800"  smarts="H[C;X3][O;X1]" desc="H-alpha in aldehyde and formamide" overrides="opls_185, opls_144" doi="10.1021/ja9621760"/>
+  <Type name="opls_280" class="C_2" element="C" mass="12.01100" smarts="[C;X3]([O;X1])(C)C" desc="C in ketone" doi="10.1021/ja9621760"/>
+  <Type name="opls_281" class="O_2" element="O" mass="15.9994"  smarts="[O;X1]([C;%opls_280])" desc="O in ketone" doi="10.1021/ja9621760"/>
+  <Type name="opls_282" class="HC"  element="H" mass="1.00800"  smarts="HC[C;%opls_277,%opls_280,%opls_465;!%opls_267]" desc="H on C-alpha in ketone and aldehyde" overrides="opls_140,opls_144" doi="10.1021/ja9621760"/>
+  <Type name="opls_401" class="opls_401" element="Cl" mass="35.453" smarts="[Cl]" desc="Chloride Ion(Cl-)" doi="https://doi.org/10.1021/ja00316a012"/>
+  <Type name="opls_406" class="opls_406" element="Li" mass="6.941" smarts="Li" desc="Li+ cation" doi="10.1021/j100384a009"/>
+  <Type name="opls_465" class="C_2" element="C" mass="12.011" smarts="[C;X3]([O;X1])([O;X2])" overrides="opls_277" desc="C in C=O in ester" doi="10.1002/jcc.1092"/>
+  <Type name="opls_466" class="O_2" element="O" mass="15.9994" smarts="[O;X1]([C;%opls_465]([O;%opls_467]))" overrides="opls_278" desc="O in C=O in ester" doi="10.1002/jcc.1092"/>
+  <Type name="opls_467" class="OS" element="O" mass="15.9994" smarts="[O;X2]([C;%opls_465])([!H])" overrides='opls_180' desc="O connected to R of O=C-O-R in esters" doi="10.1002/jcc.1092"/>
+  <Type name="opls_468" class="CT" element="C" mass="12.011" smarts="[C;X4]([O;%opls_467])(H)(H)H" overrides='opls_181' desc="methoxy C in esters" doi="10.1002/jcc.1092"/>
+  <Type name="opls_469" class="HC" element="H" mass="1.008" smarts="H[C;%opls_468,%opls_490]" overrides='opls_185' desc="methoxy Hs in esters; alpha-alkoxy hydrogen" doi="10.1002/jcc.1092"/>
+  <Type name="opls_490" class="CT" element="C" mass="12.011" smarts="[C;X4]([O;%opls_467])(H)(H)C" overrides="opls_182" desc="ethoxy carbon; C(H2OS) ethyl ester" doi="10.1002/jcc.1092"/>
+  <!--
+    A published source does not appear to exist for atom-types
+    opls_496, opls_497, and opls_498. DOIs refer to the following
+    two papers:
+    1. 10.1021/ja9539195
+       Lists the LJ params for these atom types in Ref. 18; however, the
+       charges used in this paper differ from those in this XML.
+    2. 10.1021/acs.jpcb.7b04233
+       Paper from W. Jorgensen's group that uses the same parameters for these
+       atom types as in this XML (however this is NOT where they were
+       derived).
+  -->
+  <Type name="opls_496" class="SZ" element="S" mass="32.06" smarts="[S;X3]([O;%opls_497])(C)(C)" desc="sulfoxide - all atom" doi="10.1021/ja9539195, 10.1021/acs.jpcb.7b04233"/>
+  <Type name="opls_497" class="OY" element="O" mass="15.9994" smarts="[O;X1][S;X3]" desc="sulfoxide - all atom" doi="10.1021/ja9539195, 10.1021/acs.jpcb.7b04233"/>
+  <Type name="opls_498" class="CT" element="C" mass="12.011" smarts="[C;X4]([S;X3])(H)(H)(H)" desc="CH3 all-atom C: sulfoxide" doi="10.1021/ja9539195, 10.1021/acs.jpcb.7b04233"/>
+  <Type name="opls_520" class="NC" element="N" mass="14.0067" smarts="[N;X2;r6]1[C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6]1" desc="N in pyridine" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_521" class="CA" element="C" mass="12.011" smarts="[C;X3;r6][N;%opls_520]" desc="C1 in pyridine" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_522" class="CA" element="C" mass="12.011" smarts="[C;X3;r6][C;%opls_521]" desc="C2 in pyridine" overrides="opls_142" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_523" class="CA" element="C" mass="12.011" smarts="[C;X3;r6]([C;%opls_522])[C;%opls_522]" desc="C3 in pyridine" overrides="opls_142" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_524" class="HA" element="H" mass="1.008" smarts="H[C;%opls_521]" desc="H1 in pyridine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_525" class="HA" element="H" mass="1.008" smarts="H[C;%opls_522]" desc="H2 in pyridine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_526" class="HA" element="H" mass="1.008" smarts="H[C;%opls_523]" desc="H3 in pyridine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_530" class="NC" element="N" mass="14.0067" smarts="[N;X2;r6]1[C;X3;r6][C;X3;r6][C;X3;r6][N;X2;r6][C;X3;r6]1" desc="N in pyrimidine" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_531" class="CQ" element="C" mass="12.011" smarts="[C;X3;r6]([N;%opls_530])[N;%opls_530]" desc="C2 in pyrimidine" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_532" class="CA" element="C" mass="12.011" smarts="[C;X3;r6]([N;%opls_530])[C;X3;r6]" desc="C4 in pyrimidine" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_533" class="CA" element="C" mass="12.011" smarts="[C;X3;r6]([C;%opls_532])[C;%opls_532]" desc="C5 in pyrimidine" overrides="opls_142" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_534" class="HA" element="H" mass="1.008" smarts="H[C;%opls_531]" desc="H2 in pyrimidine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_535" class="HA" element="H" mass="1.008" smarts="H[C;%opls_532]" desc="H4 in pyrimidine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_536" class="HA" element="H" mass="1.008" smarts="H[C;%opls_533]" desc="H5 in pyrimidine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
+  <Type name="opls_542" class="NA" element="N" mass="14.0067"  smarts="[N;X3;r5]1[C;X3;r5][C;X3;r5][C;X3;r5][C;X3;r5]1H" desc="N in pyrrole" doi="10.1021/jp981200o"/>
+  <Type name="opls_543" class="CW" element="C" mass="12.01100" smarts="[C;X3;r5]([N;%opls_542])" desc="C2 in pyrrole" doi="10.1021/jp981200o"/>
+  <Type name="opls_544" class="CS" element="C" mass="12.01100" smarts="[C;X3;r5]([C;%opls_543])" desc="C3 in pyrrole" overrides="opls_142" doi="10.1021/jp981200o"/>
+  <Type name="opls_545" class="H"  element="H" mass="1.00800"  smarts="H[N;%opls_542]" desc="H1 in pyrrole" doi="10.1021/jp981200o"/>
+  <Type name="opls_546" class="HA" element="H" mass="1.00800"  smarts="H[C;%opls_543]" desc="H2 in pyrrole" overrides="opls_144" doi="10.1021/jp981200o"/>
+  <Type name="opls_547" class="HA" element="H" mass="1.00800"  smarts="H[C;%opls_544]" desc="H3 in pyrrole" overrides="opls_144" doi="10.1021/jp981200o"/>
+  <!--
+    Parameters for the α-carbon in alkyl pyrroles (opls_678 and opls_679)
+    do not appear to have a published source. It appears with OPLS that for
+    most α-carbons the epsilon and sigma used are the same as for alkane
+    carbons and the charge is simply adjusted to preserve molecular charge
+    neutrality.
+  -->
+  <Type name="opls_678" class="CT" element="C" mass="12.01100"   smarts="[C;X4](H)(H)(H)[C;%opls_543]" desc="CH3, 2-methyl pyrrole" overrides="opls_679"/>
+  <Type name="opls_679" class="CT" element="C" mass="12.01100"   smarts="[C;X4](H)(H)[C;%opls_543]" desc="CH2, 2-ethyl pyrrole" overrides="opls_136"/>
+  <!--
+    Parameters for cyclopropanes (opls_711, opls_712, opls_713) do not appear
+    to have a published source. However, the LJ parameters are identical to
+    those for linear alkanes.
+  -->
+  <Type name="opls_711" class="CY" element="C" mass="12.01100"   smarts="[C;X4;r3]1(H)(H)[C;X4;r3][C;X4;r3]1" overrides="opls_136,opls_712"/>
+  <Type name="opls_712" class="CY" element="C" mass="12.01100"   smarts="[C;X4;r3]1(H)[C;X4;r3][C;X4;r3]1" overrides="opls_137,opls_713"/>
+  <Type name="opls_713" class="CY" element="C" mass="12.01100"   smarts="[C;X4;r3]1[C;X4;r3][C;X4;r3]1"/>
+  <Type name="opls_718" class="CA" element="C" mass="12.01100" smarts="[C;X3;r6]1(F)[C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6]1" overrides="opls_145" doi="10.1021/jp0484579"/>
+  <Type name="opls_719" class="F" element="F" mass="18.9984" smarts="F[C;%opls_718]" desc="fluorobenzene F" overrides="opls_965" doi="10.1021/jp0484579"/>
+  <Type name="opls_753" class="NZ" element="N" mass="14.0067" smarts="[N;X1]C" desc="N in RCN nitriles" doi="10.1002/jcc.1092"/>
+  <Type name="opls_754" class="CZ" element="C" mass="12.01100" smarts="[C;X2][N;%opls_753]" desc="C in RCN nitriles" doi="10.1002/jcc.1092"/>
+  <Type name="opls_755" class="CT" element="C" mass="12.01100" smarts="[C;X4](H)(H)(H)[C;%opls_754]" desc="C of CH3 in CH3CN" overrides="opls_135,opls_756" doi="10.1002/jcc.1092"/>
+  <Type name="opls_756" class="CT" element="C" mass="12.01100" smarts="[C;X4](H)(H)[C;%opls_754]" desc="C of CH2 in RCH2CN" overrides="opls_136,opls_757" doi="10.1002/jcc.1092"/>
+  <Type name="opls_757" class="CT" element="C" mass="12.01100" smarts="[C;X4](H)[C;%opls_754]" desc="C of CH in R2CHCN" overrides="opls_137,opls_758" doi="10.1002/jcc.1092"/>
+  <Type name="opls_758" class="CT" element="C" mass="12.01100" smarts="[C;X4][C;%opls_754]" desc="C of C in R3CCN" doi="10.1002/jcc.1092"/>
+  <Type name="opls_759" class="HC" element="H" mass="1.00800"  smarts="HC[C;%opls_754]" desc="HC-CT-CN alpha-H in nitriles" overrides="opls_140" doi="10.1002/jcc.1092"/>
+  <Type name="opls_760" class="NO" element="N" mass="14.0067"  smarts="[N;X3]([O;X1])([O;X1])" desc="N in nitro R-NO2" overrides="opls_239" doi="10.1002/jcc.1092"/>
+  <Type name="opls_761" class="ON" element="O" mass="15.9994"  smarts="[O;X1][N][O;X1]" desc="O in nitro R-NO2" doi="10.1002/jcc.1092"/>
+  <Type name="opls_762" class="CT" element="C" mass="12.01100" smarts="[C;X4](H)(H)(H)[N;%opls_760]" desc="CT-NO2 nitromethane" doi="10.1002/jcc.1092"/>
+  <Type name="opls_763" class="HC" element="H" mass="1.00800"  smarts="H([C;X4][N;%opls_760])" desc="HC-CT-NO2 alpha-H in nitroalkanes" overrides="opls_140" doi="10.1002/jcc.1092"/>
+  <Type name="opls_764" class="CT" element="C" mass="12.01100" smarts="[C;X4](C)(H)(H)[N;%opls_760]" desc="CT-NO2 nitroethane" overrides="opls_136" doi="10.1002/jcc.1092"/>
+  <Type name="opls_767" class="NO" element="N" mass="14.0067"   smarts="[N;X3]([O;X1])([O;X1])[C;X3;r6]" desc="N in nitro Ar-NO2" overrides="opls_760" doi="10.1002/jcc.1092"/>
+  <Type name="opls_768" class="CA" element="C" mass="12.01100"   smarts="[C;X3;r6][N;%opls_767]" desc="C(NO2) nitrobenzene" overrides="opls_145" doi="10.1002/jcc.1092"/>
+  <Type name="opls_771" class="O" element="O" mass="15.9994" smarts="[O;X1][C;X3;%opls_772]" desc="propylene carbonate O (Luciennes param.)"/>
+  <Type name="opls_772" class="C" element="C" mass="12.011" smarts="[C;X3;r5]1[O;X2;r5][C;X4;r5][C;X4;r5][O;X2;r5]1" desc="propylene carbonate C=O"/>
+  <Type name="opls_773" class="OS" element="O" mass="15.9994" smarts="[O;X2;r5]1[C;X4;r5][C;X4;r5][O;X2;r5][C;X3;r5]1" desc="propylene OS" overrides="opls_180"/>
+  <Type name="opls_774" class="CT" element="C" mass="12.011" smarts="[C;X4;r5]1(H)(H)[C;X4;r5][O;X2;r5][C;X3;r5][O;X2;r5]1" desc="propylene carbonate C in CH2" overrides="opls_182"/>
+  <Type name="opls_775" class="CT" element="C" mass="12.011" smarts="[C;X4;r5]1(H)(C)[C;X4;r5][O;X2;r5][C;X3;r5][O;X2;r5]1" desc="propylene carbonate C in CH" overrides="opls_182"/>
+  <Type name="opls_776" class="CT" element="C" mass="12.011" smarts="[C;X4](H)(H)(H)[C;%opls_775]" desc="propylene carbonate C in CH3" overrides="opls_135"/>
+  <Type name="opls_777" class="HC" element="H" mass="1.008" smarts="H[C;%opls_774]" desc="propylene carbonate H in CH2" overrides="opls_185,opls_140"/>
+  <Type name="opls_778" class="HC" element="H" mass="1.008" smarts="H[C;%opls_775]" desc="propylene carbonate H in CH" overrides="opls_185,opls_140"/>
+  <Type name="opls_779" class="HC" element="H" mass="1.008" smarts="H[C;%opls_776]" desc="propylene carbonate H in CH3" overrides="opls_185,opls_140"/>
+  <Type name="opls_900" class="NT" element="N" mass="14.0067" smarts="[N;X3](H)(H)C" desc="N primary amines" doi="10.1021/ja984106u"/>
+  <Type name="opls_901" class="NT" element="N" mass="14.0067" smarts="[N;X3](H)([C;!%opls_235;!%opls_543])([C;!%opls_235;!%opls_543])" desc="N for secondary amines" doi="10.1021/ja984106u"/>
+  <Type name="opls_903" class="CT" element="C" mass="12.01100" smarts="[C;X4](H)(H)(H)([N;%opls_900])" desc="CH3(N) primary aliphatic amines" overrides="opls_906" doi="10.1021/ja984106u"/>
+  <Type name="opls_904" class="CT" element="C" mass="12.011" smarts="[C;X4](H)(H)(H)([N;%opls_901])" desc="CH3(N) secondary aliphatic amines" overrides="opls_906" doi="10.1021/ja984106u"/>
+  <Type name="opls_906" class="CT" element="C" mass="12.01100" smarts="[C;X4]([N;%opls_900])(H)(H)" desc="CH2(N) primary aliphatic amines" overrides="opls_136" doi="10.1021/ja984106u"/>
+  <Type name="opls_909" class="H" element="H" mass="1.00800" smarts="H[N;%opls_900]" desc="H(N) primary amines" doi="10.1021/ja984106u"/>
+  <Type name="opls_910" class="H" element="H" mass="1.008" smarts="H[N;%opls_901]" desc="H(N) secondary amines" doi="10.1021/ja984106u"/>
+  <Type name="opls_911" class="HC" element="H" mass="1.00800" smarts="H([C;%opls_903,%opls_904,%opls_905,%opls_906,%opls_908])" desc="H(C) for C bonded to N in amines, diamines (aziridine H2,H3)" overrides="opls_140" doi="10.1021/ja984106u"/>
+  <Type name="opls_917" class="CA" element="C" mass="12.011" smarts="[C;X3;r6]([N;%opls_901])" desc="Carbon on benzene ring in N-Methylnitroaniline" overrides="opls_145" doi="10.1021/ja984106u"/>
+  <Type name="opls_925" class="CZ" element="C" mass="12.011" smarts="[C;X2](C)H" desc="alkyne RC%CH terminal C"/>
+  <Type name="opls_926" class="HC" element="H" mass="1.008" smarts="H[C;%opls_925]" desc="alkyne RC%CH terminal H"/>
+  <Type name="opls_927" class="CZ" element="C" mass="12.011" smarts="[C;X2](C(H)H)C" desc="alkyne RC%CH C2 R-with 2 or 3 H" overrides="opls_928"/>
+  <Type name="opls_930" class="HC" element="H" mass="1.008" smarts="H([*][C][C;%opls_925])" desc="alkyne RC%CH H on C3 (for C3 use #135-#139)" overrides="opls_140, opls_144"/>
+  <Type name="opls_961" class="CT" element="C" mass="12.01100" smarts="[C;X4](F)(F)(F)*" desc="perfluoroalkane CF3" overrides="opls_962" doi="10.1021/jp004071w"/>
+  <Type name="opls_962" class="CT" element="C" mass="12.01100" smarts="[C;X4](F)(F)(*)*" desc="perfluoroalkane CF2" doi="10.1021/jp004071w"/>
+  <Type name="opls_965" class="F" element="F" mass="18.9984" smarts="FC" desc="perfluoroalkane F" doi="10.1021/jp004071w"/>
+ </AtomTypes>
+</ForceField>

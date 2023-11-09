@@ -1,0 +1,5 @@
+REMARK   Materials Studio PDB file
+REMARK   Created:  Wed Apr 12 08:15:59 +0800 2023
+ATOM      1  CM1 DMC C   1      -1.102  -0.698   0.000  1.00  0.00           C    
+ATOM      2  CM2 DMC C   1       1.102  -0.698   0.000  1.00  0.00           C    
+ATOM      3  CO  DMC C   1       0.000   0.103   0.001  1.00  0.00           C    

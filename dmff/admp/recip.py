@@ -2,8 +2,8 @@ import numpy as np
 import jax.numpy as jnp
 import jax.scipy as jsp
 from jax import jit
-from dmff.settings import DO_JIT
-from dmff.common.constants import DIELECTRIC, SQRT_PI as sqrt_pi
+from ..settings import DO_JIT
+from ..common.constants import DIELECTRIC, SQRT_PI as sqrt_pi
 
 
 def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
@@ -15,6 +15,11 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
     bspline_range = jnp.arange(-pme_order//2, pme_order//2)
     n_mesh = pme_order**3
     shifts = jnp.array(jnp.meshgrid(bspline_range, bspline_range, bspline_range)).T.reshape((1, n_mesh, 3))
+
+    if K1 == K2 == K3 == 0:
+        def pme_recip_empty(positions, box, Q):
+            return jnp.zeros((1, ))
+        return pme_recip_empty
    
     def pme_recip(positions, box, Q):
         '''
@@ -64,84 +69,112 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             m_u0 = jnp.ceil(R_in_m_basis).astype(int)
             u0 = (m_u0 - R_in_m_basis) + pme_order/2
             return m_u0, u0
-        
+
+
         def bspline(u, order=pme_order):
             """
             Computes the cardinal B-spline function
             """
             if order == 6:
-                return jnp.piecewise(
-                    u, 
-                    [
-                        jnp.logical_and(u >= 0., u < 1.), 
-                        jnp.logical_and(u >= 1., u < 2.), 
-                        jnp.logical_and(u >= 2., u < 3.), 
-                        jnp.logical_and(u >= 3., u < 4.), 
-                        jnp.logical_and(u >= 4., u < 5.), 
-                        jnp.logical_and(u >= 5., u < 6.)
-                    ],
-                    [
-                        lambda u: u ** 5 / 120,
-                        lambda u: u ** 5 / 120 - (u - 1) ** 5 / 20,
-                        lambda u: u ** 5 / 120 + (u - 2) ** 5 / 8 - (u - 1) ** 5 / 20,
-                        lambda u: u ** 5 / 120 - (u - 3) ** 5 / 6 + (u - 2) ** 5 / 8 - (u - 1) ** 5 / 20,
-                        lambda u: u ** 5 / 24 - u ** 4 + 19 * u ** 3 / 2 - 89 * u ** 2 / 2 + 409 * u / 4 - 1829 / 20,
-                        lambda u: -u ** 5 / 120 + u ** 4 / 4 - 3 * u ** 3 + 18 * u ** 2 - 54 * u + 324 / 5
-                    ]
-                )
-        
-        
-        def bspline_prime(u, order=pme_order):
+                u2 = u ** 2
+                u3 = u ** 3
+                u4 = u ** 4
+                u5 = u ** 5
+                u_less_1 = u - 1
+                u_less_1_p5 = u_less_1 ** 5
+                u_less_2 = u - 2
+                u_less_2_p5 = u_less_2 ** 5
+                u_less_3 = u - 3
+                u_less_3_p5 = u_less_3 ** 5
+                conditions = [
+                    jnp.logical_and(u >= 0., u < 1.),
+                    jnp.logical_and(u >= 1., u < 2.),
+                    jnp.logical_and(u >= 2., u < 3.),
+                    jnp.logical_and(u >= 3., u < 4.),
+                    jnp.logical_and(u >= 4., u < 5.),
+                    jnp.logical_and(u >= 5., u < 6.)
+                ]
+                outputs = [
+                    u5 / 120,
+                    u5 / 120 - u_less_1_p5 / 20,
+                    u5 / 120 + u_less_2_p5 / 8 - u_less_1_p5 / 20,
+                    u5 / 120 - u_less_3_p5 / 6 + u_less_2_p5 / 8 - u_less_1_p5 / 20,
+                    u5 / 24 - u4 + 19 * u3 / 2 - 89 * u2 / 2 + 409 * u / 4 - 1829 / 20,
+                    -u5 / 120 + u4 / 4 - 3 * u3 + 18 * u2 - 54 * u + 324 / 5
+                ]
+                return jnp.sum(jnp.stack([condition * output for condition, output in zip(conditions, outputs)]),
+                               axis=0)
+
+        def bspline_prime(u, order=6):
             """
             Computes first derivative of the cardinal B-spline function
             """
             if order == 6:
-                return jnp.piecewise(
-                    u, 
-                    [
-                        jnp.logical_and(u >= 0., u < 1.), 
-                        jnp.logical_and(u >= 1., u < 2.), 
-                        jnp.logical_and(u >= 2., u < 3.), 
-                        jnp.logical_and(u >= 3., u < 4.), 
-                        jnp.logical_and(u >= 4., u < 5.), 
-                        jnp.logical_and(u >= 5., u < 6.)
-                    ],
-                    [
-                        lambda u: u ** 4 / 24,
-                        lambda u: u ** 4 / 24 - (u - 1) ** 4 / 4,
-                        lambda u: u ** 4 / 24 + 5 * (u - 2) ** 4 / 8 - (u - 1) ** 4 / 4,
-                        lambda u: -5 * u ** 4 / 12 + 6 * u ** 3 - 63 * u ** 2 / 2 + 71 * u - 231 / 4,
-                        lambda u: 5 * u ** 4 / 24 - 4 * u ** 3 + 57 * u ** 2 / 2 - 89 * u + 409 / 4,
-                        lambda u: -u ** 4 / 24 + u ** 3 - 9 * u ** 2 + 36 * u - 54
-                    ] 
-                )
+                u2 = u ** 2
+                u3 = u ** 3
+                u4 = u ** 4
+                # u5 = u ** 5
 
+                u_less_1 = u - 1
+                u_less_1_p4 = u_less_1 ** 4
 
-        def bspline_prime2(u, order=pme_order):
+                u_less_2 = u - 2
+                u_less_2_p4 = u_less_2 ** 4
+
+                # u_less_3 = u - 3
+
+                conditions = [
+                    jnp.logical_and(u >= 0., u < 1.),
+                    jnp.logical_and(u >= 1., u < 2.),
+                    jnp.logical_and(u >= 2., u < 3.),
+                    jnp.logical_and(u >= 3., u < 4.),
+                    jnp.logical_and(u >= 4., u < 5.),
+                    jnp.logical_and(u >= 5., u < 6.)
+                ]
+
+                outputs = [
+                    u4 / 24,
+                    u4 / 24 - u_less_1_p4 / 4,
+                    u4 / 24 + 5 * u_less_2_p4 / 8 - u_less_1_p4 / 4,
+                    -5 * u4 / 12 + 6 * u3 - 63 * u2 / 2 + 71 * u - 231 / 4,
+                    5 * u4 / 24 - 4 * u3 + 57 * u2 / 2 - 89 * u + 409 / 4,
+                    -u4 / 24 + u3 - 9 * u2 + 36 * u - 54
+                ]
+
+                return jnp.sum(jnp.stack([condition * output for condition, output in zip(conditions, outputs)]),
+                               axis=0)
+
+        def bspline_prime2(u, order=6):
             """
-            Computes second derivate of the cardinal B-spline function
+            Computes second derivative of the cardinal B-spline function
             """
             if order == 6:
-                return jnp.piecewise(
-                    u, 
-                    [
-                        jnp.logical_and(u >= 0., u < 1.), 
-                        jnp.logical_and(u >= 1., u < 2.), 
-                        jnp.logical_and(u >= 2., u < 3.), 
-                        jnp.logical_and(u >= 3., u < 4.), 
-                        jnp.logical_and(u >= 4., u < 5.), 
-                        jnp.logical_and(u >= 5., u < 6.)
-                    ],
-                    [
-                        lambda u: u ** 3 / 6,
-                        lambda u: u ** 3 / 6 - (u - 1) ** 3,
-                        lambda u: 5 * u ** 3 / 3 - 12 * u ** 2 + 27 * u - 19,
-                        lambda u: -5 * u ** 3 / 3 + 18 * u ** 2 - 63 * u + 71,
-                        lambda u: 5 * u ** 3 / 6 - 12 * u ** 2 + 57 * u - 89,
-                        lambda u: -u ** 3 / 6 + 3 * u ** 2 - 18 * u + 36
-                    ]
-                )
-        
+
+                u2 = u ** 2
+                u3 = u ** 3
+                u_less_1 = u - 1
+                # u_less_2 = u - 2
+
+                conditions = [
+                    jnp.logical_and(u >= 0., u < 1.),
+                    jnp.logical_and(u >= 1., u < 2.),
+                    jnp.logical_and(u >= 2., u < 3.),
+                    jnp.logical_and(u >= 3., u < 4.),
+                    jnp.logical_and(u >= 4., u < 5.),
+                    jnp.logical_and(u >= 5., u < 6.)
+                ]
+
+                outputs = [
+                    u3 / 6,
+                    u3 / 6 - u_less_1 ** 3,
+                    5 * u3 / 3 - 12 * u2 + 27 * u - 19,
+                    -5 * u3 / 3 + 18 * u2 - 63 * u + 71,
+                    5 * u3 / 6 - 12 * u2 + 57 * u - 89,
+                    -u3 / 6 + 3 * u2 - 18 * u + 36
+                ]
+
+                return jnp.sum(jnp.stack([condition * output for condition, output in zip(conditions, outputs)]),
+                               axis=0)
         
         def theta_eval(u, M_u):
             """
@@ -343,7 +376,8 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             """
             N_half = N.reshape(3)
             kx, ky, kz = [jnp.roll(jnp.arange(- (N_half[i] - 1) // 2, (N_half[i] + 1) // 2 ), - (N_half[i] - 1) // 2) for i in range(3)]
-            kpts_int = jnp.hstack([ki.flatten()[:,jnp.newaxis] for ki in jnp.meshgrid(kz, kx, ky)])
+            # kpts_int = jnp.hstack([ki.flatten()[:,jnp.newaxis] for ki in jnp.meshgrid(kz, kx, ky)])
+            kpts_int = jnp.hstack([ki.flatten()[:,jnp.newaxis] for ki in jnp.meshgrid(kx, ky, kz, indexing='ij')])
             return kpts_int 
 
 
@@ -362,7 +396,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                     4 * K, K=K1*K2*K3, contains kx, ky, kz, k^2 for each kpoint
             '''
             # in this array, a*, b*, c* (without 2*pi) are arranged in column
-            box_inv = jnp.linalg.inv(box)
+            box_inv = jnp.linalg.inv(box).T
             # K * 3, coordinate in reciprocal space
             kpts = 2 * jnp.pi * kpts_int.dot(box_inv)
             ksq = jnp.sum(kpts**2, axis=1)
@@ -400,7 +434,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
         # spread Q
         N = np.array([K1, K2, K3])
         Q_mesh = spread_Q(positions, box, Q)
-        N = N.reshape(1, 1, 3)
+        N = N.reshape((1, 1, 3))
         kpts_int = setup_kpts_integer(N)
         kpts = setup_kpts(box, kpts_int)
         m = jnp.linspace(-pme_order//2+1, pme_order//2-1, pme_order-1).reshape(pme_order-1, 1, 1)
@@ -430,7 +464,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             return jnp.sum(E_k) * DIELECTRIC
         else:
             return jnp.sum(E_k)
-
+    
     if DO_JIT:
         return jit(pme_recip, static_argnums=())
     else:
@@ -441,6 +475,8 @@ def Ck_1(ksq, kappa, V):
     return 2*jnp.pi/V/ksq * jnp.exp(-ksq/4/kappa**2)
 
 def Ck_6(ksq, kappa, V):
+    thresh = 1e-16
+    ksq = jnp.piecewise(ksq, [ksq<thresh, ksq>=thresh], [lambda x: jnp.array(thresh), lambda x: x])
     x2 = ksq / 4 / kappa**2
     x = jnp.sqrt(x2)
     x3 = x2 * x
@@ -449,6 +485,8 @@ def Ck_6(ksq, kappa, V):
     return sqrt_pi*jnp.pi/2/V*kappa**3 * f / 3
 
 def Ck_8(ksq, kappa, V):
+    thresh = 1e-16
+    ksq = jnp.piecewise(ksq, [ksq<thresh, ksq>=thresh], [lambda x: jnp.array(thresh), lambda x: x])
     x2 = ksq / 4 / kappa**2
     x = jnp.sqrt(x2)
     x4 = x2 * x2
@@ -458,6 +496,8 @@ def Ck_8(ksq, kappa, V):
     return sqrt_pi*jnp.pi/2/V*kappa**5 * f / 45
 
 def Ck_10(ksq, kappa, V):
+    thresh = 1e-16
+    ksq = jnp.piecewise(ksq, [ksq<thresh, ksq>=thresh], [lambda x: jnp.array(thresh), lambda x: x])
     x2 = ksq / 4 / kappa**2
     x = jnp.sqrt(x2)
     x4 = x2 * x2

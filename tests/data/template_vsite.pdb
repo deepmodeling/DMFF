@@ -1,0 +1,21 @@
+REMARK   1 CREATED WITH OPENMM 7.6, 2022-01-13
+HETATM    1  N   LIG A   1     -43.959  14.987   8.022  1.00  0.00           N  
+HETATM    2  C1  LIG A   1     -44.170  13.741   8.211  1.00  0.00           C  
+HETATM    3  C2  LIG A   1     -43.809  13.116   9.424  1.00  0.00           C  
+HETATM    4  C3  LIG A   1     -43.349  15.775   9.031  1.00  0.00           C  
+HETATM    5  C4  LIG A   1     -42.992  15.185  10.193  1.00  0.00           C  
+HETATM    6  H1  LIG A   1     -44.170  13.741   8.211  1.00  0.00           H  
+HETATM    7  H2  LIG A   1     -43.809  13.116   9.424  1.00  0.00           H  
+HETATM    8  H3  LIG A   1     -43.349  15.775   9.031  1.00  0.00           H  
+HETATM    9  H4  LIG A   1     -42.992  15.185  10.193  1.00  0.00           H  
+HETATM   10  BR  LIG A   1     -42.992  15.185  10.193  1.00  0.00          BR 
+CONECT    1    2
+CONECT    2    3
+CONECT    3    4
+CONECT    4    5
+CONECT    5    1
+CONECT    2    6
+CONECT    3    7
+CONECT    4    8
+CONECT    5    9
+CONECT    1   10

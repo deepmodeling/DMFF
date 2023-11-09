@@ -785,3 +785,10 @@ FodyWeavers.xsd
 
 # hmtff cache
 *.hmtff/
+
+# debugging ipynb
+debug.ipynb
+test.xml
+
+# PyCharm Cache
+.idea/

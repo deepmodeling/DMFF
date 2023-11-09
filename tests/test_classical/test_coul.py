@@ -6,6 +6,7 @@ import openmm.unit as unit
 import numpy as np
 import numpy.testing as npt
 from dmff import Hamiltonian, NeighborList
+from dmff.api import DMFFTopology
 
 
 class TestCoulomb:
@@ -26,11 +27,11 @@ class TestCoulomb:
         nblist = NeighborList(box, rc, potential.meta["cov_map"])
         nblist.allocate(pos)
         pairs = nblist.pairs
-        coulE = potential.getPotentialFunc(names="NonbondedForce")
-        energy = coulE(pos, box, pairs, h.paramtree)
+        coulE = potential.getPotentialFunc(names=["NonbondedForce"])
+        energy = coulE(pos, box, pairs, h.paramset)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(coulE)(pos, box, pairs, h.paramtree)
+        energy = jax.jit(coulE)(pos, box, pairs, h.paramset.parameters)
         npt.assert_almost_equal(energy, value, decimal=3)
 
     @pytest.mark.parametrize(
@@ -46,15 +47,15 @@ class TestCoulomb:
         pos = jnp.asarray(pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer))
         box = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
         rc = 4
-        gen = h.getGenerators()[-1]
-        nblist = NeighborList(box, rc, gen.covalent_map)
+        
+        nblist = NeighborList(box, rc, potential.meta["cov_map"])
         nblist.allocate(pos)
         pairs = nblist.pairs
         coulE = potential.getPotentialFunc()
-        energy = coulE(pos, box, pairs, h.paramtree)
+        energy = coulE(pos, box, pairs, h.paramset)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(coulE)(pos, box, pairs, h.paramtree)
+        energy = jax.jit(coulE)(pos, box, pairs, h.paramset)
         npt.assert_almost_equal(energy, value, decimal=3)
 
     @pytest.mark.parametrize(
@@ -74,10 +75,10 @@ class TestCoulomb:
         nblist.allocate(pos)
         pairs = nblist.pairs
         coulE = potential.getPotentialFunc()
-        energy = coulE(pos, box, pairs, h.paramtree)
+        energy = coulE(pos, box, pairs, h.paramset.parameters)
         npt.assert_almost_equal(energy, value, decimal=3)
         
-        energy = jax.jit(coulE)(pos, box, pairs, h.paramtree)
+        energy = jax.jit(coulE)(pos, box, pairs, h.paramset.parameters)
         npt.assert_almost_equal(energy, value, decimal=3)
     
     @pytest.mark.parametrize(
@@ -97,10 +98,10 @@ class TestCoulomb:
         potential = h.createPotential(
             pdb.topology, 
             nonbondedMethod=app.PME, 
+            nonbondedCutoff=rcut * unit.nanometers,
             constraints=app.HBonds, 
             removeCMMotion=False, 
             rigidWater=False,
-            nonbondedCutoff=rcut * unit.nanometers,
             useDispersionCorrection=False,
             PmeCoeffMethod="gromacs",
             PmeSpacing=0.10
@@ -123,6 +124,6 @@ class TestCoulomb:
             positions, 
             box, 
             pairs,
-            h.paramtree
+            h.paramset.parameters
         )
         assert np.allclose(ene, value, atol=1e-2)
