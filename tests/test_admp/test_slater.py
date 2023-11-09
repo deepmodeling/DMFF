@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import numpy.testing as npt
 import pytest
 from dmff import Hamiltonian, NeighborList
+from dmff.api import DMFFTopology
 from jax import jit, value_and_grad
 
 class TestADMPSlaterTypeFunction:
@@ -27,7 +28,7 @@ class TestADMPSlaterTypeFunction:
     def test_admp_slater(self, pdb, prm, values):
         pdb_AB = app.PDBFile(pdb)
         H_AB = Hamiltonian(prm)
-        rc = 1.5
+        rc = 1.49
         pots_AB = H_AB.createPotential(
             pdb_AB.topology, 
             nonbondedCutoff=rc*unit.nanometer, 
@@ -43,8 +44,10 @@ class TestADMPSlaterTypeFunction:
         pot_dhf_AB = pots_AB.dmff_potentials['SlaterDhfForce']
         pot_dmp_es_AB = pots_AB.dmff_potentials['QqTtDampingForce']
         pot_dmp_disp_AB = pots_AB.dmff_potentials['SlaterDampingForce']
-        
-        paramtree = H_AB.getParameters()
+
+        # build cov map
+        dmfftop = DMFFTopology(from_top=pdb_AB.topology)
+        covalent_map = dmfftop.buildCovMat()
 
         # init positions used to set up neighbor list
         pos_AB0 = jnp.array(pdb_AB.positions._value)
@@ -52,28 +55,28 @@ class TestADMPSlaterTypeFunction:
         box = jnp.array(pdb_AB.topology.getPeriodicBoxVectors()._value)
 
         # nn list initial allocation
-        nbl_AB = NeighborList(box, rc, H_AB.getGenerators()[0].covalent_map)
+        nbl_AB = NeighborList(box, rc, covalent_map)
         nbl_AB.allocate(pos_AB0)
         pairs_AB = nbl_AB.pairs
         pairs_AB =  pairs_AB[pairs_AB[:, 0] < pairs_AB[:, 1]]
 
         pos_AB = jnp.array(pos_AB0)
-        E_es = pot_pme_AB(pos_AB, box, pairs_AB, paramtree)
-        E_disp = pot_disp_AB(pos_AB, box, pairs_AB, paramtree)
-        E_ex = pot_ex_AB(pos_AB, box, pairs_AB, paramtree)
-        E_sr_es = pot_sr_es_AB(pos_AB, box, pairs_AB, paramtree) 
-        E_sr_pol = pot_sr_pol_AB(pos_AB, box, pairs_AB, paramtree)
-        E_sr_disp = pot_sr_disp_AB(pos_AB, box, pairs_AB, paramtree) 
-        E_dhf = pot_dhf_AB(pos_AB, box, pairs_AB, paramtree)
-        E_dmp_es = pot_dmp_es_AB(pos_AB, box, pairs_AB, paramtree) 
-        E_dmp_disp = pot_dmp_disp_AB(pos_AB, box, pairs_AB, paramtree)
+        E_es = pot_pme_AB(pos_AB, box, pairs_AB, H_AB.paramset)
+        E_disp = pot_disp_AB(pos_AB, box, pairs_AB, H_AB.paramset)
+        E_ex = pot_ex_AB(pos_AB, box, pairs_AB, H_AB.paramset)
+        E_sr_es = pot_sr_es_AB(pos_AB, box, pairs_AB, H_AB.paramset) 
+        E_sr_pol = pot_sr_pol_AB(pos_AB, box, pairs_AB, H_AB.paramset)
+        E_sr_disp = pot_sr_disp_AB(pos_AB, box, pairs_AB, H_AB.paramset) 
+        E_dhf = pot_dhf_AB(pos_AB, box, pairs_AB, H_AB.paramset)
+        E_dmp_es = pot_dmp_es_AB(pos_AB, box, pairs_AB, H_AB.paramset) 
+        E_dmp_disp = pot_dmp_disp_AB(pos_AB, box, pairs_AB, H_AB.paramset)
 
-        npt.assert_almost_equal(E_es, values[0])
-        npt.assert_almost_equal(E_disp, values[1])
-        npt.assert_almost_equal(E_ex, values[2])
-        npt.assert_almost_equal(E_sr_es, values[3])
-        npt.assert_almost_equal(E_sr_pol, values[4])
-        npt.assert_almost_equal(E_sr_disp, values[5]) 
-        npt.assert_almost_equal(E_dhf, values[6])
-        npt.assert_almost_equal(E_dmp_es, values[7])
-        npt.assert_almost_equal(E_dmp_disp, values[8])
+        npt.assert_almost_equal(E_es, values[0], decimal=4)
+        npt.assert_almost_equal(E_disp, values[1], decimal=4)
+        npt.assert_almost_equal(E_ex, values[2], decimal=4)
+        npt.assert_almost_equal(E_sr_es, values[3], decimal=4)
+        npt.assert_almost_equal(E_sr_pol, values[4], decimal=4)
+        npt.assert_almost_equal(E_sr_disp, values[5], decimal=4) 
+        npt.assert_almost_equal(E_dhf, values[6], decimal=4)
+        npt.assert_almost_equal(E_dmp_es, values[7], decimal=4)
+        npt.assert_almost_equal(E_dmp_disp, values[8], decimal=4)

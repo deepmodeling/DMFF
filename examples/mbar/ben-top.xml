@@ -1,7 +1,0 @@
-<Residues>
-    <Residue name='BEN'>
-        <Bond from='C1' to='C3'/>
-        <Bond from='C3' to='C5'/>
-        <Bond from='C5' to='C1'/>
-    </Residue>
-</Residues>

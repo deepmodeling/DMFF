@@ -4,7 +4,7 @@ import numpy as np
 import jax.numpy as jnp
 import numpy.testing as npt
 import pytest
-from dmff import Hamiltonian, NeighborList
+from dmff import Hamiltonian, NeighborList, DMFFTopology
 from jax import jit, value_and_grad
 from jax.config import config
 
@@ -31,7 +31,7 @@ class TestGradDispersion:
     def test_admp_slater(self, pdb, prm, values):
         pdb = app.PDBFile(pdb)
         H = Hamiltonian(prm) 
-        rc = 1.5
+        rc = 1.49
         pots = H.createPotential(
             pdb.topology, 
             nonbondedCutoff=rc*unit.nanometer, 
@@ -40,7 +40,9 @@ class TestGradDispersion:
 
         pot_disp = pots.dmff_potentials['ADMPDispPmeForce']
         
-        params = H.getParameters()
+        # build cov map
+        dmfftop = DMFFTopology(from_top=pdb.topology)
+        covalent_map = dmfftop.buildCovMat()
 
         # init positions used to set up neighbor list
         pos = jnp.array(pdb.positions._value)
@@ -48,9 +50,9 @@ class TestGradDispersion:
         box = jnp.array(pdb.topology.getPeriodicBoxVectors()._value)
 
         # nn list initial allocation
-        nbl = NeighborList(box, rc, H.getGenerators()[0].covalent_map)
+        nbl = NeighborList(box, rc, covalent_map)
         nbl.allocate(pos)
         pairs = nbl.pairs
 
         calc_disp = value_and_grad(pot_disp,argnums=(0,1))
-        E, (F, V) = calc_disp(pos, box, pairs, params)
+        E, (F, V) = calc_disp(pos, box, pairs, H.paramset.parameters)

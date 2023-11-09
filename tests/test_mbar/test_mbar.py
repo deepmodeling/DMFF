@@ -8,8 +8,16 @@ import openmm.unit as unit
 import openmm as mm
 import numpy as np
 import numpy.testing as npt
-import mdtraj as md
-from pymbar import MBAR
+try:
+    import mdtraj as md
+except ImportError as e:
+    import warnings
+    warnings.warn(f"mdtraj not found. Tests about MBAR would fail.")
+try:
+    from pymbar import MBAR
+except ImportError as e:
+    import warnings
+    warnings.warn(f"pymbar not found. Tests about MBAR would fail.")
 from dmff import Hamiltonian, NeighborListFreud
 from tqdm import tqdm
 
@@ -61,7 +69,7 @@ class TestMBAR:
         df, utgt, uref = mbar.estimate_free_energy_difference(
             target_state,
             ref_state1,
-            target_parameters=h.paramtree,
+            target_parameters=h.paramset.parameters,
             return_energy=True)
 
         # calc reference using PyMBAR
@@ -80,7 +88,7 @@ class TestMBAR:
         df, utgt, uref = mbar.estimate_free_energy_difference(
             target_state,
             ref_state2,
-            target_parameters=h.paramtree,
+            target_parameters=h.paramset.parameters,
             return_energy=True)
 
         # calc reference using PyMBAR
@@ -99,7 +107,7 @@ class TestMBAR:
         df, utgt, uref = mbar.estimate_free_energy_difference(
             target_state,
             ref_state2,
-            target_parameters=h.paramtree,
+            target_parameters=h.paramset.parameters,
             return_energy=True)
 
         # calc reference using PyMBAR
@@ -234,7 +242,7 @@ class TestMBAR:
         mbar.optimize_mbar()
 
         weight, ulist = mbar.estimate_weight(target_state,
-                                             h.paramtree,
+                                             h.paramset.parameters,
                                              return_energy=True)
 
         # calc reference using PyMBAR
