@@ -1,0 +1,23 @@
+<ForceField>
+<AtomTypes>
+<Type element="C" name="cm" class="cm" mass="15.035"/>
+<Type element="C" name="co" class="co" mass="60.008"/>
+</AtomTypes>
+<Residues>
+<Residue name="DMC">
+<Atom name="CM1" type="cm"/>
+<Atom name="CM2" type="cm"/>
+<Atom name="CO" type="co"/>
+<Bond atomName1="CM1" atomName2="CO"/>
+<Bond atomName1="CM2" atomName2="CO"/>
+</Residue>
+</Residues>
+<HarmonicBondForce>
+<Bond class1="cm" class2="co" length="0.141000" k="267776.000000"/>
+</HarmonicBondForce>
+<HarmonicAngleForce>
+<Angle class1="cm" class2="co" class3="cm" angle="2.062630" k="584.923200"/>
+</HarmonicAngleForce>
+<NonbondedForce coulomb14scale="0.5" lj14scale="0.5">
+</NonbondedForce>
+</ForceField>

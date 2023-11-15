@@ -47,6 +47,7 @@ public:
     DMFFForce(const string& GraphFile);
 
     void setUnitTransformCoefficients(const double coordCoefficient, const double forceCoefficient, const double energyCoefficient);
+    void setHasAux(const bool hasAux);
 
     /*
      * Add methods for casting a Force to a DMFFForce.

@@ -2,7 +2,7 @@
 
 
 This is a plugin for [OpenMM](http://openmm.org) that used the trained JAX model by [DMFF](https://github.com/deepmodeling/DMFF) as an independent Force class for dynamics.
-To use it, you need to save you DMFF model with the script in `DMFF/backend/save_dmff2tf.py`.
+To use it, you need to save your DMFF model with the script in `DMFF/backend/save_dmff2tf.py`.
 
 ## Installation
 
@@ -15,10 +15,9 @@ conda create -n dmff_omm -c conda-forge python=3.9 openmm cudatoolkit=11.6
 conda activate dmff_omm
 ```
 ### Download `libtensorflow_cc` and install `cppflow` package
-Install the precompiled libtensorflow_cc library from deepmodeling channel.
+Install the precompiled libtensorflow_cc library from conda.
 ```shell
-
-conda install -c deepmodeling libtensorflow_cc=2.9.1=cuda112h02da4e0_0
+conda install -y libtensorflow_cc=2.9.1 -c conda-forge
 ```
 Download the tensorflow sources file. Copy the `c` direcotry in source code to installed header files of tensorflow library, since it's needed by package `cppflow`.
 ```shell
@@ -37,9 +36,9 @@ mkdir ${CONDA_PREFIX}/include/cppflow
 cp -r include/cppflow ${CONDA_PREFIX}/include/
 ```
 
-### Install the OpenMM DMFF plugin from source 
+### Install the OpenMM DMFF plugin from the source 
 
-Compile the plugin from source with following steps.
+Compile the plugin from the source with the following steps.
 1. Set up environment variables.
    ```shell
    export OPENMM_INSTALLED_DIR=$CONDA_PREFIX
@@ -49,7 +48,7 @@ Compile the plugin from source with following steps.
    mkdir build && cd build
    ```
 
-2. Run `cmake` command with required parameters.
+2. Run `cmake` command with the required parameters.
    ```shell
    cmake .. -DOPENMM_DIR=${OPENMM_INSTALLED_DIR} -DCPPFLOW_DIR=${CPPFLOW_INSTALLED_DIR} -DTENSORFLOW_DIR=${LIBTENSORFLOW_INSTALLED_DIR}
    make && make install
