@@ -209,6 +209,7 @@ class ADMPPmeForce:
                     U_init=U_init * 10.0,
                     steps_pol=self.steps_pol,
                 )  # nm to angstrom
+                self.U_ind = U_ind
                 # here we rely on Feynman-Hellman theorem, drop the term dV/dU*dU/dr !
                 # self.U_ind = jax.lax.stop_gradient(U_ind)
                 energy = energy_fn(
