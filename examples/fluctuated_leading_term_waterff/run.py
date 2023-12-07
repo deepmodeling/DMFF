@@ -24,7 +24,7 @@ def compute_leading_terms(positions,box):
     n_atoms = len(positions)
     c0 = jnp.zeros(n_atoms)
     c6_list = jnp.zeros(n_atoms)
-    box_inv = jnp.linalg.inv(box)
+    box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
     O = positions[::3]
     H1 = positions[1::3]
     H2 = positions[2::3]

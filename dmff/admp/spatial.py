@@ -37,7 +37,7 @@ def normalize(matrix, axis=1, ord=2):
     '''
     Normalise a matrix along one dimension
     '''
-    normalised = matrix / jnp.linalg.norm(matrix, axis=axis, keepdims=True, ord=ord)
+    normalised = matrix / jnp.linalg.norm(matrix + 1e-36, axis=axis, keepdims=True, ord=ord)
     return normalised
 
 
@@ -93,7 +93,7 @@ def generate_construct_local_frames(axis_types, axis_indices):
 
         positions = jnp.array(positions)
         n_sites = positions.shape[0]
-        box_inv = jnp.linalg.inv(box)
+        box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
 
         ### Process the x, y, z vectors according to local axis rules
         vec_z = pbc_shift(positions[z_atoms] - positions, box, box_inv)

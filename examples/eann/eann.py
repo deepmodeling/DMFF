@@ -285,7 +285,7 @@ class EANNForce:
             buffer_scales = pair_buffer_scales(pairs)
 
             # get distances
-            box_inv = jnp.linalg.inv(box)
+            box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
             ri = distribute_v3(positions, pairs[:, 0])
             rj = distribute_v3(positions, pairs[:, 1])
             dr = rj - ri
