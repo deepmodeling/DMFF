@@ -418,7 +418,6 @@ class HarmonicAngleGenerator:
         angle_a3 = jnp.array(angle_a3)
         angle_indices = jnp.array(angle_indices)
 
-        # 创建势函数
         harmonic_angle_force = HarmonicAngleJaxForce(
             angle_a1, angle_a2, angle_a3, angle_indices)
         harmonic_angle_energy = harmonic_angle_force.generate_get_energy()
@@ -427,7 +426,6 @@ class HarmonicAngleGenerator:
         if "has_aux" in kwargs and kwargs["has_aux"]:
             has_aux = True
 
-        # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
         def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
             isinstance_jnp(positions, box, params)
             energy = harmonic_angle_energy(
