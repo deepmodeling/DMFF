@@ -23,7 +23,7 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 execute_process(
-    COMMAND git describe --tags
+    COMMAND git describe --tags --abbrev=0
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     OUTPUT_VARIABLE GIT_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
