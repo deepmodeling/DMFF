@@ -22,6 +22,12 @@ execute_process(
     OUTPUT_VARIABLE GIT_HASH
     OUTPUT_STRIP_TRAILING_WHITESPACE
     )
+execute_process(
+    COMMAND git describe --tags
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    OUTPUT_VARIABLE GIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
 
 # Compile the Python module.
 add_custom_target(PythonInstall DEPENDS "${WRAP_FILE}")
@@ -36,4 +42,3 @@ add_custom_command(TARGET PythonInstall
     COMMAND "${PYTHON_EXECUTABLE}" setup.py install
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )
-
