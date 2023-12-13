@@ -326,6 +326,8 @@ class HarmonicAngleGenerator:
                                                      ]["attrib"][f"{self.key_type}1"] = key[0]
             self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
                                                      ]["attrib"][f"{self.key_type}2"] = key[1]
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}3"] = key[2]
             theta0 = angle_theta[nnode]
             k = angle_k[nnode]
             mask = angle_msks[nnode]
