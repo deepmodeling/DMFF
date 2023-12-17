@@ -1,0 +1,19 @@
+<ForceField>
+<AtomTypes>
+<Type element="C" name="cm" class="cm" mass="15.035"/>
+<Type element="C" name="co" class="co" mass="60.008"/>
+</AtomTypes>
+<Residues>
+<Residue name="DMC">
+<Atom name="CM1" type="cm"/>
+<Atom name="CM2" type="cm"/>
+<Atom name="CO" type="co"/>
+<Bond atomName1="CM1" atomName2="CO"/>
+<Bond atomName1="CM2" atomName2="CO"/>
+</Residue>
+</Residues>
+<LennardJonesForce lj14scale="0.50000">
+<Atom type="cm" sigma="0.50" epsilon="0.75" charge="0.2841"/>
+<Atom type="co" sigma="0.50" epsilon="0.75" charge="-0.5682"/>
+</LennardJonesForce>
+</ForceField>

@@ -1,15 +1,17 @@
-#!/usr/bin/env python
 import sys
 from functools import partial
 from itertools import permutations, product
 
 import jax.numpy as jnp
 # import MDAnalysis as mda
-import mdtraj as md
+try:
+    import mdtraj as md
+except ImportError:
+    pass
 import numpy as np
-from dmff.admp.pairwise import distribute_scalar, distribute_v3
-from dmff.admp.spatial import pbc_shift
-from dmff.utils import jit_condition
+from ..admp.pairwise import distribute_scalar, distribute_v3
+from ..admp.spatial import pbc_shift
+from ..utils import jit_condition
 from jax import vmap
 
 '''
@@ -92,7 +94,7 @@ class TopGraph:
         self.set_internal_coords_indices()
         self.box = box
         if box is not None:
-            self.box_inv = jnp.linalg.inv(box)
+            self.box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
         else:
             self.box_inv = None
         return
@@ -107,7 +109,7 @@ class TopGraph:
             3 * 3: the box array, pbc vectors arranged in rows
         '''
         self.box = box
-        self.box_inv = jnp.linalg.inv(box)
+        self.box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
         if hasattr(self, 'subgraphs'):
             self._propagate_attr('box')
             self._propagate_attr('box_inv')
@@ -424,7 +426,7 @@ class TopGraph:
             All these variables should be "static" throughout NVE/NVT/NPT simulations
             '''
 
-            box_inv = jnp.linalg.inv(box)
+            box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
 
             @jit_condition(static_argnums=())
             @partial(vmap, in_axes=(0, None, 0), out_axes=(0))
@@ -1217,6 +1219,20 @@ def from_pdb(pdb):
     else:
         box = jnp.array(mol.unitcell_vectors)[0] * 10
     return TopGraph(list_atom_elems, bonds, positions=positions, box=box)
+
+
+# def from_dmff_top(topdata):
+#     '''
+#     Build the sGNN TopGraph object from a DMFFTopology object
+
+#     Parameters
+#     ----------
+#     topdata: DMFFTopology data
+#     '''
+#     list_atom_elems = np.array([a.element for a in topdata.atoms()])
+#     bonds = np.array([np.sort([b.atom1.index, b.atom2.index]) for b in topdata.bonds()])
+#     n_atoms = len(list_atom_elems)
+#     return TopGraph(list_atom_elems, bonds, positions=jnp.zeros((n_atoms, 3)), box=jnp.eye(3)*10)
 
 
 def validation():

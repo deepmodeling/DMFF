@@ -30,29 +30,18 @@
         <Type element="H" name="HW2" class="hw" mass="1.007947" />
     </AtomTypes>
     <HarmonicBondForce>
-        <Bond type1="C1" type2="H1" length="0.1097000000" k="314550.0000000001" />
-        <Bond type1="C1" type2="H2" length="0.1097000000" k="314550.0000000001" />
-        <Bond type1="C1" type2="H3" length="0.1097000000" k="314550.0000000001" />
-        <Bond type1="C1" type2="H4" length="0.1097000000" k="314550.0000000001" />
+        <Bond class1="c3" class2="hc" length="0.1097000000" k="314550.0000000001" />
         <Bond class1="ow" class2="hw" length="0.09572" k="0.00000"/>
     </HarmonicBondForce>
     <HarmonicAngleForce>
-        <Angle type1="H1" type2="C1" type3="H2" angle="1.8776252093" k="326.3500000000" />
-        <Angle type1="H1" type2="C1" type3="H3" angle="1.8776252093" k="326.3500000000" />
-        <Angle type1="H1" type2="C1" type3="H4" angle="1.8776252093" k="326.3500000000" />
-        <Angle type1="H2" type2="C1" type3="H3" angle="1.8776252093" k="326.3500000000" />
-        <Angle type1="H2" type2="C1" type3="H4" angle="1.8776252093" k="326.3500000000" />
-        <Angle type1="H3" type2="C1" type3="H4" angle="1.8776252093" k="326.3500000000" />
+        <Angle class1="hc" class2="c3" class3="hc" angle="1.8776252093" k="326.3500000000" />
         <Angle class1="hw" class2="ow" class3="hw" angle="1.82421813418" k="0.00000"/>
     </HarmonicAngleForce>
     <PeriodicTorsionForce ordering="amber" />
     <NonbondedForce coulomb14scale="0.83333" lj14scale="0.50000">
         <UseAttributeFromResidue name="charge" />
-        <Atom type="C1" sigma="0.3397710000" epsilon="0.0000000000" />
-        <Atom type="H1" sigma="0.2600180000" epsilon="0.0000000000" />
-        <Atom type="H2" sigma="0.2600180000" epsilon="0.0000000000" />
-        <Atom type="H3" sigma="0.2600180000" epsilon="0.0000000000" />
-        <Atom type="H4" sigma="0.2600180000" epsilon="0.0000000000" />
+        <Atom class="c3" sigma="0.3397710000" epsilon="0.0000000000" />
+        <Atom class="hc" sigma="0.2600180000" epsilon="0.0000000000" />
         <Atom class="ow" sigma="0.315061000000" epsilon="0.000000000000"/>
         <Atom class="hw" sigma="0.000000000000" epsilon="0.000000000000"/>
     </NonbondedForce>

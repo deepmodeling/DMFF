@@ -4,7 +4,7 @@ import numpy as np
 import warnings
 from collections import defaultdict
 import jax.numpy as jnp
-from dmff.admp.multipole import convert_cart2harm
+from .multipole import convert_cart2harm
 
 def read_atom_line(line_full):
     """

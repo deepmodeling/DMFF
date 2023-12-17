@@ -1,0 +1,36 @@
+<ForceField>
+    <AtomTypes>
+        <Type name="n" class="n" element="N"/>
+        <Type name="c1" class="c1" element="C"/>
+        <Type name="c2" class="c2" element="C"/>
+        <Type name="hc" class="hc" element="H"/>
+        <Type name="br" class="br" element="Br"/>
+        <Type name="vbr" class="vbr" element="EP"/>
+    </AtomTypes>
+    <Residues>
+        <Residue name="MOL">
+            <Atom name="N" type="n" charge="0.00"/>
+            <Atom name="C1" type="c1" charge="0.00"/>
+            <Atom name="C2" type="c2" charge="0.00"/>
+            <Atom name="C3" type="c2" charge="0.00"/>
+            <Atom name="C4" type="c1" charge="0.00"/>
+            <Atom name="H1" type="hc" charge="0.00"/>
+            <Atom name="H2" type="hc" charge="0.00"/>
+            <Atom name="H3" type="hc" charge="0.00"/>
+            <Atom name="H4" type="hc" charge="0.00"/>
+            <Atom name="BR" type="br" charge="0.00"/>
+            <Atom name="VBR" type="vbr" charge="0.00"/>
+            <VirtualSite type="average2" index="10" atom1="0" atom2="9" weight1="0.5" weight2="0.5"/>
+            <Bond atomName1="N" atomName2="C1"/>
+            <Bond atomName1="C1" atomName2="C2"/>
+            <Bond atomName1="C2" atomName2="C3"/>
+            <Bond atomName1="C3" atomName2="C4"/>
+            <Bond atomName1="C4" atomName2="N"/>
+            <Bond atomName1="N" atomName2="BR"/>
+            <Bond atomName1="C1" atomName2="H1"/>
+            <Bond atomName1="C2" atomName2="H2"/>
+            <Bond atomName1="C3" atomName2="H3"/>
+            <Bond atomName1="C4" atomName2="H4"/>
+        </Residue>
+    </Residues>
+</ForceField>

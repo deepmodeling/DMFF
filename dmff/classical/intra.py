@@ -1,5 +1,7 @@
+import jax
 import jax.numpy as jnp
 from jax import grad, value_and_grad, vmap
+from ..admp.spatial import v_pbc_shift
 
 
 def distance(p1v, p2v):
@@ -13,6 +15,13 @@ def angle(p1v, p2v, p3v):
     vyy = v1[:, 1] * v2[:, 1]
     vzz = v1[:, 2] * v2[:, 2]
     return jnp.arccos(vxx + vyy + vzz)
+
+@jax.vmap
+def angle_v(v1, v2):
+    # compute the angle between v1 and v2
+    v1n = v1 / jnp.linalg.norm(v1)
+    v2n = v2 / jnp.linalg.norm(v2)
+    return jnp.arccos(jnp.dot(v1n, v2n))
 
 
 def dihedral(i, j, k, l):
@@ -72,12 +81,15 @@ class HarmonicAngleJaxForce:
 
     def generate_get_energy(self):
         def get_energy(positions, box, pairs, k, theta0):
+            box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
             p1 = positions[self.p1idx,:]
             p2 = positions[self.p2idx,:]
             p3 = positions[self.p3idx,:]
+            v1 = v_pbc_shift(p1 - p2, box, box_inv)
+            v2 = v_pbc_shift(p3 - p2, box, box_inv)
             kprm = k[self.prmidx]
             theta0prm = theta0[self.prmidx]
-            ang = angle(p1, p2, p3)
+            ang = angle_v(v1, v2)
             return jnp.sum(0.5 * kprm * jnp.power(ang - theta0prm, 2))
 
         return get_energy
@@ -108,6 +120,8 @@ class PeriodicTorsionJaxForce:
         self.refresh_calculators()
 
     def generate_get_energy(self):
+        if len(self.p1idx) == 0:
+            return lambda positions, box, pairs, k, psi: 0.0
         def get_energy(positions, box, pairs, k, psi):
             p1 = positions[self.p1idx,:]
             p2 = positions[self.p2idx,:]

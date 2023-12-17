@@ -1,0 +1,49 @@
+<ForceField>
+    <LennardJonesForce lj14scale="0.5">
+		<Atom sigma="0.247679397463798523" epsilon="0.0869048" type="gaff2-hc"/>
+		<Atom sigma="0.233928874135017395" epsilon="0.0873315" type="gaff2-h1"/>
+		<Atom sigma="0.223740175366401672" epsilon="0.0870207" type="gaff2-h2"/>
+		<Atom sigma="0.206563100218772888" epsilon="0.0870294" type="gaff2-h3"/>
+		<Atom sigma="0.260396063327789307" epsilon="0.0672997" type="gaff2-ha"/>
+		<Atom sigma="0.253338038921356201" epsilon="0.0674981" type="gaff2-h4"/>
+		<Atom sigma="0.243666395545005798" epsilon="0.0671937" type="gaff2-h5"/>
+		<Atom sigma="0.189184963703155518" epsilon="0.0873133" type="gaff2-hx"/>
+		<Atom sigma="0.090923108160495758" epsilon="0.0349833" type="gaff2-hn"/>
+		<Atom sigma="0.053451370447874069" epsilon="0.0196787" type="gaff2-ho"/>
+		<Atom sigma="1.000000000000000000" epsilon="0.0000000" type="tip3p-hw" mask="true"/>
+		<Atom sigma="0.107460200786590576" epsilon="0.0602496" type="gaff2-hp"/>
+		<Atom sigma="0.108971230685710907" epsilon="0.0519356" type="gaff2-hs"/>
+		<Atom sigma="0.347833961248397827" epsilon="0.6677915" type="gaff2-c1,cg,ch"/>
+		<Atom sigma="0.332855045795440674" epsilon="0.4145119" type="gaff2-c,cs,c2,ca,cp,cq,cc,cd,ce,cf,cu,cv,cz"/>
+		<Atom sigma="0.338161081075668335" epsilon="0.4528892" type="gaff2-c3,cx,cy"/>
+		<Atom sigma="0.331471681594848633" epsilon="0.3934670" type="gaff2-n2,nb,nc,nd,ne,nf"/>
+		<Atom sigma="0.327351838350296021" epsilon="0.4594032" type="gaff2-n1"/>
+		<Atom sigma="0.332706481218338013" epsilon="0.3588123" type="gaff2-n3,no"/>
+		<Atom sigma="0.341414093971252441" epsilon="0.2176652" type="gaff2-n7"/>
+		<Atom sigma="0.353676438331604004" epsilon="0.1335564" type="gaff2-n8"/>
+		<Atom sigma="0.318995207548141479" epsilon="0.8995600" type="gaff2-nh"/>
+		<Atom sigma="0.3279041821987333"   epsilon="0.646428"  type="gaff2-nu"/>
+		<Atom sigma="0.333846420049667358" epsilon="0.4685966" type="gaff2-nv"/>
+		<Atom sigma="0.313195019960403442" epsilon="0.8543006" type="gaff2-na"/>
+		<Atom sigma="0.249997586011886597" epsilon="16.2121639" type="gaff2-n4"/>
+		<Atom sigma="0.258071213960647583" epsilon="10.6495352" type="gaff2-nx"/>
+		<Atom sigma="0.266258358955383301" epsilon="7.0956454" type="gaff2-ny"/>
+		<Atom sigma="0.269249111413955688" epsilon="4.7906771" type="gaff2-nz"/>
+		<Atom sigma="0.318054050207138062" epsilon="0.6845029" type="gaff2-n"/>
+		<Atom sigma="0.326629966497421265" epsilon="0.4912115" type="gaff2-ns"/>
+		<Atom sigma="0.333770215511322021" epsilon="0.3560182" type="gaff2-nt"/>
+		<Atom sigma="0.282274961471557617" epsilon="3.2752190" type="gaff2-n+"/>
+		<Atom sigma="0.402158379554748535" epsilon="0.0383990" type="gaff2-n9"/>
+		<Atom sigma="0.310145109891891479" epsilon="0.3035580" type="gaff2-os"/>
+		<Atom sigma="0.292401760816574097" epsilon="0.6121048" type="gaff2-o"/>
+		<Atom sigma="0.313680887222290039" epsilon="0.3887870" type="gaff2-oh"/>
+		<Atom sigma="0.351060986518859863" epsilon="0.6363860" type="tip3p-ow" mask="true"/>
+		<Atom sigma="0.299934774637222290" epsilon="0.3480076" type="gaff2-f"/>
+		<Atom sigma="0.369213044643402100" epsilon="0.9602323" type="gaff2-p*"/>
+		<Atom sigma="0.351041883230209351" epsilon="1.1817131" type="gaff2-s*"/>
+		<Atom sigma="0.346716701984405518" epsilon="1.1037576" type="gaff2-cl"/>
+		<Atom sigma="0.361289948225021362" epsilon="1.6451558" type="gaff2-br"/>
+		<Atom sigma="0.384118795394897461" epsilon="2.0731721" type="gaff2-i"/>
+		<Atom sigma="0.000000000000000000" epsilon="0.0000000" type="EP" mask="true"/>
+    </LennardJonesForce>
+</ForceField>
