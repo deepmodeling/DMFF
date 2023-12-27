@@ -34,10 +34,9 @@ DOI: 10.1021/acs.jctc.2c01297`
 
 ## Developer Guide
 + [1. Introduction](docs/dev_guide/introduction.md)
-+ [2. Software architecture](docs/dev_guide/arch.md)
-+ [3. Coding conventions](docs/dev_guide/convention.md)
-+ [4. Document writing](docs/dev_guide/write_docs.md)
-+ [5. An example for developing: how to write a generator?](docs/dev_guide/generator.ipynb)
++ [2. Coding conventions](docs/dev_guide/convention.md)
++ [3. Document writing](docs/dev_guide/write_docs.md)
++ [4. An example for developing: how to write a generator?](docs/dev_guide/generator.ipynb)
 
 ## Code Structure
 
