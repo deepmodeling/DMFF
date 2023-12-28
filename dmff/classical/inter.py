@@ -336,12 +336,6 @@ class CoulombPMEForce:
 
 
 class CustomGBForce:
-    # E_{GB} = -\frac12(\frac1{\epsilon_{solute}}-\frac1{\epsilon_{solvent}})\sum_{i, j}\frac{q_iq_j}{f_{GB}(d_{ij}, R_i, R_j)}
-    # f_{GB}(d_{ij}, R_i, R_j)=[d_{ij} ^ 2 + R_iR_jexp(\frac{-d_{ij} ^ 2}{4R_iR_j})] ^ {1 / 2}
-    # R_i=\frac1{\rho_i^{-1}-r_i^{-1}tanh(\alpha\Psi_i-\beta\Psi_i^2+\gamma\Psi_i^3)}
-    # \alpha=1,\beta=0.8,\gamma=4.85,\rho_i=r_i-0.009nm
-    # \Psi_i=\frac{\rho_i}{4\pi}\int_{VDW}\theta(|r|-\rho_i)\frac1{|r|^4}d^3r
-    # E_{SAT}=E_{SA}\cdot4\pi\sum_i(r_i+r_{solvent})^2(\frac{r_i}{R_i})^6
     def __init__(
             self,
             map_charge,
@@ -366,22 +360,13 @@ class CustomGBForce:
         # @jax.jit
         def get_energy(positions, box, pairs, Ipairs, charges, radius, scales):
             def calI(posList, radMap, scalMap, rhoMap, pairMap):
-                # posList [numOfAtoms, 3]
-                # radMap [numOfAtoms]
-                # pair1 = pairMap[:, 0]
-                # pair2 = pairMap[:, 1]
                 I = jnp.array([])
-
                 for i in range(len(radMap)):
-                    # posj = posList[jnp.append(pair2[jnp.where(pair1 == i)], (pair1[jnp.where(pair2 == i)]))]
-                    # rhoj = rhoMap[jnp.append(pair2[jnp.where(pair1 == i)], (pair1[jnp.where(pair2 == i)]))]
-                    # scalj = scalMap[jnp.append(pair2[jnp.where(pair1 == i)], (pair1[jnp.where(pair2 == i)]))]
                     posj = posList[Ipairs[i]]
                     rhoj = rhoMap[Ipairs[i]]
                     scalj = scalMap[Ipairs[i]]
                     posi = posList[i]
                     rhoi = rhoMap[i]
-
                     r = jnp.sqrt(jnp.sum(jnp.power(posi-posj,2),axis=1))
                     sr2 = rhoj * scalj
                     D = jnp.abs(r - sr2)
@@ -405,16 +390,8 @@ class CustomGBForce:
             rEff = 1/(1/rhoMap-jnp.tanh(self.alpha*psi-self.beta*jnp.power(psi, 2)+self.gamma*jnp.power(psi, 3))/radiusMap)
             # surface area term energy
             Ese = jnp.sum(28.3919551*(radiusMap+0.14)**2*jnp.power(radiusMap/rEff, 6)-0.5*138.935456*(1/self.eps_1-1/self.exp_solv)*chargeMap**2/rEff)
-            # generalized born term energy
-            # distance calculated from atom pair [i,j] where i<j
             dr_norm = jnp.linalg.norm(positions[pairs[:,0]] - positions[pairs[:,1]], axis=1)
-            # charge1 = chargeMap[pairs[:, 0]]
-            # charge2 = chargeMap[pairs[:, 1]]
-            # chargepro = charge1 * charge2
             chargepro = chargeMap[pairs[:, 0]] * chargeMap[pairs[:, 1]]
-            # rEff1 = rEff[pairs[:, 0]]
-            # rEff2 = rEff[pairs[:, 1]]
-            # rEffpro = rEff1 * rEff2
             rEffpro = rEff[pairs[:, 0]] * rEff[pairs[:, 1]]
             Egb = jnp.sum(-138.935456*(1/self.eps_1-1/self.exp_solv)*chargepro/jnp.sqrt(jnp.power(dr_norm, 2)+rEffpro*jnp.exp(-jnp.power(dr_norm,2)/(4*rEffpro))))
             return Ese + Egb
