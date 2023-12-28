@@ -332,3 +332,71 @@ class CoulombPMEForce:
                 charges = self.init_charges + jnp.dot(self.top_mat, bcc).flatten()
                 return get_energy_kernel(positions, box, pairs, charges, mscales)
         return get_energy
+
+
+class CustomGBForce:
+    # E_{GB} = -\frac12(\frac1{\epsilon_{solute}}-\frac1{\epsilon_{solvent}})\sum_{i, j}\frac{q_iq_j}{f_{GB}(d_{ij}, R_i, R_j)}
+    # f_{GB}(d_{ij}, R_i, R_j)=[d_{ij} ^ 2 + R_iR_jexp(\frac{-d_{ij} ^ 2}{4R_iR_j})] ^ {1 / 2}
+    # R_i=\frac1{\rho_i^{-1}-r_i^{-1}tanh(\alpha\Psi_i-\beta\Psi_i^2+\gamma\Psi_i^3)}
+    # \alpha=1,\beta=0.8,\gamma=4.85,\rho_i=r_i-0.009nm
+    # \Psi_i=\frac{\rho_i}{4\pi}\int_{VDW}\theta(|r|-\rho_i)\frac1{|r|^4}d^3r
+    # E_{SAT}=E_{SA}\cdot4\pi\sum_i(r_i+r_{solvent})^2(\frac{r_i}{R_i})^6
+    def __init__(
+            self,
+            map_charge,
+            map_radius,
+            map_scale,
+            epsilon_1=1.0,
+            epsilon_solv=78.3,
+            alpha=1,
+            beta=0.8,
+            gamma=4.85,
+    ) -> None:
+        self.map_charge = map_charge
+        self.map_radius = map_radius
+        self.map_scale = map_scale
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.exp_solv = epsilon_solv
+        self.eps_1 = epsilon_1
+
+    def generate_get_energy(self):
+        @jax.jit
+        def get_energy(positions, box, pairs, Ipairs, charges, radius, scales):
+            def calI(posList, radMap, scalMap, rhoMap, pairMap):
+                I = jnp.array([])
+                for i in range(len(radMap)):
+                    posj = posList[Ipairs[i]]
+                    rhoj = rhoMap[Ipairs[i]]
+                    scalj = scalMap[Ipairs[i]]
+                    posi = posList[i]
+                    rhoi = rhoMap[i]
+                    r = jnp.sqrt(jnp.sum(jnp.power(posi-posj,2),axis=1))
+                    sr2 = rhoj * scalj
+                    D = jnp.abs(r - sr2)
+                    L = jnp.maximum(D, rhoi)
+                    C = 2 * (1 / rhoi - 1 / L) * jnp.heaviside(sr2 - r - rhoi, 1)
+                    U = r + sr2
+                    I = jnp.append(I, jnp.sum(0.5 * jnp.heaviside(r + sr2 - rhoi, 1) * (
+                            1 / L - 1 / U + 0.25 * (1 / U ** 2 - 1 / L ** 2) * (
+                            r - sr2 ** 2 / r) + 0.5 * jnp.log(L / U) / r + C)))
+
+                return I
+
+            chargeMap = charges[self.map_charge]
+            radiusMap = radius[self.map_radius]
+            scalesMap = scales[self.map_scale]
+            rhoMap = radiusMap - 0.009
+
+            # effective radius
+            IList = calI(positions, radiusMap, scalesMap, rhoMap, Ipairs)
+            psi = IList*rhoMap
+            rEff = 1/(1/rhoMap-jnp.tanh(self.alpha*psi-self.beta*jnp.power(psi, 2)+self.gamma*jnp.power(psi, 3))/radiusMap)
+            Ese = jnp.sum(28.3919551*(radiusMap+0.14)**2*jnp.power(radiusMap/rEff, 6)-0.5*138.935456*(1/self.eps_1-1/self.exp_solv)*chargeMap**2/rEff)
+            dr_norm = jnp.linalg.norm(positions[pairs[:,0]] - positions[pairs[:,1]], axis=1)
+            chargepro = chargeMap[pairs[:, 0]] * chargeMap[pairs[:, 1]]
+            rEffpro = rEff[pairs[:, 0]] * rEff[pairs[:, 1]]
+            Egb = jnp.sum(-138.935456*(1/self.eps_1-1/self.exp_solv)*chargepro/jnp.sqrt(jnp.power(dr_norm, 2)+rEffpro*jnp.exp(-jnp.power(dr_norm,2)/(4*rEffpro))))
+            return Ese + Egb
+        return get_energy
