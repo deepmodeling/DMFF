@@ -21,7 +21,7 @@ def matchTemplate(graph, template):
         return False, {}, {}
 
     def match_func(n1, n2):
-        return n1["element"] == n2["element"] and n1["external_bond"] == n2["external_bond"]
+        return n1["element"] == n2["element"] and n1["external_bond"] == n2["external_bond"] and n1["name"] == n2["name"]
     
     def edge_match(e1, e2):
         if len(e1) == 0 and len(e2) == 0:
