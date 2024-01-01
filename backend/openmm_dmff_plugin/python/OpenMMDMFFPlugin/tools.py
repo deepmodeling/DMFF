@@ -78,6 +78,16 @@ class DMFFModel():
             has_aux (bool, optional): Defaults to False.
         """
         self.dmff_force.setHasAux(has_aux)
+        return
+    
+    def setCutoff(self, cutoff = 1.2):
+        """Set the cutoff for the DMFF model.
+
+        Args:
+            cutoff (float, optional): Defaults to 1.2.
+        """
+        self.dmff_force.setCutoff(cutoff)
+        return
     
     def createSystem(self, topology):
         """Create the OpenMM System object for the DMFF model.
