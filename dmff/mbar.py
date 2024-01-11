@@ -4,7 +4,7 @@ try:
 except ImportError:
     import warnings
     warnings.warn("MDTraj not installed. MBAREstimator is not available.")
-#
+##
 try:
     from pymbar import MBAR
 except ImportError:
