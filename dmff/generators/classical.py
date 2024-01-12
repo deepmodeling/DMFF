@@ -62,6 +62,8 @@ class HarmonicBondGenerator:
                     raise ValueError(
                         "Cannot find key type for HarmonicBondForce.")
             key = (attribs[self.key_type + "1"], attribs[self.key_type + "2"])
+
+
             bond_keys.append(key)
 
             k = float(attribs["k"])
@@ -1760,8 +1762,6 @@ class LennardJonesGenerator:
 _DMFFGenerators["LennardJonesForce"] = LennardJonesGenerator
 
 
-
-
 class Custom1_5BondGenerator:
     """
     A class for generating harmonic bond force field parameters.
@@ -2110,5 +2110,5 @@ class CustomGBGenerator:
         self._jaxPotential = potential_fn
         return potential_fn
 
-
+      
 _DMFFGenerators["CustomGBForce"] = CustomGBGenerator

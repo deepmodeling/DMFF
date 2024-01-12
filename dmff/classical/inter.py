@@ -1,8 +1,9 @@
 from typing import Iterable, Tuple, Optional
 import jax
 import jax.numpy as jnp
+import jax.config as config
+config.update("jax_enable_x64", True)
 import numpy as np
-
 from ..utils import pair_buffer_scales, regularize_pairs
 from ..admp.pme import energy_pme
 from ..admp.recip import generate_pme_recip
@@ -367,7 +368,6 @@ class CustomGBForce:
                     scalj = scalMap[Ipairs[i]]
                     posi = posList[i]
                     rhoi = rhoMap[i]
-
                     r = jnp.sqrt(jnp.sum(jnp.power(posi-posj,2),axis=1))
                     sr2 = rhoj * scalj
                     D = jnp.abs(r - sr2)
