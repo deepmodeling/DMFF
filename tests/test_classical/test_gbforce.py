@@ -12,8 +12,8 @@ from dmff.common import nblist
 @pytest.mark.parametrize(
     "pdb, prm, value",
     [
-        ("../data/10p.pdb", "../data/1_5corrV2.xml", -11184.921239189738),
-        ("../data/pBox.pdb", "../data/polyp_amberImp.xml", -13914.34177591779),
+        ("tests/data/10p.pdb", "tests/data/1_5corrV2.xml", -11184.921239189738),
+        ("tests/data/pBox.pdb", "tests/data/polyp_amberImp.xml", -13914.34177591779),
     ])
 def test_custom_gb_force(pdb, prm, value):
     pdb = app.PDBFile(pdb)
@@ -36,7 +36,7 @@ def test_custom_gb_force(pdb, prm, value):
 @pytest.mark.parametrize(
     "pdb, prm, value",
     [
-        ("../data/10p.pdb", "../data/1_5corrV2.xml", 59.53033875302844),
+        ("tests/data/10p.pdb", "tests/data/1_5corrV2.xml", 59.53033875302844),
     ])
 def test_custom_torsion_force(pdb, prm, value):
     pdb = app.PDBFile(pdb)
@@ -59,7 +59,7 @@ def test_custom_torsion_force(pdb, prm, value):
 @pytest.mark.parametrize(
     "pdb, prm, value",
     [
-        ("../data/10p.pdb", "../data/1_5corrV2.xml", 117.95416362791674),
+        ("tests/data/10p.pdb", "tests/data/1_5corrV2.xml", 117.95416362791674),
     ])
 def test_custom_1_5bond_force(pdb, prm, value):
     pdb = app.PDBFile(pdb)
