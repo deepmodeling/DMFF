@@ -94,7 +94,7 @@ class TopGraph:
         self.set_internal_coords_indices()
         self.box = box
         if box is not None:
-            self.box_inv = jnp.linalg.inv(box)
+            self.box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
         else:
             self.box_inv = None
         return
@@ -109,7 +109,7 @@ class TopGraph:
             3 * 3: the box array, pbc vectors arranged in rows
         '''
         self.box = box
-        self.box_inv = jnp.linalg.inv(box)
+        self.box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
         if hasattr(self, 'subgraphs'):
             self._propagate_attr('box')
             self._propagate_attr('box_inv')
@@ -426,7 +426,7 @@ class TopGraph:
             All these variables should be "static" throughout NVE/NVT/NPT simulations
             '''
 
-            box_inv = jnp.linalg.inv(box)
+            box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
 
             @jit_condition(static_argnums=())
             @partial(vmap, in_axes=(0, None, 0), out_axes=(0))

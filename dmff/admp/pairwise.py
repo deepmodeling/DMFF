@@ -77,7 +77,7 @@ def generate_pairwise_interaction(pair_int_kernel, static_args):
         buffer_scales = pair_buffer_scales(pairs)
         mscales = mscales * buffer_scales
         # mscales = mScales[nbonds-1]
-        box_inv = jnp.linalg.inv(box)
+        box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
         dr = ri - rj
         dr = v_pbc_shift(dr, box, box_inv)
         dr = jnp.linalg.norm(dr, axis=1)

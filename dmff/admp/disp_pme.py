@@ -164,7 +164,7 @@ def disp_pme_real(positions, box, pairs,
     # pairs = pairs[pairs[:, 0] < pairs[:, 1]]
     pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
 
-    box_inv = jnp.linalg.inv(box)
+    box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
 
     ri = distribute_v3(positions, pairs[:, 0])
     rj = distribute_v3(positions, pairs[:, 1])

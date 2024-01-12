@@ -107,7 +107,7 @@ class LennardJonesFreeEnergyForce:
             eps_scale = eps * mscale_pair
 
             if self.ifPBC:
-                dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
+                dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box + jnp.eye(3) * 1e-36))
             
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
 
@@ -281,7 +281,7 @@ class CoulombPMEFreeEnergyForce:
             pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
             bufScales = pair_buffer_scales(pairs[:, :2])
             dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
-            dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
+            dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box + jnp.eye(3) * 1e-36))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
 
             atomCharges = charges[self.map_prm[np.arange(positions.shape[0])]]

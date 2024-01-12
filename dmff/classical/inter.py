@@ -37,7 +37,7 @@ class LennardJonesForce:
     def generate_get_energy(self):
         def get_LJ_energy(dr_vec, sig, eps, box):
             if self.ifPBC:
-                dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
+                dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box + jnp.eye(3) * 1e-36))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
 
             dr_inv = 1.0 / dr_norm
@@ -224,7 +224,7 @@ class CoulReactionFieldForce:
     def generate_get_energy(self):
         def get_rf_energy(dr_vec, chrgprod, box):
             if self.ifPBC:
-                dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box))
+                dr_vec = v_pbc_shift(dr_vec, box, jnp.linalg.inv(box + jnp.eye(3) * 1e-36))
             dr_norm = jnp.linalg.norm(dr_vec, axis=1)
 
             dr_inv = 1.0 / dr_norm

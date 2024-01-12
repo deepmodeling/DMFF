@@ -319,13 +319,15 @@ class HarmonicAngleGenerator:
         angle_theta = paramset[self.name]["angle"]
         angle_k = paramset[self.name]["k"]
         angle_msks = paramset.mask[self.name]["angle"]
-        for nnode, key in enumerate(self.bond_keys):
+        for nnode, key in enumerate(self.angle_keys):
             self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]]["attrib"] = {
             }
             self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
                                                      ]["attrib"][f"{self.key_type}1"] = key[0]
             self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
                                                      ]["attrib"][f"{self.key_type}2"] = key[1]
+            self.ffinfo["Forces"][self.name]["node"][angle_node_indices[nnode]
+                                                     ]["attrib"][f"{self.key_type}3"] = key[2]
             theta0 = angle_theta[nnode]
             k = angle_k[nnode]
             mask = angle_msks[nnode]
@@ -418,7 +420,6 @@ class HarmonicAngleGenerator:
         angle_a3 = jnp.array(angle_a3)
         angle_indices = jnp.array(angle_indices)
 
-        # 创建势函数
         harmonic_angle_force = HarmonicAngleJaxForce(
             angle_a1, angle_a2, angle_a3, angle_indices)
         harmonic_angle_energy = harmonic_angle_force.generate_get_energy()
@@ -427,7 +428,6 @@ class HarmonicAngleGenerator:
         if "has_aux" in kwargs and kwargs["has_aux"]:
             has_aux = True
 
-        # 包装成统一的potential_function函数形式，传入四个参数：positions, box, pairs, parameters。
         def potential_fn(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet, aux=None):
             isinstance_jnp(positions, box, params)
             energy = harmonic_angle_energy(

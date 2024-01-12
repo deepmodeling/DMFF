@@ -48,7 +48,7 @@ public:
 
     void setUnitTransformCoefficients(const double coordCoefficient, const double forceCoefficient, const double energyCoefficient);
     void setHasAux(const bool hasAux);
-
+    void setCutoff(const double cutoff);
     /*
      * Add methods for casting a Force to a DMFFForce.
     */

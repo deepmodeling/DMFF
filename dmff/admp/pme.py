@@ -209,6 +209,7 @@ class ADMPPmeForce:
                     U_init=U_init * 10.0,
                     steps_pol=self.steps_pol,
                 )  # nm to angstrom
+                self.U_ind = U_ind
                 # here we rely on Feynman-Hellman theorem, drop the term dV/dU*dU/dr !
                 # self.U_ind = jax.lax.stop_gradient(U_ind)
                 energy = energy_fn(
@@ -1103,7 +1104,7 @@ def pme_real(
     """
     pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
     buffer_scales = pair_buffer_scales(pairs[:, :2])
-    box_inv = jnp.linalg.inv(box)
+    box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
     r1 = distribute_v3(positions, pairs[:, 0])
     r2 = distribute_v3(positions, pairs[:, 1])
     Q_extendi = distribute_multipoles(Q_global, pairs[:, 0])

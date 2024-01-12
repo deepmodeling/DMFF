@@ -42,7 +42,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                     3 x 3 matrix, the first index denotes reciprocal lattice vector, the second index is the component xyz.
                     (lattice vectors arranged in rows)
             """
-            Nj_Aji_star = (N.reshape((1, 3)) * jnp.linalg.inv(box)).T
+            Nj_Aji_star = (N.reshape((1, 3)) * jnp.linalg.inv(box + jnp.eye(3) * 1e-36)).T
             return Nj_Aji_star
      
         
@@ -396,7 +396,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                     4 * K, K=K1*K2*K3, contains kx, ky, kz, k^2 for each kpoint
             '''
             # in this array, a*, b*, c* (without 2*pi) are arranged in column
-            box_inv = jnp.linalg.inv(box).T
+            box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36).T
             # K * 3, coordinate in reciprocal space
             kpts = 2 * jnp.pi * kpts_int.dot(box_inv)
             ksq = jnp.sum(kpts**2, axis=1)

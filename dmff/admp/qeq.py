@@ -164,7 +164,7 @@ def ds_pairs(positions, box, pairs, pbc_flag):
     if pbc_flag is False:
         dr = pos1 - pos2
     else:
-        box_inv = jnp.linalg.inv(box)
+        box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
         dpos = pos1 - pos2
         dpos = dpos.dot(box_inv)
         dpos -= jnp.floor(dpos + 0.5)
