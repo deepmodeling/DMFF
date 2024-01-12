@@ -58,6 +58,10 @@ void DMFFForce::setHasAux(const bool hasAux){
     this->has_aux = hasAux;
 }
 
+void DMFFForce::setCutoff(const double cutoff){
+    this->cutoff = cutoff;
+}
+
 double DMFFForce::getCoordUnitCoefficient() const {return coordCoeff;}
 double DMFFForce::getForceUnitCoefficient() const {return forceCoeff;}
 double DMFFForce::getEnergyUnitCoefficient() const {return energyCoeff;}

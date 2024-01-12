@@ -247,7 +247,7 @@ class EANNForce:
         f_cut = cutoff_cosine(dr_norm, self.rc)
         neigh_list = jnp.concatenate((pairs,pairs[:,[1,0]]),axis=0)
         buffer_scales_ = jnp.concatenate((buffer_scales,buffer_scales),axis=0)
-        totneighbour = len(neigh_list)
+        totneighbour = neigh_list.shape[0]
         prefacs = f_cut.reshape(1, -1)
         angular = prefacs
         for ipsin in range(1,self.nipsin+1):
@@ -310,7 +310,8 @@ class EANNForce:
             self.rs = params['density.rs']
             self.inta = params['density.inta']
 
-            radial_i, radial_j = get_gto(jnp.arange(len(dr_norm)), dr_norm, pairs, self.rc, self.rs, self.inta, self.elem_indices)
+            length_dr_norm = dr_norm.shape[0]
+            radial_i, radial_j = get_gto(jnp.arange(length_dr_norm), dr_norm, pairs, self.rc, self.rs, self.inta, self.elem_indices)
             radial = jnp.concatenate((radial_i,radial_j), axis=0)
             orb_coeff = params['density.params'][self.elem_indices,:] # (48,16)
 

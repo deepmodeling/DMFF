@@ -77,7 +77,17 @@ public:
      * @param hasAux  : true if model was saved with auxilary input.
      */
     void setHasAux(const bool hasAux);
-    
+    /**
+     * @brief Set the Cutoff for neighbor list fetching.
+     * 
+     * @param cutoff 
+     */
+    void setCutoff(const double cutoff);
+    /**
+     * @brief get the DMFF graph file.
+     * 
+     * @return const std::string& 
+     */
     const std::string& getDMFFGraphFile() const;
     /**
      * @brief Get the Coord Unit Coefficient.
