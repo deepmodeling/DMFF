@@ -1,0 +1,98 @@
+<?xml version="1.0" ?>
+<Forcefield>
+	<AtomTypes>
+		<Type class="Pt" element="P" mass="86.97000" name="PT"/>
+		<Type class="Pb" element="C" mass="78.97000" name="PB"/>
+		<Type class="amber14spc-K" element="K" mass="39.1" name="amber14spc-K"/>
+	</AtomTypes>
+	<Residues>
+		<Residue name="TE1">
+			<Atom name="TP1" type="PT"/>
+			<ExternalBond atomName="TP1"/>
+		</Residue>
+		<Residue name="IN1">
+			<Atom name="P00" type="PB"/>
+			<ExternalBond atomName="P00"/>
+			<ExternalBond atomName="P00"/>
+		</Residue>
+		<Residue name="K">
+			<Atom name="K" type="amber14spc-K"/>
+		</Residue>
+	</Residues>
+	<HarmonicBondForce>
+		<Bond class1="Pt" class2="Pb" k="100000.19462500024" length="0.2654907"/>
+		<Bond class1="Pb" class2="Pb" k="110000.1575449464" length="0.2571438"/>
+	</HarmonicBondForce>
+	<HarmonicAngleForce>
+		<Angle angle="2.6371803" class1="Pt" class2="Pb" class3="Pb" k="270.1383894888559"/>
+		<Angle angle="2.672442439" class1="Pb" class2="Pb" class3="Pb" k="270.160531492622"/>
+	</HarmonicAngleForce>
+<!--	<PeriodicTorsionForce>-->
+<!--		<Proper class1="Pt" class2="Pb" class3="Pb" class4="Pb" k1="3.0" periodicity1="1" phase1="1.64"/>-->
+<!--		<Proper class1="Pb" class2="Pb" class3="Pb" class4="Pb" k1="3.0" periodicity1="1" phase1="-1.81"/>-->
+<!--	</PeriodicTorsionForce>-->
+	<CustomTorsionForce energy="scale*e;e=shift+k1*cos(per1*theta-phase1)+k2*cos(per2*theta-phase2)+k3*cos(per3*theta-phase3)+k4*cos(per4*theta-phase4)">
+ 		<GlobalParameter name="scale" defaultValue="1.0"/>
+ 		<PerTorsionParameter name="shift"/>
+ 		<PerTorsionParameter name="k1"/>
+ 		<PerTorsionParameter name="k2"/>
+ 		<PerTorsionParameter name="k3"/>
+ 		<PerTorsionParameter name="k4"/>
+	 	<PerTorsionParameter name="per1"/>
+	 	<PerTorsionParameter name="per2"/>
+	 	<PerTorsionParameter name="per3"/>
+	 	<PerTorsionParameter name="per4"/>
+	 	<PerTorsionParameter name="phase1"/>
+	 	<PerTorsionParameter name="phase2"/>
+	 	<PerTorsionParameter name="phase3"/>
+	 	<PerTorsionParameter name="phase4"/>
+	 	<Proper class1="Pt" class2="Pb" class3="Pb" class4="Pb" shift="4.96417"
+				k1="-2.29979" per1="1" phase1="0.00"
+				k2="2.076607" per2="2" phase2="0.00"
+				k3="-0.72404" per3="3" phase3="0.00"
+				k4="0.316182" per4="4" phase4="0.00"/>
+	 	<Proper class1="Pb" class2="Pb" class3="Pb" class4="Pb" shift="5.21257"
+				k1="-2.69878" per1="1" phase1="0.00"
+				k2="2.27522" per2="2" phase2="0.00"
+				k3="-0.56480" per3="3" phase3="0.00"
+				k4="0.08531" per4="4" phase4="0.00"/>
+	</CustomTorsionForce>
+	<NonbondedForce coulomb14scale="0.8333333333" lj14scale="0.5">
+		<Atom charge="-2.0" epsilon="0.4402681315196596" sigma="0.8592400537485409" type="PT"/>
+		<Atom charge="-1.0" epsilon="0.20112587957241462" sigma="0.6806409362192383" type="PB"/>
+		<Atom charge="1.0" epsilon="1.7978873936" sigma="0.2438403315995121" type="amber14spc-K"/>
+	</NonbondedForce>
+	<CustomGBForce>
+		<GlobalParameter name="solventDielectric" defaultValue="78.3"/>
+		<GlobalParameter name="soluteDielectric" defaultValue="1"/>
+		<PerParticleParameter name="charge"/>
+		<PerParticleParameter name="radius"/>
+		<PerParticleParameter name="scale"/>
+		<ComputedValue name="I" type="ParticlePairNoExclusions">
+       step(r+sr2-or1)*0.5*(1/L-1/U+0.25*(1/U^2-1/L^2)*(r-sr2*sr2/r)+0.5*log(L/U)/r+C);
+       U=r+sr2; C=2*(1/or1-1/L)*step(sr2-r-or1); L=max(or1, D); D=abs(r-sr2); sr2 =
+       scale2*or2; or1 = radius1-0.009; or2 = radius2-0.009
+    </ComputedValue>
+		<ComputedValue name="B" type="SingleParticle">
+     1/(1/or-tanh(1*psi-0.8*psi^2+4.85*psi^3)/radius); psi=I*or; or=radius-0.009
+    </ComputedValue>
+		<EnergyTerm type="SingleParticle">
+     28.3919551*(radius+0.14)^2*(radius/B)^6-0.5*138.935456*(1/soluteDielectric-1/solventDielectric)*charge^2/B
+    </EnergyTerm>
+		<EnergyTerm type="ParticlePair">
+      -138.935456*(1/soluteDielectric-1/solventDielectric)*charge1*charge2/f;
+             f=sqrt(r^2+B1*B2*exp(-r^2/(4*B1*B2)))
+    </EnergyTerm>
+		<Atom type="PT" charge="-2.0" radius="0.5831735320553726" scale="0.44"/>
+		<Atom type="PB" charge="-1.0" radius="0.59204736982630664" scale="0.442103305890598"/>
+		<Atom type="amber14spc-K" charge="1.0" radius="0.138" scale="0.72"/>
+	</CustomGBForce>
+	<Custom1_5BondForce energy="0.5*k*(r-length)^2">
+		<Bond atomIndex1="0" atomIndex2="4" k="3550.00" length="0.9463225"/>
+		<Bond atomIndex1="1" atomIndex2="5" k="3550.00" length="0.9463225"/>
+		<Bond atomIndex1="2" atomIndex2="6" k="3550.00" length="0.9463225"/>
+		<Bond atomIndex1="3" atomIndex2="7" k="3550.00" length="0.9463225"/>
+		<Bond atomIndex1="4" atomIndex2="8" k="3550.00" length="0.9463225"/>
+		<Bond atomIndex1="5" atomIndex2="9" k="3550.00" length="0.9463225"/>
+	</Custom1_5BondForce>
+</Forcefield>
