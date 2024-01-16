@@ -1,0 +1,111 @@
+<?xml version="1.0" ?>
+<!--Amber14SB-->
+<ForceField>
+  <AtomTypes>
+    <Type class="PO" element="P" mass="30.97000" name="PT"/>
+    <Type class="PO" element="P" mass="30.97000" name="PI"/>
+    <Type class="O0" element="O" mass="16.00000" name="OT"/>
+    <Type class="O1" element="O" mass="16.00000" name="OI"/>
+    <Type class="O2" element="O" mass="16.00000" name="OK"/>
+  </AtomTypes>
+  <Residues>
+    <Residue name="TE1">
+      <Atom name="P00" type="PT"/>
+      <Atom name="O01" type="OT"/>
+      <Atom name="O02" type="OT"/>
+      <Atom name="O03" type="OT"/>
+      <Atom name="O04" type="OI"/>
+      <Bond atomName1="P00" atomName2="O01"/>
+      <Bond atomName1="P00" atomName2="O02"/>
+      <Bond atomName1="P00" atomName2="O03"/>
+      <Bond atomName1="P00" atomName2="O04"/>
+      <ExternalBond atomName="O04"/>
+    </Residue>
+    <Residue name="IN1">
+      <Atom name="P00" type="PI"/>
+      <Atom name="O01" type="OK"/>
+      <Atom name="O02" type="OK"/>
+      <Bond atomName1="P00" atomName2="O01"/>
+      <Bond atomName1="P00" atomName2="O02"/>
+      <ExternalBond atomName="P00"/>
+      <ExternalBond atomName="P00"/>
+    </Residue>
+    <Residue name="IN2">
+      <Atom name="O00" type="OI"/>
+      <ExternalBond atomName="O00"/>
+      <ExternalBond atomName="O00"/>
+    </Residue>
+  </Residues>
+  <HarmonicBondForce>
+    <Bond class1="PO" class2="O0" k="4.3932e+05" length="0.14800"/>
+    <Bond class1="PO" class2="O1" k="1.9246e+05" length="0.16100"/>
+    <Bond class1="PO" class2="O2" k="4.3932e+05" length="0.14800"/>
+  </HarmonicBondForce>
+  <HarmonicAngleForce>
+    <Angle angle="2.092650" class1="O0" class2="PO" class3="O0" k="1.1715e+03"/>
+    <Angle angle="2.103122" class1="PO" class2="O1" class3="PO" k="8.3680e+02"/>
+    <Angle angle="2.092650" class1="O2" class2="PO" class3="O2" k="1.1715e+03"/>
+    <Angle angle="1.888970" class1="O0" class2="PO" class3="O1" k="8.3680e+02"/>
+    <Angle angle="1.790707" class1="O1" class2="PO" class3="O1" k="3.7656e+02"/>
+    <Angle angle="1.888970" class1="O1" class2="PO" class3="O2" k="8.3680e+02"/>
+  </HarmonicAngleForce>
+  <PeriodicTorsionForce>
+    <Proper class1="PO" class2="O1" class3="PO" class4="O2" k1="1.04600" periodicity1="3" phase1="0.00"/>
+    <Proper class1="O0" class2="PO" class3="O1" class4="PO" k1="1.04600" periodicity1="3" phase1="0.00"/>
+    <Proper class1="O1" class2="PO" class3="O1" class4="PO" k1="1.04600" periodicity1="3" phase1="0.00"/>
+    <Proper class1="PO" class2="O1" class3="PO" class4="O1" k1="1.04600" periodicity1="3" phase1="0.00"/>
+    <Proper class1="O2" class2="PO" class3="O1" class4="PO" k1="1.04600" periodicity1="3" phase1="0.00"/>
+  </PeriodicTorsionForce>
+  <NonbondedForce coulomb14scale="0.8333333333" lj14scale="0.5">
+    <Atom charge="1.498921063" epsilon="8.36800e-01" sigma="3.74177e-01" type="PT"/>
+    <Atom charge="1.7425225" epsilon="8.36800e-01" sigma="3.74177e-01" type="PI"/>
+    <Atom charge="-1.023145938" epsilon="8.78640e-01" sigma="2.95992e-01" type="OT"/>
+    <Atom charge="-0.8589665" epsilon="7.11280e-01" sigma="3.00001e-01" type="OI"/>
+    <Atom charge="-0.9417775" epsilon="8.78640e-01" sigma="2.95992e-01" type="OK"/>
+  </NonbondedForce>
+  <CustomGBForce>
+    <GlobalParameter name="solventDielectric" defaultValue="78.3"/>
+    <GlobalParameter name="soluteDielectric" defaultValue="1"/>
+    <PerParticleParameter name="charge"/>
+    <PerParticleParameter name="radius"/>
+    <PerParticleParameter name="scale"/>
+    <ComputedValue name="I" type="ParticlePairNoExclusions">
+    step(r+sr2-or1)*0.5*(1/L-1/U+0.25*(1/U^2-1/L^2)*(r-sr2*sr2/r)+0.5*log(L/U)/r+C);
+    U=r+sr2; C=2*(1/or1-1/L)*step(sr2-r-or1); L=max(or1, D); D=abs(r-sr2); sr2 =
+    scale2*or2; or1 = radius1-0.009; or2 = radius2-0.009
+    </ComputedValue>
+    <ComputedValue name="B" type="SingleParticle">
+    1/(1/or-tanh(1*psi-0.8*psi^2+4.85*psi^3)/radius); psi=I*or; or=radius-0.009
+    </ComputedValue>
+    <EnergyTerm type="SingleParticle">
+  28.3919551*(radius+0.14)^2*(radius/B)^6-0.5*138.935456*
+          (1/soluteDielectric-1/solventDielectric)*charge^2/B
+    </EnergyTerm>
+    <EnergyTerm type="ParticlePair">
+  -138.935456*(1/soluteDielectric-1/solventDielectric)*charge1*charge2/f;
+          f=sqrt(r^2+B1*B2*exp(-r^2/(4*B1*B2)))
+    </EnergyTerm>
+    <Atom type="PT" charge="1.498921063" radius="0.1875" scale="0.85"/>
+    <Atom type="PI" charge="1.7425225" radius="0.1875" scale="0.85"/>
+    <Atom type="OT" charge="-1.023145938" radius="0.150" scale="0.72"/>
+    <Atom type="OI" charge="-0.8589665" radius="0.150" scale="0.72"/>
+<!--    <Atom type="OK" charge="-0.9417775" radius="0.1706" scale="0.79"/>-->
+    <Atom type="OK" charge="-0.9417775" radius="0.150" scale="0.72"/>
+  </CustomGBForce>
+<!--  <GBSAOBCForce>-->
+<!--    <Atom type="PT" charge="1.498921063" radius="0.180" scale="0.85"/>-->
+<!--    <Atom type="PI" charge="1.7425225" radius="0.180" scale="0.85"/>-->
+<!--    <Atom type="OT" charge="-1.023145938" radius="0.148" scale="0.72"/>-->
+<!--    <Atom type="OI" charge="-0.8589665" radius="0.148" scale="0.72"/>-->
+<!--&lt;!&ndash;    <Atom type="OK" charge="-0.9417775" radius="0.1706" scale="0.79"/>&ndash;&gt;-->
+<!--    <Atom type="OK" charge="-0.9417775" radius="0.148" scale="0.72"/>-->
+<!--  </GBSAOBCForce>-->
+<!--  <GBSAOBCForce>-->
+<!--    <Atom type="PT" charge="1.498921063" radius="0.180" scale="0.85"/>-->
+<!--    <Atom type="PI" charge="1.7425225" radius="0.180" scale="0.85"/>-->
+<!--    <Atom type="OT" charge="-1.023145938" radius="0.148" scale="0.72"/>-->
+<!--    <Atom type="OI" charge="-0.8589665" radius="0.148" scale="0.72"/>-->
+<!--&lt;!&ndash;    <Atom type="OK" charge="-0.9417775" radius="0.1706" scale="0.79"/>&ndash;&gt;-->
+<!--    <Atom type="OK" charge="-0.9417775" radius="0.148" scale="0.72"/>-->
+<!--  </GBSAOBCForce>-->
+</ForceField>
