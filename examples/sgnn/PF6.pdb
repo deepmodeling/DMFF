@@ -1,0 +1,19 @@
+HEADER    
+TITLE     MDANALYSIS FRAME 0: Created by PDBWriter
+REMARK     Created by AuToFF
+CRYST1   50.000   50.000   50.000  90.00  90.00  90.00 P 1           1
+ATOM      1  F01 PF6 1   1       1.069  -0.257   0.625  1.00  0.00      SYST F  
+ATOM      2  P02 PF6 1   1       2.483   0.187   0.143  1.00  0.00      SYST P  
+ATOM      3  F03 PF6 1   1       1.556   0.298  -1.104  1.00  0.00      SYST F  
+ATOM      4  F04 PF6 1   1       2.495   1.222   1.308  1.00  0.00      SYST F  
+ATOM      5  F05 PF6 1   1       3.427  -0.713  -0.710  1.00  0.00      SYST F  
+ATOM      6  F06 PF6 1   1       3.264   1.422  -0.397  1.00  0.00      SYST F  
+ATOM      7  F07 PF6 1   1       3.085  -0.854   1.134  1.00  0.00      SYST F  
+CONECT    1    2
+CONECT    2    1    3    4    5    6    7
+CONECT    3    2
+CONECT    4    2
+CONECT    5    2
+CONECT    6    2
+CONECT    7    2
+END
