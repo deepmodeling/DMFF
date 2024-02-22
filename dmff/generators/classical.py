@@ -897,7 +897,7 @@ class CustomTorsionGenerator:
         proper_phase = paramset[self.name]["proper_phase"]
         proper_k = paramset[self.name]["proper_k"]
         proper_shift = paramset[self.name]["proper_shift"]
-        proper_msks = paramset.mask[self.name]["proper"]
+        proper_msks = paramset.mask[self.name]["proper_phase"]
         for nnode, key in enumerate(self.proper_keys):
             self.ffinfo["Forces"][self.name]["node"][proper_node_indices[nnode]]["attrib"] = {
             }
@@ -929,7 +929,7 @@ class CustomTorsionGenerator:
         improper_phase = paramset[self.name]["improper_phase"]
         improper_k = paramset[self.name]["improper_k"]
         improper_shift = paramset[self.name]["improper_shift"]
-        improper_msks = paramset.mask[self.name]["improper"]
+        improper_msks = paramset.mask[self.name]["improper_phase"]
         for nnode, key in enumerate(self.imp_keys):
             self.ffinfo["Forces"][self.name]["node"][improper_node_indices[nnode]]["attrib"] = {
             }
@@ -2028,7 +2028,7 @@ class CustomGBGenerator:
         """
         radius = paramset[self.name]["radius"]
         scale = paramset[self.name]["scale"]
-        for i in self.ffinfo.perParticleParamIndices:
+        for i in self.perParticleParamIndices:
             self.ffinfo["Forces"][self.name]["node"][i]["attrib"]["radius"] = str(radius[i])
             self.ffinfo["Forces"][self.name]["node"][i]["attrib"]["scale"] = str(scale[i])
 
