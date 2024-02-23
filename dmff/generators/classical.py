@@ -2028,9 +2028,9 @@ class CustomGBGenerator:
         """
         radius = paramset[self.name]["radius"]
         scale = paramset[self.name]["scale"]
-        for i in self.perParticleParamIndices:
-            self.ffinfo["Forces"][self.name]["node"][i]["attrib"]["radius"] = str(radius[i])
-            self.ffinfo["Forces"][self.name]["node"][i]["attrib"]["scale"] = str(scale[i])
+        for j, i in enumerate(self.perParticleParamIndices):
+            self.ffinfo["Forces"][self.name]["node"][i]["attrib"]["radius"] = str(radius[j])
+            self.ffinfo["Forces"][self.name]["node"][i]["attrib"]["scale"] = str(scale[j])
 
     def _find_key_index(self, key: Tuple[str]) -> int:
         """
