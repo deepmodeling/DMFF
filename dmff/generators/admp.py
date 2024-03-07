@@ -934,7 +934,7 @@ class ADMPPmeGenerator:
             for node in self.ffinfo["Forces"][self.name]["node"]
             if node["name"] in ["Multipole", "Atom"]
         ]
-        c0, dX, dY, dZ, qXX, qYY, qZZ, qXY, qXZ, qYZ = (
+        c0, dX, dY, dZ, qXX, qYY, qZZ, qXY, qXZ, qYZ, oXXX, oXXY, oXYY, oYYY, oXXZ, oXYZ, oYYZ, oXZZ, oYZZ, oZZZ = (
             [],
             [],
             [],
@@ -945,6 +945,16 @@ class ADMPPmeGenerator:
             [],
             [],
             [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
         )
         kxs, kys, kzs = [], [], []
         multipole_masks = []
@@ -987,6 +997,29 @@ class ADMPPmeGenerator:
                 qXY.append(0.0)
                 qXZ.append(0.0)
                 qYZ.append(0.0)
+            if self.lmax >= 3:
+                oXXX.append(float(attribs["oXXX"]))
+                oXXY.append(float(attribs["oXXY"]))
+                oXYY.append(float(attribs["oXYY"]))
+                oYYY.append(float(attribs["oYYY"]))
+                oXXZ.append(float(attribs["oXXZ"]))
+                oXYZ.append(float(attribs["oXYZ"]))
+                oYYZ.append(float(attribs["oYYZ"]))
+                oXZZ.append(float(attribs["oXZZ"]))
+                oYZZ.append(float(attribs["oYZZ"]))
+                oZZZ.append(float(attribs["oZZZ"]))    
+            else:
+                oXXX.append(0.0)
+                oXXY.append(0.0)
+                oXYY.append(0.0)
+                oYYY.append(0.0)
+                oXXZ.append(0.0)
+                oXYZ.append(0.0)
+                oYYZ.append(0.0)
+                oXZZ.append(0.0)
+                oYZZ.append(0.0)
+                oZZZ.append(0.0)
+            
             mask = 1.0
             if "mask" in attribs and attribs["mask"].upper() == "TRUE":
                 mask = 0.0
@@ -1061,6 +1094,19 @@ class ADMPPmeGenerator:
             Q[:, 8] = qXZ
             Q[:, 9] = qYZ
             Q[:, 4:10] *= 300
+        if self.lmax >= 3:
+            Q[:, 10] = oXXX
+            Q[:, 11] = oXXY
+            Q[:, 12] = oXYY
+            Q[:, 13] = oYYY
+            Q[:, 14] = oXXZ
+            Q[:, 15] = oXYZ
+            Q[:, 16] = oYYZ
+            Q[:, 17] = oXZZ
+            Q[:, 18] = oYZZ
+            Q[:, 19] = oZZZ
+            # TO DO:  To be decided
+            Q[:, 10:20] *= 15000
 
         # add all differentiable params to self.params
         Q_local = convert_cart2harm(jnp.array(Q), self.lmax)
@@ -1090,6 +1136,18 @@ class ADMPPmeGenerator:
                     node["attrib"]["qXY"] = Q_global[n_multipole, 7] / 300.0
                     node["attrib"]["qXZ"] = Q_global[n_multipole, 8] / 300.0
                     node["attrib"]["qYZ"] = Q_global[n_multipole, 9] / 300.0
+                if self.lmax >= 3:
+                    node["attrib"]["oXXX"] = Q_global[n_multipole, 10] / 15000.0
+                    node["attrib"]["oXXY"] = Q_global[n_multipole, 11] / 15000.0
+                    node["attrib"]["oXYY"] = Q_global[n_multipole, 12] / 15000.0
+                    node["attrib"]["oYYY"] = Q_global[n_multipole, 13] / 15000.0
+                    node["attrib"]["oXXZ"] = Q_global[n_multipole, 14] / 15000.0
+                    node["attrib"]["oXYZ"] = Q_global[n_multipole, 15] / 15000.0
+                    node["attrib"]["oYYZ"] = Q_global[n_multipole, 16] / 15000.0
+                    node["attrib"]["oXZZ"] = Q_global[n_multipole, 17] / 15000.0
+                    node["attrib"]["oYZZ"] = Q_global[n_multipole, 18] / 15000.0
+                    node["attrib"]["oZZZ"] = Q_global[n_multipole, 19] / 15000.0
+                
                 if q_local_masks[n_multipole] < 0.999:
                     node["mask"] = "true"
                 n_multipole += 1
