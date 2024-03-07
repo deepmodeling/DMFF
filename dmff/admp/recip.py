@@ -404,8 +404,8 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                 rt3/2 * (theta2prime[:, 0, 0] - theta2prime[:, 1, 1]),
                 rt3 * theta2prime[:, 0, 1]], axis = 1)]
             )
-            #if lmax == 2:
-            #    return harmonics_2.reshape(N_a, n_mesh, n_harm)
+            if lmax == 2:
+                return harmonics_2.reshape(N_a, n_mesh, n_harm)
             #else:
             #    raise NotImplementedError('l > 2 (beyond quadrupole) not supported')
             
@@ -419,9 +419,9 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             harmonics_3 = jnp.hstack(
                 [harmonics_2,
                 jnp.stack([
-                    (5 * theta3prime_eval[:, 2, 2, 2] - 3 * jnp.trace(theta3prime_eval[:, 2], axis = 0, axis = 1)) / 2, 
-                    rt6 * (5 * theta3prime_eval[:, 0, 2, 2] - jnp.trace(theta3prime_eval[:, 0], axis = 0, axis = 1)) / 4,
-                    rt6 * (5 * theta3prime_eval[:, 1, 2, 2] - jnp.trace(theta3prime_eval[:, 1], axis = 0, axis = 1)) / 4,
+                    (5 * theta3prime_eval[:, 2, 2, 2] - 3 * jnp.trace(theta3prime_eval[:, 2], axis1 = 0, axis2 = 1)) / 2, 
+                    rt6 * (5 * theta3prime_eval[:, 0, 2, 2] - jnp.trace(theta3prime_eval[:, 0], axis1 = 0, axis2 = 1)) / 4,
+                    rt6 * (5 * theta3prime_eval[:, 1, 2, 2] - jnp.trace(theta3prime_eval[:, 1], axis1 = 0, axis2 = 1)) / 4,
                     rt15 * (theta3prime_eval[:, 2, 0, 0] - theta3prime_eval[:, 2, 1,1]) / 2,
                     rt15 * theta3prime_eval[:, 0, 1, 2],
                     rt10 * (theta3prime_eval[:, 0, 0, 0] - 3 * theta3prime_eval[:, 0, 1, 1]) / 4,
@@ -430,7 +430,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                 ]
             )
             
-            if lmax == 2:
+            if lmax == 3:
                 return harmonics_3.reshape(N_a, n_mesh, n_harm)
         
         
@@ -462,6 +462,8 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                 Q_dbf = jnp.hstack([Q_dbf, Q[:,1:4]])
             if lmax >= 2:
                 Q_dbf = jnp.hstack([Q_dbf, Q[:,4:9]/3])
+            if lmax >= 3:
+                Q_dbf = jnp.hstack([Q_dbf, Q[:,9:16]/15])
            
             Q_m_pera = jnp.sum(Q_dbf[:,jnp.newaxis,:]* sph_harms, axis=2)
                                                                                                  

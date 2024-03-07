@@ -1077,6 +1077,8 @@ class ADMPPmeGenerator:
             n_mtps = 4
         elif self.lmax == 2:
             n_mtps = 10
+        elif self.lmax == 3:
+            n_mtps = 20
         Q = np.zeros((n_atoms, n_mtps))
 
         # TDDO: unit conversion
