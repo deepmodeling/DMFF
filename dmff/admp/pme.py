@@ -1336,17 +1336,25 @@ def pme_self(Q_h, kappa, lmax=2):
             2,
         ]
         * 5
+        + [
+            3,
+        ]
+        * 7
     )[:n_harms]
     l_fac2 = np.array(
         [1]
         + [
-            3,
+            3 * 1,
         ]
         * 3
         + [
-            15,
+            5 * 3 * 1,
         ]
         * 5
+        + [
+            7 * 5 * 3 * 1,
+        ]
+        * 7
     )[:n_harms]
     factor = kappa / np.sqrt(np.pi) * (2 * kappa**2) ** l_list / l_fac2
     return -jnp.sum(factor[np.newaxis] * Q_h**2) * DIELECTRIC

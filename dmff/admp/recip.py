@@ -327,24 +327,25 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             div_222 = M_u[:, 0] * M_u[:, 1] * M3prime_u[:, 2]
             
             div = jnp.array([
-                [
-                    [div_000, div_001, div_002], 
-                    [div_010, div_011, div_012], 
-                    [div_020, div_021, div_022]
-                ], 
-                [
-                    [div_100, div_101, div_102], 
-                    [div_110, div_111, div_112], 
-                    [div_120, div_121, div_122]
-                ], 
-                [
-                    [div_200, div_201, div_202],
-                    [div_210, div_211, div_212],
-                    [div_220, div_221, div_222]
-                ]]
+                                [
+                                    [div_000, div_001, div_002], 
+                                    [div_010, div_011, div_012], 
+                                    [div_020, div_021, div_022]
+                                ], 
+                                [
+                                    [div_100, div_101, div_102], 
+                                    [div_110, div_111, div_112], 
+                                    [div_120, div_121, div_122]
+                                ], 
+                                [
+                                    [div_200, div_201, div_202],
+                                    [div_210, div_211, div_212],
+                                    [div_220, div_221, div_222]
+                                ]
+                            ]
                 ).swapaxes(0, 3).swapaxes(1, 2).swapaxes(2, 3)
             
-            return jnp.einsum("im,jn,ko,mn,op->kij", -Nj_Aji_star, -Nj_Aji_star, -Nj_Aji_star, div, -Nj_Aji_star)
+            return jnp.einsum("im,jn,ko,abcd->aijk", -Nj_Aji_star, -Nj_Aji_star, -Nj_Aji_star, div)
 
 
         def sph_harmonics_GO(u0, Nj_Aji_star):
@@ -411,7 +412,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             
             # Octupole
             M3prime_u = bspline_prime3(u)
-            theta3prime_eval(u, Nj_Aji_star, M_u, Mprime_u, M2prime_u, M3prime_u)
+            theta3prime = theta3prime_eval(u, Nj_Aji_star, M_u, Mprime_u, M2prime_u, M3prime_u)
             rt6 = jnp.sqrt(6)
             rt15 = jnp.sqrt(15)
             rt10 = jnp.sqrt(10)
@@ -419,14 +420,14 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             harmonics_3 = jnp.hstack(
                 [harmonics_2,
                 jnp.stack([
-                    (5 * theta3prime_eval[:, 2, 2, 2] - 3 * jnp.trace(theta3prime_eval[:, 2], axis1 = 0, axis2 = 1)) / 2, 
-                    rt6 * (5 * theta3prime_eval[:, 0, 2, 2] - jnp.trace(theta3prime_eval[:, 0], axis1 = 0, axis2 = 1)) / 4,
-                    rt6 * (5 * theta3prime_eval[:, 1, 2, 2] - jnp.trace(theta3prime_eval[:, 1], axis1 = 0, axis2 = 1)) / 4,
-                    rt15 * (theta3prime_eval[:, 2, 0, 0] - theta3prime_eval[:, 2, 1,1]) / 2,
-                    rt15 * theta3prime_eval[:, 0, 1, 2],
-                    rt10 * (theta3prime_eval[:, 0, 0, 0] - 3 * theta3prime_eval[:, 0, 1, 1]) / 4,
-                    rt10 * (3 * theta3prime_eval[:, 0, 0, 1] - theta3prime_eval[:, 1, 1, 1]) / 4
-                    ])
+                    (5 * theta3prime[:, 2, 2, 2] - 3 * jnp.trace(theta3prime[:, 2], axis1 = 1, axis2 = 2)) / 2, 
+                    rt6 * (5 * theta3prime[:, 0, 2, 2] - jnp.trace(theta3prime[:, 0], axis1 = 1, axis2 = 2)) / 4,
+                    rt6 * (5 * theta3prime[:, 1, 2, 2] - jnp.trace(theta3prime[:, 1], axis1 = 1, axis2 = 2)) / 4,
+                    rt15 * (theta3prime[:, 2, 0, 0] - theta3prime[:, 2, 1,1]) / 2,
+                    rt15 * theta3prime[:, 0, 1, 2],
+                    rt10 * (theta3prime[:, 0, 0, 0] - 3 * theta3prime[:, 0, 1, 1]) / 4,
+                    rt10 * (3 * theta3prime[:, 0, 0, 1] - theta3prime[:, 1, 1, 1]) / 4
+                    ], axis=1)
                 ]
             )
             
@@ -453,8 +454,8 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             
             N_a = sph_harms.shape[0]
             
-            if lmax > 2:
-                raise NotImplementedError('l > 2 (beyond quadrupole) not supported')
+            if lmax > 3:
+                raise NotImplementedError('l > 3 (beyond octupole) not supported')
             
             Q_dbf = Q[:, 0:1]
 
