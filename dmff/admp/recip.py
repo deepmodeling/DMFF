@@ -345,7 +345,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                             ]
                 ).swapaxes(0, 3).swapaxes(1, 2).swapaxes(2, 3)
             
-            return jnp.einsum("im,jn,ko,abcd->aijk", -Nj_Aji_star, -Nj_Aji_star, -Nj_Aji_star, div)
+            return jnp.einsum("im,jn,ko,amno->aijk", -Nj_Aji_star, -Nj_Aji_star, -Nj_Aji_star, div)
 
 
         def sph_harmonics_GO(u0, Nj_Aji_star):
@@ -423,7 +423,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                     (5 * theta3prime[:, 2, 2, 2] - 3 * jnp.trace(theta3prime[:, 2], axis1 = 1, axis2 = 2)) / 2, 
                     rt6 * (5 * theta3prime[:, 0, 2, 2] - jnp.trace(theta3prime[:, 0], axis1 = 1, axis2 = 2)) / 4,
                     rt6 * (5 * theta3prime[:, 1, 2, 2] - jnp.trace(theta3prime[:, 1], axis1 = 1, axis2 = 2)) / 4,
-                    rt15 * (theta3prime[:, 2, 0, 0] - theta3prime[:, 2, 1,1]) / 2,
+                    rt15 * (theta3prime[:, 2, 0, 0] - theta3prime[:, 2, 1, 1]) / 2,
                     rt15 * theta3prime[:, 0, 1, 2],
                     rt10 * (theta3prime[:, 0, 0, 0] - 3 * theta3prime[:, 0, 1, 1]) / 4,
                     rt10 * (3 * theta3prime[:, 0, 0, 1] - theta3prime[:, 1, 1, 1]) / 4
