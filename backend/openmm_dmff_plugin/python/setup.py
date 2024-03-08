@@ -33,7 +33,7 @@ extension = Extension(name='OpenMMDMFFPlugin._OpenMMDMFFPlugin',
 
 
 setup(name='OpenMMDMFFPlugin',
-      version="@GIT_HASH@",
+      version="@GIT_VERSION@".lstrip('v').replace('-', ''),
       ext_modules=[extension],
       packages=['OpenMMDMFFPlugin', "OpenMMDMFFPlugin.tests"],
       package_data={"OpenMMDMFFPlugin":['data/lj_fluid/*.pb', 'data/lj_fluid/variables/variables.index', 'data/lj_fluid/variables/variables.data-00000-of-00001', 'data/lj_fluid_gpu/*.pb', 'data/lj_fluid_gpu/variables/variables.index', 'data/lj_fluid_gpu/variables/variables.data-00000-of-00001', 'data/*.pdb']},
