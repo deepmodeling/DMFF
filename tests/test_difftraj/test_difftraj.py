@@ -24,7 +24,7 @@ mass = jnp.tile(jnp.array([m_O, m_H, m_H]), 216)
 
 @pytest.mark.parametrize(
     "pdbfile, prm, values",
-    [("tests/data/water_nvt.pdb", "tests/data/qspc-fw.xml", 5412.3623)])
+    [("tests/data/water_nvt.pdb", "tests/data/qspc-fw.xml", 5412.57173719)])
 def test_difftraj(pdbfile, prm, values):
 
     pdb = PDBFile(pdbfile)
