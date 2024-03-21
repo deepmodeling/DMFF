@@ -75,6 +75,7 @@ class Loss_Generator:
             a0 = f0 / mass
             v1 = v0 + a0 * dt
             x1 = x0 + v1 * dt
+            v1 = v1 - jnp.sum(v1*mass, axis=0)/jnp.sum(mass, axis=0)
             x1 = regularize_pos(x1)
             return {'pos': x1, 'vel':v1}   
         
