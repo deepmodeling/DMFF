@@ -326,7 +326,7 @@
   <Polarize type="49" polarizabilityXX="0.001066" polarizabilityYY="0.001066" polarizabilityZZ="0.001066" thole="1.141" />
   <Polarize type="50" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
   <Polarize type="51" polarizabilityXX="0.000619" polarizabilityYY="0.000619" polarizabilityZZ="0.000619" thole="0.317" />
-  <Polarize type="52" polarizabilityXX="0.00059837334" polarizabilityYY="0.00066198228" polarizabilityZZ="0.00047664438" thole="0.37" />
+  <Polarize type="52" polarizabilityXX="0.00059837334" polarizabilityYY="0.00059837334" polarizabilityZZ="0.00059837334" thole="0.37" />
   <Polarize type="53" polarizabilityXX="0.001804" polarizabilityYY="0.001804" polarizabilityZZ="0.001804" thole="2.08" />
   <Polarize type="54" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
   <Polarize type="55" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
@@ -338,7 +338,7 @@
   <Polarize type="415" polarizabilityXX="0.001066" polarizabilityYY="0.001066" polarizabilityZZ="0.001066" thole="1.141" />
   <Polarize type="416" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
   <Polarize type="417" polarizabilityXX="0.000619" polarizabilityYY="0.000619" polarizabilityZZ="0.000619" thole="0.317" />
-  <Polarize type="418" polarizabilityXX="0.00059837334" polarizabilityYY="0.00066198228" polarizabilityZZ="0.00047664438" thole="0.37" />
+  <Polarize type="418" polarizabilityXX="0.00059837334" polarizabilityYY="0.00059837334" polarizabilityZZ="0.00059837334" thole="0.37" />
   <Polarize type="419" polarizabilityXX="0.001804" polarizabilityYY="0.001804" polarizabilityZZ="0.001804" thole="2.08" />
   <Polarize type="420" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
   <Polarize type="421" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
@@ -348,8 +348,8 @@
   <Polarize type="832" polarizabilityXX="0.001066" polarizabilityYY="0.001066" polarizabilityZZ="0.001066" thole="1.141" />
   <Polarize type="833" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
   <Polarize type="834" polarizabilityXX="0.001207" polarizabilityYY="0.001207" polarizabilityZZ="0.001207" thole="0.708" />
-  <Polarize type="835" polarizabilityXX="0.0009992636" polarizabilityYY="0.0011242868" polarizabilityZZ="0.0006424496" thole="1.539" />
-  <Polarize type="836" polarizabilityXX="0.00124544" polarizabilityYY="0.001037824" polarizabilityZZ="0.001556736" thole="1.124" />
+  <Polarize type="835" polarizabilityXX="0.0009992636" polarizabilityYY="0.0009992636" polarizabilityZZ="0.0009992636" thole="1.539" />
+  <Polarize type="836" polarizabilityXX="0.00124544" polarizabilityYY="0.00124544" polarizabilityZZ="0.00124544" thole="1.124" />
   <Polarize type="837" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
   <Polarize type="838" polarizabilityXX="0.001804" polarizabilityYY="0.001804" polarizabilityZZ="0.001804" thole="2.08" />
   <Polarize type="839" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
