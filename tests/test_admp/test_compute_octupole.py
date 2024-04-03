@@ -97,7 +97,7 @@ class TestADMPAPI:
         rc = 12.0
         H3 = Hamiltonian('tests/data/ala5_dmff.xml')
         pdb = app.PDBFile('tests/data/ala5_mpid.pdb')
-        potential3 = H3.createPotential(pdb.topology, nonbondedMethod=app.PME, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5, has_aux=True)
+        potential3 = H3.createPotential(pdb.topology, nonbondedMethod=app.PME, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, has_aux=True)
         paramset3 = H3.paramset
         
         rc = 1.2
