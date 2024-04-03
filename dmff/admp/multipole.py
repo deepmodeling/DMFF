@@ -15,10 +15,13 @@ rt2 = 1.41421356237
 inv_rt2 = 1.0/rt2
 rt5 = 2.2360679775
 inv_rt5 = 1.0/rt5
+rt6 = 2.44948974278
+inv_rt6 = 1.0/rt6
 rt10 = 3.16227766017
 inv_rt10 = 1.0/rt10
 rt8 = 2.82842712475
 rt12 = 3.46410161514
+rt15 = 3.87298334621
 rt24 = 4.89897948557
 inv_rt24 = 1.0/rt24
 
@@ -45,7 +48,7 @@ C2_h2c = jnp.array([[-0.5,     0,     0,  rt3/2,     0],
 C3_c2h = jnp.array([[    0,      0,      0,      0,    0,      0,      0,      0,     0,     1],
                     [    0,      0,      0,      0,    0,      0,      0,   rt3/rt2,  0,     0],
                     [    0,      0,      0,      0,    0,      0,      0,      0,  rt3/rt2,  0],
-                    [    0,      0,      0,      0, inv_rt5,   0,   -inv_rt5,  0,     0,     0],
+                    [    0,      0,      0,      0, rt3/rt5,   0,   -rt3/rt5,  0,     0,     0],
                     [    0,      0,      0,      0,    0,  2*rt3/rt5,  0,      0,     0,     0],
                     [ inv_rt10,  0, -3*inv_rt10, 0,    0,      0,      0,      0,     0,     0],
                     [    0,  3*inv_rt10, 0, -inv_rt10, 0,      0,      0,      0,     0,     0]])
@@ -107,8 +110,10 @@ def convert_cart2harm(Theta, lmax):
         Q = jnp.hstack([Q_mono, Q_dip])
     elif lmax == 2:
         Q = jnp.hstack([Q_mono, Q_dip, Q_quad])
-    else:
+    elif lmax == 3:
         Q = jnp.hstack([Q_mono, Q_dip, Q_quad, Q_octu])
+    else:
+        raise ValueError('l > 3 (beyond octupole) not supported')
 
     return Q
 
@@ -131,8 +136,8 @@ def convert_harm2cart(Q, lmax):
             n * n_cart, stores the cartesian multipoles
     '''
 
-    if lmax > 2:
-        raise ValueError('l > 2 (beyond quadrupole) not supported')
+    if lmax > 3:
+        raise ValueError('l > 3 (beyond octupole) not supported')
 
     T_mono = Q[0:1]
 
@@ -152,8 +157,10 @@ def convert_harm2cart(Q, lmax):
         T = jnp.hstack([T_mono, T_dip])
     elif lmax == 2:
         T = jnp.hstack([T_mono, T_dip, T_quad])
-    else:
+    elif lmax == 3:
         T = jnp.hstack([T_mono, T_dip, T_quad, T_octu])
+    else:
+        raise ValueError('l > 3 (beyond octupole) not supported')
 
     return T
 
@@ -252,56 +259,56 @@ def rot_global2local(Q_gh, localframes, lmax=2):
         Q_lh_2 = jnp.einsum('jk,k->j', C2_gl, quadrupoles)
     
     if lmax >= 3:
-        octupoles = Q_gh[9:19]
-        C3_gl_00 = zz*C2_gl_00 - 0.5773502691896258*(xz*C2_gl_10 + yz*C2_gl_20)
-        C3_gl_01 = 0.25*(4.242640687119285*zz*C2_gl_01 - 2.449489742783178*(xz*C2_gl_11 + yz*C2_gl_21))
-        C3_gl_02 = 0.25*(4.242640687119285*zz*C2_gl_02 - 2.449489742783178*(xz*C2_gl_12 + yz*C2_gl_22))
-        C3_gl_03 = 0.4472135954999579*(3.0*zz*C2_gl_03 - 1.732050807568877*(xz*C2_gl_13 + yz*C2_gl_23))
-        C3_gl_04 = 0.4472135954999579*(3.0*zz*C2_gl_04 - 1.732050807568877*(xz*C2_gl_14 + yz*C2_gl_24))
-        C3_gl_05 = 0.3162277660168379*(1.732050807568877*(zx*C2_gl_03 - zy*C2_gl_04 - xx*C2_gl_13 + xy*C2_gl_14 - yx*C2_gl_23 + yy*C2_gl_24))
-        C3_gl_06 = 0.5477225575051661*(zy*C2_gl_03 + zx*C2_gl_04) - 0.3162277660168379*(xy*C2_gl_13 + xx* C2_gl_14 + yy*C2_gl_23 + yx*C2_gl_24)
-        C3_gl_10 = 0.2357022603955158*(3.464101615137755*xz*C2_gl_00 + 4.0*zz*C2_gl_10 - xz*C2_gl_30 - yz*C2_gl_40)
-        C3_gl_11 = 0.25*(3.464101615137755*xz*C2_gl_01 + 4.0*zz*C2_gl_11 - xz*C2_gl_31 - yz*C2_gl_41)
-        C3_gl_12 = 0.25*(3.464101615137755*xz*C2_gl_02 + 4.0*zz*C2_gl_12 - xz*C2_gl_32 - yz*C2_gl_42)
-        C3_gl_13 = 0.3162277660168379*(3.464101615137755*xz*C2_gl_03 + 4.0*zz*C2_gl_13 - xz*C2_gl_33 - yz*C2_gl_43)
-        C3_gl_14 = 0.3162277660168379*(3.464101615137755*xz*C2_gl_04 + 4.0*zz*C2_gl_14 - xz*C2_gl_34 - yz*C2_gl_44)
-        C3_gl_15 = 0.07453559924999299*(-6.0*xy*C2_gl_04 + xx*(6.0*C2_gl_03 - 1.732050807568877*C2_gl_33) + 1.732050807568877*(4.0*zx*C2_gl_13 - 4.0*zy*C2_gl_14 + xy*C2_gl_34 - yy*C2_gl_43 + yx*C2_gl_44))
-        C3_gl_16 = 0.07453559924999299*(6.0*(xy*C2_gl_03 + xx*C2_gl_04) + 6.928203230275509*(zy*C2_gl_13 + zx*C2_gl_14) - 1.732050807568877*(xy*C2_gl_33 + xx*C2_gl_34 + yy*C2_gl_43 + yx*C2_gl_44))
-        C3_gl_20 = 0.2357022603955158*(4.0*zz*C2_gl_20 + yz*(3.464101615137755*C2_gl_00 +C2_gl_30) - xz*C2_gl_40)
-        C3_gl_21 = 0.25*(4.*zz*C2_gl_21 + yz*(3.464101615137755*C2_gl_01 + C2_gl_31) - xz*C2_gl_41)
-        C3_gl_22 = 0.25*(4.*zz*C2_gl_22 + yz*(3.464101615137755*C2_gl_02 + C2_gl_32) - xz*C2_gl_42)
-        C3_gl_23 = 0.3162277660168379*(4.*zz*C2_gl_23 + yz*(3.464101615137755*C2_gl_03 + C2_gl_33) - xz*C2_gl_43)
-        C3_gl_24 = 0.3162277660168379*(4.*zz*C2_gl_24 + yz*(3.464101615137755*C2_gl_04 + C2_gl_34) - xz*C2_gl_44)
-        C3_gl_25 = 0.07453559924999299*(-6.*yy*C2_gl_04 + yx*(6.*C2_gl_03 + 1.732050807568877*C2_gl_33) + 1.732050807568877*(4.*zx*C2_gl_23 - 4.*zy*C2_gl_24 - yy*C2_gl_34 - xx*C2_gl_43 + xy*C2_gl_44))
-        C3_gl_26 = 0.07453559924999299*(6.*yx*C2_gl_04 + yy*(6.*C2_gl_03 + 1.732050807568877*C2_gl_33) + 1.732050807568877*(4.*zy*C2_gl_23 + 4.*zx*C2_gl_24 + yx*C2_gl_34 - xy*C2_gl_43 - xx*C2_gl_44))
-        C3_gl_30 = 0.7453559924999299*(xz*C2_gl_10 - yz*C2_gl_20 + zz*C2_gl_30)
-        C3_gl_31 = 0.7905694150420948*(xz*C2_gl_11 - yz*C2_gl_21 + zz*C2_gl_31)
-        C3_gl_32 = 0.7905694150420948*(xz*C2_gl_12 - yz*C2_gl_22 + zz*C2_gl_32)
-        C3_gl_33 = xz*C2_gl_13 - yz*C2_gl_23 + zz*C2_gl_33
-        C3_gl_34 = xz*C2_gl_14 - yz*C2_gl_24 + zz*C2_gl_34
-        C3_gl_35 = 0.408248290463863*(xx*C2_gl_13 - xy*C2_gl_14 - yx*C2_gl_23 + yy*C2_gl_24 + zx*C2_gl_33 - zy*C2_gl_34)
-        C3_gl_36 = 0.408248290463863*(xy*C2_gl_13 + xx*C2_gl_14 - yy*C2_gl_23 - yx*C2_gl_24 + zy*C2_gl_33 + zx*C2_gl_34)
-        C3_gl_40 = 0.7453559924999299*(yz*C2_gl_10 + xz*C2_gl_20 + zz*C2_gl_40)
-        C3_gl_41 = 0.7905694150420948*(yz*C2_gl_11 + xz*C2_gl_21 + zz*C2_gl_41)
-        C3_gl_42 = 0.7905694150420948*(yz*C2_gl_12 + xz*C2_gl_22 + zz*C2_gl_42)
-        C3_gl_43 = yz*C2_gl_13 + xz*C2_gl_23 + zz*C2_gl_43
-        C3_gl_44 = yz*C2_gl_14 + xz*C2_gl_24 + zz*C2_gl_44
-        C3_gl_45 = 0.408248290463863*(yx*C2_gl_13 - yy*C2_gl_14 + xx*C2_gl_23 - xy*C2_gl_24 + zx*C2_gl_43 - zy*C2_gl_44)
-        C3_gl_46 = 0.408248290463863*(yy*C2_gl_13 + yx*C2_gl_14 + xy*C2_gl_23 + xx*C2_gl_24 + zy*C2_gl_43 + zx*C2_gl_44)
-        C3_gl_50 = 0.9128709291752769*(xz*C2_gl_30 - yz*C2_gl_40)
-        C3_gl_51 = 0.9682458365518542*(xz*C2_gl_31 - yz*C2_gl_41)
-        C3_gl_52 = 0.9682458365518542*(xz*C2_gl_32 - yz*C2_gl_42)
-        C3_gl_53 = 1.224744871391589*(xz*C2_gl_33 - yz*C2_gl_43)
-        C3_gl_54 = 1.224744871391589*(xz*C2_gl_34 - yz*C2_gl_44)
-        C3_gl_55 = 0.5*(xx*C2_gl_33 - xy*C2_gl_34 - yx*C2_gl_43 + yy*C2_gl_44)
-        C3_gl_56 = 0.5*(xy*C2_gl_33 + xx*C2_gl_34 - yy*C2_gl_43 - yx*C2_gl_44)
-        C3_gl_60 = 0.9128709291752769*(yz*C2_gl_30 + xz*C2_gl_40)
-        C3_gl_61 = 0.9682458365518542*(yz*C2_gl_31 + xz*C2_gl_41)
-        C3_gl_62 = 0.9682458365518542*(yz*C2_gl_32 + xz*C2_gl_42)
-        C3_gl_63 = 1.224744871391589*(yz*C2_gl_33 + xz*C2_gl_43)
-        C3_gl_64 = 1.224744871391589*(yz*C2_gl_34 + xz*C2_gl_44)
-        C3_gl_65 = 0.5*(yx*C2_gl_33 - yy*C2_gl_34 + xx*C2_gl_43 - xy*C2_gl_44)
-        C3_gl_66 = 0.5*(yy*C2_gl_33 + yx*C2_gl_34 + xy*C2_gl_43 + xx*C2_gl_44)
+        octupoles = Q_gh[9:16]
+        C3_gl_00 = ( -8 * xx * yy + 8 * yx * xy + 5 * zz **3 + 5 * zz) / 2
+        C3_gl_01 = (rt6*zx*(5.0*zz**2-1.0))/4.0
+        C3_gl_02 = (rt6*zy*(5.0*zz**2-1.0))/4.0
+        C3_gl_03 = (rt15*zz*(-2.0*zy**2-zz**2+1.0))/2.0
+        C3_gl_04 = rt15*zx*zy*zz
+        C3_gl_05 = (rt10*zx*(-4.0*zy**2-zz**2+1.0))/4.0
+        C3_gl_06 = (rt10*zy*(-4.0*zy**2-3.0*zz**2+3.0))/4.0
+        C3_gl_10 = (rt3*xz*(5.0*zz**2-1.0))/(2.0*rt2)
+        C3_gl_11 = (-10.0*xx*yy**2+15.0*xx*zz**2-xx+10.0*yx*xy*yy)/4.0
+        C3_gl_12 = (10.0*xy*yz**2+15.0*xy*zz**2-11.0*xy-10.0*yy*xz*yz)/4.0
+        C3_gl_13 = (rt10*(4.0*xy*yy*yz-4.0*yy**2*xz-6.0*zy**2*xz-3.0*xz*zz**2+5.0*xz))/4.0
+        C3_gl_14 = rt10*(-xx*yy*yz-yx*xy*yz+2.0*yx*yy*xz+3.0*zx*zy*xz)/2.0
+        C3_gl_15 = (rt15*(-2.0*xx*yy**2-4.0*xx*zy**2-xx*zz**2+3.0*xx+2.0*yx*xy*yy))/4.0
+        C3_gl_16 = (rt15*(-4.0*xy*zy**2-2.0*xy*yz**2-3.0*xy*zz**2+3.0*xy+2.0*yy*xz*yz))/4.0
+        C3_gl_20 = (rt3*yz*(5.0*zz**2-1.0))/(2.0*rt2)
+        C3_gl_21 = (10.0*yx*zy**2+15.0*yx*zz**2-11.0*yx-10.0*zx*yy*zy)/4.0
+        C3_gl_22 = (5.0*yy*zz**2-yy+10.0*zy*yz*zz)/4.0
+        C3_gl_23 = (rt10*(-4.0*yy*zy*zz-2.0*zy**2*yz-3.0*yz*zz**2+yz))/4.0
+        C3_gl_24 = (rt10*(yx*zy*zz+zx*yy*zz+zx*zy*yz))/2.0
+        C3_gl_25 = (rt15*(-2.0*yx*zy**2-yx*zz**2+yx-2.0*zx*yy*zy))/4.0
+        C3_gl_26 = (rt15*(-4.0*yy*zy**2-yy*zz**2+yy-2.0*zy*yz*zz))/4.0
+        C3_gl_30 = rt15*zz*(-2.0*yz**2-zz**2+1.0)/2.0
+        C3_gl_31 = (rt10*(4.0*yx*yy*zy-4.0*zx*yy**2-6.0*zx*yz**2-3.0*zx*zz**2+5.0*zx))/4.0
+        C3_gl_32 = (rt10*(-4.0*yy*yz*zz-2.0*zy*yz**2-3.0*zy*zz**2+zy))/4.0
+        C3_gl_33 = (-4.0*xx*yy-4.0*yx*xy+12.0*yy**2*zz+6.0*zy**2*zz+6.0*yz**2*zz+3.0*zz**3-9.0*zz)/2.0
+        C3_gl_34 = -6.0*yx*yy*zz-3.0*zx*zy*zz-4.0*xy*yy-2.0*xz*yz
+        C3_gl_35 = (rt6*(4.0*yx*yy*zy+4.0*zx*yy**2+4.0*zx*zy**2+2.0*zx*yz**2+zx*zz**2-3.0*zx))/4.0
+        C3_gl_36 = (rt6*(8.0*yy**2*zy+4.0*yy*yz*zz+4.0*zy**3+2.0*zy*yz**2+3.0*zy*zz**2-5.0*zy))/4.0
+        C3_gl_40 = rt15*xz*yz*zz
+        C3_gl_41 = (rt10*(-xx*yy*zy-yx*xy*zy+2.0*zx*xy*yy+3.0*zx*xz*yz))/2.0
+        C3_gl_42 = (rt10*(xy*yz*zz+yy*xz*zz+zy*xz*yz))/2.0
+        C3_gl_43 = -4.0*yx*yy-2.0*zx*zy-6.0*xy*yy*zz-3.0*xz*yz*zz
+        C3_gl_44 = 3.0*xx*yy*zz+3.0*yx*xy*zz-4.0*yy**2-2.0*zy**2-2.0*yz**2-zz**2+3.0
+        C3_gl_45 = (rt6*(-xx*yy*zy-yx*xy*zy-2.0*zx*xy*yy-zx*xz*yz))/2.0
+        C3_gl_46 = (rt6*(-4.0*xy*yy*zy-xy*yz*zz-yy*xz*zz-zy*xz*yz))/2.0
+        C3_gl_50 = (rt5*xz*(-4.0*yz**2-zz**2+1.0))/(2.0*rt2)
+        C3_gl_51 = (rt15*(-2.0*xx*yy**2-4.0*xx*yz**2-xx*zz**2+3.0*xx+2.0*yx*xy*yy))/4.0
+        C3_gl_52 = (rt15*(-2.0*xy*yz**2-xy*zz**2+xy-2.0*yy*xz*yz))/4.0
+        C3_gl_53 = (rt6*(4.0*xy*yy*yz+4.0*yy**2*xz+2.0*zy**2*xz+4.0*xz*yz**2+xz*zz**2-3.0*xz))/4.0
+        C3_gl_54 = (rt6*(-xx*yy*yz-yx*xy*yz-2.0*yx*yy*xz-zx*zy*xz))/2.0
+        C3_gl_55 = (10.0*xx*yy**2+4.0*xx*zy**2+4.0*xx*yz**2+xx*zz**2-7.0*xx+6.0*yx*xy*yy)/4.0
+        C3_gl_56 = (16.0*xy*yy**2+4.0*xy*zy**2+6.0*xy*yz**2+3.0*xy*zz**2-7.0*xy+6.0*yy*xz*yz)/4.0
+        C3_gl_60 = (rt5*yz*(-4.0*yz**2-3.0*zz**2+3.0))/(2.0*rt2)
+        C3_gl_61 = (rt15*(-2.0*yx*zy**2-4.0*yx*yz**2-3.0*yx*zz**2+3.0*yx+2.0*zx*yy*zy))/4.0
+        C3_gl_62 = (rt15*(-4.0*yy*yz**2-yy*zz**2+yy-2.0*zy*yz*zz))/4.0
+        C3_gl_63 = (rt6*(8.0*yy**2*yz+4.0*yy*zy*zz+2.0*zy**2*yz+4.0*yz**3+3.0*yz*zz**2-5.0*yz))/4.0
+        C3_gl_64 = (rt6*(-4.0*yx*yy*yz-yx*zy*zz-zx*yy*zz-zx*zy*yz))/2.0
+        C3_gl_65 = (16.0*yx*yy**2+6.0*yx*zy**2+4.0*yx*yz**2+3.0*yx*zz**2-7.0*yx+6.0*zx*yy*zy)/4.0
+        C3_gl_66 = (16.0*yy**3+12.0*yy*zy**2+12.0*yy*yz**2+3.0*yy*zz**2-15.0*yy+6.0*zy*yz*zz)/4.0
         
         # rotate
         C3_gl = jnp.array(

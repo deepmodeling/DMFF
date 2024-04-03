@@ -61,3 +61,65 @@ class TestADMPAPI:
         energy = energy_and_aux[0]
         print("Octupole Included Energy: ", energy)
         np.testing.assert_almost_equal(energy, -36.32748562120901, decimal=1)
+        
+    def test_ADMPPmeForce_octupole_water_216(self):
+        rc = 8.0
+        H3 = Hamiltonian('tests/data/admp_octupole.xml')
+        pdb = app.PDBFile('tests/data/water_216.pdb')
+        potential3 = H3.createPotential(pdb.topology, nonbondedMethod=app.PME, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5, has_aux=True)
+        paramset3 = H3.paramset
+        
+        rc = 0.8
+        pdb = app.PDBFile('tests/data/water_216.pdb')
+        positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
+        positions = jnp.array(positions)
+        a, b, c = pdb.topology.getPeriodicBoxVectors().value_in_unit(unit.nanometer)
+        box = jnp.array([a, b, c])
+        # neighbor list
+        
+        covalent_map = potential3.meta["cov_map"]
+
+        nblist = NeighborList(box, rc, covalent_map)
+        nblist.allocate(positions)
+        pairs = nblist.pairs
+        pot = potential3.getPotentialFunc(names=["ADMPPmeForce"])
+
+        aux = dict()
+        U_ind = jnp.zeros((216 * 3, 3))
+        aux["U_ind"] = U_ind
+        
+        energy_and_aux = pot(positions, box, pairs, paramset3, aux)
+        energy = energy_and_aux[0]
+        print("Octupole Included Energy: ", energy)
+        np.testing.assert_almost_equal(energy, -9294.40, decimal=1)
+    
+    def test_ADMPPmeForce_octupole_ala5(self):
+        rc = 12.0
+        H3 = Hamiltonian('tests/data/ala5_dmff.xml')
+        pdb = app.PDBFile('tests/data/ala5_mpid.pdb')
+        potential3 = H3.createPotential(pdb.topology, nonbondedMethod=app.PME, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5, has_aux=True)
+        paramset3 = H3.paramset
+        
+        rc = 1.2
+        pdb = app.PDBFile('tests/data/ala5_mpid.pdb')
+        positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
+        positions = jnp.array(positions)
+        a, b, c = pdb.topology.getPeriodicBoxVectors().value_in_unit(unit.nanometer)
+        box = jnp.array([a, b, c])
+        # neighbor list
+        
+        covalent_map = potential3.meta["cov_map"]
+
+        nblist = NeighborList(box, rc, covalent_map)
+        nblist.allocate(positions)
+        pairs = nblist.pairs
+        pot = potential3.getPotentialFunc(names=["ADMPPmeForce"])
+
+        aux = dict()
+        U_ind = jnp.zeros((54, 3))
+        aux["U_ind"] = U_ind
+        
+        energy_and_aux = pot(positions, box, pairs, paramset3, aux)
+        energy = energy_and_aux[0]
+        print("Octupole Included Energy: ", energy)
+        np.testing.assert_almost_equal(energy, 63.2, decimal=1)
