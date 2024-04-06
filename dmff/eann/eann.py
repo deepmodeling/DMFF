@@ -307,6 +307,9 @@ class EANNForce:
             dr = pbc_shift(dr, box, box_inv)
 
             dr_norm = jnp.linalg.norm(dr, axis=1)
+            buffer_scales2 = jnp.piecewise(buffer_scales, (dr_norm <= self.rc, dr_norm > self.rc),
+                             (lambda x: jnp.array(1), lambda x: jnp.array(0)))
+            buffer_scales = buffer_scales2 * buffer_scales
             self.rs = params['density.rs']
             self.inta = params['density.inta']
 
