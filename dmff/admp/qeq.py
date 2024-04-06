@@ -5,6 +5,11 @@ from jax import grad, vmap
 from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce
 from typing import Tuple, List
 from ..settings import PRECISION
+<<<<<<< HEAD
+=======
+from .pme import energy_pme
+from .recip import generate_pme_recip, Ck_1
+>>>>>>> upstream/devel
 
 if PRECISION == "double":
     CONST_0 = jnp.array(0, dtype=jnp.float64)
@@ -15,6 +20,7 @@ else:
 
 try:
     import jaxopt
+<<<<<<< HEAD
     try:
         from jaxopt import Broyden
         JAXOPT_OLD = False
@@ -23,6 +29,22 @@ try:
         print("jaxopt is too old. The QEQ potential function cannot be jitted. Please update jaxopt to the latest version for speed concern.")
 except ImportError:
     print("jaxopt not found, QEQ cannot be used.")
+=======
+
+    try:
+        from jaxopt import Broyden
+
+        JAXOPT_OLD = False
+    except ImportError:
+        JAXOPT_OLD = True
+        import warnings
+        warnings.warn(
+            "jaxopt is too old. The QEQ potential function cannot be jitted. Please update jaxopt to the latest version for speed concern."
+        )
+except ImportError:
+    import warnings
+    warnings.warn("jaxopt not found, QEQ cannot be used.")
+>>>>>>> upstream/devel
 import jax
 
 from jax.scipy.special import erf, erfc
@@ -98,7 +120,13 @@ def E_sr2(pos, box, pairs, q, eta, ds, buffer_scales):
 
 @jit_condition()
 def E_sr3(pos, box, pairs, q, eta, ds, buffer_scales):
+<<<<<<< HEAD
     etasqrt = jnp.sqrt(eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2)
+=======
+    etasqrt = jnp.sqrt(
+        eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2 + 1e-64
+    )  # add eta to avoid division by zero
+>>>>>>> upstream/devel
     epiece = eta_piecewise(etasqrt, ds)
     pre_pair = -epiece * DIELECTRIC
     pre_self = etainv_piecewise(eta) / (jnp.sqrt(2 * jnp.pi)) * DIELECTRIC
@@ -154,12 +182,20 @@ def ds_pairs(positions, box, pairs, pbc_flag):
     if pbc_flag is False:
         dr = pos1 - pos2
     else:
+<<<<<<< HEAD
         box_inv = jnp.linalg.inv(box)
+=======
+        box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
+>>>>>>> upstream/devel
         dpos = pos1 - pos2
         dpos = dpos.dot(box_inv)
         dpos -= jnp.floor(dpos + 0.5)
         dr = dpos.dot(box)
+<<<<<<< HEAD
     ds = jnp.linalg.norm(dr, axis=1)
+=======
+    ds = jnp.linalg.norm(dr + 1e-64, axis=1)  # add eta to avoid division by zero
+>>>>>>> upstream/devel
     return ds
 
 
@@ -241,12 +277,81 @@ class ADMPQeqForce:
             raise ValueError("damp_mod must be 1, 2 or 3")
 
         if pbc_flag:
+<<<<<<< HEAD
             force = CoulombPMEForce(r_cut, kappa, K)
             self.kappa = kappa
         else:
             force = CoulNoCutoffForce()
             self.kappa = 1.0
         self.coul_energy = force.generate_get_energy()
+=======
+            pme_recip_fn = generate_pme_recip(
+                Ck_fn=Ck_1,
+                kappa=kappa / 10,
+                gamma=False,
+                pme_order=6,
+                K1=K[0],
+                K2=K[1],
+                K3=K[2],
+                lmax=0,
+            )
+
+            def coul_energy(positions, box, pairs, q, mscales):
+                atomCharges = q
+                atomChargesT = jnp.reshape(atomCharges, (-1, 1))
+                return energy_pme(
+                    positions * 10,
+                    box * 10,
+                    pairs,
+                    atomChargesT,
+                    None,
+                    None,
+                    None,
+                    mscales,
+                    None,
+                    None,
+                    None,
+                    pme_recip_fn,
+                    kappa / 10,
+                    K[0],
+                    K[1],
+                    K[2],
+                    0,
+                    False,
+                )
+
+            self.kappa = kappa
+
+        else:
+
+            def get_coul_energy(dr_vec, chrgprod, box):
+                dr_norm = jnp.linalg.norm(dr_vec + 1e-64, axis=1) # add eta to avoid division by zero
+
+                dr_inv = 1.0 / dr_norm
+                E = chrgprod * DIELECTRIC * 0.1 * dr_inv
+
+                return E
+
+            def coul_energy(positions, box, pairs, q, mscales):
+                pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
+                mask = pair_buffer_scales(pairs[:, :2])
+                cov_pair = pairs[:, 2]
+                mscale_pair = mscales[cov_pair - 1]
+
+                charge0 = q[pairs[:, 0]]
+                charge1 = q[pairs[:, 1]]
+                chrgprod = charge0 * charge1
+                chrgprod_scale = chrgprod * mscale_pair
+                dr_vec = positions[pairs[:, 0]] - positions[pairs[:, 1]]
+
+                E_inter = get_coul_energy(dr_vec, chrgprod_scale, box)
+
+                return jnp.sum(E_inter * mask)
+
+            self.kappa = 0.0
+
+        self.coul_energy = coul_energy
+>>>>>>> upstream/devel
 
     def generate_get_energy(self):
         @jit_condition()
@@ -331,5 +436,9 @@ class ADMPQeqForce:
                 return energy, aux
             else:
                 return energy
+<<<<<<< HEAD
             
+=======
+
+>>>>>>> upstream/devel
         return get_energy

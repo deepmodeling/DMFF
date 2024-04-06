@@ -2,8 +2,8 @@
 import numpy as np
 import jax.numpy as jnp
 import numpy as np
-from dmff.admp.spatial import v_pbc_shift
-from dmff.utils import jit_condition
+from .spatial import v_pbc_shift
+from ..utils import jit_condition
 from jax import vmap
 
 #const
@@ -431,7 +431,7 @@ cm1_kcalmol = Eh_kcalmol/Eh_cm1
 
 ## compute intra 
 def onebodyenergy(positions, box):
-    box_inv = jnp.linalg.inv(box)
+    box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
     O = positions[::3]
     H1 = positions[1::3]
     H2 = positions[2::3]

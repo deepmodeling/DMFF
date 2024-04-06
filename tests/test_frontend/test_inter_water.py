@@ -13,7 +13,11 @@ update_jax_precision("double")
 
 
 def dist_pbc(vi, vj, box):
+<<<<<<< HEAD
     box_inv = np.linalg.inv(box)
+=======
+    box_inv = np.linalg.inv(box + jnp.eye(3) * 1e-36)
+>>>>>>> upstream/devel
     drvec = (vi - vj).reshape((1, 3))
     unshifted_dsvecs = drvec.dot(box_inv)
     dsvecs = unshifted_dsvecs - np.floor(unshifted_dsvecs + 0.5)

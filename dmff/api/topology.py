@@ -5,9 +5,21 @@ from .vsite import VirtualSite
 import networkx as nx
 import openmm.app as app
 import openmm.unit as unit
+<<<<<<< HEAD
 from rdkit import Chem
 import numpy as np
 import jax.numpy as jnp
+=======
+try:
+    from rdkit import Chem
+except ImportError:
+    Chem = None
+    import warnings
+    warnings.warn('Could not import RDKit. RDKit related features cannot be used.')
+import numpy as np
+import jax.numpy as jnp
+import os
+>>>>>>> upstream/devel
 
 
 _standardResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO', 'THR', 'TYR',
@@ -62,6 +74,13 @@ class DMFFTopology:
             type(self).__name__, nchains, nres, natom, nbond)
 
     def _load_sdf(self, filename, residue_name):
+<<<<<<< HEAD
+=======
+        if Chem is None:
+           raise ImportError("Please install the rdkit package to use this function")
+        if not os.path.exists(filename):
+            raise FileNotFoundError(filename)
+>>>>>>> upstream/devel
         mol = Chem.MolFromMolFile(filename, removeHs=False, sanitize=False)
         atoms = [a for a in mol.GetAtoms()]
         bonds = [b for b in mol.GetBonds()]
@@ -205,6 +224,11 @@ class DMFFTopology:
         atoms = [a for a in self.atoms()]
         self._molecules = []
         decomp_indices = decomptop(self)
+<<<<<<< HEAD
+=======
+        if Chem is None:
+            return
+>>>>>>> upstream/devel
         for ind in decomp_indices:
             resname = atoms[ind[0]].residue.name
             self._molecules.append(top2rdmol(self, ind))
@@ -221,6 +245,11 @@ class DMFFTopology:
             aidx = [a.index for a in atoms if a.residue.name in resname]
         else:
             aidx = [a.index for a in atoms]
+<<<<<<< HEAD
+=======
+        if Chem is None:
+            raise ImportError("Please install RDKit to use this function")
+>>>>>>> upstream/devel
         parse = Chem.MolFromSmarts(parser)
         ret = []
         for mol in self._molecules:
@@ -332,7 +361,11 @@ class DMFFTopology:
         return iter(self._vsites)
 
     @classmethod
+<<<<<<< HEAD
     def regularize_aromaticity(cls, mol: Chem.Mol) -> bool:
+=======
+    def regularize_aromaticity(cls, mol) -> bool:
+>>>>>>> upstream/devel
         """
         Regularize Aromaticity for a rdkit.Mol object. Rings with exocyclic double bonds will not be set aromatic.
         """
@@ -667,7 +700,11 @@ def decomptop(top) -> List[List[int]]:
     return indices
 
 
+<<<<<<< HEAD
 def top2rdmol(top, indices) -> Chem.rdchem.Mol:
+=======
+def top2rdmol(top, indices):
+>>>>>>> upstream/devel
     rdmol = Chem.Mol()
     emol = Chem.EditableMol(rdmol)
     idx2ridx = {}

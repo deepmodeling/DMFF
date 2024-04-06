@@ -6,8 +6,15 @@ mkdocs-literate-nav>=0.4.1
 mkdocstrings>=0.19.0
 mkdocstrings-python>=0.7.0
 pygments>=2.12
+<<<<<<< HEAD
 jax>=0.3.7
 jaxlib>=0.3.7
 pymbar==4.0.1
 tqdm==4.64.1
+=======
+jax>=0.4.1
+jaxlib>=0.4.1
+pymbar>=4.0.0
+tqdm
+>>>>>>> upstream/devel
 rdkit==2022.03.2

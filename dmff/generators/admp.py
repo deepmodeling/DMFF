@@ -85,7 +85,11 @@ class ADMPDispGenerator:
         return self.name
 
     def overwrite(self, paramset):
+<<<<<<< HEAD
         atom_mask = paramset.mask[self.name]["sigma"]
+=======
+        atom_mask = paramset.mask[self.name]["A"]
+>>>>>>> upstream/devel
         A = paramset[self.name]["A"]
         B = paramset[self.name]["B"]
         Q = paramset[self.name]["Q"]
@@ -153,6 +157,10 @@ class ADMPDispGenerator:
         for i in range(n_atoms):
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = self._find_atype_key_index(atype)
+<<<<<<< HEAD
+=======
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+>>>>>>> upstream/devel
         # here box is only used to setup ewald parameters, no need to be differentiable
         if lpme:
             box = topdata.getPeriodicBoxVectors() * 10
@@ -174,11 +182,19 @@ class ADMPDispGenerator:
         pot_fn_sr = generate_pairwise_interaction(
             TT_damping_qq_c6_kernel, static_args={}
         )
+<<<<<<< HEAD
 
         has_aux = False
         if "has_aux" in kwargs and kwargs["has_aux"]:
             has_aux = True
 
+=======
+
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+>>>>>>> upstream/devel
         def potential_fn(positions, box, pairs, params, aux=None):
             # Assume nm for frontend functions, still uses Angstrom for backend
             positions = positions * 10
@@ -338,6 +354,11 @@ class ADMPDispPmeGenerator:
         for i in range(n_atoms):
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = self._find_atype_key_index(atype)
+<<<<<<< HEAD
+=======
+
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+>>>>>>> upstream/devel
 
         # here box is only used to setup ewald parameters, no need to be differentiable
         if lpme:
@@ -449,10 +470,17 @@ class QqTtDampingGenerator:
     def getName(self) -> str:
         return self.name
 
+<<<<<<< HEAD
     def overwrite(self):
         B = self.paramtree[self.name]["B"]
         Q = self.paramtree[self.name]["Q"]
         atom_mask = self.paramtree.mask[self.name]["B"]
+=======
+    def overwrite(self, paramset):
+        B = paramset[self.name]["B"]
+        Q = paramset[self.name]["Q"]
+        atom_mask = paramset.mask[self.name]["B"]
+>>>>>>> upstream/devel
 
         nnode = 0
         for node in self.ffinfo["Forces"][self.name]["node"]:
@@ -491,6 +519,10 @@ class QqTtDampingGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
+<<<<<<< HEAD
+=======
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+>>>>>>> upstream/devel
         pot_fn_sr = generate_pairwise_interaction(TT_damping_qq_kernel, static_args={})
 
         has_aux = False
@@ -516,8 +548,11 @@ class QqTtDampingGenerator:
     def getJaxPotential(self):
         return self._jaxPotential
 
+<<<<<<< HEAD
     def getMetaData(self):
         return self._meta
+=======
+>>>>>>> upstream/devel
 
 
 # register all parsers
@@ -585,12 +620,21 @@ class SlaterDampingGenerator:
     def getName(self) -> str:
         return self.name
 
+<<<<<<< HEAD
     def overwrite(self):
         B = self.paramtree[self.name]["B"]
         C6 = self.paramtree[self.name]["C6"]
         C8 = self.paramtree[self.name]["C8"]
         C10 = self.paramtree[self.name]["C10"]
         atom_mask = self.paramtree.mask[self.name]["B"]
+=======
+    def overwrite(self, paramset):
+        B = paramset[self.name]["B"]
+        C6 = paramset[self.name]["C6"]
+        C8 = paramset[self.name]["C8"]
+        C10 = paramset[self.name]["C10"]
+        atom_mask = paramset.mask[self.name]["B"]
+>>>>>>> upstream/devel
 
         nnode = 0
         for node in self.ffinfo["Forces"][self.name]["node"]:
@@ -601,6 +645,7 @@ class SlaterDampingGenerator:
                 C8_new = C8[nnode]
                 C10_new = C10[nnode]
                 mask = atom_mask[nnode]
+<<<<<<< HEAD
                 self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(
                     B_new
                 )
@@ -613,6 +658,12 @@ class SlaterDampingGenerator:
                 self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = str(
                     C10_new
                 )
+=======
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = B_new
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C6"] = C6_new
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C8"] = C8_new
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["C10"] = C10_new
+>>>>>>> upstream/devel
                 if mask < 0.999:
                     self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"][
                         "mask"
@@ -629,6 +680,11 @@ class SlaterDampingGenerator:
         for i in range(n_atoms):
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
+<<<<<<< HEAD
+=======
+
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+>>>>>>> upstream/devel
 
         # WORKING
         pot_fn_sr = generate_pairwise_interaction(
@@ -730,10 +786,17 @@ class SlaterExGenerator:
     def getName(self) -> str:
         return self.name
 
+<<<<<<< HEAD
     def overwrite(self):
         A = self.paramtree[self.name]["A"]
         B = self.paramtree[self.name]["B"]
         atom_mask = self.paramtree.mask[self.name]["B"]
+=======
+    def overwrite(self, paramset):
+        A = paramset[self.name]["A"]
+        B = paramset[self.name]["B"]
+        atom_mask = paramset.mask[self.name]["B"]
+>>>>>>> upstream/devel
 
         nnode = 0
         for node in self.ffinfo["Forces"][self.name]["node"]:
@@ -742,12 +805,17 @@ class SlaterExGenerator:
                 A_new = A[nnode]
                 B_new = B[nnode]
                 mask = atom_mask[nnode]
+<<<<<<< HEAD
                 self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["A"] = str(
                     A_new
                 )
                 self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = str(
                     B_new
                 )
+=======
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["A"] = A_new
+                self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["B"] = B_new
+>>>>>>> upstream/devel
                 if mask < 0.999:
                     self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"][
                         "mask"
@@ -765,12 +833,23 @@ class SlaterExGenerator:
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
+<<<<<<< HEAD
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel, static_args={})
 
         has_aux = False
         if "has_aux" in kwargs and kwargs["has_aux"]:
             has_aux = True
 
+=======
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+
+        pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel, static_args={})
+
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+>>>>>>> upstream/devel
         def potential_fn(positions, box, pairs, params, aux=None):
             positions = positions * 10
             box = box * 10
@@ -790,11 +869,17 @@ class SlaterExGenerator:
 
     def getJaxPotential(self):
         return self._jaxPotential
+<<<<<<< HEAD
 
     def getMetaData(self):
         return self._meta
 
 
+=======
+
+
+
+>>>>>>> upstream/devel
 _DMFFGenerators["SlaterExForce"] = SlaterExGenerator
 
 
@@ -818,12 +903,23 @@ class SlaterSrEsGenerator(SlaterExGenerator):
             atype = atoms[i].meta[self.key_type]
             map_atomtype[i] = np.where(self.atom_keys == atype)[0][0]
 
+<<<<<<< HEAD
         pot_fn_sr = generate_pairwise_interaction(slater_sr_kernel, static_args={})
+=======
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+>>>>>>> upstream/devel
 
         has_aux = False
         if "has_aux" in kwargs and kwargs["has_aux"]:
             has_aux = True
 
+<<<<<<< HEAD
+=======
+        has_aux = False
+        if "has_aux" in kwargs and kwargs["has_aux"]:
+            has_aux = True
+
+>>>>>>> upstream/devel
         def potential_fn(positions, box, pairs, params, aux=None):
             positions = positions * 10
             box = box * 10
@@ -881,11 +977,16 @@ class ADMPPmeGenerator:
         self.ethresh = 5e-4
         self.step_pol = None
         self.ref_dip = ""
+        self.pme_force = None
 
         self.lmax = int(self.ffinfo["Forces"][self.name]["meta"]["lmax"])
 
         default_mscales = [0.0, 0.0, 1.0, 1.0, 1.0]
+<<<<<<< HEAD
         default_pscales = [1.0, 1.0, 1.0, 1.0, 1.0]
+=======
+        default_pscales = [0.0, 0.0, 1.0, 1.0, 1.0]
+>>>>>>> upstream/devel
         default_dscales = [1.0, 1.0, 1.0, 1.0, 1.0]
 
         mScales = [
@@ -961,9 +1062,15 @@ class ADMPPmeGenerator:
             self.multipole_types.append(attribs[self.key_type])
             # record local coords as kz kx ky
             # None if not occur
+<<<<<<< HEAD
             kx = attribs.get("kx", None)
             ky = attribs.get("ky", None)
             kz = attribs.get("kz", None)
+=======
+            kx = attribs.get("kx", "")
+            ky = attribs.get("ky", "")
+            kz = attribs.get("kz", "")
+>>>>>>> upstream/devel
             kxs.append(kx)
             kys.append(ky)
             kzs.append(kz)
@@ -1075,11 +1182,17 @@ class ADMPPmeGenerator:
 
     def overwrite(self, paramset):
         Q_global = convert_harm2cart(paramset[self.name]["Q_local"], self.lmax)
+<<<<<<< HEAD
+=======
+        q_local_masks = paramset.mask[self.name]["Q_local"]
+        polar_masks = paramset.mask[self.name]["pol"]
+>>>>>>> upstream/devel
 
         n_multipole, n_pol = 0, 0
         for nnode in range(len(self.ffinfo["Forces"][self.name]["node"])):
             node = self.ffinfo["Forces"][self.name]["node"][nnode]
             if node["name"] in ["Atom", "Multipole"]:
+<<<<<<< HEAD
                 node["c0"] = Q_global[n_multipole, 0]
                 node["dX"] = Q_global[n_multipole, 1]
                 node["dY"] = Q_global[n_multipole, 2]
@@ -1096,6 +1209,30 @@ class ADMPPmeGenerator:
                 node["polarizabilityYY"] = paramset[self.name]["pol"][n_pol] * 0.001
                 node["polarizabilityZZ"] = paramset[self.name]["pol"][n_pol] * 0.001
                 node["thole"] = paramset[self.name]["thole"][n_pol]
+=======
+                node["attrib"]["c0"] = Q_global[n_multipole, 0]
+                if self.lmax >= 1:
+                    node["attrib"]["dX"] = Q_global[n_multipole, 1] * 0.1
+                    node["attrib"]["dY"] = Q_global[n_multipole, 2] * 0.1
+                    node["attrib"]["dZ"] = Q_global[n_multipole, 3] * 0.1
+                if self.lmax >= 2:
+                    node["attrib"]["qXX"] = Q_global[n_multipole, 4] / 300.0
+                    node["attrib"]["qYY"] = Q_global[n_multipole, 5] / 300.0
+                    node["attrib"]["qZZ"] = Q_global[n_multipole, 6] / 300.0
+                    node["attrib"]["qXY"] = Q_global[n_multipole, 7] / 300.0
+                    node["attrib"]["qXZ"] = Q_global[n_multipole, 8] / 300.0
+                    node["attrib"]["qYZ"] = Q_global[n_multipole, 9] / 300.0
+                if q_local_masks[n_multipole] < 0.999:
+                    node["mask"] = "true"
+                n_multipole += 1
+            elif node["name"] == "Polarize":
+                node["attrib"]["polarizabilityXX"] = paramset[self.name]["pol"][n_pol] * 0.001
+                node["attrib"]["polarizabilityYY"] = paramset[self.name]["pol"][n_pol] * 0.001
+                node["attrib"]["polarizabilityZZ"] = paramset[self.name]["pol"][n_pol] * 0.001
+                node["attrib"]["thole"] = paramset[self.name]["thole"][n_pol]
+                if polar_masks[n_pol] < 0.999:
+                    node["attrib"]["mask"] = "true"
+>>>>>>> upstream/devel
                 n_pol += 1
 
     def _find_multipole_key_index(self, atype: str):
@@ -1109,6 +1246,54 @@ class ADMPPmeGenerator:
             if i == atype:
                 return n
         return None
+<<<<<<< HEAD
+=======
+    
+    @staticmethod
+    def setAxisType(kIndices):
+        # setting up axis_indices and axis_type
+        ZThenX = 0
+        Bisector = 1
+        ZBisect = 2
+        ThreeFold = 3
+        ZOnly = 4  # typo fix
+        NoAxisType = 5
+        LastAxisTypeIndex = 6
+
+        # set axis type
+
+        ky = kIndices[2]
+        kyNegative = False
+        if ky.startswith('-'):
+            ky = ky[1:]
+            kyNegative = True
+
+        kx = kIndices[1]
+        kxNegative = False
+        if kx.startswith('-'):
+            kx = kx[1:]
+            kxNegative = True
+
+        kz = kIndices[0]
+        kzNegative = False
+        if kz.startswith('-'):
+            kz = kz[1:]
+            kzNegative = True
+
+        axisType = ZThenX
+        if (not kz):
+            axisType = NoAxisType
+        if (kz and not kx):
+            axisType = ZOnly
+        if (kz and kzNegative or kx and kxNegative):
+            axisType = Bisector
+        if (kx and kxNegative and ky and kyNegative):
+            axisType = ZBisect
+        if (kz and kzNegative and kx and kxNegative and ky and kyNegative):
+            axisType = ThreeFold
+
+        return axisType, [kz, kx, ky]
+>>>>>>> upstream/devel
 
     def createPotential(
         self, topdata: DMFFTopology, nonbondedMethod, nonbondedCutoff, **kwargs
@@ -1139,6 +1324,7 @@ class ADMPPmeGenerator:
             if self.lpol:
                 map_poltype[i] = self._find_polarize_key_index(atype)
 
+<<<<<<< HEAD
         # here box is only used to setup ewald parameters, no need to be differentiable
         box = topdata.getPeriodicBoxVectors()
         if box is not None:
@@ -1155,6 +1341,20 @@ class ADMPPmeGenerator:
                 rc = nonbondedCutoff.value_in_unit(unit.angstrom)
             else:
                 rc = nonbondedCutoff * 10.0
+=======
+
+        # here box is only used to setup ewald parameters, no need to be differentiable
+        box = topdata.getPeriodicBoxVectors()
+        if box is not None:
+            box = jnp.array(box) * 10.0
+        else:
+            box = jnp.eye(3)
+        # get the admp calculator
+        if unit.is_quantity(nonbondedCutoff):
+            rc = nonbondedCutoff.value_in_unit(unit.angstrom)
+        else:
+            rc = nonbondedCutoff * 10.0
+>>>>>>> upstream/devel
 
         # build covalent map
         covalent_map = topdata.buildCovMat()
@@ -1188,6 +1388,7 @@ class ADMPPmeGenerator:
                     kz = self.kStrings["kz"][i_type]
                     kx = self.kStrings["kx"][i_type]
                     ky = self.kStrings["ky"][i_type]
+<<<<<<< HEAD
 
                     axisType = ZThenX  # Z, X, -1
                     if kz is None:
@@ -1208,6 +1409,9 @@ class ADMPPmeGenerator:
                         and (ky is not None and ky[0] == "-")
                     ):
                         axisType = ThreeFold  # Z, Y, X
+=======
+                    axisType, (kz, kx, ky) = self.setAxisType([kz, kx, ky])
+>>>>>>> upstream/devel
 
                     zaxis = -1
                     xaxis = -1
@@ -1219,6 +1423,7 @@ class ADMPPmeGenerator:
                     if axisType == ZThenX:
                         if kz is None or kx is None:
                             raise DMFFException("ZThenX axis requires both kz and kx!")
+<<<<<<< HEAD
                         kz_real = kz[1:] if kz[0] == "-" else kz
                         kx_real = kx[1:] if kx[0] == "-" else kx
                         # 1-2, 1-2
@@ -1260,10 +1465,16 @@ class ADMPPmeGenerator:
                         # 1-2 only
                         for i_neighbor in neighbors:
                             if kz_real == atoms[i_neighbor].meta[self.key_type]:
+=======
+                        # find zaxis
+                        for i_neighbor in neighbors:
+                            if kz == atoms[i_neighbor].meta[self.key_type]:
+>>>>>>> upstream/devel
                                 zaxis = i_neighbor
                                 break
                         if zaxis < 0:
                             continue
+<<<<<<< HEAD
                     elif axisType == Bisector:
                         kz_real = kz[1:] if kz[0] == "-" else kz
                         kx_real = kx[1:] if kx[0] == "-" else kx
@@ -1287,6 +1498,36 @@ class ADMPPmeGenerator:
                         ky_real = ky[1:] if ky[0] == "-" else ky
                         for i_neighbor in neighbors:
                             if kz_real == atoms[i_neighbor].meta[self.key_type]:
+=======
+                        # find xaxis on 1-2 pairs
+                        for i_neighbor in neighbors:
+                            if i_neighbor == zaxis:
+                                continue
+                            if kx == atoms[i_neighbor].meta[self.key_type]:
+                                xaxis = i_neighbor
+                                break
+                        if xaxis < 0:
+                            # find xaxis on 1-3 pairs
+                            neighbors2 = np.where(covalent_map[zaxis] == 1)[0]
+                            for j_neighbor in neighbors2:
+                                if j_neighbor == i_atom:
+                                    continue
+                                if kx == atoms[j_neighbor].meta[self.key_type]:
+                                    xaxis = j_neighbor
+                                    break
+                        if xaxis < 0:
+                            continue
+                    elif axisType == ZOnly:
+                        # 1-2 only
+                        for i_neighbor in neighbors:
+                            if kz == atoms[i_neighbor].meta[self.key_type]:
+                                zaxis = i_neighbor
+                                break
+                        if zaxis < 0:
+                            continue
+                    elif axisType == Bisector:
+                        for i_neighbor in neighbors:
+                            if kz == atoms[i_neighbor].meta[self.key_type]:
                                 zaxis = i_neighbor
                                 break
                         if zaxis < 0:
@@ -1294,7 +1535,27 @@ class ADMPPmeGenerator:
                         for j_neighbor in neighbors:
                             if j_neighbor == zaxis:
                                 continue
+                            if kx == atoms[j_neighbor].meta[self.key_type]:
+                                xaxis = j_neighbor
+                                break
+                        if xaxis < 0:
+                            continue
+                    elif axisType in [ZBisect, ThreeFold]:
+                        for i_neighbor in neighbors:
+                            if kz == atoms[i_neighbor].meta[self.key_type]:
+>>>>>>> upstream/devel
+                                zaxis = i_neighbor
+                                break
+                        if zaxis < 0:
+                            continue
+                        for j_neighbor in neighbors:
+                            if j_neighbor == zaxis:
+                                continue
+<<<<<<< HEAD
                             if kx_real == atoms[j_neighbor].meta[self.key_type]:
+=======
+                            if kx == atoms[j_neighbor].meta[self.key_type]:
+>>>>>>> upstream/devel
                                 xaxis = j_neighbor
                                 break
                         if xaxis < 0:
@@ -1302,11 +1563,20 @@ class ADMPPmeGenerator:
                         for k_neighbor in neighbors:
                             if k_neighbor == zaxis or k_neighbor == xaxis:
                                 continue
+<<<<<<< HEAD
                             if ky_real == atoms[k_neighbor].meta[self.key_type]:
+=======
+                            if ky == atoms[k_neighbor].meta[self.key_type]:
+>>>>>>> upstream/devel
                                 yaxis = k_neighbor
                                 break
                         if yaxis < 0:
                             continue
+<<<<<<< HEAD
+=======
+                    elif axisType == NoAxisType:
+                        pass
+>>>>>>> upstream/devel
                     else:
                         continue
 
@@ -1317,6 +1587,7 @@ class ADMPPmeGenerator:
             for i_atom in range(patched_atoms.shape[0]):
                 if patched_atoms[i_atom] < 0.5:
                     raise DMFFException("Atom %d not matched in forcefield!" % i_atom)
+<<<<<<< HEAD
 
             axis_indices = np.array([axis_indices[i] for i in range(n_atoms)])
             axis_types = np.array([axis_types[i] for i in range(n_atoms)])
@@ -1324,6 +1595,15 @@ class ADMPPmeGenerator:
             axis_types = np.zeros(n_atoms, dtype=int)
             axis_indices = None
 
+=======
+
+            axis_indices = np.array([axis_indices[i] for i in range(n_atoms)])
+            axis_types = np.array([axis_types[i] for i in range(n_atoms)])
+        else:
+            axis_types = np.zeros(n_atoms, dtype=int)
+            axis_indices = None
+
+>>>>>>> upstream/devel
         if "has_aux" in kwargs and kwargs["has_aux"]:
             has_aux = True
         else:
@@ -1335,6 +1615,10 @@ class ADMPPmeGenerator:
             self.step_pol = kwargs["step_pol"]
         pme_force = ADMPPmeForce(
             box,
+<<<<<<< HEAD
+=======
+            map_atomtype, 
+>>>>>>> upstream/devel
             axis_types,
             axis_indices,
             rc,
@@ -1346,6 +1630,8 @@ class ADMPPmeGenerator:
             has_aux
         )
         self.pme_force = pme_force
+        topdata._meta[self.name+"_map_atomtype"] = map_atomtype
+        topdata._meta[self.name+"_map_poltype"] = map_poltype
 
         if "has_aux" in kwargs and kwargs["has_aux"]:
             has_aux = True
@@ -1353,19 +1639,39 @@ class ADMPPmeGenerator:
             has_aux = False
 
         def potential_fn(positions, box, pairs, params, aux=None):
+<<<<<<< HEAD
             positions = positions * 10
             box = box * 10
+=======
+            positions = positions * 10.0
+            box = box * 10.0
+>>>>>>> upstream/devel
             Q_local = params["ADMPPmeForce"]["Q_local"][map_atomtype]
             if self.lpol:
                 pol = params["ADMPPmeForce"]["pol"][map_poltype]
                 tholes = params["ADMPPmeForce"]["thole"][map_poltype]
 
                 if has_aux:
+<<<<<<< HEAD
                     energy, aux = pme_force.get_energy(
                         positions, box, pairs, Q_local, pol, tholes,
                         self.mScales, self.pScales, self.dScales,
                         U_init = aux["U_ind"], aux = aux
                     )
+=======
+                    if aux is not None:
+                        energy, aux = pme_force.get_energy(
+                            positions, box, pairs, Q_local, pol, tholes,
+                            self.mScales, self.pScales, self.dScales,
+                            U_init = aux["U_ind"], aux = aux
+                        )
+                    else:
+                        energy, aux = pme_force.get_energy(
+                            positions, box, pairs, Q_local, pol, tholes, 
+                            self.mScales, self.pScales, self.dScales, 
+                            U_init=jnp.zeros((n_atoms,3)), aux={}
+                        )
+>>>>>>> upstream/devel
                     return energy, aux
                 else:
                     energy = pme_force.get_energy(

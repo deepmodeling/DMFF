@@ -54,11 +54,21 @@ void DMFFForce::setUnitTransformCoefficients(const double coordCoefficient, cons
     energyCoeff = energyCoefficient;
 }
 
+void DMFFForce::setHasAux(const bool hasAux){
+    this->has_aux = hasAux;
+}
+
+void DMFFForce::setCutoff(const double cutoff){
+    this->cutoff = cutoff;
+}
+
 double DMFFForce::getCoordUnitCoefficient() const {return coordCoeff;}
 double DMFFForce::getForceUnitCoefficient() const {return forceCoeff;}
 double DMFFForce::getEnergyUnitCoefficient() const {return energyCoeff;}
 
 double DMFFForce::getCutoff() const {return cutoff;}
+
+bool DMFFForce::getHasAux() const {return has_aux;}
 
 const string& DMFFForce::getDMFFGraphFile() const{return graph_file;}
 

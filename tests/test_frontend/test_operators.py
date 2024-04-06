@@ -110,9 +110,12 @@ def test_add_am1_charge():
     for atom in mol_vsite.atoms():
         print(atom.meta)
 
+<<<<<<< HEAD
 def test_add_resp_charge():
     pass
 
+=======
+>>>>>>> upstream/devel
 
 if __name__ == "__main__":
     print("--")

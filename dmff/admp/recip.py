@@ -2,8 +2,8 @@ import numpy as np
 import jax.numpy as jnp
 import jax.scipy as jsp
 from jax import jit
-from dmff.settings import DO_JIT
-from dmff.common.constants import DIELECTRIC, SQRT_PI as sqrt_pi
+from ..settings import DO_JIT
+from ..common.constants import DIELECTRIC, SQRT_PI as sqrt_pi
 
 
 def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
@@ -15,6 +15,11 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
     bspline_range = jnp.arange(-pme_order//2, pme_order//2)
     n_mesh = pme_order**3
     shifts = jnp.array(jnp.meshgrid(bspline_range, bspline_range, bspline_range)).T.reshape((1, n_mesh, 3))
+
+    if K1 == K2 == K3 == 0:
+        def pme_recip_empty(positions, box, Q):
+            return jnp.zeros((1, ))
+        return pme_recip_empty
    
     def pme_recip(positions, box, Q):
         '''
@@ -37,7 +42,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                     3 x 3 matrix, the first index denotes reciprocal lattice vector, the second index is the component xyz.
                     (lattice vectors arranged in rows)
             """
-            Nj_Aji_star = (N.reshape((1, 3)) * jnp.linalg.inv(box)).T
+            Nj_Aji_star = (N.reshape((1, 3)) * jnp.linalg.inv(box + jnp.eye(3) * 1e-36)).T
             return Nj_Aji_star
      
         
@@ -391,7 +396,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                     4 * K, K=K1*K2*K3, contains kx, ky, kz, k^2 for each kpoint
             '''
             # in this array, a*, b*, c* (without 2*pi) are arranged in column
-            box_inv = jnp.linalg.inv(box).T
+            box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36).T
             # K * 3, coordinate in reciprocal space
             kpts = 2 * jnp.pi * kpts_int.dot(box_inv)
             ksq = jnp.sum(kpts**2, axis=1)
@@ -429,7 +434,7 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
         # spread Q
         N = np.array([K1, K2, K3])
         Q_mesh = spread_Q(positions, box, Q)
-        N = N.reshape(1, 1, 3)
+        N = N.reshape((1, 1, 3))
         kpts_int = setup_kpts_integer(N)
         kpts = setup_kpts(box, kpts_int)
         m = jnp.linspace(-pme_order//2+1, pme_order//2-1, pme_order-1).reshape(pme_order-1, 1, 1)

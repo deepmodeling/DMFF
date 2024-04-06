@@ -84,6 +84,13 @@ class TestADMPAPI:
         a, b, c = pdb.topology.getPeriodicBoxVectors().value_in_unit(unit.nanometer)
         box = jnp.array([a, b, c])
         covalent_map = potential.meta["cov_map"]
+<<<<<<< HEAD
+=======
+
+        # check map-atomtype & map-poltype
+        print('map-atomtype', potential.meta["ADMPPmeForce_map_atomtype"])
+        print("map-poltype", potential.meta["ADMPPmeForce_map_poltype"])
+>>>>>>> upstream/devel
         # neighbor list
         nblist = NeighborList(box, rc, covalent_map)
         nblist.allocate(positions)

@@ -1,4 +1,6 @@
+import jax
 from jax import grad
+import jax.numpy as jnp
 from typing import Optional
 import optax
 
@@ -12,19 +14,20 @@ def periodic_move(pmin, pmax):
 
     def update_fn(updates, state, params):
         if params is None:
-            raise ValueError(optax.base.NO_PARAMS_MSG)
+            raise ValueError(optax._src.base.NO_PARAMS_MSG)
 
         updates = jax.tree_map(
-            lambda p, u: jnp.where((p + u) < pmin, u + pmax - pmin, u), params,
-            updates)
+            lambda p, u: jnp.where((p + u) < pmin, u + pmax - pmin, u), params, updates
+        )
         updates = jax.tree_map(
-            lambda p, u: jnp.where((p + u) > pmax, u - pmax + pmin, u), params,
-            updates)
+            lambda p, u: jnp.where((p + u) > pmax, u - pmax + pmin, u), params, updates
+        )
         return updates, state
 
     return optax._src.base.GradientTransformation(init_fn, update_fn)
 
 
+<<<<<<< HEAD
 def genOptimizer(optimizer="adam",
                  learning_rate=1.0,
                  nonzero=True,
@@ -34,10 +37,24 @@ def genOptimizer(optimizer="adam",
                  warmup_steps=0,
                  decay_rate=0.99,
                  options: dict={}):
+=======
+def genOptimizer(
+    optimizer="adam",
+    learning_rate=1.0,
+    nonzero=True,
+    clip=10.0,
+    periodic=None,
+    transition_steps=1000,
+    warmup_steps=0,
+    decay_rate=0.99,
+    options: dict = {},
+):
+>>>>>>> upstream/devel
     if decay_rate == 1.0 and warmup_steps == 0:
         options["learning_rate"] = learning_rate
     # Exponential decay of the learning rate.
     elif warmup_steps == 0:
+<<<<<<< HEAD
         scheduler = optax.exponential_decay(init_value=learning_rate,
                                             transition_steps=transition_steps,
                                             decay_rate=decay_rate)
@@ -47,6 +64,22 @@ def genOptimizer(optimizer="adam",
                                                             warmup_steps=warmup_steps,
                                                             transition_steps=transition_steps,
                                                             decay_rate=decay_rate)
+=======
+        scheduler = optax.exponential_decay(
+            init_value=learning_rate,
+            transition_steps=transition_steps,
+            decay_rate=decay_rate,
+        )
+        options["learning_rate"] = scheduler
+    else:
+        scheduler = optax.warmup_exponential_decay_schedule(
+            init_value=0,
+            peak_value=learning_rate,
+            warmup_steps=warmup_steps,
+            transition_steps=transition_steps,
+            decay_rate=decay_rate,
+        )
+>>>>>>> upstream/devel
         options["learning_rate"] = scheduler
 
     # Combining gradient transforms using `optax.chain`.

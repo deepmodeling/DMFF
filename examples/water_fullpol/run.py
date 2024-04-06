@@ -17,7 +17,15 @@ if __name__ == '__main__':
     # generator stores all force field parameters
     disp_generator, pme_generator = H.getGenerators()
     
+<<<<<<< HEAD
     pots = H.createPotential(pdb.topology, nonbondedCutoff=rc*unit.nanometer, ethresh=5e-4)
+=======
+    pots = H.createPotential(pdb.topology, \
+                             nonbondedMethod=app.PME, \
+                             nonbondedCutoff=rc*unit.nanometer, \
+                             has_aux=True, \
+                             ethresh=5e-4)
+>>>>>>> upstream/devel
 
     # construct inputs
     positions = jnp.array(pdb.positions._value)
@@ -31,18 +39,21 @@ if __name__ == '__main__':
     params = H.getParameters()
 
     pot_disp = pots.dmff_potentials['ADMPDispForce']
-    E_disp, F_disp = value_and_grad(pot_disp)(positions, box, nbl.pairs, params)
+    res_disp, F_disp = value_and_grad(pot_disp, has_aux=True)(positions, box, nbl.pairs, params)
+    E_disp = res_disp[0]
     pot_pme = pots.dmff_potentials['ADMPPmeForce']
-    E_pme, F_pme = value_and_grad(pot_pme)(positions, box, nbl.pairs, params)
+    res_pme, F_pme = value_and_grad(pot_pme, has_aux=True)(positions, box, nbl.pairs, params)
+    E_pme = res_pme[0]
+    U_ind = res_pme[1]["U_ind"]
 
     print('# Electrostatic+Polarization Energy:')
     print('#', E_pme, 'kJ/mol')
     print('# Dispersion+Damping Energy:')
     print('#', E_disp, 'kJ/mol')
-    # sys.exit()
+
     # compare induced dipole with mpid
     with open('mpid_dip.pickle', 'rb') as ifile:
         U_ind_mpid = pickle.load(ifile) * 10
 
-    for x, y in zip(pme_generator.pme_force.U_ind.flatten(), U_ind_mpid.flatten()):
+    for x, y in zip(U_ind.flatten(), U_ind_mpid.flatten()):
         print(y, y, x)

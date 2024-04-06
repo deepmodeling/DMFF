@@ -90,7 +90,11 @@ class ADMPQeqGenerator:
         chi = paramset[self.name]["chi"]
         J = paramset[self.name]["J"]
         eta = paramset[self.name]["eta"]
+<<<<<<< HEAD
         atom_mask = paramset[self.name]["mask"]
+=======
+        atom_mask = paramset.mask[self.name]["chi"]
+>>>>>>> upstream/devel
         for nidx, idx in enumerate(node_indices):
             chi0 = chi[nidx]
             J0 = J[nidx]

@@ -8,8 +8,16 @@ import openmm.unit as unit
 import openmm as mm
 import numpy as np
 import numpy.testing as npt
-import mdtraj as md
-from pymbar import MBAR
+try:
+    import mdtraj as md
+except ImportError as e:
+    import warnings
+    warnings.warn(f"mdtraj not found. Tests about MBAR would fail.")
+try:
+    from pymbar import MBAR
+except ImportError as e:
+    import warnings
+    warnings.warn(f"pymbar not found. Tests about MBAR would fail.")
 from dmff import Hamiltonian, NeighborListFreud
 from tqdm import tqdm
 

@@ -789,3 +789,9 @@ FodyWeavers.xsd
 # debugging ipynb
 debug.ipynb
 test.xml
+<<<<<<< HEAD
+=======
+
+# PyCharm Cache
+.idea/
+>>>>>>> upstream/devel

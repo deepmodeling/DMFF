@@ -20,8 +20,17 @@ with open(path.join('dmff', '_date.py'), 'w') as fp:
 
 install_requires = [
     "numpy>=1.18",
+<<<<<<< HEAD
+=======
+    "jax<=0.4.24, >=0.4.1",
+>>>>>>> upstream/devel
     "openmm>=7.6.0",
-    "freud-analysis"
+    "freud-analysis",
+    "networkx>=3.0",
+    "optax>=0.1.4",
+    "jaxopt>=0.8.0",
+    "pymbar>=4.0.0",
+    "tqdm"
 ]
 
 

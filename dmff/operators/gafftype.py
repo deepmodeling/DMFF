@@ -2,8 +2,17 @@ from ..utils import DMFFException
 from .base import BaseOperator
 from ..api.topology import DMFFTopology
 import subprocess
+<<<<<<< HEAD
 from rdkit.Chem import AllChem
 from rdkit import Chem
+=======
+try:
+    from rdkit.Chem import AllChem
+    from rdkit import Chem
+except ImportError:
+    import warnings
+    warnings.warn("GAFFTypeOperator requires rdkit and cannot be used.")
+>>>>>>> upstream/devel
 from .am1charge import cmd_exists
 import shutil
 import os

@@ -1,0 +1,25 @@
+TITLE     GRoups of Organic Molecules in ACtion for Science
+REMARK    THIS IS A SIMULATION BOX
+CRYST1   30.000   30.000   30.000  90.00  90.00  90.00 P 1           1
+MODEL        1
+ATOM      1  TP1 TE1 A   1      28.725  22.974  33.406  1.00  0.00           P
+ATOM      2  P00 IN1 A   2      26.892  23.631  31.811  1.00  0.00           C
+ATOM      3  P00 IN1 A   3      27.633  24.222  29.541  1.00  0.00           C
+ATOM      4  P00 IN1 A   4      25.695  23.995  27.884  1.00  0.00           C
+ATOM      5  P00 IN1 A   5      26.290  25.095  25.743  1.00  0.00           C
+ATOM      6  P00 IN1 A   6      24.826  24.484  23.700  1.00  0.00           C
+ATOM      7  P00 IN1 A   7      24.944  26.058  21.774  1.00  0.00           C
+ATOM      8  P00 IN1 A   8      23.018  26.878  20.449  1.00  0.00           C
+ATOM      9  P00 IN1 A   9      22.109  25.856  18.341  1.00  0.00           C
+ATOM     10  TP1 TE1 A  10      19.868  26.802  17.355  1.00  0.00           P
+TER
+CONECT    1    2
+CONECT    2    3
+CONECT    3    4
+CONECT    4    5
+CONECT    5    6
+CONECT    6    7
+CONECT    7    8
+CONECT    8    9
+CONECT    9   10
+ENDMDL

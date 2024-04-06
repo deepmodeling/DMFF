@@ -50,7 +50,7 @@ typedef double ENERGYTYPE;
 #else
 typedef float FORCETYPE;
 typedef float COORDTYPE;
-typedef float ENERGYTYPE;
+typedef double ENERGYTYPE;
 #endif
 
 namespace DMFFPlugin {
@@ -71,7 +71,23 @@ public:
      * @param energyCoefficient : the energy transform coefficient.
      */
     void setUnitTransformCoefficients(const double coordCoefficient, const double forceCoefficient, const double energyCoefficient);
-    
+    /**
+     * @brief Set the has_aux flag when model was saved with auxilary input.
+     * 
+     * @param hasAux  : true if model was saved with auxilary input.
+     */
+    void setHasAux(const bool hasAux);
+    /**
+     * @brief Set the Cutoff for neighbor list fetching.
+     * 
+     * @param cutoff 
+     */
+    void setCutoff(const double cutoff);
+    /**
+     * @brief get the DMFF graph file.
+     * 
+     * @return const std::string& 
+     */
     const std::string& getDMFFGraphFile() const;
     /**
      * @brief Get the Coord Unit Coefficient.
@@ -97,6 +113,13 @@ public:
      * @return double
      */
     double getCutoff() const;
+    /**
+     * @brief Get the Has Aux object
+     * 
+     * @return true 
+     * @return false 
+     */
+    bool getHasAux() const;
     void updateParametersInContext(OpenMM::Context& context);
     bool usesPeriodicBoundaryConditions() const {
         return use_pbc;
@@ -106,6 +129,7 @@ protected:
 private:
     string graph_file;
     bool use_pbc = true;
+    bool has_aux = false;
     double cutoff = 1.2;
     double coordCoeff, forceCoeff, energyCoeff;
     

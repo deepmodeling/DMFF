@@ -10,6 +10,7 @@ def genStrDict(olddict):
 
 
 class XMLIO:
+<<<<<<< HEAD
 
     def __init__(self):
         self._data = {
@@ -26,6 +27,13 @@ class XMLIO:
             "Residues": [],
             "Forces": {}
         }
+=======
+    def __init__(self):
+        self._data = {"Operators": [], "AtomTypes": [], "Residues": [], "Forces": {}}
+
+    def clean(self):
+        self._data = {"Operators": [], "AtomTypes": [], "Residues": [], "Forces": {}}
+>>>>>>> upstream/devel
 
     def loadXML(self, xml: str):
         root = ET.parse(xml).getroot()
@@ -56,7 +64,11 @@ class XMLIO:
             "AtomTypes": [],
             "Residues": [],
             "Forces": {},
+<<<<<<< HEAD
             "ClassToType": {}
+=======
+            "ClassToType": {},
+>>>>>>> upstream/devel
         }
         ret["Operators"] = self.parseOperators()
         ret["AtomTypes"] = self.parseAtomTypes()
@@ -69,7 +81,11 @@ class XMLIO:
         for force in self._data["Forces"].keys():
             ret["Forces"][force] = self.parseForce(self._data["Forces"][force])
         return ret
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> upstream/devel
     def parseOperators(self):
         ret = {}
         for op in self._data["Operators"]:
@@ -93,7 +109,15 @@ class XMLIO:
         ret = []
         for residue in self._data["Residues"]:
             res = {
+<<<<<<< HEAD
                 "name": None, "particles": [], "bonds": [], "externals": [], "vsites": []
+=======
+                "name": None,
+                "particles": [],
+                "bonds": [],
+                "externals": [],
+                "vsites": [],
+>>>>>>> upstream/devel
             }
             res["name"] = residue.attrib["name"]
             for item in residue:
@@ -133,7 +157,19 @@ class XMLIO:
                 ret["node"].append(inner)
         return ret
 
+<<<<<<< HEAD
     def writeXML(self, out: str, ffinfo: dict, write_operators=True, write_residues=True, write_atomtypes=True, write_forces=True):
+=======
+    def writeXML(
+        self,
+        out: str,
+        ffinfo: dict,
+        write_operators=True,
+        write_residues=True,
+        write_atomtypes=True,
+        write_forces=True,
+    ):
+>>>>>>> upstream/devel
         root = ET.Element("ForceField")
         if write_operators:
             ops = ET.SubElement(root, "Operators")
@@ -163,7 +199,11 @@ class XMLIO:
                 # write Bonds
                 for bond in res["bonds"]:
                     bnode = ET.SubElement(residue, "Bond")
+<<<<<<< HEAD
                     bnode.attrib = (bond)
+=======
+                    bnode.attrib = bond
+>>>>>>> upstream/devel
                 # write External
                 for external in res["externals"]:
                     enode = ET.SubElement(residue, "ExternalBond")
@@ -179,7 +219,11 @@ class XMLIO:
                     subnode.attrib = genStrDict(node["attrib"])
 
         tree = ET.ElementTree(root)
+<<<<<<< HEAD
         xmlstr = minidom.parseString(
             ET.tostring(root)).toprettyxml(indent="   ")
+=======
+        xmlstr = minidom.parseString(ET.tostring(root)).toprettyxml(indent="   ")
+>>>>>>> upstream/devel
         with open(out, "w") as f:
             f.write(xmlstr)

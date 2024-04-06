@@ -7,17 +7,46 @@ except ImportError as e:
     import simtk.openmm.app as app
     import simtk.unit as unit
 from typing import Dict, Tuple, List
+<<<<<<< HEAD
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
+=======
+try:
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+except ImportError as e:
+    import warnings
+    warnings.warn("RDKit is not installed. SMIRKS pattern matching cannot be used.")
+
+def is_same_list(l1, l2):
+    if len(l1) != len(l2):
+        return False
+    for nn in range(len(l1)):
+        if l1[nn] != l2[nn]:
+            return False
+    return True
+>>>>>>> upstream/devel
 
 def matchTemplate(graph, template):
     if graph.number_of_nodes() != template.number_of_nodes():
         # print("Node with different number of nodes.")
         return False, {}, {}
 
+<<<<<<< HEAD
     def match_func(n1, n2):
         return n1["element"] == n2["element"] and n1["external_bond"] == n2["external_bond"]
+=======
+    name_graph = sorted([i[1]['name'] for i in graph.nodes.data()])
+    name_template = sorted([i[1]['name'] for i in template.nodes.data()])
+
+    if is_same_list(name_graph, name_template):
+        def match_func(n1, n2):
+            return n1["element"] == n2["element"] and n1["external_bond"] == n2["external_bond"] and n1['name'] == n2['name']
+    else:
+        def match_func(n1, n2):
+            return n1["element"] == n2["element"] and n1["external_bond"] == n2["external_bond"]
+>>>>>>> upstream/devel
     
     def edge_match(e1, e2):
         if len(e1) == 0 and len(e2) == 0:
@@ -100,7 +129,11 @@ def graph2top(graph: nx.Graph) -> app.Topology:
     return top
 
 
+<<<<<<< HEAD
 def top2rdmol(top: app.Topology, indices: List[int]) -> Chem.rdchem.Mol:
+=======
+def top2rdmol(top: app.Topology, indices: List[int]):
+>>>>>>> upstream/devel
     rdmol = Chem.Mol()
     emol = Chem.EditableMol(rdmol)
     idx2ridx = {}
