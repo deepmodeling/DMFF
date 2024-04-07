@@ -26,16 +26,18 @@ class TestADMPAPI:
         H = Hamiltonian('tests/data/admp.xml')
         H1 = Hamiltonian('tests/data/admp_mono.xml')
         H2 = Hamiltonian('tests/data/admp_nonpol.xml')
+        H3 = Hamiltonian('tests/data/admp_octupole.xml')
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         potential = H.createPotential(pdb.topology, nonbondedMethod=app.CutoffPeriodic, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
         potential_aux = H.createPotential(pdb.topology, nonbondedMethod=app.CutoffPeriodic, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5, has_aux=True)
         potential1 = H1.createPotential(pdb.topology, nonbondedMethod=app.CutoffPeriodic, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
         potential2 = H2.createPotential(pdb.topology, nonbondedMethod=app.CutoffPeriodic, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5)
+        potential3 = H3.createPotential(pdb.topology, nonbondedMethod=app.CutoffPeriodic, nonbondedCutoff=rc*unit.angstrom, ethresh=5e-4, step_pol=5, has_aux=True)
         
-        yield potential, potential_aux, potential1, potential2, H.paramset, H1.paramset, H2.paramset
+        yield potential, potential_aux, potential1, potential2, potential3, H.paramset, H1.paramset, H2.paramset, H3.paramset
 
     def test_ADMPPmeForce(self, pot_prm):
-        potential, potential_aux, potential1, potential2, paramset, paramset1, paramset2 = pot_prm
+        potential, potential_aux, potential1, potential2, potential3, paramset, paramset1, paramset2, paramset3 = pot_prm
         rc = 0.4
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
@@ -56,7 +58,7 @@ class TestADMPAPI:
 
         
     def test_ADMPPmeForce_jit(self, pot_prm):
-        potential, potential_aux, potential1, potential2, paramset, paramset1, paramset2 = pot_prm
+        potential, potential_aux, potential1, potential2, potential3, paramset, paramset1, paramset2, paramset3 = pot_prm
         rc = 0.4
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
@@ -76,7 +78,7 @@ class TestADMPAPI:
         np.testing.assert_almost_equal(energy, -35.71585296268245, decimal=1)
 
     def test_ADMPPmeForce_aux(self, pot_prm):
-        potential, potential_aux, potential1, potential2, paramset, paramset1, paramset2 = pot_prm
+        potential, potential_aux, potential1, potential2, potential3, paramset, paramset1, paramset2, paramset3 = pot_prm
         rc = 0.4
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
@@ -104,7 +106,7 @@ class TestADMPAPI:
    
 
     def test_ADMPPmeForce_mono(self, pot_prm):
-        potential, potential_aux, potential1, potential2, paramset, paramset1, paramset2 = pot_prm
+        potential, potential_aux, potential1, potential2, potential3, paramset, paramset1, paramset2, paramset3 = pot_prm
         rc = 0.4
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
@@ -125,7 +127,7 @@ class TestADMPAPI:
     
 
     def test_ADMPPmeForce_nonpol(self, pot_prm):
-        potential, potential_aux, potential1, potential2, paramset, paramset1, paramset2 = pot_prm
+        potential, potential_aux, potential1, potential2, potential3, paramset, paramset1, paramset2, paramset3 = pot_prm
         rc = 0.4
         pdb = app.PDBFile('tests/data/water_dimer.pdb')
         positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
@@ -143,3 +145,29 @@ class TestADMPAPI:
         energy = pot(positions, box, pairs, paramset2)
         print(energy)
         np.testing.assert_almost_equal(energy, -31.65932348, decimal=2)
+
+    def test_ADMPPmeForce_octupole(self, pot_prm):
+        potential, potential_aux, potential1, potential2, potential3, paramset, paramset1, paramset2, paramset3 = pot_prm
+        rc = 0.4
+        pdb = app.PDBFile('tests/data/water_dimer.pdb')
+        positions = pdb.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
+        positions = jnp.array(positions)
+        a, b, c = pdb.topology.getPeriodicBoxVectors().value_in_unit(unit.nanometer)
+        box = jnp.array([a, b, c])
+        # neighbor list
+        
+        covalent_map = potential3.meta["cov_map"]
+
+        nblist = NeighborList(box, rc, covalent_map)
+        nblist.allocate(positions)
+        pairs = nblist.pairs
+        pot = potential3.getPotentialFunc(names=["ADMPPmeForce"])
+
+        aux = dict()
+        U_ind = jnp.zeros((6, 3))
+        aux["U_ind"] = U_ind
+        
+        energy_and_aux = pot(positions, box, pairs, paramset3, aux)
+        energy = energy_and_aux[0]
+        print("Octupole Included Energy: ", energy)
+        np.testing.assert_almost_equal(energy, -36.32748562120901, decimal=1)

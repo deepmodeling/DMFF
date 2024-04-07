@@ -1,0 +1,359 @@
+<ForceField>
+ <AtomTypes>
+  <Type name="47" class="ND2A2" element="N" mass="14.007000"/>
+  <Type name="48" class="HDP1A" element="H" mass="1.008000"/>
+  <Type name="49" class="CD31C" element="C" mass="12.011000"/>
+  <Type name="50" class="HDA1A" element="H" mass="1.008000"/>
+  <Type name="51" class="CD2O1A" element="C" mass="12.011000"/>
+  <Type name="52" class="OD2C1A" element="O" mass="15.999400"/>
+  <Type name="53" class="CD33A" element="C" mass="12.011000"/>
+  <Type name="54" class="HDA3A" element="H" mass="1.008000"/>
+  <Type name="55" class="HDA3A" element="H" mass="1.008000"/>
+  <Type name="56" class="HDA3A" element="H" mass="1.008000"/>
+  <Type name="411" class="ND3P3A" element="N" mass="14.007000"/>
+  <Type name="412" class="HDP1B" element="H" mass="1.008000"/>
+  <Type name="413" class="HDP1B" element="H" mass="1.008000"/>
+  <Type name="414" class="HDP1B" element="H" mass="1.008000"/>
+  <Type name="415" class="CD31C" element="C" mass="12.011000"/>
+  <Type name="416" class="HDA1C" element="H" mass="1.008000"/>
+  <Type name="417" class="CD2O1A" element="C" mass="12.011000"/>
+  <Type name="418" class="OD2C1A" element="O" mass="15.999400"/>
+  <Type name="419" class="CD33A" element="C" mass="12.011000"/>
+  <Type name="420" class="HDA3A" element="H" mass="1.008000"/>
+  <Type name="421" class="HDA3A" element="H" mass="1.008000"/>
+  <Type name="422" class="HDA3A" element="H" mass="1.008000"/>
+  <Type name="830" class="ND2A2" element="N" mass="14.007000"/>
+  <Type name="831" class="HDP1A" element="H" mass="1.008000"/>
+  <Type name="832" class="CD31C" element="C" mass="12.011000"/>
+  <Type name="833" class="HDA1A" element="H" mass="1.008000"/>
+  <Type name="834" class="CD2O3A" element="C" mass="12.011000"/>
+  <Type name="835" class="OD2C3A" element="O" mass="15.999400"/>
+  <Type name="836" class="OD31F" element="O" mass="15.999000"/>
+  <Type name="837" class="HDP1A" element="H" mass="1.008000"/>
+  <Type name="838" class="CD33A" element="C" mass="12.011000"/>
+  <Type name="839" class="HDA3A" element="H" mass="1.008000"/>
+  <Type name="840" class="HDA3A" element="H" mass="1.008000"/>
+  <Type name="841" class="HDA3A" element="H" mass="1.008000"/>
+ </AtomTypes>
+ <Residues>
+  <Residue name="ALA">
+   <Atom name="N" type="47"/>
+   <Atom name="HN" type="48"/>
+   <Atom name="CA" type="49"/>
+   <Atom name="HA" type="50"/>
+   <Atom name="C" type="51"/>
+   <Atom name="O" type="52"/>
+   <Atom name="CB" type="53"/>
+   <Atom name="HB1" type="54"/>
+   <Atom name="HB2" type="55"/>
+   <Atom name="HB3" type="56"/>
+   <Bond from="0" to="2"/>
+   <Bond from="2" to="4"/>
+   <Bond from="2" to="3"/>
+   <Bond from="0" to="1"/>
+   <Bond from="4" to="5"/>
+   <Bond from="2" to="6"/>
+   <Bond from="6" to="7"/>
+   <Bond from="6" to="8"/>
+   <Bond from="6" to="9"/>
+   <ExternalBond atomName="N"/>
+   <ExternalBond atomName="C"/>
+  </Residue>
+  <Residue name="NALA">
+   <Atom name="N" type="411"/>
+   <Atom name="HT1" type="412"/>
+   <Atom name="HT2" type="413"/>
+   <Atom name="HT3" type="414"/>
+   <Atom name="CA" type="415"/>
+   <Atom name="HA" type="416"/>
+   <Atom name="C" type="417"/>
+   <Atom name="O" type="418"/>
+   <Atom name="CB" type="419"/>
+   <Atom name="HB1" type="420"/>
+   <Atom name="HB2" type="421"/>
+   <Atom name="HB3" type="422"/>
+   <Bond from="0" to="1"/>
+   <Bond from="0" to="2"/>
+   <Bond from="0" to="3"/>
+   <Bond from="0" to="4"/>
+   <Bond from="4" to="6"/>
+   <Bond from="4" to="5"/>
+   <Bond from="6" to="7"/>
+   <Bond from="4" to="8"/>
+   <Bond from="8" to="9"/>
+   <Bond from="8" to="10"/>
+   <Bond from="8" to="11"/>
+   <ExternalBond atomName="C"/>
+  </Residue>
+  <Residue name="UALA">
+   <Atom name="N" type="830"/>
+   <Atom name="HN" type="831"/>
+   <Atom name="CA" type="832"/>
+   <Atom name="HA" type="833"/>
+   <Atom name="C" type="834"/>
+   <Atom name="OT1" type="835"/>
+   <Atom name="OT2" type="836"/>
+   <Atom name="HT" type="837"/>
+   <Atom name="CB" type="838"/>
+   <Atom name="HB1" type="839"/>
+   <Atom name="HB2" type="840"/>
+   <Atom name="HB3" type="841"/>
+   <Bond from="4" to="5"/>
+   <Bond from="4" to="6"/>
+   <Bond from="6" to="7"/>
+   <Bond from="0" to="2"/>
+   <Bond from="2" to="4"/>
+   <Bond from="2" to="3"/>
+   <Bond from="0" to="1"/>
+   <Bond from="2" to="8"/>
+   <Bond from="8" to="9"/>
+   <Bond from="8" to="10"/>
+   <Bond from="8" to="11"/>
+   <ExternalBond atomName="N"/>
+  </Residue>
+ </Residues>
+
+<ADMPPmeForce   lmax="3"
+     mScale12="0.00" mScale13="0.00" mScale14="1.00" mScale15="1.00" mScale16="1.00" 
+     pScale12="0.00" pScale13="0.00" pScale14="1.00" pScale15="1.00" pScale16="1.00" 
+     dScale12="1.00" dScale13="1.00" dScale14="1.00" dScale15="1.00" dScale16="1.00">
+  <Atom type="47"    
+            c0="-0.406" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="48"    
+            c0="0.296" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="49"    
+            c0="0.17" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="50"    
+            c0="-0.017" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="51"    
+            c0="0.495" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="52" kz="51" kx="49"
+            c0="-0.538" 
+            dX="-0.0025194126901" dY="-0"  dZ="0.00028152227497" 
+            qXX="-0.000161324429272" qXY="0" qYY="8.07042189139e-05" qXZ="6.62734159482e-07" qYZ="0" qZZ="8.06295446424e-05" 
+            oXXX="-1.51049613913e-07" oXXY="-0" oXYY="7.55742018598e-08" oYYY="0" oXXZ="3.37861137726e-08" oXYZ="-0" oYYZ="-8.49592334633e-09" oXZZ="7.54754120535e-08" oYZZ="0" oZZZ="-2.52901904263e-08" 
+            />
+  <Atom type="53"    
+            c0="-0.099" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="54"    
+            c0="0.033" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="55"    
+            c0="0.033" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="56"    
+            c0="0.033" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="411"    
+            c0="-0.349" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="412"    
+            c0="0.34" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="413"    
+            c0="0.34" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="414"    
+            c0="0.34" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="415"    
+            c0="0.389" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="416"    
+            c0="-0.017" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="417"    
+            c0="0.495" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="418" kz="417" kx="415"
+            c0="-0.538" 
+            dX="-0.0025194126901" dY="-0"  dZ="0.00028152227497" 
+            qXX="-0.000161324429272" qXY="0" qYY="8.07042189139e-05" qXZ="6.62734159482e-07" qYZ="0" qZZ="8.06295446424e-05" 
+            oXXX="-1.51049613913e-07" oXXY="-0" oXYY="7.55742018598e-08" oYYY="0" oXXZ="3.37861137726e-08" oXYZ="-0" oYYZ="-8.49592334633e-09" oXZZ="7.54754120535e-08" oYZZ="0" oZZZ="-2.52901904263e-08" 
+            />
+  <Atom type="419"    
+            c0="-0.099" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="420"    
+            c0="0.033" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="421"    
+            c0="0.033" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="422"    
+            c0="0.033" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="830"    
+            c0="-0.406" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="831"    
+            c0="0.296" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="832"    
+            c0="0.103" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="833"    
+            c0="-0.017" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="834"    
+            c0="0.858" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="835" kz="834" kx="836"
+            c0="-0.638" 
+            dX="0" dY="-0"  dZ="0.00033391081862" 
+            qXX="-0.00019131548356" qXY="0" qYY="9.57044131996e-05" qXZ="0" qYZ="0" qZZ="9.56110703602e-05" 
+            oXXX="0" oXXY="-0" oXYY="0" oYYY="0" oXXZ="4.01086613792e-08" oXYZ="-0" oYYZ="-9.97777044162e-09" oXZZ="0" oYZZ="0" oZZZ="-3.00321011312e-08" 
+            />
+  <Atom type="836" kz="834" kx="837"
+            c0="-0.57" 
+            dX="0.000325443983283" dY="0"  dZ="0.00711690427833" 
+            qXX="0.000116286509279" qXY="-0" qYY="-0.000188225835577" qXZ="-2.03487389813e-06" qYZ="0" qZZ="7.19486605815e-05" 
+            oXXX="-3.98122919601e-08" oXXY="0" oXYY="4.46529924714e-08" oYYY="0" oXXZ="-2.90244451064e-07" oXYZ="0" oYYZ="9.77129974635e-07" oXZZ="-4.84070051128e-09" oYZZ="0" oZZZ="-6.8688552357e-07" 
+            />
+  <Atom type="837"    
+            c0="0.374" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="838"    
+            c0="-0.099" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="839"    
+            c0="0.033" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="840"    
+            c0="0.033" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Atom type="841"    
+            c0="0.033" 
+            dX="0" dY="0"  dZ="0" 
+            qXX="0" qXY="0" qYY="0" qXZ="0" qYZ="0" qZZ="0" 
+            oXXX="0" oXXY="0" oXYY="0" oYYY="0" oXXZ="0" oXYZ="0" oYYZ="0" oXZZ="0" oYZZ="0" oZZZ="0" 
+            />
+  <Polarize type="47" polarizabilityXX="0.001858" polarizabilityYY="0.001858" polarizabilityZZ="0.001858" thole="0.126" />
+  <Polarize type="48" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="49" polarizabilityXX="0.001066" polarizabilityYY="0.001066" polarizabilityZZ="0.001066" thole="1.141" />
+  <Polarize type="50" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="51" polarizabilityXX="0.000619" polarizabilityYY="0.000619" polarizabilityZZ="0.000619" thole="0.317" />
+  <Polarize type="52" polarizabilityXX="0.00059837334" polarizabilityYY="0.00059837334" polarizabilityZZ="0.00059837334" thole="0.37" />
+  <Polarize type="53" polarizabilityXX="0.001804" polarizabilityYY="0.001804" polarizabilityZZ="0.001804" thole="2.08" />
+  <Polarize type="54" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="55" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="56" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="411" polarizabilityXX="0.001298" polarizabilityYY="0.001298" polarizabilityZZ="0.001298" thole="0.895" />
+  <Polarize type="412" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="413" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="414" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="415" polarizabilityXX="0.001066" polarizabilityYY="0.001066" polarizabilityZZ="0.001066" thole="1.141" />
+  <Polarize type="416" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="417" polarizabilityXX="0.000619" polarizabilityYY="0.000619" polarizabilityZZ="0.000619" thole="0.317" />
+  <Polarize type="418" polarizabilityXX="0.00059837334" polarizabilityYY="0.00059837334" polarizabilityZZ="0.00059837334" thole="0.37" />
+  <Polarize type="419" polarizabilityXX="0.001804" polarizabilityYY="0.001804" polarizabilityZZ="0.001804" thole="2.08" />
+  <Polarize type="420" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="421" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="422" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="830" polarizabilityXX="0.001858" polarizabilityYY="0.001858" polarizabilityZZ="0.001858" thole="0.126" />
+  <Polarize type="831" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="832" polarizabilityXX="0.001066" polarizabilityYY="0.001066" polarizabilityZZ="0.001066" thole="1.141" />
+  <Polarize type="833" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="834" polarizabilityXX="0.001207" polarizabilityYY="0.001207" polarizabilityZZ="0.001207" thole="0.708" />
+  <Polarize type="835" polarizabilityXX="0.0009992636" polarizabilityYY="0.0009992636" polarizabilityZZ="0.0009992636" thole="1.539" />
+  <Polarize type="836" polarizabilityXX="0.00124544" polarizabilityYY="0.00124544" polarizabilityZZ="0.00124544" thole="1.124" />
+  <Polarize type="837" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="838" polarizabilityXX="0.001804" polarizabilityYY="0.001804" polarizabilityZZ="0.001804" thole="2.08" />
+  <Polarize type="839" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="840" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+  <Polarize type="841" polarizabilityXX="0" polarizabilityYY="0" polarizabilityZZ="0" thole="0" />
+ </ADMPPmeForce>
+</ForceField>
