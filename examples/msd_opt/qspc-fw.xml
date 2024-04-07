@@ -1,0 +1,26 @@
+<ForceField>
+ <AtomTypes>
+  <Type name="qspc-fw-O" class="qspc-fw-O" element="O" mass="15.99943"/>
+  <Type name="qspc-fw-H" class="qspc-fw-H" element="H" mass="1.007947"/>
+ </AtomTypes>
+ <Residues>
+  <Residue name="HOH">
+   <Atom name="O" type="qspc-fw-O"/>
+   <Atom name="H1" type="qspc-fw-H"/>
+   <Atom name="H2" type="qspc-fw-H"/>
+   <Bond from="0" to="1"/>
+   <Bond from="0" to="2"/>
+  </Residue>
+ </Residues>
+ <HarmonicBondForce>
+   <Bond k="443153.3808" length="0.1" class1="qspc-fw-O" class2="qspc-fw-H"/>
+ </HarmonicBondForce>
+ <HarmonicAngleForce>
+  <Angle class1="qspc-fw-H" class2="qspc-fw-O" class3="qspc-fw-H" angle="1.9547687622336491" k="317.5656"/>
+ </HarmonicAngleForce>
+ <NonbondedForce coulomb14scale="0.833333" lj14scale="0.5">
+  <Atom type="qspc-fw-O" charge="-0.84" sigma="0.3465492" epsilon="0.6502990368"/>
+  <Atom type="qspc-fw-H" charge="0.42" sigma="1" epsilon="0"/>
+ </NonbondedForce>
+</ForceField>
+
