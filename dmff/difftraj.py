@@ -229,7 +229,6 @@ class Loss_Generator:
             x, y = primals
             x_dot, y_dot = tangents
             final_state, traj = self.ode_fwd(x, y)
-            metadata.append(traj)
             if has_aux == True:
                 (primal_out, aux_data), gradient_traj = value_and_grad(L, has_aux=True)(traj['state'])
                 metadata.append({'traj':traj, 'aux_data':aux_data})
