@@ -1,0 +1,44 @@
+<!-- Note that the atom types "name" are numeric - this is because of how AMOEBA/MPID assign anchor atoms -->
+<ForceField>
+
+ <AtomTypes>
+  <Type name="380" class="OW" element="O" mass="15.999"/>
+  <Type name="381" class="HW" element="H" mass="1.008"/>
+ </AtomTypes>
+ <Residues>
+  <Residue name="HOH">
+   <Atom name="H1" type="381"/>
+   <Atom name="H2" type="381"/>
+   <Atom name="O" type="380"/>
+   <Bond from="0" to="2"/>
+   <Bond from="1" to="2"/>
+ </Residue>
+ </Residues>
+
+ <ADMPDispForce mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00">
+   <Atom type="380" A="1203470.743" B="37.81265679" Q="-0.741706" C6="0.001383816" C8="7.27065e-05" C10="1.8076465e-6"/>
+   <Atom type="381" A="83.2283563" B="37.78544799"  Q="0.370853" C6="5.7929e-05" C8="1.416624e-06" C10="2.26525e-08"/>
+ </ADMPDispForce>
+
+ <ADMPPmeForce lmax="3" mScale12="0.00" mScale13="0.00" mScale14="0.00" mScale15="1.00" mScale16="1.00" pScale12="0.00" pScale13="0.00" pScale14="0.00" pScale15="1.00" pScale16="1.00" dScale12="0.00" dScale13="0.00" dScale14="0.00" dScale15="1.00" dScale16="1.00">
+   <Atom type="380" kz="-381" kx="-381"
+             c0="-1.0614"
+             dX="0.0" dY="0.0"  dZ="-0.023671684"
+             qXX="0.000150963" qXY="0.0" qYY="0.00008707" qXZ="0.0" qYZ="0.0" qZZ="-0.000238034"
+             oXXX="0.0" oXXY="0.0" oXYY="0.0" oYYY="0.0" oXXZ="0.000000426" oXYZ="0.0" oYYZ="0.000000853" oXZZ="0.0" oYZZ="0.0" oZZZ="-0.000001279"
+             />
+   <Atom type="381" kz="380" kx="381"
+             c0="0.5307"
+             dX="0.0" dY="0.0"  dZ="0.0"
+             qXX="0.0" qXY="0.0" qYY="0.0" qXZ="0.0" qYZ="0.0" qZZ="0.0"
+             oXXX="0.0" oXXY="0.0" oXYY="0.0" oYYY="0.0" oXXZ="0.0" oXYZ="0.0" oYYZ="0.0" oXZZ="0.0" oYZZ="0.0" oZZZ="0.0"
+             /> 
+  <Polarize type="380" polarizabilityXX="0.00088" polarizabilityYY="0.00088" polarizabilityZZ="0.00088" thole="8.0"/>
+   <Polarize type="381" polarizabilityXX="0.000" polarizabilityYY="0.000" polarizabilityZZ="0.000" thole="0.0"/>
+ </ADMPPmeForce>
+
+</ForceField>
+
+<!--  Dump unwanted parameters here!
+  <Atom type="380" charge="-0.0" sigma="0.31983264" epsilon="0.677808"/>
+-->

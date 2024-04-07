@@ -176,6 +176,37 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                 return jnp.sum(jnp.stack([condition * output for condition, output in zip(conditions, outputs)]),
                                axis=0)
         
+        def bspline_prime3(u, order=6):
+            """
+            Computes second derivative of the cardinal B-spline function
+            """
+            if order == 6:
+
+                u2 = u ** 2
+                u_less_1 = u - 1
+                # u_less_2 = u - 2
+
+                conditions = [
+                    jnp.logical_and(u >= 0., u < 1.),
+                    jnp.logical_and(u >= 1., u < 2.),
+                    jnp.logical_and(u >= 2., u < 3.),
+                    jnp.logical_and(u >= 3., u < 4.),
+                    jnp.logical_and(u >= 4., u < 5.),
+                    jnp.logical_and(u >= 5., u < 6.)
+                ]
+
+                outputs = [
+                    u2 / 2,
+                    u2 / 2 - 3 * (u_less_1) ** 2,
+                    5 * u2 - 24 * u + 27,
+                    -5 * u2 + 36 * u - 63,
+                    5 * u2 / 2 - 24 * u + 57,
+                    -u2 / 2 + 6 * u - 18
+                ]
+
+                return jnp.sum(jnp.stack([condition * output for condition, output in zip(conditions, outputs)]),
+                               axis=0)
+        
         def theta_eval(u, M_u):
             """
             Evaluates the value of theta given 3D u values at ... points 
@@ -249,6 +280,72 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             # Notice that u = m_u0 - R_in_m_basis + 6/2
             # therefore the Jacobian du_j/dx_i = - Nj_Aji_star
             return jnp.einsum("im,jn,kmn->kij", -Nj_Aji_star, -Nj_Aji_star, div)
+        
+        def theta3prime_eval(u, Nj_Aji_star, M_u, Mprime_u, M2prime_u, M3prime_u):
+            """
+            compute the 3 x 3 x 3 third derivatives of theta with respect to xyz
+            
+            Input:
+                u
+                Nj_Aji_star
+                M_u
+                Mprime_u
+                M2prime_u
+                M3prime_u
+            Output:
+                N_A * 3 * 3 * 3
+            """
+
+            div_000 = M3prime_u[:, 0] * M_u[:, 1] * M_u[:, 2]
+            div_001 = M2prime_u[:, 0] * Mprime_u[:, 1] * M_u[:, 2]
+            div_002 = M2prime_u[:, 0] * M_u[:, 1] * Mprime_u[:, 2]
+            div_010 = div_001
+            div_011 = Mprime_u[:, 0] * M2prime_u[:, 1] * M_u[:, 2]
+            div_012 = Mprime_u[:, 0] * Mprime_u[:, 1] * Mprime_u[:, 2]
+            div_020 = div_002
+            div_021 = div_012
+            div_022 = Mprime_u[:, 0] * M_u[:, 1] * M2prime_u[:, 2]
+            
+            div_100 = div_010
+            div_101 = div_011
+            div_102 = div_012
+            div_110 = div_101
+            div_111 = M_u[:, 0] * M3prime_u[:, 1] * M_u[:, 2]
+            div_112 = M_u[:, 0] * M2prime_u[:, 1] * Mprime_u[:, 2]
+            div_120 = div_102
+            div_121 = div_112
+            div_122 = M_u[:, 0] * Mprime_u[:, 1] * M2prime_u[:, 2]
+            
+            div_200 = div_020
+            div_201 = div_021
+            div_202 = div_022
+            div_210 = div_012
+            div_211 = div_121
+            div_212 = div_122
+            div_220 = div_022
+            div_221 = div_122
+            div_222 = M_u[:, 0] * M_u[:, 1] * M3prime_u[:, 2]
+            
+            div = jnp.array([
+                                [
+                                    [div_000, div_001, div_002], 
+                                    [div_010, div_011, div_012], 
+                                    [div_020, div_021, div_022]
+                                ], 
+                                [
+                                    [div_100, div_101, div_102], 
+                                    [div_110, div_111, div_112], 
+                                    [div_120, div_121, div_122]
+                                ], 
+                                [
+                                    [div_200, div_201, div_202],
+                                    [div_210, div_211, div_212],
+                                    [div_220, div_221, div_222]
+                                ]
+                            ]
+                ).swapaxes(0, 3).swapaxes(1, 2).swapaxes(2, 3)
+            
+            return jnp.einsum("im,jn,ko,amno->aijk", -Nj_Aji_star, -Nj_Aji_star, -Nj_Aji_star, div)
 
 
         def sph_harmonics_GO(u0, Nj_Aji_star):
@@ -310,8 +407,32 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             )
             if lmax == 2:
                 return harmonics_2.reshape(N_a, n_mesh, n_harm)
-            else:
-                raise NotImplementedError('l > 2 (beyond quadrupole) not supported')
+            #else:
+            #    raise NotImplementedError('l > 2 (beyond quadrupole) not supported')
+            
+            # Octupole
+            M3prime_u = bspline_prime3(u)
+            theta3prime = theta3prime_eval(u, Nj_Aji_star, M_u, Mprime_u, M2prime_u, M3prime_u)
+            rt6 = jnp.sqrt(6)
+            rt15 = jnp.sqrt(15)
+            rt10 = jnp.sqrt(10)
+            
+            harmonics_3 = jnp.hstack(
+                [harmonics_2,
+                jnp.stack([
+                    (5 * theta3prime[:, 2, 2, 2] - 3 * jnp.trace(theta3prime[:, 2], axis1 = 1, axis2 = 2)) / 2, 
+                    rt6 * (5 * theta3prime[:, 0, 2, 2] - jnp.trace(theta3prime[:, 0], axis1 = 1, axis2 = 2)) / 4,
+                    rt6 * (5 * theta3prime[:, 1, 2, 2] - jnp.trace(theta3prime[:, 1], axis1 = 1, axis2 = 2)) / 4,
+                    rt15 * (theta3prime[:, 2, 0, 0] - theta3prime[:, 2, 1, 1]) / 2,
+                    rt15 * theta3prime[:, 0, 1, 2],
+                    rt10 * (theta3prime[:, 0, 0, 0] - 3 * theta3prime[:, 0, 1, 1]) / 4,
+                    rt10 * (3 * theta3prime[:, 0, 0, 1] - theta3prime[:, 1, 1, 1]) / 4
+                    ], axis=1)
+                ]
+            )
+            
+            if lmax == 3:
+                return harmonics_3.reshape(N_a, n_mesh, n_harm)
         
         
         def Q_m_peratom(Q, sph_harms):
@@ -333,8 +454,8 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
             
             N_a = sph_harms.shape[0]
             
-            if lmax > 2:
-                raise NotImplementedError('l > 2 (beyond quadrupole) not supported')
+            if lmax > 3:
+                raise NotImplementedError('l > 3 (beyond octupole) not supported')
             
             Q_dbf = Q[:, 0:1]
 
@@ -342,6 +463,8 @@ def generate_pme_recip(Ck_fn, kappa, gamma, pme_order, K1, K2, K3, lmax):
                 Q_dbf = jnp.hstack([Q_dbf, Q[:,1:4]])
             if lmax >= 2:
                 Q_dbf = jnp.hstack([Q_dbf, Q[:,4:9]/3])
+            if lmax >= 3:
+                Q_dbf = jnp.hstack([Q_dbf, Q[:,9:16]/15])
            
             Q_m_pera = jnp.sum(Q_dbf[:,jnp.newaxis,:]* sph_harms, axis=2)
                                                                                                  
