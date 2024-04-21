@@ -35,3 +35,4 @@ jobs:
           pytest -vs tests/test_utils.py
           pytest -vs tests/test_mbar/test_* 
           pytest -vs tests/test_sgnn/test_*
+          pytest -vs tests/test_difftraj/test_*
