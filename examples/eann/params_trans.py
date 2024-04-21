@@ -42,5 +42,5 @@ def transfer_params_to_jax(input_path, output_path):
 
 # Usage:
 input_path = "EANN.pth"
-output_path = "params_eann_no_list.pickle"
+output_path = "eann_model.pickle"
 transfer_params_to_jax(input_path, output_path)
