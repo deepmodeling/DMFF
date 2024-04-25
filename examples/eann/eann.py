@@ -292,6 +292,9 @@ class EANNForce:
             dr = pbc_shift(dr, box, box_inv)
 
             dr_norm = jnp.linalg.norm(dr, axis=1)
+            buffer_scales2 = jnp.piecewise(buffer_scales, (dr_norm <= self.rc, dr_norm > self.rc),
+                              (lambda x: jnp.array(1), lambda x: jnp.array(0)))
+            buffer_scales = buffer_scales2 * buffer_scales
             self.rs = params['density.rs']
             self.inta = params['density.inta']
 
@@ -344,7 +347,7 @@ def validation():
     # params = eann_force.params
     # E = eann_force.get_energy(pos*10, box*10, pairs, params)
     # print(E)
-    with open('params_eann_no_list.pickle', 'rb') as f:
+    with open('eann_model.pickle', 'rb') as f:
         params = pickle.load(f)
     E = eann_force.get_energy(pos*10, box*10, pairs, params)
     print(E)
