@@ -351,6 +351,22 @@ class ADMPQeqForce:
             g = jnp.concatenate((g1, g2))
             return g
 
+        hess_E_charge = jax.jacfwd(jax.jacrev(E_full))
+
+        @jit_condition()
+        def E_hess(
+            b_value, chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
+        ):
+            n_const = len(self.const_vals)
+            q = b_value[:-n_const]
+            lagmt = b_value[-n_const:]
+            h_q = hess_E_charge(
+                q, lagmt, chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
+            )
+            hess = jnp.pad(h_q, (0, 1), constant_values=1.0)
+            hess = hess.at[-1, -1].set(0.0)
+            return hess
+
         def get_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
             pos = positions
             ds = ds_pairs(pos, box, pairs, self.pbc_flag)
@@ -376,6 +392,30 @@ class ADMPQeqForce:
                     buffer_scales,
                     mscales,
                 )
+                b_0 = jax.lax.stop_gradient(b_0)
+                return b_0
+
+            def get_energy_mat_inv(chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales):
+                if self.has_aux:
+                    b_value = jnp.concatenate((aux["q"], aux["lagmt"]))
+                else:
+                    b_value = jnp.concatenate([self.init_q, self.init_lagmt])
+                hessian = E_hess(
+                    b_value,
+                    chi,
+                    J,
+                    positions,
+                    box,
+                    pairs,
+                    eta,
+                    ds,
+                    buffer_scales,
+                    mscales,
+                )
+                vector = jnp.concatenate([-chi * 4.184, self.const_vals])
+                # # E_site2
+                # vector = torch.concat([-chi / KJ2EV, self.const_vals])
+                b_0 = jnp.linalg.solve(hessian, vector.reshape(-1, 1)).reshape(-1)
                 b_0 = jax.lax.stop_gradient(b_0)
                 return b_0
             
