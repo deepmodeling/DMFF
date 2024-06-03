@@ -212,6 +212,7 @@ class ADMPQeqForce:
         constQ: bool = True,
         pbc_flag: bool = True,
         has_aux=False,
+        method="root_finding",
     ):
         self.has_aux = has_aux
         const_vals = np.array(const_vals)
@@ -231,6 +232,7 @@ class ADMPQeqForce:
         self.slab_flag = slab_flag
         self.constQ = constQ
         self.pbc_flag = pbc_flag
+        self.method = method
 
         if constQ:
             e_constraint = E_constQ
@@ -354,31 +356,36 @@ class ADMPQeqForce:
             ds = ds_pairs(pos, box, pairs, self.pbc_flag)
             buffer_scales = pair_buffer_scales(pairs)
 
-            n_const = len(self.init_lagmt)
-            if self.has_aux:
-                b_value = jnp.concatenate((aux["q"], aux["lagmt"]))
-            else:
-                b_value = jnp.concatenate([self.init_q, self.init_lagmt])
-            # if JAXOPT_OLD:
-            if True:
+            def get_energy_root_finding(chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales):
+                if self.has_aux:
+                    b_value = jnp.concatenate((aux["q"], aux["lagmt"]))
+                else:
+                    b_value = jnp.concatenate([self.init_q, self.init_lagmt])
                 rf = jaxopt.ScipyRootFinding(
                     optimality_fun=E_grads, method="hybr", jit=False, tol=1e-10
                 )
-            else:
-                rf = jaxopt.Broyden(fun=E_grads, tol=1e-10)
-            b_0, _ = rf.run(
-                b_value,
-                chi,
-                J,
-                positions,
-                box,
-                pairs,
-                eta,
-                ds,
-                buffer_scales,
-                mscales,
+                b_0, _ = rf.run(
+                    b_value,
+                    chi,
+                    J,
+                    positions,
+                    box,
+                    pairs,
+                    eta,
+                    ds,
+                    buffer_scales,
+                    mscales,
+                )
+                b_0 = jax.lax.stop_gradient(b_0)
+                return b_0
+            
+            opt_func = locals().get("get_energy_%s" % self.method)
+            if opt_func is None:
+                raise ValueError(f"method {self.method} is not supported")
+            b_0 = opt_func(
+                chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
             )
-            b_0 = jax.lax.stop_gradient(b_0)
+            n_const = len(self.init_lagmt)
             q_0 = b_0[:-n_const]
             lagmt_0 = b_0[-n_const:]
 

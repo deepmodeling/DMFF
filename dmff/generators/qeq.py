@@ -176,6 +176,8 @@ class ADMPQeqGenerator:
         if "has_aux" in kwargs:
             has_aux = kwargs["has_aux"]
 
+        method = kwargs.get("method", "root_finding")
+        
         qeq_force = ADMPQeqForce(
             init_q,
             r_cut,
@@ -189,6 +191,7 @@ class ADMPQeqGenerator:
             constQ=constQ,
             pbc_flag=(not isNoCut),
             has_aux=has_aux,
+            method=method,
         )
         qeq_energy = qeq_force.generate_get_energy()
 
