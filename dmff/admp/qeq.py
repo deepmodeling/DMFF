@@ -367,12 +367,29 @@ class ADMPQeqForce:
             hess = hess.at[-1, -1].set(0.0)
             return hess
 
+        @jit_condition()
+        def E_no_constraint(
+            q, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales
+        ):
+            e2 = self.e_sr(pos * 10, box * 10, pairs, q, eta, ds * 10, buffer_scales)
+            e3 = self.e_site(chi, J, q)
+            e4 = self.coul_energy(pos, box, pairs, q, mscales)
+            if self.slab_flag:
+                e5 = E_corr(
+                    pos * 10.0, box * 10.0, pairs, q, self.kappa / 10, self.neutral_flag
+                )
+                return e2 + e3 + e4 + e5
+            else:
+                return e2 + e3 + e4
+
         def get_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
             pos = positions
             ds = ds_pairs(pos, box, pairs, self.pbc_flag)
             buffer_scales = pair_buffer_scales(pairs)
 
-            def get_energy_root_finding(chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales):
+            def get_energy_root_finding(
+                chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
+            ):
                 if self.has_aux:
                     b_value = jnp.concatenate((aux["q"], aux["lagmt"]))
                 else:
@@ -393,9 +410,34 @@ class ADMPQeqForce:
                     mscales,
                 )
                 b_0 = jax.lax.stop_gradient(b_0)
-                return b_0
+                # return b_0
+                n_const = len(self.init_lagmt)
+                q_0 = b_0[:-n_const]
+                lagmt_0 = b_0[-n_const:]
 
-            def get_energy_mat_inv(chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales):
+                energy = E_full(
+                    q_0,
+                    lagmt_0,
+                    chi,
+                    J,
+                    positions,
+                    box,
+                    pairs,
+                    eta,
+                    ds,
+                    buffer_scales,
+                    mscales,
+                )
+                if self.has_aux:
+                    aux["q"] = q_0
+                    aux["lagmt"] = lagmt_0
+                    return energy, aux
+                else:
+                    return energy
+
+            def get_energy_mat_inv(
+                chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
+            ):
                 if self.has_aux:
                     b_value = jnp.concatenate((aux["q"], aux["lagmt"]))
                 else:
@@ -417,36 +459,81 @@ class ADMPQeqForce:
                 # vector = torch.concat([-chi / KJ2EV, self.const_vals])
                 b_0 = jnp.linalg.solve(hessian, vector.reshape(-1, 1)).reshape(-1)
                 b_0 = jax.lax.stop_gradient(b_0)
-                return b_0
-            
+
+                n_const = len(self.init_lagmt)
+                q_0 = b_0[:-n_const]
+                lagmt_0 = b_0[-n_const:]
+
+                energy = E_full(
+                    q_0,
+                    lagmt_0,
+                    chi,
+                    J,
+                    positions,
+                    box,
+                    pairs,
+                    eta,
+                    ds,
+                    buffer_scales,
+                    mscales,
+                )
+                if self.has_aux:
+                    aux["q"] = q_0
+                    aux["lagmt"] = lagmt_0
+                    return energy, aux
+                else:
+                    return energy
+
+            def get_energy_pgrad(
+                chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
+            ):
+                if self.has_aux:
+                    init_q = aux["q"]
+                else:
+                    init_q = self.init_q
+                pg = jaxopt.ProjectedGradient(
+                    fun=E_no_constraint,
+                    projection=jaxopt.projection.projection_hyperplane,
+                    tol=1e-2,
+                )
+                q_0, _ = pg.run(
+                    init_q,
+                    hyperparams_proj=(jnp.ones_like(init_q), 0.0),
+                    chi=chi,
+                    J=J,
+                    pos=positions,
+                    box=box,
+                    pairs=pairs,
+                    eta=eta,
+                    ds=ds,
+                    buffer_scales=buffer_scales,
+                    mscales=mscales,
+                )
+                q_0 = jax.lax.stop_gradient(q_0)
+
+                energy = E_no_constraint(
+                    q_0,
+                    chi,
+                    J,
+                    positions,
+                    box,
+                    pairs,
+                    eta,
+                    ds,
+                    buffer_scales,
+                    mscales,
+                )
+                if self.has_aux:
+                    aux["q"] = q_0
+                    return energy, aux
+                else:
+                    return energy
+
             opt_func = locals().get("get_energy_%s" % self.method)
             if opt_func is None:
                 raise ValueError(f"method {self.method} is not supported")
-            b_0 = opt_func(
+            return opt_func(
                 chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
             )
-            n_const = len(self.init_lagmt)
-            q_0 = b_0[:-n_const]
-            lagmt_0 = b_0[-n_const:]
-
-            energy = E_full(
-                q_0,
-                lagmt_0,
-                chi,
-                J,
-                positions,
-                box,
-                pairs,
-                eta,
-                ds,
-                buffer_scales,
-                mscales,
-            )
-            if self.has_aux:
-                aux["q"] = q_0
-                aux["lagmt"] = lagmt_0
-                return energy, aux
-            else:
-                return energy
 
         return get_energy
