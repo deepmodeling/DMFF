@@ -1,6 +1,7 @@
 import numpy as np
 import jax.numpy as jnp
-from ..common.constants import DIELECTRIC
+from scipy import constants
+from ..common.constants import DIELECTRIC, ENERGY_COEFF
 from jax import grad, vmap
 from ..classical.inter import CoulNoCutoffForce, CoulombPMEForce
 from typing import Tuple, List
@@ -126,13 +127,13 @@ def E_site(chi, J, q):
 
 @jit_condition()
 def E_site2(chi, J, q):
-    ene = (chi * q + 0.5 * J * q**2) * 96.4869
+    ene = (chi * q + 0.5 * J * q**2) * ENERGY_COEFF
     return jnp.sum(ene)
 
 
 @jit_condition()
 def E_site3(chi, J, q):
-    ene = chi * q * 4.184 + J * q**2 * DIELECTRIC * 2 * jnp.pi
+    ene = chi * q * constants.calorie + J * q**2 * DIELECTRIC * 2 * jnp.pi
     return jnp.sum(ene)
 
 
