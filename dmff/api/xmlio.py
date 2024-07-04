@@ -123,6 +123,8 @@ class XMLIO:
                 inner = {}
                 inner["name"] = child.tag
                 inner["attrib"] = child.attrib
+                if child.text is not None:
+                    inner["formula"] = child.text
                 ret["node"].append(inner)
         return ret
 
@@ -178,6 +180,8 @@ class XMLIO:
                 for node in force_info["node"]:
                     subnode = ET.SubElement(fnode, node["name"])
                     subnode.attrib = genStrDict(node["attrib"])
+                    if "formula" in node:
+                        subnode.text = node["formula"]
 
         tree = ET.ElementTree(root)
         xmlstr = minidom.parseString(ET.tostring(root)).toprettyxml(indent="   ")
