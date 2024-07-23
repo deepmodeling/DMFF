@@ -26,15 +26,17 @@ try:
     except ImportError:
         JAXOPT_OLD = True
         import warnings
+
         warnings.warn(
             "jaxopt is too old. The QEQ potential function cannot be jitted. Please update jaxopt to the latest version for speed concern."
         )
 except ImportError:
     import warnings
+
     warnings.warn("jaxopt not found, QEQ cannot be used.")
 import jax
 
-from jax.scipy.special import erf, erfc
+from jax.scipy.special import erfc
 
 from dmff.utils import jit_condition, regularize_pairs, pair_buffer_scales
 
@@ -198,6 +200,22 @@ def etainv_piecewise(eta):
 etainv_piecewise = jax.vmap(etainv_piecewise, in_axes=0)
 
 
+def fn_value_and_proj_grad(func, constraint_matrix, has_aux=False):
+    def value_and_proj_grad(*arg, **kwargs):
+        value, grad = jax.value_and_grad(func, has_aux=has_aux)(*arg, **kwargs)
+        # n * 1
+        a = jnp.matmul(constraint_matrix, grad.reshape(-1, 1))
+        # n * 1
+        b = jnp.sum(constraint_matrix * constraint_matrix, axis=1, keepdims=True)
+        # 1 * N
+        delta_grad = jnp.matmul((a / b).T, constraint_matrix)
+        # N
+        proj_grad = grad - delta_grad.reshape(-1)
+        return value, proj_grad
+
+    return value_and_proj_grad
+
+
 class ADMPQeqForce:
     def __init__(
         self,
@@ -214,6 +232,7 @@ class ADMPQeqForce:
         pbc_flag: bool = True,
         has_aux=False,
         method="root_finding",
+        pgrad_kwargs={},
     ):
         self.has_aux = has_aux
         const_vals = np.array(const_vals)
@@ -234,6 +253,7 @@ class ADMPQeqForce:
         self.constQ = constQ
         self.pbc_flag = pbc_flag
         self.method = method
+        self.pgrad_kwargs = pgrad_kwargs
 
         if constQ:
             e_constraint = E_constQ
@@ -294,7 +314,9 @@ class ADMPQeqForce:
         else:
 
             def get_coul_energy(dr_vec, chrgprod, box):
-                dr_norm = jnp.linalg.norm(dr_vec + 1e-64, axis=1) # add eta to avoid division by zero
+                dr_norm = jnp.linalg.norm(
+                    dr_vec + 1e-64, axis=1
+                )  # add eta to avoid division by zero
 
                 dr_inv = 1.0 / dr_norm
                 E = chrgprod * DIELECTRIC * 0.1 * dr_inv
@@ -488,18 +510,37 @@ class ADMPQeqForce:
             def get_energy_pgrad(
                 chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
             ):
-                if self.has_aux:
-                    init_q = aux["q"]
-                else:
-                    init_q = self.init_q
-                pg = jaxopt.ProjectedGradient(
-                    fun=E_no_constraint,
-                    projection=jaxopt.projection.projection_hyperplane,
-                    tol=1e-2,
+                # if self.has_aux:
+                #     init_q = aux["q"]
+                # else:
+                #     init_q = self.init_q
+                
+                init_q = jnp.zeros_like(self.init_q)
+                n_atoms = len(init_q)
+                
+                def const_matrix(n_atoms: int, indices):
+                    n_const = indices.shape[0]
+                    ref_ids = jnp.tile(jnp.arange(n_atoms).reshape(1, -1), [n_const, 1])
+                    mask = jnp.where(jnp.isin(ref_ids, indices), 1, 0)
+                    return mask
+
+                # build the constraint matrix based on the const_list
+                # one at the index of the const_list, and zero otherwise
+                # n_const * n_atoms
+                constraint_matrix = const_matrix(n_atoms, self.const_list)
+                func = fn_value_and_proj_grad(
+                    E_no_constraint,
+                    constraint_matrix,
                 )
-                q_0, _ = pg.run(
+                # tol in LBFGS: norm(grad)
+                solver = jaxopt.LBFGS(
+                    fun=func,
+                    value_and_grad=True,
+                    tol=1e-3 * n_atoms,
+                    **self.pgrad_kwargs,
+                )
+                res = solver.run(
                     init_q,
-                    hyperparams_proj=(jnp.ones_like(init_q), 0.0),
                     chi=chi,
                     J=J,
                     pos=positions,
@@ -510,8 +551,9 @@ class ADMPQeqForce:
                     buffer_scales=buffer_scales,
                     mscales=mscales,
                 )
+                q_0 = res.params
                 q_0 = jax.lax.stop_gradient(q_0)
-
+                
                 energy = E_no_constraint(
                     q_0,
                     chi,

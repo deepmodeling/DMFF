@@ -30,13 +30,20 @@ def test_qeq_energy():
 
     nblist = NeighborList(box, 0.6, dmfftop.buildCovMat())
     pairs = nblist.allocate(pos)
-
-    pot = hamilt.createPotential(dmfftop, nonbondedCutoff=0.6*unit.nanometer, nonbondedMethod=app.PME, 
-                                ethresh=1e-3, neutral=True, slab=True, constQ=True
-                                )
-    efunc = pot.getPotentialFunc()
-    energy = efunc(pos, box, pairs, hamilt.paramset.parameters)
-    np.testing.assert_almost_equal(energy, -37.84692763, decimal=3)
+    for method in ["root_finding", "mat_inv", "pgrad"]:
+        pot = hamilt.createPotential(
+            dmfftop,
+            nonbondedCutoff=0.6 * unit.nanometer,
+            nonbondedMethod=app.PME,
+            ethresh=1e-3,
+            neutral=True,
+            slab=True,
+            constQ=True,
+            method=method,
+        )
+        efunc = pot.getPotentialFunc()
+        energy = efunc(pos, box, pairs, hamilt.paramset.parameters)
+        np.testing.assert_almost_equal(energy, -37.84692763, decimal=3)
 
 
 def test_qeq_energy_2res():
@@ -44,9 +51,13 @@ def test_qeq_energy_2res():
     xml = XMLIO()
     xml.loadXML("tests/data/qeq2.xml")
     res = xml.parseResidues()
-    charges = [a["charge"] for a in res[0]["particles"]] + [a["charge"] for a in res[1]["particles"]]
+    charges = [a["charge"] for a in res[0]["particles"]] + [
+        a["charge"] for a in res[1]["particles"]
+    ]
     charges = np.zeros((len(charges),))
-    types = [a["type"] for a in res[0]["particles"]] + [a["type"] for a in res[1]["particles"]]
+    types = [a["type"] for a in res[0]["particles"]] + [
+        a["type"] for a in res[1]["particles"]
+    ]
 
     pdb = app.PDBFile("tests/data/qeq2.pdb")
     top = pdb.topology
@@ -74,23 +85,27 @@ def test_qeq_energy_2res():
         const_list[-1].append(ii)
     const_val = [0.0, 0.0]
 
-    pot = hamilt.createPotential(dmfftop, nonbondedCutoff=rc*unit.nanometer, nonbondedMethod=app.PME, 
-                                ethresh=1e-3, neutral=True, slab=True, constQ=True,
-                                const_list=const_list, const_vals=const_val,
-                                has_aux=True
-                                )
+    pot = hamilt.createPotential(
+        dmfftop,
+        nonbondedCutoff=rc * unit.nanometer,
+        nonbondedMethod=app.PME,
+        ethresh=1e-3,
+        neutral=True,
+        slab=True,
+        constQ=True,
+        const_list=const_list,
+        const_vals=const_val,
+        has_aux=True,
+    )
     efunc = pot.getPotentialFunc()
-    aux = {
-        "q": jnp.array(charges),
-        "lagmt": jnp.array([1.0, 1.0])
-    }
+    aux = {"q": jnp.array(charges), "lagmt": jnp.array([1.0, 1.0])}
     energy, aux = efunc(pos, box, pairs, hamilt.paramset.parameters, aux=aux)
-    print(aux)
+    # print(aux)
     np.testing.assert_almost_equal(energy, 4817.295171, decimal=2)
 
     grad = jax.grad(efunc, argnums=0, has_aux=True)
     gradient, aux = grad(pos, box, pairs, hamilt.paramset.parameters, aux=aux)
-    print(gradient)
+    # print(gradient)
 
 
 def _test_qeq_energy_2res_jit():
@@ -98,9 +113,13 @@ def _test_qeq_energy_2res_jit():
     xml = XMLIO()
     xml.loadXML("tests/data/qeq2.xml")
     res = xml.parseResidues()
-    charges = [a["charge"] for a in res[0]["particles"]] + [a["charge"] for a in res[1]["particles"]]
+    charges = [a["charge"] for a in res[0]["particles"]] + [
+        a["charge"] for a in res[1]["particles"]
+    ]
     charges = np.zeros((len(charges),))
-    types = [a["type"] for a in res[0]["particles"]] + [a["type"] for a in res[1]["particles"]]
+    types = [a["type"] for a in res[0]["particles"]] + [
+        a["type"] for a in res[1]["particles"]
+    ]
 
     pdb = app.PDBFile("tests/data/qeq2.pdb")
     top = pdb.topology
@@ -128,17 +147,23 @@ def _test_qeq_energy_2res_jit():
         const_list[-1].append(ii)
     const_val = [0.0, 0.0]
 
-    pot = hamilt.createPotential(dmfftop, nonbondedCutoff=rc*unit.nanometer, nonbondedMethod=app.PME, 
-                                ethresh=1e-3, neutral=True, slab=True, constQ=True,
-                                const_list=const_list, const_vals=const_val,
-                                has_aux=True
-                                )
+    for method in ["root_finding", "mat_inv", "pgrad"]:
+        pot = hamilt.createPotential(
+            dmfftop,
+            nonbondedCutoff=rc * unit.nanometer,
+            nonbondedMethod=app.PME,
+            ethresh=1e-3,
+            neutral=True,
+            slab=True,
+            constQ=True,
+            const_list=const_list,
+            const_vals=const_val,
+            has_aux=True,
+            method=method,
+        )
     efunc = jax.jit(pot.getPotentialFunc())
     grad = jax.jit(jax.grad(efunc, argnums=0, has_aux=True))
-    aux = {
-        "q": jnp.array(charges),
-        "lagmt": jnp.array([1.0, 1.0])
-    }
+    aux = {"q": jnp.array(charges), "lagmt": jnp.array([1.0, 1.0])}
     print("Start computing energy and force.")
     energy, aux = efunc(pos, box, pairs, hamilt.paramset.parameters, aux=aux)
     print(aux)
