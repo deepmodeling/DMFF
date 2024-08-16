@@ -112,7 +112,7 @@ In `run.py`, when creating the potential function, several key parameters are no
 ```python
 potentials = H.createPotential(pdb.topology, nonbondedCutoff=rc*angstrom, nonbondedMethod=CutoffPeriodic, ethresh=1e-4)
 ```
-* `ethresh`: this is the energy threshold for PME
+* `ethresh`: the (empirical) average relative error in the PME forces, which is used to setup the size of the meshgrid of PME (see [openmm doc](http://docs.openmm.org/latest/userguide/theory/02_standard_forces.html#coulomb-interaction-with-particle-mesh-ewald) for more details).
 * `rc`: the cutoff distance. `rc`, `ethresh`, and `box` together, determine the $K_{max}$ and $\kappa$
    (please see [theory](../user_guide/theory.md)).
    Note that the `rc` variable in here is only used to determine the PME settings. The user has to make sure the `rc`
@@ -161,7 +161,7 @@ LastAxisTypeIndex = 6
 
 * `rc`: cutoff distance in real space. Only used to determine the PME settings.
 
-* `ethresh`: energy threshold for PME.
+* `ethresh`: (empirical) average relative error in the PME forces, which is used to setup the size of the meshgrid of PME (see [openmm doc](http://docs.openmm.org/latest/userguide/theory/02_standard_forces.html#coulomb-interaction-with-particle-mesh-ewald) for more details).
 
 * `lmax`: max L for multipoles.
 
