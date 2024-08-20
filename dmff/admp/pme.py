@@ -65,7 +65,7 @@ class ADMPPmeForce:
             rc:
                 float: cutoff distance
             ethresh:
-                float: pme energy threshold
+                float: (empirical) average relative error in the PME forces
             lmax:
                 int: max L for multipoles
             lpol:
@@ -441,7 +441,7 @@ def setup_ewald_parameters(
     rc: float
         The cutoff distance, in nm
     ethresh: float
-        Required energy precision, in kJ/mol
+        (Empirical) average relative error in the PME forces
     box: ndarray, optional
         3*3 matrix, box size, a, b, c arranged in rows, used in openmm method
     spacing: float, optional
