@@ -148,6 +148,7 @@ class ADMPQeqGenerator:
         neutral_flag = kwargs.get("neutral", True)
         slab_flag = kwargs.get("slab", False)
         constQ = kwargs.get("constQ", True)
+        part_const = kwargs.get("part_const", True)
 
         # top info
         n_atoms = topdata.getNumAtoms()
@@ -188,6 +189,7 @@ class ADMPQeqGenerator:
             slab_flag=slab_flag,
             constQ=constQ,
             pbc_flag=(not isNoCut),
+            part_const=part_const,
             has_aux=has_aux,
         )
         qeq_energy = qeq_force.generate_get_energy()
@@ -206,13 +208,12 @@ class ADMPQeqGenerator:
             eta = params[self.name]["eta"][map_idx]
             chi = params[self.name]["chi"][map_idx]
             J = params[self.name]["J"][map_idx]
-
             if has_aux:
                 qeq_energy0, aux = qeq_energy(positions, box, pairs, mscales_coul, eta, chi, J, aux)
                 # return pme_energy + qeq_energy0
                 return qeq_energy0, aux
             else:
-                qeq_energy0 = qeq_energy(positions, box, pairs, mscales_coul, eta, chi, J)
+                qeq_energy0 = qeq_energy(positions, box, pairs, mscales_coul, eta, chi, J )
                 # return pme_energy + qeq_energy0
                 return qeq_energy0
 

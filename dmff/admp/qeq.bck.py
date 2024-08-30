@@ -90,14 +90,13 @@ def mask_to_zero(v, mask):
     )
 
 
-@jit_condition(static_argnums=[6])
-def E_sr(pos, box, pairs, q, eta, buffer_scales, pbc_flag):
+@jit_condition()
+def E_sr(pos, box, pairs, q, eta, ds, buffer_scales):
     return 0.0
 
 
-@jit_condition(static_argnums=[6])
-def E_sr2(pos, box, pairs, q, eta, buffer_scales, pbc_flag):
-    ds = ds_pairs(pos, box, pairs, pbc_flag)
+@jit_condition()
+def E_sr2(pos, box, pairs, q, eta, ds, buffer_scales):
     etasqrt = jnp.sqrt(2 * (eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2))
     pre_pair = -eta_piecewise(etasqrt, ds) * DIELECTRIC
     pre_self = etainv_piecewise(eta) / (jnp.sqrt(2 * jnp.pi)) * DIELECTRIC
@@ -108,9 +107,8 @@ def E_sr2(pos, box, pairs, q, eta, buffer_scales, pbc_flag):
     return e_sr
 
 
-@jit_condition(static_argnums=[6])
-def E_sr3(pos, box, pairs, q, eta, buffer_scales, pbc_flag):
-    ds = ds_pairs(pos, box, pairs, pbc_flag)
+@jit_condition()
+def E_sr3(pos, box, pairs, q, eta, ds, buffer_scales):
     etasqrt = jnp.sqrt(
         eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2 + 1e-64
     )  # add eta to avoid division by zero
@@ -353,12 +351,12 @@ class ADMPQeqForce:
 
     def generate_get_energy(self):
         @jit_condition()
-        def E_full(q, lagmt, chi, J, pos, box, pairs, eta, buffer_scales, mscales):
+        def E_full(q, lagmt, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales):
             if self.part_const:
                 e1 = self.e_constraint(q, lagmt, self.const_list, self.const_vals)
             else:
                 e1 = 0
-            e2 = self.e_sr(pos * 10, box * 10, pairs, q, eta, buffer_scales, self.pbc_flag)
+            e2 = self.e_sr(pos * 10, box * 10, pairs, q, eta, ds * 10, buffer_scales)
             e3 = self.e_site(chi, J, q)
             e4 = self.coul_energy(pos, box, pairs, q, mscales)
             if self.slab_flag:
@@ -373,7 +371,7 @@ class ADMPQeqForce:
 
         @jit_condition()
         def E_hession(q, lagmt, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales):
-            h = jacfwd(jacrev(E_full, argnums=(0)))(q, lagmt, chi, J, pos, box, pairs, eta,  buffer_scales, mscales)
+            h = jacfwd(jacrev(E_full, argnums=(0)))(q, lagmt, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales)
             return h
 
         @jit_condition()
@@ -420,6 +418,7 @@ class ADMPQeqForce:
                 box,
                 pairs,
                 eta,
+                ds,
                 buffer_scales,
                 mscales,
             )
@@ -458,13 +457,13 @@ class ADMPQeqForce:
                 else:
                     energy = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
                     return energy
-            if not self.icount %10 :
-                if self.has_aux:
-                    energy,aux = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
-                    return energy, aux
-                else:
-                    energy = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
-                    return energy
+#            if not self.icount %10 :
+#                if self.has_aux:
+#                    energy,aux = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
+#                    return energy, aux
+#                else:
+#                    energy = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
+#                    return energy
 
             func = get_proj_grad(E_full,self.const_mat)
             solver = jaxopt.LBFGS(
@@ -491,6 +490,7 @@ class ADMPQeqForce:
                 box,
                 pairs,
                 eta,
+                ds,
                 buffer_scales,
                 mscales,
             )
@@ -504,6 +504,7 @@ class ADMPQeqForce:
                 box,
                 pairs,
                 eta,
+                ds,
                 buffer_scales,
                 mscales,
             )
@@ -547,6 +548,7 @@ class ADMPQeqForce:
                     box,
                     pairs,
                     eta,
+                    ds,
                     buffer_scales,
                     mscales,
                 )
