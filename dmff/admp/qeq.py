@@ -375,14 +375,13 @@ class ADMPQeqForce:
         grad_E_full = grad(E_full, argnums=(0, 1))
 
         @jit_condition()
-        def E_hession(q, lagmt, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales):
+        def E_hession(q, lagmt, chi, J, pos, box, pairs, eta,  buffer_scales, mscales):
             h = jacfwd(jacrev(E_full, argnums=(0)))(q, lagmt, chi, J, pos, box, pairs, eta,  buffer_scales, mscales)
             return h
 
         @jit_condition()
         def get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
             pos = positions
-            ds = ds_pairs(pos, box, pairs, self.pbc_flag)
             buffer_scales = pair_buffer_scales(pairs)
 
             n_const = len(self.init_lagmt)
@@ -394,7 +393,7 @@ class ADMPQeqForce:
             else:
                 q = self.init_q
                 lagmt = self.init_lagmt
-            B = E_hession(q, lagmt, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales)
+            B = E_hession(q, lagmt, chi, J, pos, box, pairs, eta, buffer_scales, mscales)
             
             if self.part_const:
                 C = jnp.eye(len(q))
@@ -475,7 +474,6 @@ class ADMPQeqForce:
                     tol=1e-2,
                     )
             pos = positions
-            ds = ds_pairs(positions, box, pairs, self.pbc_flag)
             buffer_scales = pair_buffer_scales(pairs)
             if self.has_aux:
                 q = aux["q"][:len(pos)]
@@ -539,7 +537,6 @@ class ADMPQeqForce:
                 self.icount = self.icount + 1
                # print(self.icount)
                 pos = positions
-                ds = ds_pairs(positions, box, pairs, self.pbc_flag)
                 buffer_scales = pair_buffer_scales(pairs)
                 if self.has_aux:
                     q = aux["q"][:len(pos)]
