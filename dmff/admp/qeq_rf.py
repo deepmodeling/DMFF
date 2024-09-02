@@ -337,7 +337,7 @@ class ADMPQeqForce:
 
         @jit_condition()
         def E_grads(
-            b_value, chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales, mask_qeq
+            b_value, chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
         ):
             n_const = len(self.const_vals)
             q = b_value[:-n_const]
@@ -346,13 +346,13 @@ class ADMPQeqForce:
             g1, g2 = grad_E_full(
                 q, lagmt, chi, J, positions, box, pairs, eta, ds, buffer_scales, mscales
             )
-            g1 = g1 * mask_qeq[:-n_const]
-            g2 = g2 * mask_qeq[-n_const:]
+         #   g1 = g1 * mask_qeq[:-n_const]
+         #   g2 = g2 * mask_qeq[-n_const:]
             g = jnp.concatenate((g1, g2))
             return g
 
        # @jit_condition()
-        def get_energy(positions, box, pairs, mscales, eta, chi, J, mask_qeq, aux=None):
+        def get_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
             pos = positions
             ds = ds_pairs(pos, box, pairs, self.pbc_flag)
             buffer_scales = pair_buffer_scales(pairs)
@@ -380,7 +380,6 @@ class ADMPQeqForce:
                 ds,
                 buffer_scales,
                 mscales,
-                mask_qeq,
             )
             b_0 = jax.lax.stop_gradient(b_0)
             q_0 = b_0[:-n_const]

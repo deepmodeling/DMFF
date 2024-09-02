@@ -69,8 +69,9 @@ def padding_consts(const_list, max_idx):
 
 @jit_condition()
 def E_constQ(q, lagmt, const_list, const_vals):
-    constraint = (group_sum(q, const_list) - const_vals) * lagmt
-    return jnp.sum(constraint)
+   # constraint = (group_sum(q, const_list) - const_vals) * lagmt
+   # return jnp.sum(constraint)
+    return 0.0
 
 
 @jit_condition()
@@ -237,7 +238,7 @@ class ADMPQeqForce:
        
         if len(const_list) != 0:
             self.const_list = padding_consts(const_list, n_atoms)
-            #if fix parts charge
+            #if fix part charges
             self.all_const_list = self.const_list[jnp.where(self.const_list < n_atoms)]
         else:
             self.const_list = np.array(const_list)
@@ -253,8 +254,10 @@ class ADMPQeqForce:
         self.init_q = jnp.array(init_q)
         self.init_lagmt = jnp.ones((len(const_list),))
         
-        self.init_energy = True #init charge by hession method
+        self.init_energy = True #init charge by hession inversion method
         self.icount = 0
+        self.hessinv_stride = 1
+        self.qupdata_stride = 1
 
         self.damp_mod = damp_mod
         self.neutral_flag = neutral_flag
@@ -393,7 +396,6 @@ class ADMPQeqForce:
                 lagmt = self.init_lagmt
             B = E_hession(q, lagmt, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales)
             
-           # if PART_CONST ==True:
             if self.part_const:
                 C = jnp.eye(len(q))
                 A = C.at[self.all_const_list].set(B[self.all_const_list])
@@ -450,7 +452,7 @@ class ADMPQeqForce:
             return value_and_proj_grad
 
         @jit_condition()
-        def get_step_energy(positions, box, pairs, mscales, eta, chi, J, aux):
+        def get_step_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
             if self.init_energy:
                 if self.has_aux:
                     energy,aux = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
@@ -458,7 +460,7 @@ class ADMPQeqForce:
                 else:
                     energy = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
                     return energy
-            if not self.icount %10 :
+            if not self.icount % self.hessinv_stride :
                 if self.has_aux:
                     energy,aux = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
                     return energy, aux
@@ -513,8 +515,15 @@ class ADMPQeqForce:
             else:
                 return energy
        # @jit_condition()
-        def get_energy(positions, box, pairs, mscales, eta, chi, J, aux):
-            if not self.icount %10 :
+        def get_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
+            if self.has_aux :
+                if "const_vals" in aux.keys():
+                    self.const_vals = aux["const_vals"]
+                if "hessinv_stride" in aux.keys(): 
+                    self.hessinv_stride = aux["hessinv_stride"]
+                if "qupdata_stride" in aux.keys():
+                    self.qupdata_stride = aux["qupdata_stride"]
+            if not self.icount % self.qupdata_stride :
                 if self.has_aux:
                    # aux["q"] = aux['q'].at[:len(pos)].set(q)
                     energy, aux = get_step_energy(positions, box, pairs, mscales, eta, chi, J, aux) 
@@ -558,5 +567,6 @@ class ADMPQeqForce:
                     return energy, aux
                 else:
                     return energy
+       
         return get_energy
 

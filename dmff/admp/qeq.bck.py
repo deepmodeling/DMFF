@@ -69,8 +69,9 @@ def padding_consts(const_list, max_idx):
 
 @jit_condition()
 def E_constQ(q, lagmt, const_list, const_vals):
-    constraint = (group_sum(q, const_list) - const_vals) * lagmt
-    return jnp.sum(constraint)
+   # constraint = (group_sum(q, const_list) - const_vals) * lagmt
+   # return jnp.sum(constraint)
+    return 0.0
 
 
 @jit_condition()
@@ -90,13 +91,14 @@ def mask_to_zero(v, mask):
     )
 
 
-@jit_condition()
-def E_sr(pos, box, pairs, q, eta, ds, buffer_scales):
+@jit_condition(static_argnums=[6])
+def E_sr(pos, box, pairs, q, eta, buffer_scales, pbc_flag):
     return 0.0
 
 
-@jit_condition()
-def E_sr2(pos, box, pairs, q, eta, ds, buffer_scales):
+@jit_condition(static_argnums=[6])
+def E_sr2(pos, box, pairs, q, eta, buffer_scales, pbc_flag):
+    ds = ds_pairs(pos, box, pairs, pbc_flag)
     etasqrt = jnp.sqrt(2 * (eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2))
     pre_pair = -eta_piecewise(etasqrt, ds) * DIELECTRIC
     pre_self = etainv_piecewise(eta) / (jnp.sqrt(2 * jnp.pi)) * DIELECTRIC
@@ -107,8 +109,9 @@ def E_sr2(pos, box, pairs, q, eta, ds, buffer_scales):
     return e_sr
 
 
-@jit_condition()
-def E_sr3(pos, box, pairs, q, eta, ds, buffer_scales):
+@jit_condition(static_argnums=[6])
+def E_sr3(pos, box, pairs, q, eta, buffer_scales, pbc_flag):
+    ds = ds_pairs(pos, box, pairs, pbc_flag)
     etasqrt = jnp.sqrt(
         eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2 + 1e-64
     )  # add eta to avoid division by zero
@@ -235,7 +238,7 @@ class ADMPQeqForce:
        
         if len(const_list) != 0:
             self.const_list = padding_consts(const_list, n_atoms)
-            #if fix parts charge
+            #if fix part charges
             self.all_const_list = self.const_list[jnp.where(self.const_list < n_atoms)]
         else:
             self.const_list = np.array(const_list)
@@ -251,8 +254,10 @@ class ADMPQeqForce:
         self.init_q = jnp.array(init_q)
         self.init_lagmt = jnp.ones((len(const_list),))
         
-        self.init_energy = True #init charge by hession method
+        self.init_energy = True #init charge by hession inversion method
         self.icount = 0
+        self.hessinv_stride = 1
+        self.qupdata_stride = 1
 
         self.damp_mod = damp_mod
         self.neutral_flag = neutral_flag
@@ -351,12 +356,12 @@ class ADMPQeqForce:
 
     def generate_get_energy(self):
         @jit_condition()
-        def E_full(q, lagmt, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales):
+        def E_full(q, lagmt, chi, J, pos, box, pairs, eta, buffer_scales, mscales):
             if self.part_const:
                 e1 = self.e_constraint(q, lagmt, self.const_list, self.const_vals)
             else:
                 e1 = 0
-            e2 = self.e_sr(pos * 10, box * 10, pairs, q, eta, ds * 10, buffer_scales)
+            e2 = self.e_sr(pos * 10, box * 10, pairs, q, eta, buffer_scales, self.pbc_flag)
             e3 = self.e_site(chi, J, q)
             e4 = self.coul_energy(pos, box, pairs, q, mscales)
             if self.slab_flag:
@@ -370,8 +375,23 @@ class ADMPQeqForce:
         grad_E_full = grad(E_full, argnums=(0, 1))
 
         @jit_condition()
+        def E_grads(
+            b_value, chi, J, positions, box, pairs, eta, buffer_scales, mscales
+        ):
+            n_const = len(self.const_vals)
+            q = b_value[:-n_const]
+            lagmt = b_value[-n_const:]
+
+            g1, g2 = grad_E_full(
+                q, lagmt, chi, J, positions, box, pairs, eta, buffer_scales, mscales
+            )
+            g = jnp.concatenate((g1, g2))
+            return g
+
+       # @jit_condition()
+        @jit_condition()
         def E_hession(q, lagmt, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales):
-            h = jacfwd(jacrev(E_full, argnums=(0)))(q, lagmt, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales)
+            h = jacfwd(jacrev(E_full, argnums=(0)))(q, lagmt, chi, J, pos, box, pairs, eta,  buffer_scales, mscales)
             return h
 
         @jit_condition()
@@ -391,7 +411,6 @@ class ADMPQeqForce:
                 lagmt = self.init_lagmt
             B = E_hession(q, lagmt, chi, J, pos, box, pairs, eta, ds, buffer_scales, mscales)
             
-           # if PART_CONST ==True:
             if self.part_const:
                 C = jnp.eye(len(q))
                 A = C.at[self.all_const_list].set(B[self.all_const_list])
@@ -418,7 +437,6 @@ class ADMPQeqForce:
                 box,
                 pairs,
                 eta,
-                ds,
                 buffer_scales,
                 mscales,
             )
@@ -449,7 +467,7 @@ class ADMPQeqForce:
             return value_and_proj_grad
 
         @jit_condition()
-        def get_step_energy(positions, box, pairs, mscales, eta, chi, J, aux):
+        def get_step_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
             if self.init_energy:
                 if self.has_aux:
                     energy,aux = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
@@ -457,13 +475,13 @@ class ADMPQeqForce:
                 else:
                     energy = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
                     return energy
-#            if not self.icount %10 :
-#                if self.has_aux:
-#                    energy,aux = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
-#                    return energy, aux
-#                else:
-#                    energy = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
-#                    return energy
+            if not self.icount % self.hessinv_stride :
+                if self.has_aux:
+                    energy,aux = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
+                    return energy, aux
+                else:
+                    energy = get_init_energy(positions, box, pairs, mscales, eta, chi, J, aux)
+                    return energy
 
             func = get_proj_grad(E_full,self.const_mat)
             solver = jaxopt.LBFGS(
@@ -490,7 +508,6 @@ class ADMPQeqForce:
                 box,
                 pairs,
                 eta,
-                ds,
                 buffer_scales,
                 mscales,
             )
@@ -504,7 +521,6 @@ class ADMPQeqForce:
                 box,
                 pairs,
                 eta,
-                ds,
                 buffer_scales,
                 mscales,
             )
@@ -514,8 +530,15 @@ class ADMPQeqForce:
             else:
                 return energy
        # @jit_condition()
-        def get_energy(positions, box, pairs, mscales, eta, chi, J, aux):
-            if not self.icount %10 :
+        def get_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
+            if self.has_aux :
+                if "const_vals" in aux.keys():
+                    self.const_vals = aux["const_vals"]
+                if "hessinv_stride" in aux.keys(): 
+                    self.hessinv_stride = aux["hessinv_stride"]
+                if "qupdata_stride" in aux.keys():
+                    self.qupdata_stride = aux["qupdata_stride"]
+            if not self.icount % self.qupdata_stride :
                 if self.has_aux:
                    # aux["q"] = aux['q'].at[:len(pos)].set(q)
                     energy, aux = get_step_energy(positions, box, pairs, mscales, eta, chi, J, aux) 
@@ -548,7 +571,6 @@ class ADMPQeqForce:
                     box,
                     pairs,
                     eta,
-                    ds,
                     buffer_scales,
                     mscales,
                 )
@@ -560,5 +582,58 @@ class ADMPQeqForce:
                     return energy, aux
                 else:
                     return energy
+       
+       # @jit_condition()
+        def get_rf_energy(positions, box, pairs, mscales, eta, chi, J, aux=None):
+            pos = positions
+            ds = ds_pairs(pos, box, pairs, self.pbc_flag)
+            buffer_scales = pair_buffer_scales(pairs)
+
+            n_const = len(self.init_lagmt)
+            if self.has_aux:
+                b_value = jnp.concatenate((aux["q"], aux["lagmt"]))
+            else:
+                b_value = jnp.concatenate([self.init_q, self.init_lagmt])
+           # if JAXOPT_OLD:
+            if True:
+                rf = jaxopt.ScipyRootFinding(
+                    optimality_fun=E_grads, method="hybr", jit=False, tol=1e-10
+                )
+            else:
+                rf = jaxopt.Broyden(fun=E_grads, tol=1e-10)
+            b_0, state = rf.run(
+                b_value,
+                chi,
+                J,
+                positions,
+                box,
+                pairs,
+                eta,
+                buffer_scales,
+                mscales,
+            )
+            b_0 = jax.lax.stop_gradient(b_0)
+            q_0 = b_0[:-n_const]
+            lagmt_0 = b_0[-n_const:]
+
+            energy = E_full(
+                q_0,
+                lagmt_0,
+                chi,
+                J,
+                positions,
+                box,
+                pairs,
+                eta,
+                buffer_scales,
+                mscales,
+            )
+            if self.has_aux:
+                aux["q"] = q_0
+                aux["lagmt"] = lagmt_0
+                aux["state"] = state
+                return energy, aux
+            else:
+                return energy
         return get_energy
 
