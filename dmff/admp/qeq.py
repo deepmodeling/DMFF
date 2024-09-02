@@ -132,13 +132,13 @@ def E_site(chi, J, q):
 
 @jit_condition()
 def E_site2(chi, J, q):
-    ene = (chi * q + 0.5 * J * q**2) * 96.4869
+    ene = (chi * q + 0.5 * J * q**2) * 96.4869  #ev to kj/mol
     return jnp.sum(ene)
 
 
 @jit_condition()
 def E_site3(chi, J, q):
-    ene = chi * q * 4.184 + J * q**2 * DIELECTRIC * 2 * jnp.pi
+    ene = chi * q +  J* q**2  # kj/mol 
     return jnp.sum(ene)
 
 
@@ -257,7 +257,7 @@ class ADMPQeqForce:
         self.init_energy = True #init charge by hession inversion method
         self.icount = 0
         self.hessinv_stride = 1
-        self.qupdata_stride = 1
+        self.qupdate_stride = 1
 
         self.damp_mod = damp_mod
         self.neutral_flag = neutral_flag
@@ -386,7 +386,7 @@ class ADMPQeqForce:
             buffer_scales = pair_buffer_scales(pairs)
 
             n_const = len(self.init_lagmt)
-            b_vector = jnp.concatenate((-chi * 4.184, self.const_vals)) #For E_site3
+            b_vector = jnp.concatenate((-chi, self.const_vals)) #For E_site3
            
             if self.has_aux:
                 q = aux["q"][:len(pos)]
@@ -521,9 +521,9 @@ class ADMPQeqForce:
                     self.const_vals = aux["const_vals"]
                 if "hessinv_stride" in aux.keys(): 
                     self.hessinv_stride = aux["hessinv_stride"]
-                if "qupdata_stride" in aux.keys():
-                    self.qupdata_stride = aux["qupdata_stride"]
-            if not self.icount % self.qupdata_stride :
+                if "qupdate_stride" in aux.keys():
+                    self.qupdate_stride = aux["qupdate_stride"]
+            if not self.icount % self.qupdate_stride :
                 if self.has_aux:
                    # aux["q"] = aux['q'].at[:len(pos)].set(q)
                     energy, aux = get_step_energy(positions, box, pairs, mscales, eta, chi, J, aux) 
