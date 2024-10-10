@@ -19,7 +19,7 @@ jobs:
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
-          conda create -n dmff_omm -y python=${{ matrix.python-version }} numpy openmm=7.7 -c conda-forge
+          conda create -n dmff_omm -y python=${{ matrix.python-version }} numpy=1.* openmm=7.7 -c conda-forge
           conda activate dmff_omm
           conda install -y libtensorflow_cc=2.9.1 -c conda-forge
           pip install setuptools==59.5.0
