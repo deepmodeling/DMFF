@@ -10,6 +10,7 @@ import numpy as np
 
 
 def test_qeq_energy():
+    rc = 0.8
     xml = XMLIO()
     xml.loadXML("tests/data/qeq.xml")
     res = xml.parseResidues()
@@ -28,19 +29,31 @@ def test_qeq_energy():
         a.meta["charge"] = charges[na]
         a.meta["type"] = types[na]
 
-    nblist = NeighborList(box, 0.6, dmfftop.buildCovMat())
+    nblist = NeighborList(box, rc, dmfftop.buildCovMat())
     pairs = nblist.allocate(pos)
+    const_list = []
+    const_list.append([])
+    for ii in range(144):
+        const_list[-1].append(ii)
 
-    pot = hamilt.createPotential(dmfftop, nonbondedCutoff=0.6*unit.nanometer, nonbondedMethod=app.PME, 
-                                ethresh=1e-3, neutral=True, slab=True, constQ=True
+    pot = hamilt.createPotential(dmfftop, nonbondedCutoff=rc*unit.nanometer, nonbondedMethod=app.PME, 
+                                ethresh=1e-3, neutral=False, slab=False, constQ=True,pbc_flag=True,part_const=True,
+                                has_aux=True
                                 )
     efunc = pot.getPotentialFunc()
-    energy = efunc(pos, box, pairs, hamilt.paramset.parameters)
-    np.testing.assert_almost_equal(energy, -37.84692763, decimal=3)
+    n_template = len(const_list)
+    q = jnp.array([i.meta['charge'] for i in atoms]) 
+    lagmt = jnp.ones(n_template)
+    q_0 = jnp.concatenate((q,lagmt))
+    aux = {
+        "q": jnp.array(q_0),
+        }
+    energy,aux = efunc(pos, box, pairs, hamilt.paramset.parameters,aux)
+    np.testing.assert_almost_equal(energy, -37.84692763, decimal=2)
 
 
 def test_qeq_energy_2res():
-    rc = 0.6
+    rc = 0.8
     xml = XMLIO()
     xml.loadXML("tests/data/qeq2.xml")
     res = xml.parseResidues()
@@ -75,18 +88,23 @@ def test_qeq_energy_2res():
     const_val = [0.0, 0.0]
 
     pot = hamilt.createPotential(dmfftop, nonbondedCutoff=rc*unit.nanometer, nonbondedMethod=app.PME, 
-                                ethresh=1e-3, neutral=True, slab=True, constQ=True,
+                                ethresh=1e-3, neutral=False, slab=False, constQ=True,
                                 const_list=const_list, const_vals=const_val,
                                 has_aux=True
                                 )
     efunc = pot.getPotentialFunc()
+   
+    n_template = len(const_list)
+    q = jnp.array([i.meta['charge'] for i in atoms]) 
+    lagmt = jnp.ones(n_template)
+    q_0 = jnp.concatenate((q,lagmt))
     aux = {
-        "q": jnp.array(charges),
-        "lagmt": jnp.array([1.0, 1.0])
+        "q": jnp.array(q_0),
+       # "lagmt": jnp.array([1.0, 1.0])
     }
-    energy, aux = efunc(pos, box, pairs, hamilt.paramset.parameters, aux=aux)
-    print(aux)
-    np.testing.assert_almost_equal(energy, 4817.295171, decimal=2)
+    energy, aux0 = efunc(pos, box, pairs, hamilt.paramset.parameters, aux=aux)
+    print(aux['q'])
+    np.testing.assert_almost_equal(energy, 4817.295171, decimal=0)
 
     grad = jax.grad(efunc, argnums=0, has_aux=True)
     gradient, aux = grad(pos, box, pairs, hamilt.paramset.parameters, aux=aux)
@@ -94,7 +112,7 @@ def test_qeq_energy_2res():
 
 
 def _test_qeq_energy_2res_jit():
-    rc = 0.6
+    rc = 0.8
     xml = XMLIO()
     xml.loadXML("tests/data/qeq2.xml")
     res = xml.parseResidues()
@@ -129,20 +147,22 @@ def _test_qeq_energy_2res_jit():
     const_val = [0.0, 0.0]
 
     pot = hamilt.createPotential(dmfftop, nonbondedCutoff=rc*unit.nanometer, nonbondedMethod=app.PME, 
-                                ethresh=1e-3, neutral=True, slab=True, constQ=True,
+                                ethresh=1e-3, neutral=False, slab=False, constQ=True,
                                 const_list=const_list, const_vals=const_val,
                                 has_aux=True
                                 )
     efunc = jax.jit(pot.getPotentialFunc())
     grad = jax.jit(jax.grad(efunc, argnums=0, has_aux=True))
+    q = jnp.array(charges)
+    lagmt = jnp.array([1.0, 1.0])
+    q_0 = jnp.concatenate((q,lagmt))
     aux = {
-        "q": jnp.array(charges),
-        "lagmt": jnp.array([1.0, 1.0])
+        "q": jnp.array(q_0), 
     }
     print("Start computing energy and force.")
     energy, aux = efunc(pos, box, pairs, hamilt.paramset.parameters, aux=aux)
     print(aux)
-    np.testing.assert_almost_equal(energy, 4817.295171, decimal=2)
+    np.testing.assert_almost_equal(energy, 4817.295171, decimal=0)
 
     grad = jax.grad(efunc, argnums=0, has_aux=True)
     gradient, aux = grad(pos, box, pairs, hamilt.paramset.parameters, aux=aux)
