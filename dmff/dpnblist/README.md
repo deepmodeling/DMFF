@@ -2,12 +2,11 @@
  Resable and Modular Neighborlist Lib
 
 ### Installation
-you can follow the below commands to build the project
+follow the below commands to build the project
 ```
-cmake -B build
-cmake --build build
+pip install .
 ```
-then a .so lib will be generated, which can be used in python.
+then a dpnblist package will be compiled and installed into the python environment.
 
 ### Usage
 In our neighbor list library, we provide a full type of neighbor list and include three different types of algorithms: cell list, octree, and hash methods, and support CPU and GPU.  
@@ -29,11 +28,11 @@ In our neighbor list library, we provide a full type of neighbor list and includ
 
 Here's an example of usage:  
 ```python
-import nblist
+import dpnblist
 import numpy as np
 
-nblist.set_num_threads(4)
-print(nblist.get_max_threads())
+dpnblist.set_num_threads(4)
+print(dpnblist.get_max_threads())
 num_particle = 30000
 shape = (num_particle, 3)
 points = np.random.random(shape) * domain_size
@@ -41,8 +40,8 @@ domain_size = [50.0, 50.0, 50.0]
 angle = [90.0, 90.0, 90.0]
 cutoff = 6.0
 
-box = nblist.Box(domain_size, angle)
-nb = nblist.NeighborList("Linked_Cell-GPU")    # Linked_Cell-GPU  Linked_Cell-CPU  Octree-GPU  Octree-CPU  Hash-GPU  Hash-CPU
+box = dpnblist.Box(domain_size, angle)
+nb = dpnblist.NeighborList("Linked_Cell-GPU")    # Linked_Cell-GPU  Linked_Cell-CPU  Octree-GPU  Octree-CPU  Hash-GPU  Hash-CPU
 nb.build(box, points, cutoff)
 pairs = nb.get_neighbor_pair()
 ```
