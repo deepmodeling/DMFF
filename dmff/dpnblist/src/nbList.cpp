@@ -24,37 +24,31 @@ namespace dpnblist
     {
         if (alg_type == "Hash-GPU")
         {
-            std::cout << "Initiate GPU Hash-Search Algorithm" << std::endl;
             s_alg = new HashSearchGPU(box, xyz, r_cutoff);
 
             s_alg->search();
         } else if (alg_type == "Hash-CPU")
         {
-            std::cout << "Initiate CPU Hash-Search Algorithm" << std::endl;
             s_alg = new HashSearchCPU(box, xyz, r_cutoff);
 
             s_alg->search();
         }else if (alg_type == "Octree-GPU")
         {
-            std::cout << "Initiate GPU Octree-Search Algorithm" << std::endl;
             s_alg = new OctreeSearchGPU(box, xyz, r_cutoff);
 
             s_alg->search();
         }else if (alg_type == "Octree-CPU")
         {
-            std::cout << "Initiate CPU Octree-Search Algorithm" << std::endl;
             s_alg = new OctreeSearchCPU(box, xyz, r_cutoff);
 
             s_alg->search();
         }else if (alg_type == "Linked_Cell-GPU")
         {
-            std::cout << "Initiate GPU Linked_Cell-Search Algorithm" << std::endl;
             s_alg = new CellSearchGPU(box, xyz, r_cutoff);
 
             s_alg->search();
         }else if (alg_type == "Linked_Cell-CPU")
         {
-            std::cout << "Initiate CPU Linked_Cell-Search Algorithm" << std::endl;
             s_alg = new CellSearchCPU(box, xyz, r_cutoff);
 
             s_alg->search();
