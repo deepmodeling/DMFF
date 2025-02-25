@@ -1,4 +1,9 @@
-from jax.config import config
+try:
+    # jax < 0.4.20
+    from jax.config import config
+except:
+    # jax >= 0.4.20
+    from jax import config
 
 PRECISION = 'double'  # 'double'
 

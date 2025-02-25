@@ -97,13 +97,20 @@ def E_sr(pos, box, pairs, q, eta, buffer_scales, pbc_flag):
 
 @jit_condition(static_argnums=[6])
 def E_sr2(pos, box, pairs, q, eta, buffer_scales, pbc_flag):
+    """
+    eta: Gaussian width in angstrom
+    """
+    # pairwise interaction
     ds = ds_pairs(pos, box, pairs, pbc_flag)
     etasqrt = jnp.sqrt(2 * (eta[pairs[:, 0]] ** 2 + eta[pairs[:, 1]] ** 2))
     pre_pair = -eta_piecewise(etasqrt, ds) * DIELECTRIC
-    pre_self = etainv_piecewise(eta) / (jnp.sqrt(2 * jnp.pi)) * DIELECTRIC
     e_sr_pair = pre_pair * q[pairs[:, 0]] * q[pairs[:, 1]] / ds * buffer_scales
     e_sr_pair = mask_to_zero(e_sr_pair, buffer_scales)
+    
+    # self interaction
+    pre_self = etainv_piecewise(eta) / (2 * jnp.sqrt(jnp.pi)) * DIELECTRIC
     e_sr_self = pre_self * q * q
+    
     e_sr = jnp.sum(e_sr_pair) + jnp.sum(e_sr_self)
     return e_sr
 
