@@ -165,5 +165,11 @@ def slater_sr_kernel(dr, m, ai, aj, bi, bj):
     br = b * dr
     br2 = br * br
     P = 1/3 * br2 + br + 1 
-    return a * P * jnp.exp(-br) * m
+    # hard core potential
+    x = 3.9/br
+    x2 = x * x
+    x4 = x2 * x2
+    x8 = x4 * x4
+    x14 = x8 * x2 * x4
+    return a * (P * jnp.exp(-br) + x14) * m
 
