@@ -95,5 +95,19 @@ class TemplateVSiteOperator(BaseOperator):
                             w1, w2 = float(vs["weight1"]), float(vs["weight2"])
                             vsite = VirtualSite(vtype, [a1, a2], [w1, w2])
                             vslist.append(vsite)
+                        elif vtype == "average3":
+                            a1i, a2i, a3i = int(vs["atom1"]), int(vs["atom2"]), int(vs["atom3"])
+                            a1_name = self.residue_infos[nt]["particles"][a1i]["name"]
+                            a2_name = self.residue_infos[nt]["particles"][a2i]["name"]
+                            a3_name = self.residue_infos[nt]["particles"][a3i]["name"]
+                            vs_name = self.residue_infos[nt]["particles"][idx]["name"]
+                            a1_idx = name2idx_template[a1_name]
+                            a2_idx = name2idx_template[a2_name]
+                            a3_idx = name2idx_template[a3_name]
+                            a1, a2, a3 = atoms[a1_idx], atoms[a2_idx], atoms[a3_idx]
+                            w1, w2, w3 = float(vs["weight1"]), float(vs["weight2"]), float(vs["weight3"])
+                            vsite = VirtualSite(vtype, [a1, a2, a3], [w1, w2, w3])
+                            vslist.append(vsite)
                     break
+        self.vslist = vslist
         return insertVirtualSites(topdata, vslist)

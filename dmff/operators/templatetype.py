@@ -79,11 +79,13 @@ class TemplateATypeOperator(BaseOperator):
                 if bonded < aidx and bonded in residue_indices:
                     graph.add_edge(aidx, bonded, btype="bond")
         # vsite
+        atomidx =  [a.index for a in atoms]
         for nvsite, vsite in enumerate(topdata.vsites()):
             vidx = vsite.vatom.index
             aidx = [a.index for a in vsite.atoms]
-            for a in aidx:
-                graph.add_edge(vidx, a, btype="vsite")
+            if set(aidx) <= set(atomidx):
+                for a in aidx:
+                    graph.add_edge(vidx, a, btype="vsite")
         return graph
 
     def match_all(self, topdata: DMFFTopology, templates):
