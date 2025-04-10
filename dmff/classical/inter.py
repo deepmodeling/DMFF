@@ -50,6 +50,7 @@ class LennardJonesForce:
                 x = (dr_norm - self.r_switch) / (self.r_cut - self.r_switch)
                 S = 1 - 6. * x ** 5 + 15. * x ** 4 - 10. * x ** 3
                 jnp.where(dr_norm > self.r_switch, E, E * S)
+                E = jnp.where(dr_norm >= self.r_cut, 0., E)
             
             return E
 
