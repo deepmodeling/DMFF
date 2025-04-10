@@ -428,13 +428,13 @@ class DMFFTopology:
                 [v.atoms[0].index for v in vsites_type_2], dtype=int)
             a2_idx_type_2 = jnp.array(
                 [v.atoms[1].index for v in vsites_type_2], dtype=int)
-            w2_idx_type_2 = jnp.array([v.weights[0] for v in vsites_type_2])
+            w2_idx_type_2 = jnp.array([v.weights[1] for v in vsites_type_2])
             w1_idx_type_2 = jnp.ones(w2_idx_type_2.shape) - w2_idx_type_2
         else:
             use_type_2 = False
 
         # vtype: 3
-        vsites_type_3 = [v for v in self.vsites() if v.type == "3"]
+        vsites_type_3 = [v for v in self.vsites() if v.type == "average3"]
         if len(vsites_type_3) > 0:
             use_type_3 = True
             self_idx_type_3 = jnp.array(
@@ -445,8 +445,8 @@ class DMFFTopology:
                 [v.atoms[1].index for v in vsites_type_3], dtype=int)
             a3_idx_type_3 = jnp.array(
                 [v.atoms[2].index for v in vsites_type_3], dtype=int)
-            w2_idx_type_3 = jnp.array([v.weights[0] for v in vsites_type_3])
-            w3_idx_type_3 = jnp.array([v.weights[1] for v in vsites_type_3])
+            w2_idx_type_3 = jnp.array([v.weights[1] for v in vsites_type_3])
+            w3_idx_type_3 = jnp.array([v.weights[2] for v in vsites_type_3])
             w1_idx_type_3 = jnp.ones(w2_idx_type_3.shape) - \
                 w2_idx_type_3 - w3_idx_type_3
         else:
@@ -488,13 +488,13 @@ class DMFFTopology:
             # vtype: 2
             if use_type_2:
                 new_pos_type_2 = pos[a1_idx_type_2, :] * \
-                    w1_idx_type_2 + pos[a2_idx_type_2, :] * w2_idx_type_2
+                    w1_idx_type_2[:, jnp.newaxis] + pos[a2_idx_type_2, :] * w2_idx_type_2[:, jnp.newaxis]
                 pos = pos.at[self_idx_type_2, :].set(new_pos_type_2)
             # vtype: 3
             if use_type_3:
-                new_pos_type_3 = pos[a1_idx_type_3, :] * w1_idx_type_3 + \
-                    pos[a2_idx_type_3, :] * w2_idx_type_3 + \
-                    pos[a3_idx_type_3, :] * w3_idx_type_3
+                new_pos_type_3 = pos[a1_idx_type_3, :] * w1_idx_type_3[:, jnp.newaxis] + \
+                    pos[a2_idx_type_3, :] * w2_idx_type_3[:, jnp.newaxis] + \
+                    pos[a3_idx_type_3, :] * w3_idx_type_3[:, jnp.newaxis]
                 pos = pos.at[self_idx_type_3, :].set(new_pos_type_3)
             # vtype: 2fd
             if use_type_2fd:
