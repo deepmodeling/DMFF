@@ -1,4 +1,4 @@
-from jax.config import config
+from jax import config
 
 PRECISION = 'double'  # 'double'
 
