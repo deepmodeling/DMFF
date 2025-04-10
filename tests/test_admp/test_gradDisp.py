@@ -6,7 +6,7 @@ import numpy.testing as npt
 import pytest
 from dmff import Hamiltonian, NeighborList, DMFFTopology
 from jax import jit, value_and_grad
-from jax.config import config
+from jax import config
 
 config.update("jax_debug_nans", True)
 
