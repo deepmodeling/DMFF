@@ -32,7 +32,7 @@ class TemplateATypeOperator(BaseOperator):
             atype = atom["type"]
             elem = self.atomtypes[atype][1]
             if elem is None:
-                elem = "none"
+                elem = "EP"
             name2idx[name] = na
             external_bond = name in resinfo["externals"]
             graph.add_node(atom["name"], element=elem,
@@ -47,12 +47,10 @@ class TemplateATypeOperator(BaseOperator):
         # vsite
         idx2name = {v: k for k, v in name2idx.items()}
         for vsite in resinfo["vsites"]:
-            iself = int(vsite["index"])
             for key in vsite.keys():
                 if "atom" in key:
-                    iatom = int(vsite[key])
-                    graph.add_edge(idx2name[iself],
-                                   idx2name[iatom], btype="vsite")
+                    graph.add_edge(vsite["siteName"],
+                                   vsite[key], btype="vsite")
         return graph
 
     def generate_residue_graph(self, topdata: DMFFTopology, residue: Residue):

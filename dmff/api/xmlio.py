@@ -102,8 +102,8 @@ class XMLIO:
                     vinner = {}
                     for key in item.attrib.keys():
                         val = item.attrib[key]
-                        if "atom" in key or "index" in key:
-                            vinner[key] = int(val)
+                        if "Name" in key:
+                            vinner[key] = str(val)
                         elif "weight" in key:
                             vinner[key] = float(val)
                         else:

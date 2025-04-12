@@ -83,12 +83,10 @@ class TemplateVSiteOperator(BaseOperator):
                         name2idx_template[v] = k
                     for vs in self.residue_infos[nt]["vsites"]:
                         vtype = vs["type"]
-                        idx = int(vs["index"])
+                        idx = str(vs["siteName"])
                         if vtype == "average2":
-                            a1i, a2i = int(vs["atom1"]), int(vs["atom2"])
-                            a1_name = self.residue_infos[nt]["particles"][a1i]["name"]
-                            a2_name = self.residue_infos[nt]["particles"][a2i]["name"]
-                            vs_name = self.residue_infos[nt]["particles"][idx]["name"]
+                            a1_name, a2_name = str(vs["atomName1"]), str(vs["atomName2"])
+                            vs_name = vs["siteName"]
                             a1_idx = name2idx_template[a1_name]
                             a2_idx = name2idx_template[a2_name]
                             a1, a2 = atoms[a1_idx], atoms[a2_idx]
@@ -96,11 +94,8 @@ class TemplateVSiteOperator(BaseOperator):
                             vsite = VirtualSite(vtype, [a1, a2], [w1, w2])
                             vslist.append(vsite)
                         elif vtype == "average3":
-                            a1i, a2i, a3i = int(vs["atom1"]), int(vs["atom2"]), int(vs["atom3"])
-                            a1_name = self.residue_infos[nt]["particles"][a1i]["name"]
-                            a2_name = self.residue_infos[nt]["particles"][a2i]["name"]
-                            a3_name = self.residue_infos[nt]["particles"][a3i]["name"]
-                            vs_name = self.residue_infos[nt]["particles"][idx]["name"]
+                            a1_name, a2_name, a3_name = str(vs["atomName1"]), str(vs["atomName2"]), str(vs["atomName3"])
+                            vs_name = vs["siteName"]
                             a1_idx = name2idx_template[a1_name]
                             a2_idx = name2idx_template[a2_name]
                             a3_idx = name2idx_template[a3_name]
