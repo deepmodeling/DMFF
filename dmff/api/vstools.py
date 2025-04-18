@@ -34,7 +34,8 @@ def insertVirtualSites(topdata, vsite_list):
                 if atom.element is None:
                     nep += 1
 
-                # add new vsite
+            # add new vsite
+            for atom in residue.atoms():
                 if atom.index in parent2vsite:
                     for vsite in parent2vsite[atom.index]:
                         newvatom = newtop.addAtom(f"V{nep}", None, newres)

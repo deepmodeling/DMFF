@@ -127,6 +127,12 @@ class OpenMMSampleState(SampleState):
         # create a context
         pdb = app.PDBFile(topology)
         ff = app.ForceField(parameter)
+        
+        # Virtual site
+        modeller = app.Modeller(pdb.topology, pdb.getPositions())
+        modeller.addExtraParticles(ff)
+        pos = modeller.getPositions()
+        topology = modeller.topology
 
         # default settings
         if "nonbondedMethod" not in args:
@@ -137,7 +143,7 @@ class OpenMMSampleState(SampleState):
             args["constraints"] = None
         if "rigidWater" not in args:
             args["rigidWater"] = False
-        system = ff.createSystem(pdb.topology, **args)
+        system = ff.createSystem(topology, **args)
 
         platform = mm.Platform.getPlatformByName(platform)
         platform_properties = properties

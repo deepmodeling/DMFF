@@ -147,6 +147,8 @@ class XMLIO:
         if write_atomtypes:
             atype = ET.SubElement(root, "AtomTypes")
             for atp in ffinfo["AtomTypes"]:
+                if atp["element"] == None:
+                    del atp["element"]
                 new = ET.SubElement(atype, "Type")
                 new.attrib = genStrDict(atp)
         if write_residues:
