@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
-
+from copy import deepcopy
 
 def genStrDict(olddict):
     newdict = {}
@@ -138,22 +138,23 @@ class XMLIO:
         root = ET.Element("ForceField")
         if write_operators:
             ops = ET.SubElement(root, "Operators")
-            for key in ffinfo["Operators"].keys():
-                op = ffinfo["Operators"][key]
+            ffinfo_output = deepcopy(ffinfo)
+            for key in ffinfo_output["Operators"].keys():
+                op = ffinfo_output["Operators"][key]
                 op_node = ET.SubElement(ops, key)
                 for inner in op:
                     new_node = ET.SubElement(op_node, inner["name"])
                     new_node.attrib = inner["attrib"]
         if write_atomtypes:
             atype = ET.SubElement(root, "AtomTypes")
-            for atp in ffinfo["AtomTypes"]:
+            for atp in ffinfo_output["AtomTypes"]:
                 if atp["element"] == None:
                     del atp["element"]
                 new = ET.SubElement(atype, "Type")
                 new.attrib = genStrDict(atp)
         if write_residues:
             residues = ET.SubElement(root, "Residues")
-            for res in ffinfo["Residues"]:
+            for res in ffinfo_output["Residues"]:
                 residue = ET.SubElement(residues, "Residue")
                 residue.attrib = {"name": res["name"]}
                 # write Atom
@@ -173,8 +174,8 @@ class XMLIO:
                     enode.attrib = genStrDict({"atomName": external})
 
         if write_forces:
-            for force_name in ffinfo["Forces"].keys():
-                force_info = ffinfo["Forces"][force_name]
+            for force_name in ffinfo_output["Forces"].keys():
+                force_info = ffinfo_output["Forces"][force_name]
                 fnode = ET.SubElement(root, force_name)
                 fnode.attrib = genStrDict(force_info["meta"])
                 for node in force_info["node"]:
