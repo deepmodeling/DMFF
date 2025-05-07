@@ -88,7 +88,8 @@ class NoCutoffNeighborList:
     def allocate(self, coords, box=None):
         self._positions = coords  # cache it
         natoms = coords.shape[0]
-        nblist = np.fromiter(permutations(range(natoms), 2), dtype=np.dtype(int, 2))
+        # nblist = np.fromiter(permutations(range(natoms), 2), dtype=np.dtype(int, 2))
+        nblist = np.array(list(permutations(range(natoms), 2)), dtype=np.dtype(int, 2))
         nlist = nblist[nblist[:, 0] < nblist[:, 1]]
         if self.capacity_multiplier is None:
             self.capacity_multiplier = int(nlist.shape[0] * 1.3)
@@ -135,7 +136,8 @@ class NoPeriodicNeighborList(NoCutoffNeighborList):
     def allocate(self, coords):
         self._positions = coords  # cache it
         natoms = coords.shape[0]
-        nblist = np.fromiter(permutations(range(natoms), 2), dtype=np.dtype(int, 2))
+        # nblist = np.fromiter(permutations(range(natoms), 2), dtype=np.dtype(int, 2))
+        nblist = np.array(list(permutations(range(natoms), 2)), dtype=np.dtype(int, 2))
         nlist = nblist[nblist[:, 0] < nblist[:, 1]]
         distances = np.linalg.norm(coords[nlist[:, 0]] - coords[nlist[:, 1]], axis=1)
         nlist = nlist[distances < self.rcut]
