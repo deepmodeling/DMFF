@@ -3,6 +3,8 @@ import jax.numpy as jnp
 from itertools import permutations
 try:
     import freud
+    import freud.box
+    import freud.locality
 except ImportError:
     freud = None
     import warnings
