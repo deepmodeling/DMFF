@@ -38,4 +38,4 @@ jobs:
           pytest -vs tests/test_difftraj/test_*
           pytest -vs tests/test_frontend/test_*
           pytest -vs tests/test_dimer/test_*
-          pytest -vs tests/test_energy/test_*
+          pytest -vs tests/test_energy.py
