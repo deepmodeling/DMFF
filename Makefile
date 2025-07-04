@@ -28,4 +28,4 @@ test_energy:
 	pytest --disable-warnings tests/test_energy.py
 	
 test_utils:
-	pytest --disable-warnings tests/test_utils
+	pytest --disable-warnings tests/test_utils.py
