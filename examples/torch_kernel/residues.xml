@@ -1,0 +1,8 @@
+  <Residues>
+    <Residue name="ARG">
+      <Atom name="AR" type="ar"/>
+    </Residue>
+    <Residue name="NEO">
+      <Atom name="NE" type="ne"/>
+    </Residue>
+  </Residues>

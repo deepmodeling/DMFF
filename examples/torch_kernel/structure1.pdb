@@ -1,0 +1,6 @@
+REMARK   1 CREATED WITH OPENMM 8.0, 2023-08-25
+CRYST1   30.000   30.000   30.000  90.00  90.00  90.00 P 1           1 
+HETATM    1  AR  ARG A   1       4.125  13.679  13.761  1.00  0.00          Ar  
+HETATM    2  AR  ARG A   2       5.406  17.008  13.462  1.00  0.00          Ar  
+HETATM    3  NE  NEO A   3       7.292  15.267  11.931  1.00  0.00          Ne
+END
