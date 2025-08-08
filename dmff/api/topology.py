@@ -419,7 +419,7 @@ class DMFFTopology:
 
     def buildVSiteUpdateFunction(self):
         # vtype: 2
-        vsites_type_2 = [v for v in self.vsites() if v.type == "2"]
+        vsites_type_2 = [v for v in self.vsites() if v.type == "average2"]
         if len(vsites_type_2) > 0:
             use_type_2 = True
             self_idx_type_2 = jnp.array(
