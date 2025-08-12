@@ -90,7 +90,12 @@ class TemplateVSiteOperator(BaseOperator):
                             a1_idx = name2idx_template[a1_name]
                             a2_idx = name2idx_template[a2_name]
                             a1, a2 = atoms[a1_idx], atoms[a2_idx]
-                            w1, w2 = float(vs["weight1"]), float(vs["weight2"])
+                            # vs["weight1"]がstrのとき,floatに変換
+                            if isinstance(vs["weight1"], str):
+                                vs["weight1"] = float(vs["weight1"])
+                            if isinstance(vs["weight2"], str):
+                                vs["weight2"] = float(vs["weight2"])
+                            w1, w2 = vs["weight1"], vs["weight2"]
                             vsite = VirtualSite(vtype, [a1, a2], [w1, w2])
                             vslist.append(vsite)
                         elif vtype == "average3":
