@@ -417,7 +417,7 @@ class DMFFTopology:
             return jnp.array(covalent_map)
         return covalent_map
 
-    def buildVSiteUpdateFunction(self):
+    def buildVSiteUpdateFunction(self, paramset: ParamSet = None):
         # vtype: 2
         vsites_type_2 = [v for v in self.vsites() if v.type == "average2"]
         if len(vsites_type_2) > 0:
@@ -428,8 +428,8 @@ class DMFFTopology:
                 [v.atoms[0].index for v in vsites_type_2], dtype=int)
             a2_idx_type_2 = jnp.array(
                 [v.atoms[1].index for v in vsites_type_2], dtype=int)
-            w2_idx_type_2 = jnp.array([v.weights[1] for v in vsites_type_2])
-            w1_idx_type_2 = jnp.ones(w2_idx_type_2.shape) - w2_idx_type_2
+            w2_idx_type_2_init = jnp.array([v.weights[1] for v in vsites_type_2])
+            w1_idx_type_2_init = jnp.ones(w2_idx_type_2_init.shape) - w2_idx_type_2_init
         else:
             use_type_2 = False
 
@@ -445,10 +445,10 @@ class DMFFTopology:
                 [v.atoms[1].index for v in vsites_type_3], dtype=int)
             a3_idx_type_3 = jnp.array(
                 [v.atoms[2].index for v in vsites_type_3], dtype=int)
-            w2_idx_type_3 = jnp.array([v.weights[1] for v in vsites_type_3])
-            w3_idx_type_3 = jnp.array([v.weights[2] for v in vsites_type_3])
-            w1_idx_type_3 = jnp.ones(w2_idx_type_3.shape) - \
-                w2_idx_type_3 - w3_idx_type_3
+            w2_idx_type_3_init = jnp.array([v.weights[1] for v in vsites_type_3])
+            w3_idx_type_3_init = jnp.array([v.weights[2] for v in vsites_type_3])
+            w1_idx_type_3_init = jnp.ones(w2_idx_type_3_init.shape) - \
+                w2_idx_type_3_init - w3_idx_type_3_init
         else:
             use_type_3 = False
 
@@ -462,7 +462,7 @@ class DMFFTopology:
                 [v.atoms[0].index for v in vsites_type_2fd], dtype=int)
             a2_idx_type_2fd = jnp.array(
                 [v.atoms[1].index for v in vsites_type_2fd], dtype=int)
-            dist_idx_type_2fd = jnp.array(
+            dist_idx_type_2fd_init = jnp.array(
                 [v.weights[0] for v in vsites_type_2fd]).reshape((-1, 1))
         else:
             use_type_2fd = False
@@ -479,31 +479,69 @@ class DMFFTopology:
                 [v.atoms[1].index for v in vsites_type_3fd], dtype=int)
             a3_idx_type_3fd = jnp.array(
                 [v.atoms[2].index for v in vsites_type_3fd], dtype=int)
-            dist_idx_type_3fd = jnp.array(
+            dist_idx_type_3fd_init = jnp.array(
                 [v.weights[0] for v in vsites_type_3fd]).reshape((-1, 1))
         else:
             use_type_3fd = False
+        
+        # Store vsite weights in paramset for automatic differentiation
+        if paramset is not None:
+            paramset.addField("VirtualSite")
+            if use_type_2:
+                vsite_w2_type_2_mask = jnp.ones(w2_idx_type_2_init.shape)
+                paramset.addParameter(w2_idx_type_2_init, "vsite_w2_type_2", field="VirtualSite", mask=vsite_w2_type_2_mask)
+            if use_type_3:
+                vsite_w2_type_3_mask = jnp.ones(w2_idx_type_3_init.shape)
+                vsite_w3_type_3_mask = jnp.ones(w3_idx_type_3_init.shape)
+                paramset.addParameter(w2_idx_type_3_init, "vsite_w2_type_3", field="VirtualSite", mask=vsite_w2_type_3_mask)
+                paramset.addParameter(w3_idx_type_3_init, "vsite_w3_type_3", field="VirtualSite", mask=vsite_w3_type_3_mask)
+            if use_type_2fd:
+                vsite_dist_type_2fd_mask = jnp.ones(dist_idx_type_2fd_init.shape)
+                paramset.addParameter(dist_idx_type_2fd_init, "vsite_dist_type_2fd", field="VirtualSite", mask=vsite_dist_type_2fd_mask)
+            if use_type_3fd:
+                vsite_dist_type_3fd_mask = jnp.ones(dist_idx_type_3fd_init.shape)
+                paramset.addParameter(dist_idx_type_3fd_init, "vsite_dist_type_3fd", field="VirtualSite", mask=vsite_dist_type_3fd_mask)
 
-        def update_pos(pos):
+        def update_pos(pos, vsite_params=None):
             # vtype: 2
             if use_type_2:
+                if vsite_params is not None and "vsite_w2_type_2" in vsite_params:
+                    w2_idx_type_2 = vsite_params["vsite_w2_type_2"]
+                else:
+                    w2_idx_type_2 = w2_idx_type_2_init
+                w1_idx_type_2 = jnp.ones(w2_idx_type_2.shape) - w2_idx_type_2
                 new_pos_type_2 = pos[a1_idx_type_2, :] * \
                     w1_idx_type_2[:, jnp.newaxis] + pos[a2_idx_type_2, :] * w2_idx_type_2[:, jnp.newaxis]
                 pos = pos.at[self_idx_type_2, :].set(new_pos_type_2)
             # vtype: 3
             if use_type_3:
+                if vsite_params is not None and "vsite_w2_type_3" in vsite_params:
+                    w2_idx_type_3 = vsite_params["vsite_w2_type_3"]
+                    w3_idx_type_3 = vsite_params["vsite_w3_type_3"]
+                else:
+                    w2_idx_type_3 = w2_idx_type_3_init
+                    w3_idx_type_3 = w3_idx_type_3_init
+                w1_idx_type_3 = jnp.ones(w2_idx_type_3.shape) - w2_idx_type_3 - w3_idx_type_3
                 new_pos_type_3 = pos[a1_idx_type_3, :] * w1_idx_type_3[:, jnp.newaxis] + \
                     pos[a2_idx_type_3, :] * w2_idx_type_3[:, jnp.newaxis] + \
                     pos[a3_idx_type_3, :] * w3_idx_type_3[:, jnp.newaxis]
                 pos = pos.at[self_idx_type_3, :].set(new_pos_type_3)
             # vtype: 2fd
             if use_type_2fd:
+                if vsite_params is not None and "vsite_dist_type_2fd" in vsite_params:
+                    dist_idx_type_2fd = vsite_params["vsite_dist_type_2fd"]
+                else:
+                    dist_idx_type_2fd = dist_idx_type_2fd_init
                 vvec = pos[a1_idx_type_2fd, :] - pos[a2_idx_type_2fd]
                 rvec = vvec / jnp.linalg.norm(vvec, axis=1).reshape((-1, 1))
                 new_pos_type_2fd = pos[a1_idx_type_2fd, :] + rvec * dist_idx_type_2fd
                 pos = pos.at[self_idx_type_2fd, :].set(new_pos_type_2fd)
             # vtype: 3fd
             if use_type_3fd:
+                if vsite_params is not None and "vsite_dist_type_3fd" in vsite_params:
+                    dist_idx_type_3fd = vsite_params["vsite_dist_type_3fd"]
+                else:
+                    dist_idx_type_3fd = dist_idx_type_3fd_init
                 vji = pos[a1_idx_type_3fd, :] - pos[a2_idx_type_3fd, :]
                 vki = pos[a1_idx_type_3fd, :] - pos[a3_idx_type_3fd, :]
                 rji = vji / jnp.linalg.norm(vji, axis=1).reshape((-1, 1))

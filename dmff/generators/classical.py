@@ -152,7 +152,7 @@ class HarmonicBondGenerator:
         return None
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, **kwargs):
+                        nonbondedCutoff, paramset: ParamSet = None, **kwargs):
         """
         Creates the potential.
 
@@ -361,7 +361,7 @@ class HarmonicAngleGenerator:
         return None
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, **kwargs):
+                        nonbondedCutoff, paramset: ParamSet = None, **kwargs):
         """
         Creates the potential.
 
@@ -668,7 +668,7 @@ class PeriodicTorsionGenerator:
 
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, **kwargs):
+                        nonbondedCutoff, paramset: ParamSet = None, **kwargs):
         
         if self.key_type is None:
             def potential_fn_zero(positions: jnp.ndarray, box: jnp.ndarray, pairs: jnp.ndarray, params: ParamSet) -> jnp.ndarray:
@@ -862,7 +862,7 @@ class NonbondedGenerator:
         return None
     
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, **kwargs):
+                        nonbondedCutoff, paramset: ParamSet = None, **kwargs):
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",
@@ -895,6 +895,11 @@ class NonbondedGenerator:
         else:
             types = [a.meta[self.key_type] for a in topdata.atoms()]
             charges = jnp.array([self.type_to_charge[i] for i in types])
+
+        # Store charges in paramset for automatic differentiation
+        if paramset is not None:
+            charge_mask = jnp.ones(charges.shape)
+            paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -1001,7 +1006,8 @@ class NonbondedGenerator:
             # it is jit-compatiable
             isinstance_jnp(positions, box, params)
 
-            coulE = coulenergy(positions, box, pairs, mscales_coul)
+            charges_from_params = params[self.name]["charge"]
+            coulE = coulenergy(positions, box, pairs, charges_from_params, mscales_coul)
             
             ljE = ljenergy(positions, box, pairs, params[self.name]["epsilon"],
                             params[self.name]["sigma"], eps_nbfix, sig_nbfix, mscales_lj)
@@ -1073,7 +1079,7 @@ class CoulombGenerator:
                     nbcc += 1
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, **kwargs):
+                        nonbondedCutoff, paramset: ParamSet = None, **kwargs):
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",
@@ -1100,6 +1106,11 @@ class CoulombGenerator:
 
         charges = [a.meta["charge"] for a in topdata.atoms()]
         charges = jnp.array(charges)
+        
+        # Store charges in paramset for automatic differentiation
+        if paramset is not None:
+            charge_mask = jnp.ones(charges.shape)
+            paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
 
         cov_mat = topdata.buildCovMat()
 
@@ -1171,12 +1182,13 @@ class CoulombGenerator:
             # it is jit-compatiable
             isinstance_jnp(positions, box, params)
 
+            charges_from_params = params["CoulombForce"]["charge"]
             if self._use_bcc:
                 coulE = coulenergy(positions, box, pairs,
-                                   params["CoulombForce"]["bcc"], mscales_coul)
+                                   charges_from_params, params["CoulombForce"]["bcc"], mscales_coul)
             else:
                 coulE = coulenergy(positions, box, pairs,
-                                   mscales_coul)
+                                   charges_from_params, mscales_coul)
 
             if has_aux:
                 return coulE, aux
@@ -1313,7 +1325,7 @@ class LennardJonesGenerator:
                 self.ffinfo["Forces"][self.name]["node"][nnode]["attrib"]["epsilon"] = eps_now
 
     def createPotential(self, topdata: DMFFTopology, nonbondedMethod,
-                        nonbondedCutoff, **kwargs):
+                        nonbondedCutoff, paramset: ParamSet = None, **kwargs):
         methodMap = {
             app.NoCutoff: "NoCutoff",
             app.CutoffPeriodic: "CutoffPeriodic",

@@ -164,12 +164,12 @@ class CoulNoCutoffForce:
             return jnp.sum(E_inter * mask)
         
         if self.top_mat is None:
-            def get_energy(positions, box, pairs, mscales):
-                return get_energy_kernel(positions, box, pairs, self.init_charges, mscales)
-        else:
-            def get_energy(positions, box, pairs, bcc, mscales):
-                charges = self.init_charges + jnp.dot(self.top_mat, bcc).flatten()
+            def get_energy(positions, box, pairs, charges, mscales):
                 return get_energy_kernel(positions, box, pairs, charges, mscales)
+        else:
+            def get_energy(positions, box, pairs, charges, bcc, mscales):
+                charges_corrected = charges + jnp.dot(self.top_mat, bcc).flatten()
+                return get_energy_kernel(positions, box, pairs, charges_corrected, mscales)
         return get_energy
         
     def generate_esp(self):
@@ -256,12 +256,12 @@ class CoulReactionFieldForce:
             return jnp.sum(E_inter * mask)
         
         if self.top_mat is None:
-            def get_energy(positions, box, pairs, mscales):
-                return get_energy_kernel(positions, box, pairs, self.init_charges, mscales)
-        else:
-            def get_energy(positions, box, pairs, bcc, mscales):
-                charges = self.init_charges + jnp.dot(self.top_mat, bcc).flatten()
+            def get_energy(positions, box, pairs, charges, mscales):
                 return get_energy_kernel(positions, box, pairs, charges, mscales)
+        else:
+            def get_energy(positions, box, pairs, charges, bcc, mscales):
+                charges_corrected = charges + jnp.dot(self.top_mat, bcc).flatten()
+                return get_energy_kernel(positions, box, pairs, charges_corrected, mscales)
         return get_energy
 
 
@@ -325,10 +325,10 @@ class CoulombPMEForce:
             )
 
         if self.top_mat is None:
-            def get_energy(positions, box, pairs, mscales):
-                return get_energy_kernel(positions, box, pairs, self.init_charges, mscales)
-        else:
-            def get_energy(positions, box, pairs, bcc, mscales):
-                charges = self.init_charges + jnp.dot(self.top_mat, bcc).flatten()
+            def get_energy(positions, box, pairs, charges, mscales):
                 return get_energy_kernel(positions, box, pairs, charges, mscales)
+        else:
+            def get_energy(positions, box, pairs, charges, bcc, mscales):
+                charges_corrected = charges + jnp.dot(self.top_mat, bcc).flatten()
+                return get_energy_kernel(positions, box, pairs, charges_corrected, mscales)
         return get_energy

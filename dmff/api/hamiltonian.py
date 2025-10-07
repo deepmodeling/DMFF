@@ -57,11 +57,15 @@ class Potential:
             names = [i for i in self.dmff_potentials.keys()]
         if not self.has_aux:
             def efunc(positions, box, pairs, prms):
-                pos_update = self.update_func(positions)
+                # Extract vsite params if they exist
+                vsite_params = prms.get("VirtualSite", None) if isinstance(prms, dict) else None
+                pos_update = self.update_func(positions, vsite_params)
                 return sum([self.dmff_potentials[name](pos_update, box, pairs, prms) for name in names])
         else:
             def efunc(positions, box, pairs, prms, aux):
-                pos_update = self.update_func(positions)
+                # Extract vsite params if they exist
+                vsite_params = prms.get("VirtualSite", None) if isinstance(prms, dict) else None
+                pos_update = self.update_func(positions, vsite_params)
                 energy, aux = self.dmff_potentials[names[0]](pos_update, box, pairs, prms, aux)
                 if len(names) > 1:
                     for name in names[1:]:
@@ -115,12 +119,12 @@ class Hamiltonian:
         for key in self.generators:
             gen = self.generators[key]
             efuncs[gen.getName()] = gen.createPotential(topdata, nonbondedMethod,
-                                                        nonbondedCutoff, **kwargs)
+                                                        nonbondedCutoff, paramset=self.paramset, **kwargs)
 
         has_aux = False
         if "has_aux" in kwargs:
             has_aux = kwargs["has_aux"]
-        update_func = topdata.buildVSiteUpdateFunction()
+        update_func = topdata.buildVSiteUpdateFunction(paramset=self.paramset)
         potential = Potential(topdata, update_func, has_aux=has_aux)
         for key in efuncs:
             potential.add(key, efuncs[key])
