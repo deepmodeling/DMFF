@@ -57,11 +57,23 @@ class Potential:
             names = [i for i in self.dmff_potentials.keys()]
         if not self.has_aux:
             def efunc(positions, box, pairs, prms):
-                pos_update = self.update_func(positions)
+                # Extract vsite params if they exist
+                if isinstance(prms, dict):
+                    vsite_params = prms.get("VirtualSite", None)
+                else:
+                    # prms is a ParamSet object
+                    vsite_params = prms.parameters.get("VirtualSite", None) if hasattr(prms, 'parameters') else None
+                pos_update = self.update_func(positions, vsite_params)
                 return sum([self.dmff_potentials[name](pos_update, box, pairs, prms) for name in names])
         else:
             def efunc(positions, box, pairs, prms, aux):
-                pos_update = self.update_func(positions)
+                # Extract vsite params if they exist
+                if isinstance(prms, dict):
+                    vsite_params = prms.get("VirtualSite", None)
+                else:
+                    # prms is a ParamSet object
+                    vsite_params = prms.parameters.get("VirtualSite", None) if hasattr(prms, 'parameters') else None
+                pos_update = self.update_func(positions, vsite_params)
                 energy, aux = self.dmff_potentials[names[0]](pos_update, box, pairs, prms, aux)
                 if len(names) > 1:
                     for name in names[1:]:
@@ -97,7 +109,7 @@ class Hamiltonian:
             else:
                 self.generators[key] = _DMFFGenerators[key](
                     ffinfo, self.paramset)
-                
+
     def getGenerators(self):
         return [g for g in self.generators.values()]
 
@@ -110,17 +122,79 @@ class Hamiltonian:
             topdata = vsite(topdata)
             template = TemplateATypeOperator(self.ffinfo)
             topdata = template(topdata)
+            
+            # Process VirtualSites from NonbondedForce if they exist
+            if "NonbondedForce" in self.ffinfo["Forces"]:
+                from ..operators.smartsvsite import SMARTSVSiteOperator
+                from ..api.vsite import VirtualSite
+                from ..api.vstools import insertVirtualSites
+                try:
+                    from rdkit import Chem
+                    vsites_to_add = []
+                    topatoms = [a for a in topdata.atoms()]
+                    
+                    for node in self.ffinfo["Forces"]["NonbondedForce"]["node"]:
+                        if node["name"] == "VirtualSite":
+                            info = node["attrib"]
+                            # Process SMARTS/SMIRKS based vsites similar to SMARTSVSiteOperator
+                            for rdmol in topdata.molecules():
+                                atoms = rdmol.GetAtoms()
+                                parser = info.get("smarts", info.get("smirks", None))
+                                if parser:
+                                    par = Chem.MolFromSmarts(parser)
+                                    matches = rdmol.GetSubstructMatches(par)
+                                    for match in matches:
+                                        alist = []
+                                        for molidx in match:
+                                            idx = int(atoms[molidx].GetProp("_Index"))
+                                            atom = topatoms[idx]
+                                            alist.append(atom)
+                                        
+                                        # Extract vtype and weights/distance
+                                        vtype_num = int(info.get("vtype", "1"))
+                                        distance = float(info.get("distance", "0.0"))
+                                        
+                                        # Convert vtype number to string format
+                                        vtype_map = {1: "2fd", 2: "3fd", 3: "average2", 4: "average3"}
+                                        vtype = vtype_map.get(vtype_num, "2fd")
+                                        
+                                        # For distance-based vsites (2fd, 3fd), weights list contains distance
+                                        if vtype in ["2fd", "3fd"]:
+                                            wlist = [distance]
+                                        else:
+                                            # For average-based vsites, extract weights
+                                            wlist = []
+                                            widx = 1
+                                            while True:
+                                                key = f"weight{widx}"
+                                                if key not in info:
+                                                    break
+                                                wlist.append(float(info[key]))
+                                                widx += 1
+                                        
+                                        meta = {}
+                                        meta["type"] = info.get("type", "VS")
+                                        meta["class"] = info.get("class", "VS")
+                                        meta["charge"] = 0.0
+                                        
+                                        vsite = VirtualSite(vtype, alist, wlist, meta=meta)
+                                        vsites_to_add.append(vsite)
+                    
+                    if vsites_to_add:
+                        topdata = insertVirtualSites(topdata, vsites_to_add)
+                except ImportError:
+                    pass  # RDKit not available, skip SMARTS-based vsites
 
         efuncs = {}
         for key in self.generators:
             gen = self.generators[key]
             efuncs[gen.getName()] = gen.createPotential(topdata, nonbondedMethod,
-                                                        nonbondedCutoff, **kwargs)
+                                                        nonbondedCutoff, paramset=self.paramset, **kwargs)
 
         has_aux = False
         if "has_aux" in kwargs:
             has_aux = kwargs["has_aux"]
-        update_func = topdata.buildVSiteUpdateFunction()
+        update_func = topdata.buildVSiteUpdateFunction(paramset=self.paramset)
         potential = Potential(topdata, update_func, has_aux=has_aux)
         for key in efuncs:
             potential.add(key, efuncs[key])

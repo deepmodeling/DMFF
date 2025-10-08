@@ -14,6 +14,7 @@ except ImportError:
 import numpy as np
 import jax.numpy as jnp
 import os
+from .paramset import ParamSet
 
 
 _standardResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO', 'THR', 'TYR',
@@ -417,7 +418,10 @@ class DMFFTopology:
             return jnp.array(covalent_map)
         return covalent_map
 
-    def buildVSiteUpdateFunction(self):
+    def buildVSiteUpdateFunction(self, paramset: ParamSet = None):
+        # Determine number of molecules to only store parameters for first molecule
+        num_molecules = self.getNumMolecules()
+        
         # vtype: 2
         vsites_type_2 = [v for v in self.vsites() if v.type == "average2"]
         if len(vsites_type_2) > 0:
@@ -428,8 +432,14 @@ class DMFFTopology:
                 [v.atoms[0].index for v in vsites_type_2], dtype=int)
             a2_idx_type_2 = jnp.array(
                 [v.atoms[1].index for v in vsites_type_2], dtype=int)
-            w2_idx_type_2 = jnp.array([v.weights[1] for v in vsites_type_2])
-            w1_idx_type_2 = jnp.ones(w2_idx_type_2.shape) - w2_idx_type_2
+            w2_idx_type_2_init = jnp.array([v.weights[1] for v in vsites_type_2])
+            w1_idx_type_2_init = jnp.ones(w2_idx_type_2_init.shape) - w2_idx_type_2_init
+            # For paramset, only store parameters for first molecule
+            if num_molecules > 0:
+                num_vsites_per_mol = len(vsites_type_2) // num_molecules
+                w2_idx_type_2_ref = w2_idx_type_2_init[:num_vsites_per_mol]
+            else:
+                w2_idx_type_2_ref = w2_idx_type_2_init
         else:
             use_type_2 = False
 
@@ -445,10 +455,18 @@ class DMFFTopology:
                 [v.atoms[1].index for v in vsites_type_3], dtype=int)
             a3_idx_type_3 = jnp.array(
                 [v.atoms[2].index for v in vsites_type_3], dtype=int)
-            w2_idx_type_3 = jnp.array([v.weights[1] for v in vsites_type_3])
-            w3_idx_type_3 = jnp.array([v.weights[2] for v in vsites_type_3])
-            w1_idx_type_3 = jnp.ones(w2_idx_type_3.shape) - \
-                w2_idx_type_3 - w3_idx_type_3
+            w2_idx_type_3_init = jnp.array([v.weights[1] for v in vsites_type_3])
+            w3_idx_type_3_init = jnp.array([v.weights[2] for v in vsites_type_3])
+            w1_idx_type_3_init = jnp.ones(w2_idx_type_3_init.shape) - \
+                w2_idx_type_3_init - w3_idx_type_3_init
+            # For paramset, only store parameters for first molecule
+            if num_molecules > 0:
+                num_vsites_per_mol = len(vsites_type_3) // num_molecules
+                w2_idx_type_3_ref = w2_idx_type_3_init[:num_vsites_per_mol]
+                w3_idx_type_3_ref = w3_idx_type_3_init[:num_vsites_per_mol]
+            else:
+                w2_idx_type_3_ref = w2_idx_type_3_init
+                w3_idx_type_3_ref = w3_idx_type_3_init
         else:
             use_type_3 = False
 
@@ -462,8 +480,14 @@ class DMFFTopology:
                 [v.atoms[0].index for v in vsites_type_2fd], dtype=int)
             a2_idx_type_2fd = jnp.array(
                 [v.atoms[1].index for v in vsites_type_2fd], dtype=int)
-            dist_idx_type_2fd = jnp.array(
+            dist_idx_type_2fd_init = jnp.array(
                 [v.weights[0] for v in vsites_type_2fd]).reshape((-1, 1))
+            # For paramset, only store parameters for first molecule
+            if num_molecules > 0:
+                num_vsites_per_mol = len(vsites_type_2fd) // num_molecules
+                dist_idx_type_2fd_ref = dist_idx_type_2fd_init[:num_vsites_per_mol]
+            else:
+                dist_idx_type_2fd_ref = dist_idx_type_2fd_init
         else:
             use_type_2fd = False
 
@@ -479,31 +503,98 @@ class DMFFTopology:
                 [v.atoms[1].index for v in vsites_type_3fd], dtype=int)
             a3_idx_type_3fd = jnp.array(
                 [v.atoms[2].index for v in vsites_type_3fd], dtype=int)
-            dist_idx_type_3fd = jnp.array(
+            dist_idx_type_3fd_init = jnp.array(
                 [v.weights[0] for v in vsites_type_3fd]).reshape((-1, 1))
+            # For paramset, only store parameters for first molecule
+            if num_molecules > 0:
+                num_vsites_per_mol = len(vsites_type_3fd) // num_molecules
+                dist_idx_type_3fd_ref = dist_idx_type_3fd_init[:num_vsites_per_mol]
+            else:
+                dist_idx_type_3fd_ref = dist_idx_type_3fd_init
         else:
             use_type_3fd = False
+        
+        # Store vsite weights in paramset for automatic differentiation
+        # Store one parameter per vsite in the reference molecule, but only add once
+        # (don't duplicate when multiple molecules are present)
+        if paramset is not None:
+            if "VirtualSite" not in paramset.parameters:
+                paramset.addField("VirtualSite")
+            
+            # Only add parameters if not already present (avoid duplication for multiple molecules)
+            if use_type_2 and "vsite_w2_type_2" not in paramset.parameters["VirtualSite"]:
+                vsite_w2_type_2_mask = jnp.ones(w2_idx_type_2_ref.shape)
+                paramset.addParameter(w2_idx_type_2_ref, "vsite_w2_type_2", field="VirtualSite", mask=vsite_w2_type_2_mask)
+                    
+            if use_type_3 and "vsite_w2_type_3" not in paramset.parameters["VirtualSite"]:
+                vsite_w2_type_3_mask = jnp.ones(w2_idx_type_3_ref.shape)
+                vsite_w3_type_3_mask = jnp.ones(w3_idx_type_3_ref.shape)
+                paramset.addParameter(w2_idx_type_3_ref, "vsite_w2_type_3", field="VirtualSite", mask=vsite_w2_type_3_mask)
+                paramset.addParameter(w3_idx_type_3_ref, "vsite_w3_type_3", field="VirtualSite", mask=vsite_w3_type_3_mask)
+                    
+            if use_type_2fd and "vsite_dist_type_2fd" not in paramset.parameters["VirtualSite"]:
+                vsite_dist_type_2fd_mask = jnp.ones(dist_idx_type_2fd_ref.shape)
+                paramset.addParameter(dist_idx_type_2fd_ref, "vsite_dist_type_2fd", field="VirtualSite", mask=vsite_dist_type_2fd_mask)
+                    
+            if use_type_3fd and "vsite_dist_type_3fd" not in paramset.parameters["VirtualSite"]:
+                vsite_dist_type_3fd_mask = jnp.ones(dist_idx_type_3fd_ref.shape)
+                paramset.addParameter(dist_idx_type_3fd_ref, "vsite_dist_type_3fd", field="VirtualSite", mask=vsite_dist_type_3fd_mask)
 
-        def update_pos(pos):
+        def update_pos(pos, vsite_params=None):
             # vtype: 2
             if use_type_2:
+                if vsite_params is not None and "vsite_w2_type_2" in vsite_params:
+                    # Use parameters from paramset - tile to match actual number of vsites
+                    w2_params = vsite_params["vsite_w2_type_2"]
+                    num_vsites_total = len(w2_idx_type_2_init)
+                    num_params = len(w2_params)
+                    # Tile parameters to cover all vsites (handles multiple molecules)
+                    w2_idx_type_2 = jnp.tile(w2_params, (num_vsites_total // num_params) + 1)[:num_vsites_total]
+                else:
+                    w2_idx_type_2 = w2_idx_type_2_init
+                w1_idx_type_2 = jnp.ones(w2_idx_type_2.shape) - w2_idx_type_2
                 new_pos_type_2 = pos[a1_idx_type_2, :] * \
                     w1_idx_type_2[:, jnp.newaxis] + pos[a2_idx_type_2, :] * w2_idx_type_2[:, jnp.newaxis]
                 pos = pos.at[self_idx_type_2, :].set(new_pos_type_2)
             # vtype: 3
             if use_type_3:
+                if vsite_params is not None and "vsite_w2_type_3" in vsite_params:
+                    w2_params = vsite_params["vsite_w2_type_3"]
+                    num_vsites_total = len(w2_idx_type_3_init)
+                    num_params = len(w2_params)
+                    w2_idx_type_3 = jnp.tile(w2_params, (num_vsites_total // num_params) + 1)[:num_vsites_total]
+                    w3_params = vsite_params["vsite_w3_type_3"]
+                    w3_idx_type_3 = jnp.tile(w3_params, (num_vsites_total // num_params) + 1)[:num_vsites_total]
+                else:
+                    w2_idx_type_3 = w2_idx_type_3_init
+                    w3_idx_type_3 = w3_idx_type_3_init
+                w1_idx_type_3 = jnp.ones(w2_idx_type_3.shape) - w2_idx_type_3 - w3_idx_type_3
                 new_pos_type_3 = pos[a1_idx_type_3, :] * w1_idx_type_3[:, jnp.newaxis] + \
                     pos[a2_idx_type_3, :] * w2_idx_type_3[:, jnp.newaxis] + \
                     pos[a3_idx_type_3, :] * w3_idx_type_3[:, jnp.newaxis]
                 pos = pos.at[self_idx_type_3, :].set(new_pos_type_3)
             # vtype: 2fd
             if use_type_2fd:
+                if vsite_params is not None and "vsite_dist_type_2fd" in vsite_params:
+                    dist_params = vsite_params["vsite_dist_type_2fd"]
+                    num_vsites_total = len(dist_idx_type_2fd_init)
+                    num_params = len(dist_params)
+                    dist_idx_type_2fd = jnp.tile(dist_params, ((num_vsites_total // num_params) + 1, 1))[:num_vsites_total]
+                else:
+                    dist_idx_type_2fd = dist_idx_type_2fd_init
                 vvec = pos[a1_idx_type_2fd, :] - pos[a2_idx_type_2fd]
                 rvec = vvec / jnp.linalg.norm(vvec, axis=1).reshape((-1, 1))
                 new_pos_type_2fd = pos[a1_idx_type_2fd, :] + rvec * dist_idx_type_2fd
                 pos = pos.at[self_idx_type_2fd, :].set(new_pos_type_2fd)
             # vtype: 3fd
             if use_type_3fd:
+                if vsite_params is not None and "vsite_dist_type_3fd" in vsite_params:
+                    dist_params = vsite_params["vsite_dist_type_3fd"]
+                    num_vsites_total = len(dist_idx_type_3fd_init)
+                    num_params = len(dist_params)
+                    dist_idx_type_3fd = jnp.tile(dist_params, ((num_vsites_total // num_params) + 1, 1))[:num_vsites_total]
+                else:
+                    dist_idx_type_3fd = dist_idx_type_3fd_init
                 vji = pos[a1_idx_type_3fd, :] - pos[a2_idx_type_3fd, :]
                 vki = pos[a1_idx_type_3fd, :] - pos[a3_idx_type_3fd, :]
                 rji = vji / jnp.linalg.norm(vji, axis=1).reshape((-1, 1))
