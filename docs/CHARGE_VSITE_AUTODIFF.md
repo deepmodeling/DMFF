@@ -16,11 +16,12 @@ Previously, charges and virtual site weights were hardcoded during potential cre
 
 ### Changes to Charge Handling
 
-1. **Parameter Storage**: Charges are now stored in `ParamSet` during `createPotential()`:
-   - `CoulombGenerator` stores charges under `params["CoulombForce"]["charge"]`
-   - `NonbondedGenerator` stores charges under `params["NonbondedForce"]["charge"]`
+1. **Parameter Storage**: Charges are now stored in `ParamSet` during Hamiltonian initialization:
+   - `CoulombGenerator` stores charges (per atom type) under `params["CoulombForce"]["charge"]` during `__init__`
+   - `NonbondedGenerator` stores charges (per atom type) under `params["NonbondedForce"]["charge"]` during `__init__`
+   - When `createPotential()` is called with a topology, these charges are updated to be per-atom (topology-dependent)
    
-   **Important**: Charges are added to the paramset only when `createPotential()` is called with a topology, not during Hamiltonian initialization. This is because charges depend on the specific molecular system being simulated.
+   **Note**: During initialization, charges are stored per atom TYPE based on the force field definition. After calling `createPotential()`, they are updated to be per ATOM based on the actual molecular topology.
 
 2. **Force Class Updates**: All Coulomb force classes now accept charges as runtime parameters:
    - `CoulombNoCutoffForce`
@@ -176,24 +177,33 @@ Tests have been added in `tests/test_frontend/test_charge_vsite_autodiff.py`:
 
 **Issue**: `paramset.parameters["CoulombForce"]["charge"]` or `paramset.parameters["NonbondedForce"]["charge"]` doesn't exist or throws KeyError.
 
-**Solution**: Charges are only added to paramset when you call `createPotential()` with a topology. Make sure you:
-1. Call `createPotential()` before accessing charges
+**Solution**: Charges should now be available immediately after Hamiltonian initialization. They are stored per atom type. If you still don't see charges:
+1. Verify your XML has charge definitions (either in `<NonbondedForce>` atoms or in `<Residues>` atoms)
 2. Check the correct force field name (use "NonbondedForce" if your XML uses `<NonbondedForce>`, or "CoulombForce" if it uses `<CoulombForce>`)
 
 Example:
 ```python
 ff = Hamiltonian('forcefield.xml')
-# At this point, charges are NOT yet in paramset
-
-potential = ff.createPotential(topology, nonbondedMethod=app.NoCutoff)
-# Now charges ARE in paramset
-
+# Charges are NOW available immediately
 paramset = ff.getParameters()
+
 # For NonbondedForce XML:
-charges = paramset.parameters["NonbondedForce"]["charge"]
-# For CoulombForce XML:
-charges = paramset.parameters["CoulombForce"]["charge"]
+charges = paramset.parameters["NonbondedForce"]["charge"]  # Per atom type
+print(f"Initial charges (per type): {charges}")
+
+# After createPotential, charges are updated to be per atom
+potential = ff.createPotential(topology, nonbondedMethod=app.NoCutoff)
+paramset = ff.getParameters()
+charges = paramset.parameters["NonbondedForce"]["charge"]  # Per atom in topology
+print(f"Updated charges (per atom): {charges}")
 ```
+
+### Understanding per-type vs per-atom charges
+
+- **After Hamiltonian initialization**: Charges are per atom TYPE (one charge value per unique atom type defined in the force field)
+- **After createPotential()**: Charges are per ATOM (one charge value per atom in the actual molecular system)
+
+For example, if your force field defines types "H" and "O", you'll have 2 charge values initially. After creating a potential for a water box with 300 water molecules, you'll have 900 charge values (300 O atoms + 600 H atoms).
 
 ## Future Enhancements
 

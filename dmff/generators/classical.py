@@ -834,6 +834,21 @@ class NonbondedGenerator:
         self.atom_keys = types
         paramset.addParameter(sigma, "sigma", field=self.name, mask=atom_mask)
         paramset.addParameter(epsilon, "epsilon", field=self.name, mask=atom_mask)
+        
+        # Store charges in paramset during initialization
+        # If charges come from residues, extract them from residue templates
+        if self.charge_in_residue:
+            # Build type_to_charge mapping from residue templates
+            for residue in self.ffinfo["Residues"]:
+                for atom in residue["atoms"]:
+                    if "charge" in atom and self.key_type in atom:
+                        self.type_to_charge[atom[self.key_type]] = float(atom["charge"])
+        
+        # Add charges to paramset based on atom types
+        if self.type_to_charge:
+            charges = jnp.array([self.type_to_charge.get(t, 0.0) for t in types])
+            charge_mask = jnp.ones(charges.shape)
+            paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
 
     def getName(self):
         return self.name
@@ -896,10 +911,17 @@ class NonbondedGenerator:
             types = [a.meta[self.key_type] for a in topdata.atoms()]
             charges = jnp.array([self.type_to_charge[i] for i in types])
 
-        # Store charges in paramset for automatic differentiation
+        # Update charges in paramset for automatic differentiation
+        # Charges are now per-atom (topology-dependent) rather than per-type
         if paramset is not None:
             charge_mask = jnp.ones(charges.shape)
-            paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
+            # Update the existing charge parameter (overwrite the per-type charges with per-atom charges)
+            if "charge" in paramset.parameters[self.name]:
+                paramset.parameters[self.name]["charge"] = charges
+                paramset.mask[self.name]["charge"] = charge_mask
+            else:
+                # If charge wasn't added during __init__, add it now
+                paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -1060,6 +1082,27 @@ class CoulombGenerator:
         bcc_mask = jnp.array(bcc_mask)
         paramset.addParameter(bcc_prms, "bcc", field=self.name, mask=bcc_mask)
         self._bcc_shape = paramset[self.name]["bcc"].shape[0]
+        
+        # Store charges in paramset during initialization
+        # Extract charges from residue templates
+        type_to_charge = {}
+        for residue in self.ffinfo["Residues"]:
+            for atom in residue["atoms"]:
+                if "charge" in atom and "type" in atom:
+                    type_to_charge[atom["type"]] = float(atom["charge"])
+        
+        # Create a list of charges based on atom types (if available)
+        # Note: This creates a template that will be topology-dependent
+        # For now, we store charges per unique atom type
+        if type_to_charge:
+            atom_types = sorted(type_to_charge.keys())
+            charges = jnp.array([type_to_charge[t] for t in atom_types])
+            charge_mask = jnp.ones(charges.shape)
+            paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
+            # Store the type mapping for later use
+            self._atom_types = atom_types
+        else:
+            self._atom_types = []
 
     def getName(self):
         return self.name
@@ -1107,10 +1150,17 @@ class CoulombGenerator:
         charges = [a.meta["charge"] for a in topdata.atoms()]
         charges = jnp.array(charges)
         
-        # Store charges in paramset for automatic differentiation
+        # Update charges in paramset for automatic differentiation
+        # Charges are now per-atom (topology-dependent) rather than per-type
         if paramset is not None:
             charge_mask = jnp.ones(charges.shape)
-            paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
+            # Update the existing charge parameter (overwrite the per-type charges with per-atom charges)
+            if "charge" in paramset.parameters[self.name]:
+                paramset.parameters[self.name]["charge"] = charges
+                paramset.mask[self.name]["charge"] = charge_mask
+            else:
+                # If charge wasn't added during __init__ (e.g., no residue charges), add it now
+                paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
 
         cov_mat = topdata.buildCovMat()
 
