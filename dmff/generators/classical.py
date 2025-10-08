@@ -905,11 +905,26 @@ class NonbondedGenerator:
             ifPBC = False
 
         if self.charge_in_residue:
-            charges = [a.meta["charge"] for a in topdata.atoms()]
-            charges = jnp.array(charges)
+            charges_per_atom = [a.meta["charge"] for a in topdata.atoms()]
+            charges_per_atom = jnp.array(charges_per_atom)
         else:
             types = [a.meta[self.key_type] for a in topdata.atoms()]
-            charges = jnp.array([self.type_to_charge[i] for i in types])
+            charges_per_atom = jnp.array([self.type_to_charge[i] for i in types])
+
+        # Build charge mapping: map each atom to its charge type index
+        # This allows per-type charges in paramset while expanding to per-atom in energy function
+        atypes = [a.meta[self.key_type] for a in topdata.atoms()]
+        map_charge = []
+        for atype in atypes:
+            try:
+                cidx = self.atom_keys.index(atype)
+            except ValueError:
+                raise DMFFException(f"Atom type {atype} not found in atom_keys.")
+            map_charge.append(cidx)
+        map_charge = jnp.array(map_charge)
+        
+        # Store the charge mapping for use in the potential function
+        self.map_charge = map_charge
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -930,12 +945,12 @@ class NonbondedGenerator:
             # do not use PME
             if nonbondedMethod in [app.CutoffPeriodic, app.CutoffNonPeriodic]:
                 # use Reaction Field
-                coulforce = CoulReactionFieldForce(r_cut, charges, isPBC=ifPBC)
+                coulforce = CoulReactionFieldForce(r_cut, charges_per_atom, isPBC=ifPBC)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
-                coulforce = CoulNoCutoffForce(init_charges=charges)
+                coulforce = CoulNoCutoffForce(init_charges=charges_per_atom)
         else:
-            coulforce = CoulombPMEForce(r_cut, charges, kappa, (K1, K2, K3))
+            coulforce = CoulombPMEForce(r_cut, charges_per_atom, kappa, (K1, K2, K3))
         
         self.pme_force = coulforce
         coulenergy = coulforce.generate_get_energy()
@@ -1016,8 +1031,10 @@ class NonbondedGenerator:
             # it is jit-compatiable
             isinstance_jnp(positions, box, params)
 
-            charges_from_params = params[self.name]["charge"]
-            coulE = coulenergy(positions, box, pairs, charges_from_params, mscales_coul)
+            # Expand per-type charges to per-atom using the mapping
+            charges_per_type = params[self.name]["charge"]
+            charges_per_atom = charges_per_type[self.map_charge]
+            coulE = coulenergy(positions, box, pairs, charges_per_atom, mscales_coul)
             
             ljE = ljenergy(positions, box, pairs, params[self.name]["epsilon"],
                             params[self.name]["sigma"], eps_nbfix, sig_nbfix, mscales_lj)
@@ -1135,20 +1152,28 @@ class CoulombGenerator:
         else:
             ifPBC = False
 
-        charges = [a.meta["charge"] for a in topdata.atoms()]
-        charges = jnp.array(charges)
+        charges_per_atom = [a.meta["charge"] for a in topdata.atoms()]
+        charges_per_atom = jnp.array(charges_per_atom)
         
-        # Update charges in paramset for automatic differentiation
-        # Charges are now per-atom (topology-dependent) rather than per-type
-        if paramset is not None:
-            charge_mask = jnp.ones(charges.shape)
-            # Update the existing charge parameter (overwrite the per-type charges with per-atom charges)
-            if "charge" in paramset.parameters[self.name]:
-                paramset.parameters[self.name]["charge"] = charges
-                paramset.mask[self.name]["charge"] = charge_mask
-            else:
-                # If charge wasn't added during __init__ (e.g., no residue charges), add it now
-                paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
+        # Build charge mapping: map each atom to its charge type index
+        # This allows per-type charges in paramset while expanding to per-atom in energy function
+        atypes = [a.meta["type"] for a in topdata.atoms()]
+        map_charge = []
+        for atype in atypes:
+            try:
+                if self._atom_types:
+                    cidx = self._atom_types.index(atype)
+                else:
+                    # If no atom_types were stored, we can't build a mapping
+                    # This shouldn't happen if charges were properly initialized
+                    raise DMFFException(f"No atom types stored in CoulombGenerator")
+            except ValueError:
+                raise DMFFException(f"Atom type {atype} not found in _atom_types.")
+            map_charge.append(cidx)
+        map_charge = jnp.array(map_charge)
+        
+        # Store the charge mapping for use in the potential function
+        self.map_charge = map_charge
 
         cov_mat = topdata.buildCovMat()
 
@@ -1193,17 +1218,17 @@ class CoulombGenerator:
                 # use Reaction Field
                 coulforce = CoulReactionFieldForce(
                     r_cut,
-                    charges,
+                    charges_per_atom,
                     isPBC=ifPBC,
                     topology_matrix=top_mat if self._use_bcc else None)
             if nonbondedMethod is app.NoCutoff:
                 # use NoCutoff
                 coulforce = CoulNoCutoffForce(
-                    charges, topology_matrix=top_mat if self._use_bcc else None)
+                    charges_per_atom, topology_matrix=top_mat if self._use_bcc else None)
         else:
             coulforce = CoulombPMEForce(
                 r_cut,
-                charges, 
+                charges_per_atom, 
                 kappa, (K1, K2, K3),
                 topology_matrix=top_mat if self._use_bcc else None)
 
@@ -1220,13 +1245,16 @@ class CoulombGenerator:
             # it is jit-compatiable
             isinstance_jnp(positions, box, params)
 
-            charges_from_params = params["CoulombForce"]["charge"]
+            # Expand per-type charges to per-atom using the mapping
+            charges_per_type = params["CoulombForce"]["charge"]
+            charges_per_atom = charges_per_type[self.map_charge]
+            
             if self._use_bcc:
                 coulE = coulenergy(positions, box, pairs,
-                                   charges_from_params, params["CoulombForce"]["bcc"], mscales_coul)
+                                   charges_per_atom, params["CoulombForce"]["bcc"], mscales_coul)
             else:
                 coulE = coulenergy(positions, box, pairs,
-                                   charges_from_params, mscales_coul)
+                                   charges_per_atom, mscales_coul)
 
             if has_aux:
                 return coulE, aux
