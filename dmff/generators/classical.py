@@ -800,13 +800,13 @@ class NonbondedGenerator:
             self.ffinfo["Forces"]["NonbondedForce"]["meta"].get("lj14scale", 0.5))
         self.key_type = None
         self.type_to_charge = {}
-        
+
         self.charge_in_residue = False
         for node in self.ffinfo["Forces"]["NonbondedForce"]["node"]:
             if not self.charge_in_residue and node["name"] == "UseAttributeFromResidue":
                 if node["attrib"]["name"] == "charge":
                     self.charge_in_residue = True
-        
+
         types, sigma, epsilon, atom_mask = [], [], [], []
         for node in self.ffinfo["Forces"]["NonbondedForce"]["node"]:
             if node["name"] == "Atom":
@@ -834,16 +834,16 @@ class NonbondedGenerator:
         self.atom_keys = types
         paramset.addParameter(sigma, "sigma", field=self.name, mask=atom_mask)
         paramset.addParameter(epsilon, "epsilon", field=self.name, mask=atom_mask)
-        
+
         # Store charges in paramset during initialization
         # If charges come from residues, extract them from residue templates
         if self.charge_in_residue:
             # Build type_to_charge mapping from residue templates
             for residue in self.ffinfo["Residues"]:
-                for atom in residue["atoms"]:
+                for atom in residue["particles"]:
                     if "charge" in atom and self.key_type in atom:
                         self.type_to_charge[atom[self.key_type]] = float(atom["charge"])
-        
+
         # Add charges to paramset based on atom types
         if self.type_to_charge:
             charges = jnp.array([self.type_to_charge.get(t, 0.0) for t in types])
@@ -910,18 +910,6 @@ class NonbondedGenerator:
         else:
             types = [a.meta[self.key_type] for a in topdata.atoms()]
             charges = jnp.array([self.type_to_charge[i] for i in types])
-
-        # Update charges in paramset for automatic differentiation
-        # Charges are now per-atom (topology-dependent) rather than per-type
-        if paramset is not None:
-            charge_mask = jnp.ones(charges.shape)
-            # Update the existing charge parameter (overwrite the per-type charges with per-atom charges)
-            if "charge" in paramset.parameters[self.name]:
-                paramset.parameters[self.name]["charge"] = charges
-                paramset.mask[self.name]["charge"] = charge_mask
-            else:
-                # If charge wasn't added during __init__, add it now
-                paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
 
         if unit.is_quantity(nonbondedCutoff):
             r_cut = nonbondedCutoff.value_in_unit(unit.nanometer)
@@ -1087,7 +1075,7 @@ class CoulombGenerator:
         # Extract charges from residue templates
         type_to_charge = {}
         for residue in self.ffinfo["Residues"]:
-            for atom in residue["atoms"]:
+            for atom in residue["particles"]:
                 if "charge" in atom and "type" in atom:
                     type_to_charge[atom["type"]] = float(atom["charge"])
         

@@ -101,7 +101,7 @@ class Hamiltonian:
             else:
                 self.generators[key] = _DMFFGenerators[key](
                     ffinfo, self.paramset)
-                
+
     def getGenerators(self):
         return [g for g in self.generators.values()]
 
