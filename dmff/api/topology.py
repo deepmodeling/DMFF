@@ -14,6 +14,7 @@ except ImportError:
 import numpy as np
 import jax.numpy as jnp
 import os
+from .paramset import ParamSet
 
 
 _standardResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO', 'THR', 'TYR',
