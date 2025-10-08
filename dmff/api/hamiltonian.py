@@ -58,13 +58,21 @@ class Potential:
         if not self.has_aux:
             def efunc(positions, box, pairs, prms):
                 # Extract vsite params if they exist
-                vsite_params = prms.get("VirtualSite", None) if isinstance(prms, dict) else None
+                if isinstance(prms, dict):
+                    vsite_params = prms.get("VirtualSite", None)
+                else:
+                    # prms is a ParamSet object
+                    vsite_params = prms.parameters.get("VirtualSite", None) if hasattr(prms, 'parameters') else None
                 pos_update = self.update_func(positions, vsite_params)
                 return sum([self.dmff_potentials[name](pos_update, box, pairs, prms) for name in names])
         else:
             def efunc(positions, box, pairs, prms, aux):
                 # Extract vsite params if they exist
-                vsite_params = prms.get("VirtualSite", None) if isinstance(prms, dict) else None
+                if isinstance(prms, dict):
+                    vsite_params = prms.get("VirtualSite", None)
+                else:
+                    # prms is a ParamSet object
+                    vsite_params = prms.parameters.get("VirtualSite", None) if hasattr(prms, 'parameters') else None
                 pos_update = self.update_func(positions, vsite_params)
                 energy, aux = self.dmff_potentials[names[0]](pos_update, box, pairs, prms, aux)
                 if len(names) > 1:
