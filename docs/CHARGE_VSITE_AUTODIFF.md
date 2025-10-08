@@ -19,6 +19,8 @@ Previously, charges and virtual site weights were hardcoded during potential cre
 1. **Parameter Storage**: Charges are now stored in `ParamSet` during `createPotential()`:
    - `CoulombGenerator` stores charges under `params["CoulombForce"]["charge"]`
    - `NonbondedGenerator` stores charges under `params["NonbondedForce"]["charge"]`
+   
+   **Important**: Charges are added to the paramset only when `createPotential()` is called with a topology, not during Hamiltonian initialization. This is because charges depend on the specific molecular system being simulated.
 
 2. **Force Class Updates**: All Coulomb force classes now accept charges as runtime parameters:
    - `CoulombNoCutoffForce`
@@ -167,6 +169,31 @@ Tests have been added in `tests/test_frontend/test_charge_vsite_autodiff.py`:
 - `test_charge_autodiff_simple()`: Validates that charges are stored in paramset
 - `test_vsite_weight_autodiff_simple()`: Validates that vsite weights are stored in paramset
 - `test_charge_gradient_computation()`: Validates that gradients can be computed
+
+## Troubleshooting
+
+### Charges not appearing in paramset
+
+**Issue**: `paramset.parameters["CoulombForce"]["charge"]` or `paramset.parameters["NonbondedForce"]["charge"]` doesn't exist or throws KeyError.
+
+**Solution**: Charges are only added to paramset when you call `createPotential()` with a topology. Make sure you:
+1. Call `createPotential()` before accessing charges
+2. Check the correct force field name (use "NonbondedForce" if your XML uses `<NonbondedForce>`, or "CoulombForce" if it uses `<CoulombForce>`)
+
+Example:
+```python
+ff = Hamiltonian('forcefield.xml')
+# At this point, charges are NOT yet in paramset
+
+potential = ff.createPotential(topology, nonbondedMethod=app.NoCutoff)
+# Now charges ARE in paramset
+
+paramset = ff.getParameters()
+# For NonbondedForce XML:
+charges = paramset.parameters["NonbondedForce"]["charge"]
+# For CoulombForce XML:
+charges = paramset.parameters["CoulombForce"]["charge"]
+```
 
 ## Future Enhancements
 
