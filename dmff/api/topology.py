@@ -486,123 +486,41 @@ class DMFFTopology:
             use_type_3fd = False
         
         # Store vsite weights in paramset for automatic differentiation
-        # Group vsites by their weight values to create unique parameters
-        # Each unique weight gets its own parameter, and multiple vsites can share it via mapping
+        # Store one parameter per vsite in the reference molecule, but only add once
+        # (don't duplicate when multiple molecules are present)
         if paramset is not None:
             if "VirtualSite" not in paramset.parameters:
                 paramset.addField("VirtualSite")
             
-            # Create unique parameter sets and mappings for each vsite type
-            if use_type_2:
-                # Build unique weights and mapping
-                unique_weights = []
-                weight_to_idx = {}
-                map_vsite_w2_type_2 = []
-                
-                for w2 in w2_idx_type_2_init:
-                    w2_val = float(w2)
-                    if w2_val not in weight_to_idx:
-                        weight_to_idx[w2_val] = len(unique_weights)
-                        unique_weights.append(w2_val)
-                    map_vsite_w2_type_2.append(weight_to_idx[w2_val])
-                
-                vsite_w2_type_2_unique = jnp.array(unique_weights)
-                map_vsite_w2_type_2 = jnp.array(map_vsite_w2_type_2, dtype=int)
-                
-                # Only add if not already present
-                if "vsite_w2_type_2" not in paramset.parameters["VirtualSite"]:
-                    vsite_w2_type_2_mask = jnp.ones(vsite_w2_type_2_unique.shape)
-                    paramset.addParameter(vsite_w2_type_2_unique, "vsite_w2_type_2", field="VirtualSite", mask=vsite_w2_type_2_mask)
-                    paramset.addParameter(map_vsite_w2_type_2, "map_vsite_w2_type_2", field="VirtualSite", mask=jnp.zeros(map_vsite_w2_type_2.shape))
+            # Only add parameters if not already present (avoid duplication for multiple molecules)
+            if use_type_2 and "vsite_w2_type_2" not in paramset.parameters["VirtualSite"]:
+                vsite_w2_type_2_mask = jnp.ones(w2_idx_type_2_init.shape)
+                paramset.addParameter(w2_idx_type_2_init, "vsite_w2_type_2", field="VirtualSite", mask=vsite_w2_type_2_mask)
                     
-            if use_type_3:
-                # Build unique weights for w2
-                unique_w2 = []
-                w2_to_idx = {}
-                map_vsite_w2_type_3 = []
-                
-                for w2 in w2_idx_type_3_init:
-                    w2_val = float(w2)
-                    if w2_val not in w2_to_idx:
-                        w2_to_idx[w2_val] = len(unique_w2)
-                        unique_w2.append(w2_val)
-                    map_vsite_w2_type_3.append(w2_to_idx[w2_val])
-                
-                # Build unique weights for w3
-                unique_w3 = []
-                w3_to_idx = {}
-                map_vsite_w3_type_3 = []
-                
-                for w3 in w3_idx_type_3_init:
-                    w3_val = float(w3)
-                    if w3_val not in w3_to_idx:
-                        w3_to_idx[w3_val] = len(unique_w3)
-                        unique_w3.append(w3_val)
-                    map_vsite_w3_type_3.append(w3_to_idx[w3_val])
-                
-                vsite_w2_type_3_unique = jnp.array(unique_w2)
-                vsite_w3_type_3_unique = jnp.array(unique_w3)
-                map_vsite_w2_type_3 = jnp.array(map_vsite_w2_type_3, dtype=int)
-                map_vsite_w3_type_3 = jnp.array(map_vsite_w3_type_3, dtype=int)
-                
-                if "vsite_w2_type_3" not in paramset.parameters["VirtualSite"]:
-                    vsite_w2_type_3_mask = jnp.ones(vsite_w2_type_3_unique.shape)
-                    vsite_w3_type_3_mask = jnp.ones(vsite_w3_type_3_unique.shape)
-                    paramset.addParameter(vsite_w2_type_3_unique, "vsite_w2_type_3", field="VirtualSite", mask=vsite_w2_type_3_mask)
-                    paramset.addParameter(vsite_w3_type_3_unique, "vsite_w3_type_3", field="VirtualSite", mask=vsite_w3_type_3_mask)
-                    paramset.addParameter(map_vsite_w2_type_3, "map_vsite_w2_type_3", field="VirtualSite", mask=jnp.zeros(map_vsite_w2_type_3.shape))
-                    paramset.addParameter(map_vsite_w3_type_3, "map_vsite_w3_type_3", field="VirtualSite", mask=jnp.zeros(map_vsite_w3_type_3.shape))
+            if use_type_3 and "vsite_w2_type_3" not in paramset.parameters["VirtualSite"]:
+                vsite_w2_type_3_mask = jnp.ones(w2_idx_type_3_init.shape)
+                vsite_w3_type_3_mask = jnp.ones(w3_idx_type_3_init.shape)
+                paramset.addParameter(w2_idx_type_3_init, "vsite_w2_type_3", field="VirtualSite", mask=vsite_w2_type_3_mask)
+                paramset.addParameter(w3_idx_type_3_init, "vsite_w3_type_3", field="VirtualSite", mask=vsite_w3_type_3_mask)
                     
-            if use_type_2fd:
-                # Build unique distances
-                unique_dists = []
-                dist_to_idx = {}
-                map_vsite_dist_type_2fd = []
-                
-                for dist in dist_idx_type_2fd_init.flatten():
-                    dist_val = float(dist)
-                    if dist_val not in dist_to_idx:
-                        dist_to_idx[dist_val] = len(unique_dists)
-                        unique_dists.append(dist_val)
-                    map_vsite_dist_type_2fd.append(dist_to_idx[dist_val])
-                
-                vsite_dist_type_2fd_unique = jnp.array(unique_dists).reshape((-1, 1))
-                map_vsite_dist_type_2fd = jnp.array(map_vsite_dist_type_2fd, dtype=int)
-                
-                if "vsite_dist_type_2fd" not in paramset.parameters["VirtualSite"]:
-                    vsite_dist_type_2fd_mask = jnp.ones(vsite_dist_type_2fd_unique.shape)
-                    paramset.addParameter(vsite_dist_type_2fd_unique, "vsite_dist_type_2fd", field="VirtualSite", mask=vsite_dist_type_2fd_mask)
-                    paramset.addParameter(map_vsite_dist_type_2fd, "map_vsite_dist_type_2fd", field="VirtualSite", mask=jnp.zeros(map_vsite_dist_type_2fd.shape))
+            if use_type_2fd and "vsite_dist_type_2fd" not in paramset.parameters["VirtualSite"]:
+                vsite_dist_type_2fd_mask = jnp.ones(dist_idx_type_2fd_init.shape)
+                paramset.addParameter(dist_idx_type_2fd_init, "vsite_dist_type_2fd", field="VirtualSite", mask=vsite_dist_type_2fd_mask)
                     
-            if use_type_3fd:
-                # Build unique distances
-                unique_dists = []
-                dist_to_idx = {}
-                map_vsite_dist_type_3fd = []
-                
-                for dist in dist_idx_type_3fd_init.flatten():
-                    dist_val = float(dist)
-                    if dist_val not in dist_to_idx:
-                        dist_to_idx[dist_val] = len(unique_dists)
-                        unique_dists.append(dist_val)
-                    map_vsite_dist_type_3fd.append(dist_to_idx[dist_val])
-                
-                vsite_dist_type_3fd_unique = jnp.array(unique_dists).reshape((-1, 1))
-                map_vsite_dist_type_3fd = jnp.array(map_vsite_dist_type_3fd, dtype=int)
-                
-                if "vsite_dist_type_3fd" not in paramset.parameters["VirtualSite"]:
-                    vsite_dist_type_3fd_mask = jnp.ones(vsite_dist_type_3fd_unique.shape)
-                    paramset.addParameter(vsite_dist_type_3fd_unique, "vsite_dist_type_3fd", field="VirtualSite", mask=vsite_dist_type_3fd_mask)
-                    paramset.addParameter(map_vsite_dist_type_3fd, "map_vsite_dist_type_3fd", field="VirtualSite", mask=jnp.zeros(map_vsite_dist_type_3fd.shape))
+            if use_type_3fd and "vsite_dist_type_3fd" not in paramset.parameters["VirtualSite"]:
+                vsite_dist_type_3fd_mask = jnp.ones(dist_idx_type_3fd_init.shape)
+                paramset.addParameter(dist_idx_type_3fd_init, "vsite_dist_type_3fd", field="VirtualSite", mask=vsite_dist_type_3fd_mask)
 
         def update_pos(pos, vsite_params=None):
             # vtype: 2
             if use_type_2:
-                if vsite_params is not None and "vsite_w2_type_2" in vsite_params and "map_vsite_w2_type_2" in vsite_params:
-                    # Use unique parameters and expand via mapping
-                    w2_unique = vsite_params["vsite_w2_type_2"]
-                    w2_map = vsite_params["map_vsite_w2_type_2"]
-                    w2_idx_type_2 = w2_unique[w2_map]
+                if vsite_params is not None and "vsite_w2_type_2" in vsite_params:
+                    # Use parameters from paramset - tile to match actual number of vsites
+                    w2_params = vsite_params["vsite_w2_type_2"]
+                    num_vsites_total = len(w2_idx_type_2_init)
+                    num_params = len(w2_params)
+                    # Tile parameters to cover all vsites (handles multiple molecules)
+                    w2_idx_type_2 = jnp.tile(w2_params, (num_vsites_total // num_params) + 1)[:num_vsites_total]
                 else:
                     w2_idx_type_2 = w2_idx_type_2_init
                 w1_idx_type_2 = jnp.ones(w2_idx_type_2.shape) - w2_idx_type_2
@@ -611,13 +529,13 @@ class DMFFTopology:
                 pos = pos.at[self_idx_type_2, :].set(new_pos_type_2)
             # vtype: 3
             if use_type_3:
-                if vsite_params is not None and "vsite_w2_type_3" in vsite_params and "map_vsite_w2_type_3" in vsite_params:
-                    w2_unique = vsite_params["vsite_w2_type_3"]
-                    w2_map = vsite_params["map_vsite_w2_type_3"]
-                    w2_idx_type_3 = w2_unique[w2_map]
-                    w3_unique = vsite_params["vsite_w3_type_3"]
-                    w3_map = vsite_params["map_vsite_w3_type_3"]
-                    w3_idx_type_3 = w3_unique[w3_map]
+                if vsite_params is not None and "vsite_w2_type_3" in vsite_params:
+                    w2_params = vsite_params["vsite_w2_type_3"]
+                    num_vsites_total = len(w2_idx_type_3_init)
+                    num_params = len(w2_params)
+                    w2_idx_type_3 = jnp.tile(w2_params, (num_vsites_total // num_params) + 1)[:num_vsites_total]
+                    w3_params = vsite_params["vsite_w3_type_3"]
+                    w3_idx_type_3 = jnp.tile(w3_params, (num_vsites_total // num_params) + 1)[:num_vsites_total]
                 else:
                     w2_idx_type_3 = w2_idx_type_3_init
                     w3_idx_type_3 = w3_idx_type_3_init
@@ -628,10 +546,11 @@ class DMFFTopology:
                 pos = pos.at[self_idx_type_3, :].set(new_pos_type_3)
             # vtype: 2fd
             if use_type_2fd:
-                if vsite_params is not None and "vsite_dist_type_2fd" in vsite_params and "map_vsite_dist_type_2fd" in vsite_params:
-                    dist_unique = vsite_params["vsite_dist_type_2fd"]
-                    dist_map = vsite_params["map_vsite_dist_type_2fd"]
-                    dist_idx_type_2fd = dist_unique[dist_map].reshape((-1, 1))
+                if vsite_params is not None and "vsite_dist_type_2fd" in vsite_params:
+                    dist_params = vsite_params["vsite_dist_type_2fd"]
+                    num_vsites_total = len(dist_idx_type_2fd_init)
+                    num_params = len(dist_params)
+                    dist_idx_type_2fd = jnp.tile(dist_params, ((num_vsites_total // num_params) + 1, 1))[:num_vsites_total]
                 else:
                     dist_idx_type_2fd = dist_idx_type_2fd_init
                 vvec = pos[a1_idx_type_2fd, :] - pos[a2_idx_type_2fd]
@@ -640,10 +559,11 @@ class DMFFTopology:
                 pos = pos.at[self_idx_type_2fd, :].set(new_pos_type_2fd)
             # vtype: 3fd
             if use_type_3fd:
-                if vsite_params is not None and "vsite_dist_type_3fd" in vsite_params and "map_vsite_dist_type_3fd" in vsite_params:
-                    dist_unique = vsite_params["vsite_dist_type_3fd"]
-                    dist_map = vsite_params["map_vsite_dist_type_3fd"]
-                    dist_idx_type_3fd = dist_unique[dist_map].reshape((-1, 1))
+                if vsite_params is not None and "vsite_dist_type_3fd" in vsite_params:
+                    dist_params = vsite_params["vsite_dist_type_3fd"]
+                    num_vsites_total = len(dist_idx_type_3fd_init)
+                    num_params = len(dist_params)
+                    dist_idx_type_3fd = jnp.tile(dist_params, ((num_vsites_total // num_params) + 1, 1))[:num_vsites_total]
                 else:
                     dist_idx_type_3fd = dist_idx_type_3fd_init
                 vji = pos[a1_idx_type_3fd, :] - pos[a2_idx_type_3fd, :]
