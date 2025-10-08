@@ -16,13 +16,17 @@ Previously, charges and virtual site weights were hardcoded during potential cre
 
 ### Changes to Charge Handling
 
-1. **Parameter Storage**: Charges are stored in `ParamSet` during Hamiltonian initialization and remain per atom TYPE:
-   - `CoulombGenerator` stores charges (per atom type) under `params["CoulombForce"]["charge"]` during `__init__`
-   - `NonbondedGenerator` stores charges (per atom type) under `params["NonbondedForce"]["charge"]` during `__init__`
-   - Charges remain per atom TYPE even after `createPotential()` is called
-   - A mapping array is created during `createPotential()` to expand per-type charges to per-atom charges in the energy function
+1. **Parameter Storage**: Charges are stored in `ParamSet` during Hamiltonian initialization and are organized per unique charge value:
+   - `CoulombGenerator` stores charges under `params["CoulombForce"]["charge"]` during `__init__`
+   - `NonbondedGenerator` stores charges under `params["NonbondedForce"]["charge"]` during `__init__`
+   - Charges are stored per unique (residue, atom_name) combination, NOT per LJ atom type
+   - This allows atoms with the same LJ type to have different charges
+   - A mapping array is created during `createPotential()` to expand charges to per-atom in the energy function
    
-   **Key Design**: Charges in paramset are always per atom TYPE (shared by all atoms of the same type). This ensures that when you differentiate with respect to a charge parameter, the gradient accounts for all atoms of that type, not just one atom. The expansion from per-type to per-atom happens inside the energy function using an index mapping.
+   **Key Design**: Charges in paramset are organized by unique charge parameters (identified by residue and atom name). This ensures:
+   - Atoms with the same LJ type can have different charges
+   - When you differentiate with respect to a charge parameter, the gradient accounts for all atoms sharing that exact charge value
+   - The expansion from per-charge-parameter to per-atom happens inside the energy function using an index mapping
 
 2. **Force Class Updates**: All Coulomb force classes now accept charges as runtime parameters:
    - `CoulombNoCutoffForce`
@@ -199,30 +203,41 @@ charges = paramset.parameters["NonbondedForce"]["charge"]  # Still per type
 print(f"Charges (still per type): {charges}")
 ```
 
-### Understanding per-type charges and gradient behavior
+### Understanding charge parameters and gradient behavior
 
-- **Charges in paramset**: Always per atom TYPE (one charge value per unique atom type defined in the force field)
+- **Charges in paramset**: Organized per unique charge value (identified by residue and atom name)
 - **Charges in energy function**: Expanded to per-atom using an index mapping
+- **Important**: Atoms with the same LJ type can have different charge parameters
 
-**Important**: When differentiating energy with respect to charges, the gradient for each charge parameter accounts for ALL atoms of that type. For example:
+**Gradient Behavior**: When differentiating energy with respect to charges, the gradient for each charge parameter accounts for ALL atoms sharing that exact charge parameter. For example:
+
+**Example 1: Two Li+ ions with same charge**
 - If you have 2 Li+ ions (both using charge parameter q_Li)
 - Energy: E = q_Li * q_Li / r
 - Gradient: dE/dq_Li = 2 * q_Li / r (accounts for both Li atoms)
 
-This is the correct behavior because both Li atoms share the same charge parameter. If you change q_Li, both atoms' charges change, so the gradient must account for both contributions.
+**Example 2: Two carbon atoms with different charges**
+- C1 with charge q1 = +0.5, C2 with charge q2 = -0.5 (same LJ type, different charges)
+- Both carbons can use the same LJ parameters (sigma_C, epsilon_C)
+- But they have independent charge parameters: q1 and q2
+- Gradient: dE/dq1 accounts only for C1, dE/dq2 accounts only for C2
 
-Example with Li+ dimer:
+This design allows:
+- Flexibility: Same LJ type atoms can have different charges
+- Correct gradients: Each unique charge parameter gets the correct gradient
+- Efficiency: Atoms with identical charges share parameters
+
+Example with mixed case:
 ```python
 ff = Hamiltonian('forcefield.xml')
 paramset = ff.getParameters()
 
-# One charge parameter for Li+ type
+# Charges per unique (residue, atom_name) combination
 charges = paramset.parameters["NonbondedForce"]["charge"]
-print(f"Charges (per type): {charges}")  # e.g., [0.8] for Li+
+print(f"Charges: {charges}")  # e.g., [0.8, -0.4, -0.4] for Li+, C1, C2
 
-potential = ff.createPotential(topology_with_2_Li, nonbondedMethod=app.NoCutoff)
-# Charges in paramset are still per-type: [0.8]
-# But internally, they're expanded to per-atom: [0.8, 0.8] for the 2 Li atoms
+potential = ff.createPotential(topology, nonbondedMethod=app.NoCutoff)
+# Charges are still per unique value, expanded internally via mapping
 
 # When computing gradient
 def energy(q):
@@ -230,7 +245,7 @@ def energy(q):
     params["NonbondedForce"]["charge"] = q
     return efunc(positions, box, pairs, params)
 
-grad = jax.grad(energy)(charges)  # dE/dq_Li = 2*q_Li/r (correct!)
+grad = jax.grad(energy)(charges)  # Correct gradients for each unique charge
 ```
 
 ## Future Enhancements
