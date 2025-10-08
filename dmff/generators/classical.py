@@ -837,15 +837,39 @@ class NonbondedGenerator:
 
         # Store charges in paramset during initialization
         # If charges come from residues, extract them from residue templates
+        # We need to handle cases where atoms with same LJ type have different charges
+        self.charge_keys = []  # List of (residue, atomname) or atom type identifiers
+        self.charge_values = []  # Corresponding charge values
+        
         if self.charge_in_residue:
-            # Build type_to_charge mapping from residue templates
+            # Build charge mapping from residue templates
+            # Use (residue_name, atom_name) as unique identifier for charges
             for residue in self.ffinfo["Residues"]:
+                res_name = residue["name"]
                 for atom in residue["particles"]:
-                    if "charge" in atom and self.key_type in atom:
-                        self.type_to_charge[atom[self.key_type]] = float(atom["charge"])
-
-        # Add charges to paramset based on atom types
-        if self.type_to_charge:
+                    if "charge" in atom:
+                        # Use atom name within residue as identifier
+                        atom_name = atom.get("name", "")
+                        charge_key = (res_name, atom_name)
+                        charge_val = float(atom["charge"])
+                        
+                        # Also map by atom type for backward compatibility
+                        if self.key_type in atom:
+                            atom_type = atom[self.key_type]
+                            self.type_to_charge[atom_type] = charge_val
+                        
+                        # Store unique charge parameters
+                        if charge_key not in self.charge_keys:
+                            self.charge_keys.append(charge_key)
+                            self.charge_values.append(charge_val)
+        
+        # Add charges to paramset based on unique charge values
+        if self.charge_values:
+            charges = jnp.array(self.charge_values)
+            charge_mask = jnp.ones(charges.shape)
+            paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
+        elif self.type_to_charge:
+            # Fallback: if no residue-based charges, use type-based charges
             charges = jnp.array([self.type_to_charge.get(t, 0.0) for t in types])
             charge_mask = jnp.ones(charges.shape)
             paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
@@ -911,16 +935,44 @@ class NonbondedGenerator:
             types = [a.meta[self.key_type] for a in topdata.atoms()]
             charges_per_atom = jnp.array([self.type_to_charge[i] for i in types])
 
-        # Build charge mapping: map each atom to its charge type index
-        # This allows per-type charges in paramset while expanding to per-atom in energy function
-        atypes = [a.meta[self.key_type] for a in topdata.atoms()]
+        # Build charge mapping: map each atom to its charge parameter index
+        # This allows per-charge charges in paramset while expanding to per-atom in energy function
         map_charge = []
-        for atype in atypes:
-            try:
-                cidx = self.atom_keys.index(atype)
-            except ValueError:
-                raise DMFFException(f"Atom type {atype} not found in atom_keys.")
+        
+        for atom in topdata.atoms():
+            if self.charge_in_residue and self.charge_keys:
+                # Use (residue_name, atom_name) to find charge index
+                res_name = atom.residue.name
+                atom_name = atom.name
+                charge_key = (res_name, atom_name)
+                
+                try:
+                    cidx = self.charge_keys.index(charge_key)
+                except ValueError:
+                    # Fallback: try to use atom type
+                    if hasattr(atom.meta, '__getitem__') and self.key_type in atom.meta:
+                        atype = atom.meta[self.key_type]
+                        if atype in self.type_to_charge:
+                            # Find first charge with this value
+                            charge_val = self.type_to_charge[atype]
+                            try:
+                                cidx = self.charge_values.index(charge_val)
+                            except ValueError:
+                                raise DMFFException(f"Charge for atom {atom_name} in residue {res_name} (type {atype}) not found.")
+                        else:
+                            raise DMFFException(f"Charge for atom {atom_name} in residue {res_name} not found.")
+                    else:
+                        raise DMFFException(f"Charge for atom {atom_name} in residue {res_name} not found.")
+            else:
+                # Use atom type for non-residue charges
+                atype = atom.meta[self.key_type]
+                try:
+                    cidx = self.atom_keys.index(atype)
+                except ValueError:
+                    raise DMFFException(f"Atom type {atype} not found in atom_keys.")
+            
             map_charge.append(cidx)
+        
         map_charge = jnp.array(map_charge)
         
         # Store the charge mapping for use in the potential function
@@ -1090,24 +1142,40 @@ class CoulombGenerator:
         
         # Store charges in paramset during initialization
         # Extract charges from residue templates
-        type_to_charge = {}
-        for residue in self.ffinfo["Residues"]:
-            for atom in residue["particles"]:
-                if "charge" in atom and "type" in atom:
-                    type_to_charge[atom["type"]] = float(atom["charge"])
+        # Handle cases where atoms with same LJ type have different charges
+        self.charge_keys = []  # List of (residue, atomname) identifiers
+        self.charge_values = []  # Corresponding charge values
+        type_to_charge = {}  # For backward compatibility
         
-        # Create a list of charges based on atom types (if available)
-        # Note: This creates a template that will be topology-dependent
-        # For now, we store charges per unique atom type
-        if type_to_charge:
-            atom_types = sorted(type_to_charge.keys())
-            charges = jnp.array([type_to_charge[t] for t in atom_types])
+        for residue in self.ffinfo["Residues"]:
+            res_name = residue["name"]
+            for atom in residue["particles"]:
+                if "charge" in atom:
+                    # Use atom name within residue as identifier
+                    atom_name = atom.get("name", "")
+                    charge_key = (res_name, atom_name)
+                    charge_val = float(atom["charge"])
+                    
+                    # Also map by atom type for backward compatibility
+                    if "type" in atom:
+                        atom_type = atom["type"]
+                        type_to_charge[atom_type] = charge_val
+                    
+                    # Store unique charge parameters
+                    if charge_key not in self.charge_keys:
+                        self.charge_keys.append(charge_key)
+                        self.charge_values.append(charge_val)
+        
+        # Create a list of charges based on unique charge values
+        if self.charge_values:
+            charges = jnp.array(self.charge_values)
             charge_mask = jnp.ones(charges.shape)
             paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
-            # Store the type mapping for later use
-            self._atom_types = atom_types
+            self._atom_types = []  # Not used anymore
+            self._type_to_charge = type_to_charge  # Store for fallback
         else:
             self._atom_types = []
+            self._type_to_charge = {}
 
     def getName(self):
         return self.name
@@ -1155,20 +1223,38 @@ class CoulombGenerator:
         charges_per_atom = [a.meta["charge"] for a in topdata.atoms()]
         charges_per_atom = jnp.array(charges_per_atom)
         
-        # Build charge mapping: map each atom to its charge type index
-        # This allows per-type charges in paramset while expanding to per-atom in energy function
-        atypes = [a.meta["type"] for a in topdata.atoms()]
+        # Build charge mapping: map each atom to its charge parameter index
+        # Use (residue_name, atom_name) to find charge index
         map_charge = []
-        for atype in atypes:
-            try:
-                if self._atom_types:
-                    cidx = self._atom_types.index(atype)
-                else:
-                    # If no atom_types were stored, we can't build a mapping
-                    # This shouldn't happen if charges were properly initialized
-                    raise DMFFException(f"No atom types stored in CoulombGenerator")
-            except ValueError:
-                raise DMFFException(f"Atom type {atype} not found in _atom_types.")
+        
+        for atom in topdata.atoms():
+            if self.charge_keys:
+                # Use (residue_name, atom_name) to find charge index
+                res_name = atom.residue.name
+                atom_name = atom.name
+                charge_key = (res_name, atom_name)
+                
+                try:
+                    cidx = self.charge_keys.index(charge_key)
+                except ValueError:
+                    # Fallback: try to use atom type
+                    if hasattr(atom.meta, '__getitem__') and "type" in atom.meta:
+                        atype = atom.meta["type"]
+                        if atype in self._type_to_charge:
+                            # Find first charge with this value
+                            charge_val = self._type_to_charge[atype]
+                            try:
+                                cidx = self.charge_values.index(charge_val)
+                            except ValueError:
+                                raise DMFFException(f"Charge for atom {atom_name} in residue {res_name} (type {atype}) not found.")
+                        else:
+                            raise DMFFException(f"Charge for atom {atom_name} in residue {res_name} not found.")
+                    else:
+                        raise DMFFException(f"Charge for atom {atom_name} in residue {res_name} not found.")
+            else:
+                # No charges were stored - this shouldn't happen
+                raise DMFFException(f"No charges stored in CoulombGenerator")
+            
             map_charge.append(cidx)
         map_charge = jnp.array(map_charge)
         
