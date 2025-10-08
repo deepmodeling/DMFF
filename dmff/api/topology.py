@@ -419,6 +419,9 @@ class DMFFTopology:
         return covalent_map
 
     def buildVSiteUpdateFunction(self, paramset: ParamSet = None):
+        # Determine number of molecules to only store parameters for first molecule
+        num_molecules = self.getNumMolecules()
+        
         # vtype: 2
         vsites_type_2 = [v for v in self.vsites() if v.type == "average2"]
         if len(vsites_type_2) > 0:
@@ -431,6 +434,12 @@ class DMFFTopology:
                 [v.atoms[1].index for v in vsites_type_2], dtype=int)
             w2_idx_type_2_init = jnp.array([v.weights[1] for v in vsites_type_2])
             w1_idx_type_2_init = jnp.ones(w2_idx_type_2_init.shape) - w2_idx_type_2_init
+            # For paramset, only store parameters for first molecule
+            if num_molecules > 0:
+                num_vsites_per_mol = len(vsites_type_2) // num_molecules
+                w2_idx_type_2_ref = w2_idx_type_2_init[:num_vsites_per_mol]
+            else:
+                w2_idx_type_2_ref = w2_idx_type_2_init
         else:
             use_type_2 = False
 
@@ -450,6 +459,14 @@ class DMFFTopology:
             w3_idx_type_3_init = jnp.array([v.weights[2] for v in vsites_type_3])
             w1_idx_type_3_init = jnp.ones(w2_idx_type_3_init.shape) - \
                 w2_idx_type_3_init - w3_idx_type_3_init
+            # For paramset, only store parameters for first molecule
+            if num_molecules > 0:
+                num_vsites_per_mol = len(vsites_type_3) // num_molecules
+                w2_idx_type_3_ref = w2_idx_type_3_init[:num_vsites_per_mol]
+                w3_idx_type_3_ref = w3_idx_type_3_init[:num_vsites_per_mol]
+            else:
+                w2_idx_type_3_ref = w2_idx_type_3_init
+                w3_idx_type_3_ref = w3_idx_type_3_init
         else:
             use_type_3 = False
 
@@ -465,6 +482,12 @@ class DMFFTopology:
                 [v.atoms[1].index for v in vsites_type_2fd], dtype=int)
             dist_idx_type_2fd_init = jnp.array(
                 [v.weights[0] for v in vsites_type_2fd]).reshape((-1, 1))
+            # For paramset, only store parameters for first molecule
+            if num_molecules > 0:
+                num_vsites_per_mol = len(vsites_type_2fd) // num_molecules
+                dist_idx_type_2fd_ref = dist_idx_type_2fd_init[:num_vsites_per_mol]
+            else:
+                dist_idx_type_2fd_ref = dist_idx_type_2fd_init
         else:
             use_type_2fd = False
 
@@ -482,6 +505,12 @@ class DMFFTopology:
                 [v.atoms[2].index for v in vsites_type_3fd], dtype=int)
             dist_idx_type_3fd_init = jnp.array(
                 [v.weights[0] for v in vsites_type_3fd]).reshape((-1, 1))
+            # For paramset, only store parameters for first molecule
+            if num_molecules > 0:
+                num_vsites_per_mol = len(vsites_type_3fd) // num_molecules
+                dist_idx_type_3fd_ref = dist_idx_type_3fd_init[:num_vsites_per_mol]
+            else:
+                dist_idx_type_3fd_ref = dist_idx_type_3fd_init
         else:
             use_type_3fd = False
         
@@ -494,22 +523,22 @@ class DMFFTopology:
             
             # Only add parameters if not already present (avoid duplication for multiple molecules)
             if use_type_2 and "vsite_w2_type_2" not in paramset.parameters["VirtualSite"]:
-                vsite_w2_type_2_mask = jnp.ones(w2_idx_type_2_init.shape)
-                paramset.addParameter(w2_idx_type_2_init, "vsite_w2_type_2", field="VirtualSite", mask=vsite_w2_type_2_mask)
+                vsite_w2_type_2_mask = jnp.ones(w2_idx_type_2_ref.shape)
+                paramset.addParameter(w2_idx_type_2_ref, "vsite_w2_type_2", field="VirtualSite", mask=vsite_w2_type_2_mask)
                     
             if use_type_3 and "vsite_w2_type_3" not in paramset.parameters["VirtualSite"]:
-                vsite_w2_type_3_mask = jnp.ones(w2_idx_type_3_init.shape)
-                vsite_w3_type_3_mask = jnp.ones(w3_idx_type_3_init.shape)
-                paramset.addParameter(w2_idx_type_3_init, "vsite_w2_type_3", field="VirtualSite", mask=vsite_w2_type_3_mask)
-                paramset.addParameter(w3_idx_type_3_init, "vsite_w3_type_3", field="VirtualSite", mask=vsite_w3_type_3_mask)
+                vsite_w2_type_3_mask = jnp.ones(w2_idx_type_3_ref.shape)
+                vsite_w3_type_3_mask = jnp.ones(w3_idx_type_3_ref.shape)
+                paramset.addParameter(w2_idx_type_3_ref, "vsite_w2_type_3", field="VirtualSite", mask=vsite_w2_type_3_mask)
+                paramset.addParameter(w3_idx_type_3_ref, "vsite_w3_type_3", field="VirtualSite", mask=vsite_w3_type_3_mask)
                     
             if use_type_2fd and "vsite_dist_type_2fd" not in paramset.parameters["VirtualSite"]:
-                vsite_dist_type_2fd_mask = jnp.ones(dist_idx_type_2fd_init.shape)
-                paramset.addParameter(dist_idx_type_2fd_init, "vsite_dist_type_2fd", field="VirtualSite", mask=vsite_dist_type_2fd_mask)
+                vsite_dist_type_2fd_mask = jnp.ones(dist_idx_type_2fd_ref.shape)
+                paramset.addParameter(dist_idx_type_2fd_ref, "vsite_dist_type_2fd", field="VirtualSite", mask=vsite_dist_type_2fd_mask)
                     
             if use_type_3fd and "vsite_dist_type_3fd" not in paramset.parameters["VirtualSite"]:
-                vsite_dist_type_3fd_mask = jnp.ones(dist_idx_type_3fd_init.shape)
-                paramset.addParameter(dist_idx_type_3fd_init, "vsite_dist_type_3fd", field="VirtualSite", mask=vsite_dist_type_3fd_mask)
+                vsite_dist_type_3fd_mask = jnp.ones(dist_idx_type_3fd_ref.shape)
+                paramset.addParameter(dist_idx_type_3fd_ref, "vsite_dist_type_3fd", field="VirtualSite", mask=vsite_dist_type_3fd_mask)
 
         def update_pos(pos, vsite_params=None):
             # vtype: 2
