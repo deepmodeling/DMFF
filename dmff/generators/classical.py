@@ -863,16 +863,8 @@ class NonbondedGenerator:
                             self.charge_keys.append(charge_key)
                             self.charge_values.append(charge_val)
         
-        # Add charges to paramset based on unique charge values
-        if self.charge_values:
-            charges = jnp.array(self.charge_values)
-            charge_mask = jnp.ones(charges.shape)
-            paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
-        elif self.type_to_charge:
-            # Fallback: if no residue-based charges, use type-based charges
-            charges = jnp.array([self.type_to_charge.get(t, 0.0) for t in types])
-            charge_mask = jnp.ones(charges.shape)
-            paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
+        # DO NOT add charges to paramset here - they will be added during createPotential
+        # when we have the actual topology and can properly match atoms
 
     def getName(self):
         return self.name
@@ -938,6 +930,8 @@ class NonbondedGenerator:
         # Build charge mapping: map each atom to its charge parameter index
         # Each atom gets its own independent charge parameter
         map_charge = []
+        actual_charge_keys = []
+        actual_charge_values = []
         
         for atom in topdata.atoms():
             if self.charge_in_residue and self.charge_keys:
@@ -946,15 +940,23 @@ class NonbondedGenerator:
                 atom_name = atom.name
                 charge_key = (res_name, atom_name)
                 
-                if charge_key in self.charge_keys:
-                    cidx = self.charge_keys.index(charge_key)
+                # Check if this charge_key is already in our actual list
+                if charge_key in actual_charge_keys:
+                    cidx = actual_charge_keys.index(charge_key)
+                elif charge_key in self.charge_keys:
+                    # Found in template - use template charge value
+                    template_idx = self.charge_keys.index(charge_key)
+                    charge_val = self.charge_values[template_idx]
+                    actual_charge_keys.append(charge_key)
+                    actual_charge_values.append(charge_val)
+                    cidx = len(actual_charge_keys) - 1
                 else:
                     # Atom not in original residue templates - add it as new parameter
                     # Get actual charge value from OpenMM's template matching
                     actual_charge = float(atom.meta["charge"]) if "charge" in atom.meta else 0.0
-                    self.charge_values.append(actual_charge)
-                    self.charge_keys.append(charge_key)
-                    cidx = len(self.charge_values) - 1
+                    actual_charge_keys.append(charge_key)
+                    actual_charge_values.append(actual_charge)
+                    cidx = len(actual_charge_keys) - 1
             else:
                 # Use atom type for non-residue charges
                 atype = atom.meta[self.key_type]
@@ -967,14 +969,14 @@ class NonbondedGenerator:
         
         map_charge = jnp.array(map_charge)
         
-        # Update paramset with any new charges that were added
-        if paramset is not None and self.charge_in_residue and self.charge_values:
-            current_charge_count = len(paramset.parameters[self.name].get("charge", []))
-            if len(self.charge_values) > current_charge_count:
-                charges = jnp.array(self.charge_values)
-                charge_mask = jnp.ones(charges.shape)
-                paramset.parameters[self.name]["charge"] = charges
-                paramset.mask[self.name]["charge"] = charge_mask
+        # Add or update charges in paramset
+        if paramset is not None and self.charge_in_residue and actual_charge_values:
+            charges = jnp.array(actual_charge_values)
+            charge_mask = jnp.ones(charges.shape)
+            if self.name not in paramset.parameters:
+                paramset.addField(self.name)
+            paramset.parameters[self.name]["charge"] = charges
+            paramset.mask[self.name]["charge"] = charge_mask
         
         # Store the charge mapping for use in the potential function
         self.map_charge = map_charge
@@ -1167,15 +1169,10 @@ class CoulombGenerator:
                         self.charge_keys.append(charge_key)
                         self.charge_values.append(charge_val)
         
-        # Create a list of charges based on unique charge values
-        if self.charge_values:
-            charges = jnp.array(self.charge_values)
-            charge_mask = jnp.ones(charges.shape)
-            paramset.addParameter(charges, "charge", field=self.name, mask=charge_mask)
-            self._atom_types = []  # Not used anymore
-            self._type_to_charge = type_to_charge  # Store for fallback
-        else:
-            self._atom_types = []
+        # DO NOT add charges to paramset here - they will be added during createPotential
+        # when we have the actual topology and can properly match atoms
+        self._atom_types = []  # Not used anymore
+        self._type_to_charge = type_to_charge  # Store for fallback
             self._type_to_charge = {}
 
     def getName(self):
@@ -1225,8 +1222,11 @@ class CoulombGenerator:
         charges_per_atom = jnp.array(charges_per_atom)
         
         # Build charge mapping: map each atom to its charge parameter index
-        # Use actual charge values from topology (already matched by OpenMM template system)
+        # Build charge mapping: map each atom to its charge parameter index
+        # Each atom gets its own independent charge parameter
         map_charge = []
+        actual_charge_keys = []
+        actual_charge_values = []
         
         for atom in topdata.atoms():
             if self.charge_keys:
@@ -1235,15 +1235,23 @@ class CoulombGenerator:
                 atom_name = atom.name
                 charge_key = (res_name, atom_name)
                 
-                if charge_key in self.charge_keys:
-                    cidx = self.charge_keys.index(charge_key)
+                # Check if this charge_key is already in our actual list
+                if charge_key in actual_charge_keys:
+                    cidx = actual_charge_keys.index(charge_key)
+                elif charge_key in self.charge_keys:
+                    # Found in template - use template charge value
+                    template_idx = self.charge_keys.index(charge_key)
+                    charge_val = self.charge_values[template_idx]
+                    actual_charge_keys.append(charge_key)
+                    actual_charge_values.append(charge_val)
+                    cidx = len(actual_charge_keys) - 1
                 else:
                     # Atom not in original residue templates - add it as new parameter
                     # Get actual charge value from OpenMM's template matching
                     actual_charge = float(atom.meta["charge"]) if "charge" in atom.meta else 0.0
-                    self.charge_values.append(actual_charge)
-                    self.charge_keys.append(charge_key)
-                    cidx = len(self.charge_values) - 1
+                    actual_charge_keys.append(charge_key)
+                    actual_charge_values.append(actual_charge)
+                    cidx = len(actual_charge_keys) - 1
             else:
                 # No charges were stored - this shouldn't happen
                 raise DMFFException(f"No charges stored in CoulombGenerator")
@@ -1251,14 +1259,14 @@ class CoulombGenerator:
             map_charge.append(cidx)
         map_charge = jnp.array(map_charge)
         
-        # Update paramset with any new charges that were added
-        if paramset is not None and self.charge_values:
-            current_charge_count = len(paramset.parameters[self.name].get("charge", []))
-            if len(self.charge_values) > current_charge_count:
-                charges = jnp.array(self.charge_values)
-                charge_mask = jnp.ones(charges.shape)
-                paramset.parameters[self.name]["charge"] = charges
-                paramset.mask[self.name]["charge"] = charge_mask
+        # Add or update charges in paramset
+        if paramset is not None and actual_charge_values:
+            charges = jnp.array(actual_charge_values)
+            charge_mask = jnp.ones(charges.shape)
+            if self.name not in paramset.parameters:
+                paramset.addField(self.name)
+            paramset.parameters[self.name]["charge"] = charges
+            paramset.mask[self.name]["charge"] = charge_mask
         
         # Store the charge mapping for use in the potential function
         self.map_charge = map_charge

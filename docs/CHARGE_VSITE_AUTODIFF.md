@@ -16,13 +16,14 @@ Previously, charges and virtual site weights were hardcoded during potential cre
 
 ### Changes to Charge Handling
 
-1. **Parameter Storage**: Charges are stored in `ParamSet` during Hamiltonian initialization and are organized per unique charge value:
-   - `CoulombGenerator` stores charges under `params["CoulombForce"]["charge"]` during `__init__`
-   - `NonbondedGenerator` stores charges under `params["NonbondedForce"]["charge"]` during `__init__`
-   - Charges are initially organized by (residue, atom_name) from residue templates
-   - During `createPotential()`, if atom names don't match, the system falls back to matching by actual charge values
-   - This allows robust handling of PDB files with different atom naming conventions
-   - A mapping array is created during `createPotential()` to expand charges to per-atom in the energy function
+1. **Parameter Storage**: Charges are stored in `ParamSet` during `createPotential()` call and are organized per unique charge value:
+   - `CoulombGenerator` stores charges under `params["CoulombForce"]["charge"]` during `createPotential()`
+   - `NonbondedGenerator` stores charges under `params["NonbondedForce"]["charge"]` during `createPotential()`
+   - During initialization, templates are loaded but charges are NOT yet in paramset
+   - During `createPotential()`, atoms from topology are matched to templates and charges are added to paramset
+   - Primary matching: (residue_name, atom_name) when names align between PDB and force field
+   - Fallback matching: Use actual charge values (from OpenMM's template matching) when names don't align
+   - A mapping array is created to expand charges to per-atom in the energy function
    
    **Key Design**: Charges in paramset are organized by unique charge parameters. The system uses a flexible matching approach:
    - **Primary**: Match by (residue_name, atom_name) when names align between PDB and force field
