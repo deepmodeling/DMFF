@@ -16,12 +16,13 @@ Previously, charges and virtual site weights were hardcoded during potential cre
 
 ### Changes to Charge Handling
 
-1. **Parameter Storage**: Charges are now stored in `ParamSet` during Hamiltonian initialization:
+1. **Parameter Storage**: Charges are stored in `ParamSet` during Hamiltonian initialization and remain per atom TYPE:
    - `CoulombGenerator` stores charges (per atom type) under `params["CoulombForce"]["charge"]` during `__init__`
    - `NonbondedGenerator` stores charges (per atom type) under `params["NonbondedForce"]["charge"]` during `__init__`
-   - When `createPotential()` is called with a topology, these charges are updated to be per-atom (topology-dependent)
+   - Charges remain per atom TYPE even after `createPotential()` is called
+   - A mapping array is created during `createPotential()` to expand per-type charges to per-atom charges in the energy function
    
-   **Note**: During initialization, charges are stored per atom TYPE based on the force field definition. After calling `createPotential()`, they are updated to be per ATOM based on the actual molecular topology.
+   **Key Design**: Charges in paramset are always per atom TYPE (shared by all atoms of the same type). This ensures that when you differentiate with respect to a charge parameter, the gradient accounts for all atoms of that type, not just one atom. The expansion from per-type to per-atom happens inside the energy function using an index mapping.
 
 2. **Force Class Updates**: All Coulomb force classes now accept charges as runtime parameters:
    - `CoulombNoCutoffForce`
@@ -189,21 +190,48 @@ paramset = ff.getParameters()
 
 # For NonbondedForce XML:
 charges = paramset.parameters["NonbondedForce"]["charge"]  # Per atom type
-print(f"Initial charges (per type): {charges}")
+print(f"Charges (per type): {charges}")
 
-# After createPotential, charges are updated to be per atom
+# After createPotential, charges are STILL per type (not per atom)
 potential = ff.createPotential(topology, nonbondedMethod=app.NoCutoff)
 paramset = ff.getParameters()
-charges = paramset.parameters["NonbondedForce"]["charge"]  # Per atom in topology
-print(f"Updated charges (per atom): {charges}")
+charges = paramset.parameters["NonbondedForce"]["charge"]  # Still per type
+print(f"Charges (still per type): {charges}")
 ```
 
-### Understanding per-type vs per-atom charges
+### Understanding per-type charges and gradient behavior
 
-- **After Hamiltonian initialization**: Charges are per atom TYPE (one charge value per unique atom type defined in the force field)
-- **After createPotential()**: Charges are per ATOM (one charge value per atom in the actual molecular system)
+- **Charges in paramset**: Always per atom TYPE (one charge value per unique atom type defined in the force field)
+- **Charges in energy function**: Expanded to per-atom using an index mapping
 
-For example, if your force field defines types "H" and "O", you'll have 2 charge values initially. After creating a potential for a water box with 300 water molecules, you'll have 900 charge values (300 O atoms + 600 H atoms).
+**Important**: When differentiating energy with respect to charges, the gradient for each charge parameter accounts for ALL atoms of that type. For example:
+- If you have 2 Li+ ions (both using charge parameter q_Li)
+- Energy: E = q_Li * q_Li / r
+- Gradient: dE/dq_Li = 2 * q_Li / r (accounts for both Li atoms)
+
+This is the correct behavior because both Li atoms share the same charge parameter. If you change q_Li, both atoms' charges change, so the gradient must account for both contributions.
+
+Example with Li+ dimer:
+```python
+ff = Hamiltonian('forcefield.xml')
+paramset = ff.getParameters()
+
+# One charge parameter for Li+ type
+charges = paramset.parameters["NonbondedForce"]["charge"]
+print(f"Charges (per type): {charges}")  # e.g., [0.8] for Li+
+
+potential = ff.createPotential(topology_with_2_Li, nonbondedMethod=app.NoCutoff)
+# Charges in paramset are still per-type: [0.8]
+# But internally, they're expanded to per-atom: [0.8, 0.8] for the 2 Li atoms
+
+# When computing gradient
+def energy(q):
+    params = paramset.parameters.copy()
+    params["NonbondedForce"]["charge"] = q
+    return efunc(positions, box, pairs, params)
+
+grad = jax.grad(energy)(charges)  # dE/dq_Li = 2*q_Li/r (correct!)
+```
 
 ## Future Enhancements
 
