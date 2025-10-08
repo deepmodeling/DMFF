@@ -1173,7 +1173,7 @@ class CoulombGenerator:
         # when we have the actual topology and can properly match atoms
         self._atom_types = []  # Not used anymore
         self._type_to_charge = type_to_charge  # Store for fallback
-            self._type_to_charge = {}
+        self._type_to_charge = {}
 
     def getName(self):
         return self.name
