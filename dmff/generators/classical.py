@@ -936,12 +936,12 @@ class NonbondedGenerator:
             charges_per_atom = jnp.array([self.type_to_charge[i] for i in types])
 
         # Build charge mapping: map each atom to its charge parameter index
-        # Use actual charge values from topology (already matched by OpenMM template system)
+        # Each atom gets its own independent charge parameter
         map_charge = []
         
         for atom in topdata.atoms():
             if self.charge_in_residue and self.charge_keys:
-                # First try (residue_name, atom_name) matching
+                # Try (residue_name, atom_name) matching
                 res_name = atom.residue.name
                 atom_name = atom.name
                 charge_key = (res_name, atom_name)
@@ -949,25 +949,12 @@ class NonbondedGenerator:
                 if charge_key in self.charge_keys:
                     cidx = self.charge_keys.index(charge_key)
                 else:
-                    # Fallback: match by actual charge value from topology
-                    # OpenMM has already done template matching and assigned charges
+                    # Atom not in original residue templates - add it as new parameter
+                    # Get actual charge value from OpenMM's template matching
                     actual_charge = float(atom.meta["charge"]) if "charge" in atom.meta else 0.0
-                    
-                    # Find closest matching charge in charge_values
-                    # Use small tolerance for floating point comparison
-                    tolerance = 1e-6
-                    cidx = None
-                    for i, ref_charge in enumerate(self.charge_values):
-                        if abs(actual_charge - ref_charge) < tolerance:
-                            cidx = i
-                            break
-                    
-                    if cidx is None:
-                        # Charge value not found in paramset - add it
-                        # This handles cases where topology has charges not in original residue templates
-                        self.charge_values.append(actual_charge)
-                        self.charge_keys.append((res_name, atom_name))
-                        cidx = len(self.charge_values) - 1
+                    self.charge_values.append(actual_charge)
+                    self.charge_keys.append(charge_key)
+                    cidx = len(self.charge_values) - 1
             else:
                 # Use atom type for non-residue charges
                 atype = atom.meta[self.key_type]
@@ -1243,7 +1230,7 @@ class CoulombGenerator:
         
         for atom in topdata.atoms():
             if self.charge_keys:
-                # First try (residue_name, atom_name) matching
+                # Try (residue_name, atom_name) matching
                 res_name = atom.residue.name
                 atom_name = atom.name
                 charge_key = (res_name, atom_name)
@@ -1251,25 +1238,12 @@ class CoulombGenerator:
                 if charge_key in self.charge_keys:
                     cidx = self.charge_keys.index(charge_key)
                 else:
-                    # Fallback: match by actual charge value from topology
-                    # OpenMM has already done template matching and assigned charges
+                    # Atom not in original residue templates - add it as new parameter
+                    # Get actual charge value from OpenMM's template matching
                     actual_charge = float(atom.meta["charge"]) if "charge" in atom.meta else 0.0
-                    
-                    # Find closest matching charge in charge_values
-                    # Use small tolerance for floating point comparison
-                    tolerance = 1e-6
-                    cidx = None
-                    for i, ref_charge in enumerate(self.charge_values):
-                        if abs(actual_charge - ref_charge) < tolerance:
-                            cidx = i
-                            break
-                    
-                    if cidx is None:
-                        # Charge value not found in paramset - add it
-                        # This handles cases where topology has charges not in original residue templates
-                        self.charge_values.append(actual_charge)
-                        self.charge_keys.append((res_name, atom_name))
-                        cidx = len(self.charge_values) - 1
+                    self.charge_values.append(actual_charge)
+                    self.charge_keys.append(charge_key)
+                    cidx = len(self.charge_values) - 1
             else:
                 # No charges were stored - this shouldn't happen
                 raise DMFFException(f"No charges stored in CoulombGenerator")

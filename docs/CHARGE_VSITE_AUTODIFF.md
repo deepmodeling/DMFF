@@ -207,47 +207,46 @@ print(f"Charges (still per type): {charges}")
 
 ### Understanding charge parameters and gradient behavior
 
-- **Charges in paramset**: Organized per unique charge value (identified by residue and atom name)
+- **Charges in paramset**: Each unique (residue_name, atom_name) combination gets its own charge parameter
 - **Charges in energy function**: Expanded to per-atom using an index mapping
-- **Important**: Atoms with the same LJ type can have different charge parameters
+- **Important**: Each atom defined in the XML gets an independent charge parameter, even if initial values are identical
 
-**Gradient Behavior**: When differentiating energy with respect to charges, the gradient for each charge parameter accounts for ALL atoms sharing that exact charge parameter. For example:
+**Gradient Behavior**: When differentiating energy with respect to charges, each charge parameter can be optimized independently:
 
-**Example 1: Two Li+ ions with same charge**
-- If you have 2 Li+ ions (both using charge parameter q_Li)
-- Energy: E = q_Li * q_Li / r
-- Gradient: dE/dq_Li = 2 * q_Li / r (accounts for both Li atoms)
+**Example 1: Two atoms with same initial charge value**
+- H1 with charge q_H1 = +0.1, H2 with charge q_H2 = +0.1 (same initial value)
+- Both get independent parameters in paramset: [0.1, 0.1]
+- Gradients: dE/dq_H1 and dE/dq_H2 are computed independently
+- During optimization, q_H1 and q_H2 can evolve to different values
 
-**Example 2: Two carbon atoms with different charges**
-- C1 with charge q1 = +0.5, C2 with charge q2 = -0.5 (same LJ type, different charges)
-- Both carbons can use the same LJ parameters (sigma_C, epsilon_C)
-- But they have independent charge parameters: q1 and q2
-- Gradient: dE/dq1 accounts only for C1, dE/dq2 accounts only for C2
+**Example 2: Multiple atoms in different residues**
+- Residue1/H1 with charge +0.1, Residue2/H1 with charge +0.1
+- Each gets its own parameter: [(Residue1, H1): 0.1, (Residue2, H1): 0.1]
+- Can be optimized independently
 
 This design allows:
-- Flexibility: Same LJ type atoms can have different charges
-- Correct gradients: Each unique charge parameter gets the correct gradient
-- Efficiency: Atoms with identical charges share parameters
+- **Independent optimization**: Each charge can be tuned separately during training
+- **Flexibility**: Atoms with identical initial values can diverge during optimization
+- **Correct gradients**: Each parameter gradient accounts for all atoms using that specific parameter
 
-Example with mixed case:
+Example:
 ```python
 ff = Hamiltonian('forcefield.xml')
 paramset = ff.getParameters()
 
-# Charges per unique (residue, atom_name) combination
+# Each unique (residue, atom) gets own parameter
 charges = paramset.parameters["NonbondedForce"]["charge"]
-print(f"Charges: {charges}")  # e.g., [0.8, -0.4, -0.4] for Li+, C1, C2
+print(f"Charges: {charges}")  # e.g., [0.1, 0.1, -0.2, 0.1, -0.2] - duplicates are independent
 
 potential = ff.createPotential(topology, nonbondedMethod=app.NoCutoff)
-# Charges are still per unique value, expanded internally via mapping
 
-# When computing gradient
+# Optimize each charge independently
 def energy(q):
     params = paramset.parameters.copy()
     params["NonbondedForce"]["charge"] = q
     return efunc(positions, box, pairs, params)
 
-grad = jax.grad(energy)(charges)  # Correct gradients for each unique charge
+grad = jax.grad(energy)(charges)  # Independent gradients for each parameter
 ```
 
 ## Future Enhancements
