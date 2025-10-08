@@ -19,14 +19,16 @@ Previously, charges and virtual site weights were hardcoded during potential cre
 1. **Parameter Storage**: Charges are stored in `ParamSet` during Hamiltonian initialization and are organized per unique charge value:
    - `CoulombGenerator` stores charges under `params["CoulombForce"]["charge"]` during `__init__`
    - `NonbondedGenerator` stores charges under `params["NonbondedForce"]["charge"]` during `__init__`
-   - Charges are stored per unique (residue, atom_name) combination, NOT per LJ atom type
-   - This allows atoms with the same LJ type to have different charges
+   - Charges are initially organized by (residue, atom_name) from residue templates
+   - During `createPotential()`, if atom names don't match, the system falls back to matching by actual charge values
+   - This allows robust handling of PDB files with different atom naming conventions
    - A mapping array is created during `createPotential()` to expand charges to per-atom in the energy function
    
-   **Key Design**: Charges in paramset are organized by unique charge parameters (identified by residue and atom name). This ensures:
-   - Atoms with the same LJ type can have different charges
-   - When you differentiate with respect to a charge parameter, the gradient accounts for all atoms sharing that exact charge value
-   - The expansion from per-charge-parameter to per-atom happens inside the energy function using an index mapping
+   **Key Design**: Charges in paramset are organized by unique charge parameters. The system uses a flexible matching approach:
+   - **Primary**: Match by (residue_name, atom_name) when names align between PDB and force field
+   - **Fallback**: Match by actual charge value (from OpenMM's template matching) when names don't align
+   - This ensures correct charge assignment even when PDB atom names differ from residue templates
+   - Gradients correctly account for all atoms sharing each charge value
 
 2. **Force Class Updates**: All Coulomb force classes now accept charges as runtime parameters:
    - `CoulombNoCutoffForce`
