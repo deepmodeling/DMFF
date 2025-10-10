@@ -80,6 +80,7 @@ class XMLIO:
 
     def parseResidues(self):
         ret = []
+        xmlidx = 0
         for residue in self._data["Residues"]:
             res = {
                 "name": None,
@@ -97,6 +98,8 @@ class XMLIO:
                             ainner[key] = item.attrib[key]
                         else:
                             ainner[key] = float(item.attrib[key])
+                    ainner["xmlidx"] = xmlidx
+                    xmlidx += 1
                     res["particles"].append(ainner)
                 if item.tag == "VirtualSite":
                     vinner = {}
