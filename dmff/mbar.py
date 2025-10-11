@@ -33,7 +33,7 @@ def buildTrajEnergyFunction(
     ensemble="nvt",
     pressure=1.0,
 ):
-    def energy_function(traj, parameters):
+    def energy_function(traj, parameters, return_input=False):
         pos_list, box_list, pairs_list, vol_list = [], [], [], []
         pair_full = []
         for na in range(traj.topology.n_atoms):
@@ -68,11 +68,44 @@ def buildTrajEnergyFunction(
             ensemble_cns = 0.0
         elif ensemble.upper() == "NPT":
             ensemble_cns = 1.0
-        eners = [
-            potential_func(pos_list[i], box_list[i], pairs_jax[i], parameters)
-            + ensemble_cns * pressure * 0.06023 * vol_list[i]
-            for i in trange(traj.n_frames)
-        ]
+        # eners = [
+        #     potential_func(pos_list[i], box_list[i], pairs_jax[i], parameters)
+        #     + ensemble_cns * pressure * 0.06023 * vol_list[i]
+        #     for i in trange(traj.n_frames)
+        # ]
+        eners = jax.vmap(
+            lambda pos, box, pairs, vol: potential_func(pos, box, pairs, parameters)
+            + ensemble_cns * pressure * 0.06023 * vol
+        )(pos_list, box_list, pairs_jax, vol_list)
+
+        if return_input:
+            return eners, pos_list, box_list, pairs_jax, vol_list
+        else:
+            return eners
+
+    return energy_function
+
+
+def buildInputEnergyFunction(
+    potential_func,
+    ensemble="nvt",
+    pressure=1.0,
+):
+    def energy_function(pos_list, box_list, pairs_list, vol_list, parameters):
+        if ensemble.upper() == "NVT":
+            ensemble_cns = 0.0
+        elif ensemble.upper() == "NPT":
+            ensemble_cns = 1.0
+        
+        eners = jax.vmap(
+            lambda pos, box, pairs, vol: potential_func(pos, box, pairs, parameters)
+            + ensemble_cns * pressure * 0.06023 * vol
+        )(pos_list, box_list, pairs_list, vol_list)
+        # eners = [
+        #     potential_func(pos_list[i], box_list[i], pairs_list[i], parameters)
+        #     + ensemble_cns * pressure * 0.06023 * vol_list[i]
+        #     for i in trange(len(pos_list))
+        # ]
         return eners
 
     return energy_function
@@ -222,6 +255,7 @@ class MBAREstimator:
         self._umat = None
         self._nk = None
         self._full_samples = None
+        self._input = None
 
     def add_sample(self, sample):
         self.samples.append(sample)
@@ -278,9 +312,14 @@ class MBAREstimator:
         self._nk_jax = jax.numpy.array(nk)
 
     def estimate_weight(
-        self, state, parameters=None, decompose=True, return_energy=True
+        self, state, parameters=None, decompose=True, return_energy=True, 
+        return_input=False, direct=False
     ):
-        if isinstance(state, TargetState):
+        if isinstance(state, TargetState) and direct:
+            unew = state.calc_energy(*self._input, parameters)
+        elif isinstance(state, TargetState) and return_input:
+            unew, *self._input = state.calc_energy(self._full_samples, parameters, return_input=True)
+        elif isinstance(state, TargetState):
             unew = state.calc_energy(self._full_samples, parameters)
         else:
             unew = state.calc_energy(self._full_samples)
