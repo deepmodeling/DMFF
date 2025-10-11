@@ -116,10 +116,15 @@ class TargetState:
         self._temperature = temperature
         self._efunc = energy_function
 
-    def calc_energy(self, trajectory, parameters):
+    def calc_energy(self, trajectory, parameters, return_input=False):
         beta = 1.0 / self._temperature / 8.314 * 1000.0
-        eners = self._efunc(trajectory, parameters)
+        if return_input:
+            eners, *input = self._efunc(trajectory, parameters, return_input=True)
+        else:
+            eners = self._efunc(trajectory, parameters, return_input=False)
         ulist = jnp.concatenate([beta * e.reshape((1,)) for e in eners])
+        if return_input:
+            return ulist, input
         return ulist
 
 
@@ -312,7 +317,7 @@ class MBAREstimator:
         self._nk_jax = jax.numpy.array(nk)
 
     def estimate_weight(
-        self, state, parameters=None, decompose=True, return_energy=True, 
+        self, state, parameters=None, decompose=True, return_energy=True,
         return_input=False, direct=False
     ):
         if isinstance(state, TargetState) and direct:

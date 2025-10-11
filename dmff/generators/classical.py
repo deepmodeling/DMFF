@@ -964,7 +964,6 @@ class NonbondedGenerator:
             charges = []
             for i in range(map_charge.max()+1):
                 idx = np.where(map_charge == i)[0][0]
-                print(idx)
                 charges.append(actual_charge_values[idx])
             charges = jnp.array(charges)
             charge_mask = jnp.ones(charges.shape)

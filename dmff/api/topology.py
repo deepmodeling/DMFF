@@ -517,7 +517,7 @@ class DMFFTopology:
         # Store vsite weights in paramset for automatic differentiation
         # Store one parameter per vsite in the reference molecule, but only add once
         # (don't duplicate when multiple molecules are present)
-        if paramset is not None:
+        if paramset is not None and len(list(self.vsites())) > 0:
             if "VirtualSite" not in paramset.parameters:
                 paramset.addField("VirtualSite")
             
