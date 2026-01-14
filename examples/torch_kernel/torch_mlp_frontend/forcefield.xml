@@ -1,0 +1,15 @@
+<ForceField>
+  <AtomTypes>
+    <Type class="ar" element="Ar" mass="39.948" name="ar"/>
+    <Type class="ne" element="Ne" mass="20.1797" name="ne"/>
+  </AtomTypes>
+  <Residues>
+    <Residue name="ARG">
+      <Atom charge="0.0" name="AR" type="ar"/>
+    </Residue>
+    <Residue name="NEO">
+      <Atom charge="0.0" name="NE" type="ne"/>
+    </Residue>
+  </Residues>
+  <CustomTorchForce ckpt="model.pt" torch_script="False" dtype="float32"/>
+</ForceField>
