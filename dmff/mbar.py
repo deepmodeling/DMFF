@@ -26,6 +26,7 @@ except ImportError:
     
 try:
     import torch
+    from .torch_tools import j2t_pytree
 except ImportError:
     warnings.warn("torch not installed, related functions are not available")
 
@@ -44,7 +45,6 @@ from .common.constants import EV2KJ, A2NM
 from collections import defaultdict
 import subprocess
 from pathlib import Path
-from .torch_tools import j2t_pytree
 
 
 def buildTrajEnergyFunction(
