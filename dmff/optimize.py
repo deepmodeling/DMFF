@@ -4,7 +4,12 @@ import jax.numpy as jnp
 from typing import Optional
 import optax
 
-PeriodicParamsState = optax._src.base.EmptyState
+PeriodicParamsState = optax.EmptyState
+
+NO_PARAMS_MSG = (
+    "You are using a transformation that requires the current value of "
+    "parameters, but you are not passing `params` when calling `update`."
+)
 
 
 def periodic_move(pmin, pmax):
@@ -14,17 +19,17 @@ def periodic_move(pmin, pmax):
 
     def update_fn(updates, state, params):
         if params is None:
-            raise ValueError(optax._src.base.NO_PARAMS_MSG)
+            raise ValueError(NO_PARAMS_MSG)
 
-        updates = jax.tree_map(
+        updates = jax.tree_util.tree_map(
             lambda p, u: jnp.where((p + u) < pmin, u + pmax - pmin, u), params, updates
         )
-        updates = jax.tree_map(
+        updates = jax.tree_util.tree_map(
             lambda p, u: jnp.where((p + u) > pmax, u - pmax + pmin, u), params, updates
         )
         return updates, state
 
-    return optax._src.base.GradientTransformation(init_fn, update_fn)
+    return optax.GradientTransformation(init_fn, update_fn)
 
 
 def genOptimizer(

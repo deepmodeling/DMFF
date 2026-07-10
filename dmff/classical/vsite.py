@@ -1,5 +1,6 @@
 from typing import Tuple, List, Dict, Callable, Optional
 import numpy as np
+import jax
 import jax.numpy as jnp
 
 
@@ -61,7 +62,7 @@ class VirtualSite:
         newmol: rdkit.Chem.Mol
             Mol with virtual sites added 
         """
-        if isinstance(vtypes, jnp.ndarray) and isinstance(vdist, jnp.ndarray):
+        if isinstance(vtypes, jax.Array) and isinstance(vdist, jax.Array):
             func = self.getAddVirtualSiteFunc()
             # convert between angstrom and nm
             pos = jnp.array(rdmol.GetConformer(0).GetPositions()) / 10

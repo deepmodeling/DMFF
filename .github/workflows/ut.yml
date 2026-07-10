@@ -8,24 +8,39 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: [3.9]
+        include:
+          # Oldest JAX we still support. jaxopt is archived and only installable
+          # here, so the QEq path is exercised on this job alone.
+          - name: jax-oldest
+            python-version: "3.11"
+            jax-spec: "jax==0.4.35 jaxlib==0.4.35 jaxopt 'numpy<2'"
+          # Latest JAX + numpy 2.
+          - name: jax-latest
+            python-version: "3.11"
+            jax-spec: "jax jaxlib"
+    name: ${{ matrix.name }} (py${{ matrix.python-version }})
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
-          conda create -n dmff -y python=${{ matrix.python-version }} numpy openmm==7.7.0 pytest rdkit openbabel mdtraj ambertools -c conda-forge 
+          conda create -n dmff -y python=${{ matrix.python-version }} numpy openmm pytest rdkit openbabel mdtraj ambertools -c conda-forge
           conda activate dmff
           pip install --upgrade pip
-          pip install jax jaxlib jaxopt networkx parmed pymbar==4.0.1 optax tqdm ase
+          pip install ${{ matrix.jax-spec }} networkx parmed pymbar optax tqdm ase
       - name: Install DMFF
         run: |
           source $CONDA/bin/activate dmff && pip install .
+      - name: Report resolved versions
+        run: |
+          source $CONDA/bin/activate dmff
+          python -c "import jax, numpy; print('jax', jax.__version__, '| numpy', numpy.__version__)"
       - name: Run Tests
         run: |
           source $CONDA/bin/activate dmff
@@ -33,7 +48,7 @@ jobs:
           pytest -vs tests/test_common/test_*
           pytest -vs tests/test_admp/test_*
           pytest -vs tests/test_utils.py
-          pytest -vs tests/test_mbar/test_* 
+          pytest -vs tests/test_mbar/test_*
           pytest -vs tests/test_sgnn/test_*
           pytest -vs tests/test_difftraj/test_*
           pytest -vs tests/test_frontend/test_*

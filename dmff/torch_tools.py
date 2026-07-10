@@ -14,7 +14,7 @@ def t2j_element(e):
         return e
 
 def j2t_element(e):
-    if isinstance(e, jax.numpy.ndarray):
+    if isinstance(e, jax.Array):
         e = j2t(e)
         e.requires_grad = True
         return e

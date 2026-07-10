@@ -118,7 +118,7 @@ class ParamSet:
         return self.parameters[key]
 
     def update_mask(self, gradients):
-        gradients = jax.tree_map(
+        gradients = jax.tree_util.tree_map(
             lambda g, m: jnp.where(jnp.abs(m - 1.0) > 1e-5, g, 0.0), gradients, self.mask
         )
         return gradients
