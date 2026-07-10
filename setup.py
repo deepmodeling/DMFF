@@ -52,7 +52,6 @@ def setup(scm=None):
     setuptools.setup(
         name=NAME,
         use_scm_version=scm,
-        setup_requires=['setuptools_scm'],
         author="DeepModeling",
         author_email="windwhisper.yu@gmail.com",
         description="Differentiable Molecular Force Field",

@@ -1,0 +1,7 @@
+[build-system]
+# Declared here rather than via setup.py's `setup_requires`, which uses the
+# legacy easy_install path: it fetches setuptools_scm as an egg without its
+# transitive dependencies, so setuptools_scm>=10 (which moved Configuration
+# into the separate vcs_versioning package) fails to import at build time.
+requires = ["setuptools>=64", "setuptools_scm>=8", "wheel"]
+build-backend = "setuptools.build_meta"
