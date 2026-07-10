@@ -48,28 +48,36 @@ jobs:
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
-          conda create -n dmff -y python=${{ matrix.python-version }} numpy openmm pytest rdkit openbabel mdtraj ambertools -c conda-forge
+          conda create -n dmff -y python=${{ matrix.python-version }} pip numpy openmm pytest rdkit openbabel mdtraj ambertools -c conda-forge
           conda activate dmff
-          pip install --upgrade pip
-          pip install ${{ matrix.jax-spec }} networkx parmed pymbar optax tqdm ase
+          # Always drive pip through the interpreter we are about to test with.
+          # A bare `pip` can resolve to the setup-python installation ahead of
+          # the conda env on PATH, silently installing into a different
+          # interpreter than `python` imports from.
+          which python
+          python -m pip install --upgrade pip
+          python -m pip install ${{ matrix.jax-spec }} networkx parmed pymbar optax tqdm ase
       - name: Install DMFF
         run: |
-          source $CONDA/bin/activate dmff && pip install .
+          source $CONDA/bin/activate dmff
+          python -m pip install .
       - name: Report resolved versions
         run: |
           source $CONDA/bin/activate dmff
-          python -c "import sys, jax, numpy; print('python', sys.version.split()[0], '| jax', jax.__version__, '| numpy', numpy.__version__)"
+          which python
+          python -c "import sys, jax, numpy; print('python', sys.version.split()[0], '| jax', jax.__version__, '| numpy', numpy.__version__)" \
+            || { echo '--- jax missing; installed packages: ---'; python -m pip list; exit 1; }
       - name: Run Tests
         run: |
           source $CONDA/bin/activate dmff
-          pytest -vs tests/test_classical/test_*
-          pytest -vs tests/test_common/test_*
-          pytest -vs tests/test_admp/test_*
-          pytest -vs tests/test_utils.py
-          pytest -vs tests/test_mbar/test_*
-          pytest -vs tests/test_sgnn/test_*
-          pytest -vs tests/test_difftraj/test_*
-          pytest -vs tests/test_frontend/test_*
-          pytest -vs tests/test_dimer/test_*
-          pytest -vs tests/test_energy.py
-          pytest -vs tests/test_ase/test_*
+          python -m pytest -vs tests/test_classical/test_*
+          python -m pytest -vs tests/test_common/test_*
+          python -m pytest -vs tests/test_admp/test_*
+          python -m pytest -vs tests/test_utils.py
+          python -m pytest -vs tests/test_mbar/test_*
+          python -m pytest -vs tests/test_sgnn/test_*
+          python -m pytest -vs tests/test_difftraj/test_*
+          python -m pytest -vs tests/test_frontend/test_*
+          python -m pytest -vs tests/test_dimer/test_*
+          python -m pytest -vs tests/test_energy.py
+          python -m pytest -vs tests/test_ase/test_*
