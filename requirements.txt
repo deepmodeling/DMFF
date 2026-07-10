@@ -7,9 +7,8 @@ tqdm
 rdkit
 ase
 
-# Optional: required only by the QEq module (dmff/admp/qeq.py).
-# jaxopt is archived upstream; install with `pip install .[qeq]` if needed.
-# jaxopt>=0.8.0
+# The QEq module (dmff/admp/qeq.py) additionally needs optax>=0.2.3 for
+# optax.lbfgs; install it with `pip install .[qeq]` if you use QEq.
 
 # Docs
 mkdocs>=1.3.0

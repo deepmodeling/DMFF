@@ -30,10 +30,10 @@ install_requires = [
 ]
 
 extras_require = {
-    # jaxopt is archived upstream (last release 0.8.5, Nov 2023). Only the QEq
-    # module needs it, and dmff/admp/qeq.py already degrades with a warning when
-    # it is absent, so it is opt-in rather than a hard dependency.
-    "qeq": ["jaxopt>=0.8.0"],
+    # The QEq module needs optax.lbfgs (added in optax 0.2.3), which is above the
+    # core optax floor. It replaces the archived jaxopt. dmff/admp/qeq.py degrades
+    # with a warning if optax is too old, so this stays an opt-in extra.
+    "qeq": ["optax>=0.2.3"],
     "docs": [
         "mkdocs>=1.3.0",
         "mkdocs-autorefs>=0.4.1",

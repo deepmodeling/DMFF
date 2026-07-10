@@ -18,13 +18,11 @@ jobs:
           # Floor of both axes: oldest supported Python, newest JAX it can run.
           - name: py3.9-jax0.4.30
             python-version: "3.9"
-            jax-spec: "jax==0.4.30 jaxlib==0.4.30 jaxopt 'numpy<2'"
-          # Oldest JAX we pin against on a modern Python. jaxopt is archived and
-          # optional; test_qeq runs everywhere, but only the two jobs that
-          # install jaxopt exercise its jitted jaxopt-backed solver path.
+            jax-spec: "jax==0.4.30 jaxlib==0.4.30 'numpy<2'"
+          # Oldest JAX we pin against on a modern Python.
           - name: py3.11-jax0.4.35
             python-version: "3.11"
-            jax-spec: "jax==0.4.35 jaxlib==0.4.35 jaxopt 'numpy<2'"
+            jax-spec: "jax==0.4.35 jaxlib==0.4.35 'numpy<2'"
           # Newest JAX each remaining Python can install, with numpy 2.
           - name: py3.10-jax-latest
             python-version: "3.10"
@@ -56,7 +54,8 @@ jobs:
           # interpreter than `python` imports from.
           which python
           python -m pip install --upgrade pip
-          python -m pip install ${{ matrix.jax-spec }} networkx parmed pymbar optax tqdm ase
+          # optax>=0.2.3 gives optax.lbfgs, which the QEq module needs.
+          python -m pip install ${{ matrix.jax-spec }} networkx parmed pymbar "optax>=0.2.3" tqdm ase
       - name: Install DMFF
         run: |
           source $CONDA/bin/activate dmff
