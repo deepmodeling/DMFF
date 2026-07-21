@@ -11,9 +11,15 @@ Install the python, openmm and cudatoolkit.
 ```shell
 
 mkdir omm_dmff_working_dir && cd omm_dmff_working_dir
-conda create -n dmff_omm -c conda-forge python=3.9 openmm cudatoolkit=11.6
+conda create -n dmff_omm -c conda-forge python=3.9 openmm cudatoolkit=11.6 "swig<4.1"
 conda activate dmff_omm
 ```
+The `swig<4.1` pin is required. OpenMM's bundled `include/swig/OpenMMSwigHeaders.i`
+uses the `%factory` directive, and SWIG removed the `factory.i` library in 4.1.0,
+so building the Python wrappers with a newer SWIG fails with
+`Error: Unknown directive '%factory'`. Many Linux distributions now ship SWIG 4.2+,
+so install a pinned SWIG into the environment and point CMake at it explicitly
+with `-DSWIG_EXECUTABLE=${CONDA_PREFIX}/bin/swig` (see below).
 ### Download `libtensorflow_cc` and install `cppflow` package
 Install the precompiled libtensorflow_cc library from conda.
 ```shell
@@ -50,7 +56,7 @@ Compile the plugin from the source with the following steps.
 
 2. Run `cmake` command with the required parameters.
    ```shell
-   cmake .. -DOPENMM_DIR=${OPENMM_INSTALLED_DIR} -DCPPFLOW_DIR=${CPPFLOW_INSTALLED_DIR} -DTENSORFLOW_DIR=${LIBTENSORFLOW_INSTALLED_DIR}
+   cmake .. -DOPENMM_DIR=${OPENMM_INSTALLED_DIR} -DCPPFLOW_DIR=${CPPFLOW_INSTALLED_DIR} -DTENSORFLOW_DIR=${LIBTENSORFLOW_INSTALLED_DIR} -DSWIG_EXECUTABLE=${CONDA_PREFIX}/bin/swig
    make && make install
    make PythonInstall
    ```

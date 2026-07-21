@@ -25,10 +25,25 @@ install_requires = [
     "freud-analysis",
     "networkx>=3.0",
     "optax>=0.1.4",
-    "jaxopt>=0.8.0",
     "pymbar>=4.0.0",
     "tqdm"
 ]
+
+extras_require = {
+    # The QEq module needs optax.lbfgs (added in optax 0.2.3), which is above the
+    # core optax floor. It replaces the archived jaxopt. dmff/admp/qeq.py degrades
+    # with a warning if optax is too old, so this stays an opt-in extra.
+    "qeq": ["optax>=0.2.3"],
+    "docs": [
+        "mkdocs>=1.3.0",
+        "mkdocs-autorefs>=0.4.1",
+        "mkdocs-gen-files>=0.3.4",
+        "mkdocs-literate-nav>=0.4.1",
+        "mkdocstrings>=0.19.0",
+        "mkdocstrings-python>=0.7.0",
+        "pygments>=2.12",
+    ],
+}
 
 
 def setup(scm=None):
@@ -37,23 +52,26 @@ def setup(scm=None):
     setuptools.setup(
         name=NAME,
         use_scm_version=scm,
-        setup_requires=['setuptools_scm'],
         author="DeepModeling",
         author_email="windwhisper.yu@gmail.com",
         description="Differentiable Molecular Force Field",
         long_description=readme,
         long_description_content_type="text/markdown",
         url="https://github.com/deepmodeling/DMFF",
-        python_requires="~=3.8",
+        python_requires=">=3.9",
         packages=packages,
         data_files=[],
         package_data={},
         classifiers=[
-            "Programming Language :: Python :: 3.8",
+            "Programming Language :: Python :: 3.9",
+            "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
+            "Programming Language :: Python :: 3.12",
             "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
         ],
         keywords='DMFF',
         install_requires=install_requires,
+        extras_require=extras_require,
         entry_points={}
     )
 

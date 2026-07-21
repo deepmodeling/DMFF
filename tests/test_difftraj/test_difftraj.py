@@ -1,6 +1,6 @@
 import numpy as np
 import jax
-from jax import jit, value_and_grad, random
+from jax import jit, value_and_grad
 import jax.numpy as jnp
 from dmff.api import Hamiltonian
 from openmm import *
@@ -24,8 +24,7 @@ mass = jnp.tile(jnp.array([m_O, m_H, m_H]), 216)
 
 @pytest.mark.parametrize(
     "pdbfile, prm, values",
-    [("tests/data/water_nvt.pdb", "tests/data/qspc-fw.xml", 5412.57173719)])
-    # [("tests/data/water_nvt.pdb", "tests/data/qspc-fw.xml", 5401.08336042)])
+    [("tests/data/water_nvt.pdb", "tests/data/qspc-fw.xml", 5412.24832246)])
 def test_difftraj(pdbfile, prm, values):
 
     pdb = PDBFile(pdbfile)
@@ -36,10 +35,13 @@ def test_difftraj(pdbfile, prm, values):
     cov_map = pots.meta['cov_map']
     box = jnp.array(pdb.topology.getPeriodicBoxVectors()._value)
 
-    key = random.PRNGKey(seed)
     state = {}
     state['pos'] = jnp.array(pdb.getPositions()._value).reshape([1, 648, 3])
-    state['vel'] = jnp.einsum('ijk,j->ijk', random.normal(key, shape=state['pos'].shape), jnp.sqrt(kT/mass * 1e3)) / 1e3
+    # numpy's seeded Generator, not jax.random: jax's default PRNG impl changed
+    # (jax_threefry_partitionable flipped to True), which would silently move the
+    # reference energy below. numpy guarantees a stable stream across versions.
+    noise = np.random.default_rng(seed).standard_normal(state['pos'].shape)
+    state['vel'] = jnp.einsum('ijk,j->ijk', jnp.array(noise), jnp.sqrt(kT/mass * 1e3)) / 1e3
 
     @jit
     def L(traj):

@@ -16,21 +16,20 @@ else:
     CONST_1 = jnp.array(1, dtype=jnp.float32)
 
 try:
-    import jaxopt
+    import optax
 
-    try:
-        from jaxopt import Broyden
-
-        JAXOPT_OLD = False
-    except ImportError:
-        JAXOPT_OLD = True
+    # optax.lbfgs was added in optax 0.2.3; it replaces the archived jaxopt.
+    OPTAX_LBFGS = hasattr(optax, "lbfgs")
+    if not OPTAX_LBFGS:
         import warnings
         warnings.warn(
-            "jaxopt is too old. The QEQ potential function cannot be jitted. Please update jaxopt to the latest version for speed concern."
+            "optax is too old (need >=0.2.3 for optax.lbfgs). QEQ cannot be used."
         )
 except ImportError:
+    optax = None
+    OPTAX_LBFGS = False
     import warnings
-    warnings.warn("jaxopt not found, QEQ cannot be used.")
+    warnings.warn("optax not found, QEQ cannot be used.")
 import jax
 
 from jax.scipy.special import erf, erfc
@@ -201,6 +200,64 @@ def etainv_piecewise(eta):
 
 
 etainv_piecewise = jax.vmap(etainv_piecewise, in_axes=0)
+
+
+def lbfgs_minimize(
+    value_and_grad_fn, value_fn, init_params, tol=1e-2, maxiter=500, memory_size=10
+):
+    """Minimize with optax's L-BFGS, mirroring the jaxopt.LBFGS contract.
+
+    Replaces ``jaxopt.LBFGS(fun=..., value_and_grad=True, tol=...)``: jaxopt is
+    archived, and optax.lbfgs is the maintained equivalent.
+
+    ``value_and_grad_fn`` returns ``(value, grad)`` for the parameters being
+    optimized. The gradient it returns may be a *projected* gradient (as QEq
+    needs, to stay on the charge-constraint plane); it is used both as the
+    descent direction and as the convergence criterion, so the projection is
+    respected. ``value_fn`` returns the objective alone and is only consulted by
+    the line search, which is backtracking/Armijo -- it never differentiates
+    ``value_fn``, so it cannot reintroduce the unprojected gradient.
+
+    Stops when the gradient L2 norm drops to ``tol`` or ``maxiter`` is reached.
+    Runs under ``jit`` via ``lax.while_loop``.
+    """
+    if not OPTAX_LBFGS:
+        raise ImportError(
+            "QEQ requires optax>=0.2.3 for optax.lbfgs. Install it with "
+            "`pip install 'optax>=0.2.3'` or `pip install 'dmff[qeq]'`."
+        )
+
+    solver = optax.lbfgs(
+        memory_size=memory_size,
+        linesearch=optax.scale_by_backtracking_linesearch(
+            max_backtracking_steps=20, store_grad=True
+        ),
+    )
+
+    def cond_fn(carry):
+        _, _, _, _, gnorm, nit = carry
+        return jnp.logical_and(gnorm > tol, nit < maxiter)
+
+    def body_fn(carry):
+        params, state, value, gradient, _, nit = carry
+        updates, state = solver.update(
+            gradient, state, params, value=value, grad=gradient, value_fn=value_fn
+        )
+        params = optax.apply_updates(params, updates)
+        value, gradient = value_and_grad_fn(params)
+        return params, state, value, gradient, jnp.linalg.norm(gradient), nit + 1
+
+    value, gradient = value_and_grad_fn(init_params)
+    carry = (
+        init_params,
+        solver.init(init_params),
+        value,
+        gradient,
+        jnp.linalg.norm(gradient),
+        jnp.asarray(0),
+    )
+    params = jax.lax.while_loop(cond_fn, body_fn, carry)[0]
+    return params
 
 
 class ADMPQeqForce:
@@ -476,11 +533,6 @@ class ADMPQeqForce:
                     return energy
 
             func = get_proj_grad(E_full,self.const_mat)
-            solver = jaxopt.LBFGS(
-                    fun=func,
-                    value_and_grad=True,
-                    tol=1e-2,
-                    )
             pos = positions
             buffer_scales = pair_buffer_scales(pairs)
             if self.has_aux:
@@ -490,8 +542,7 @@ class ADMPQeqForce:
                 q = self.init_q
                 lagmt = self.init_lagmt
 
-            res = solver.run(
-                q,
+            rest_args = (
                 lagmt,
                 chi,
                 J,
@@ -502,7 +553,12 @@ class ADMPQeqForce:
                 buffer_scales,
                 mscales,
             )
-            q_opt = res.params
+            q_opt = lbfgs_minimize(
+                lambda x: func(x, *rest_args),
+                lambda x: E_full(x, *rest_args),
+                q,
+                tol=1e-2,
+            )
             energy = E_full(
                 q_opt,
                 lagmt,

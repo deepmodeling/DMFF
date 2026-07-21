@@ -1,3 +1,4 @@
+import jax
 from jax import jit, vmap, tree_util
 import jax.numpy as jnp
 from .settings import DO_JIT
@@ -86,7 +87,7 @@ def pair_buffer_scales(p):
 
 def isinstance_jnp(*args):
     def _check(arg):
-        if not isinstance(arg, jnp.ndarray):
+        if not isinstance(arg, jax.Array):
             raise TypeError(
                 "all arguments must be jnp.array, \
                 otherwise they won't be able to take derivatives \

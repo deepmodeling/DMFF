@@ -11,8 +11,6 @@ from dmff.admp.spatial import pbc_shift
 from functools import partial
 import jax.nn.initializers
 import pickle
-# from jax.config import config
-# config.update("jax_debug_nans", True)
 
 # Make printing parameters a little more readable
 def parameter_shapes(params):
