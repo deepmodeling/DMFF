@@ -32,6 +32,15 @@ from .pairwise import (
 
 DEFAULT_THOLE_WIDTH = 5.0
 
+# variables used in soft dipole truncation
+MAX_DIP = 1.0
+TRUNCATION_HARDNESS = 25 # the smaller, the softer
+def SOFT_TRUNCATION(x):
+    x2 = x * x
+    x_abs = jnp.sqrt(x2 + 1e-6)
+    val = -1/TRUNCATION_HARDNESS * jnp.log(1 + jnp.exp(-TRUNCATION_HARDNESS*(x_abs-MAX_DIP))) + MAX_DIP
+    return val * x/x_abs
+
 
 class ADMPPmeForce:
     """
@@ -416,6 +425,8 @@ class ADMPPmeForce:
                     dScales,
                 )
                 U = U - field * pol[:, jnp.newaxis] / DIELECTRIC
+                # soft truncation: stop polarization catastrophe
+                U = SOFT_TRUNCATION(U)
                 return U
 
             U = jax.lax.fori_loop(0, steps_pol, update_U, U)

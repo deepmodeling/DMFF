@@ -63,7 +63,7 @@ def generate_pairwise_interaction(pair_int_kernel, static_args):
             with the order in kernel
     '''
 
-    def pair_int(positions, box, pairs, mScales, *atomic_params):
+    def pair_int(positions, box, pairs, mScales, *atomic_params): 
         # pairs = regularize_pairs(pairs)
         pairs = pairs.at[:, :2].set(regularize_pairs(pairs[:, :2]))
 
@@ -77,7 +77,7 @@ def generate_pairwise_interaction(pair_int_kernel, static_args):
         buffer_scales = pair_buffer_scales(pairs)
         mscales = mscales * buffer_scales
         # mscales = mScales[nbonds-1]
-        box_inv = jnp.linalg.inv(box + jnp.eye(3) * 1e-36)
+        box_inv = jnp.linalg.inv(box)
         dr = ri - rj
         dr = v_pbc_shift(dr, box, box_inv)
         dr = jnp.linalg.norm(dr, axis=1)
@@ -89,7 +89,7 @@ def generate_pairwise_interaction(pair_int_kernel, static_args):
             # pair_params.append(param[pairs[:, 0]])
             # pair_params.append(param[pairs[:, 1]])
 
-        energy = jnp.sum(pair_int_kernel(dr, mscales, *pair_params) * buffer_scales)
+        energy = jnp.sum(pair_int_kernel(dr, mscales, *pair_params) * buffer_scales) 
         return energy
 
     return pair_int
@@ -155,7 +155,9 @@ def slater_disp_damping_kernel(dr, m, bi, bj, c6i, c6j, c8i, c8j, c10i, c10j):
 
 @vmap
 @jit_condition(static_argnums=())
-def slater_sr_kernel(dr, m, ai, aj, bi, bj):
+# with hardcore potential
+def slater_sr_hc_kernel(dr, m, ai, aj, bi, bj): 
+
     '''
     Slater-ISA type short range terms
     see jctc 12 3851
@@ -165,5 +167,30 @@ def slater_sr_kernel(dr, m, ai, aj, bi, bj):
     br = b * dr
     br2 = br * br
     P = 1/3 * br2 + br + 1 
-    return a * P * jnp.exp(-br) * m
 
+    alpha = 0.24
+    beta = 14
+    x = alpha * br
+    x2 = x * x
+    x4 = x2 * x2
+    x8 = x4 * x4
+    x12 = x4 * x8
+    x14 = x12 * x2
+    HardCorePotential = a / x14 * m 
+    return a * P * jnp.exp(-br) * m + HardCorePotential 
+
+@vmap
+@jit_condition(static_argnums=())
+def slater_sr_kernel(dr, m, ai, aj, bi, bj):
+
+    '''
+    Slater-ISA type short range terms
+    see jctc 12 3851
+    '''
+    b = jnp.sqrt(bi * bj)
+    a = ai * aj
+    br = b * dr
+    br2 = br * br
+    P = 1/3 * br2 + br + 1
+
+    return a * P * jnp.exp(-br) * m 
